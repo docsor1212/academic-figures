@@ -1,0 +1,29 @@
+{
+  "_chart_type": "venn",
+  "_command": "python3 scripts/gen_figure.py -t venn -d templates/venn.json -o venn.png",
+  "sets": {
+    "基因集A": [
+      "TP53",
+      "BRCA1",
+      "EGFR",
+      "MYC",
+      "KRAS",
+      "PTEN",
+      "NRAS"
+    ],
+    "基因集B": [
+      "TP53",
+      "EGFR",
+      "ALK",
+      "ROS1",
+      "MET"
+    ],
+    "基因集C": [
+      "TP53",
+      "MYC",
+      "ALK",
+      "NRAS",
+      "BRAF"
+    ]
+  }
+}
