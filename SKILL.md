@@ -1,23 +1,26 @@
 ---
 name: academic-figures
-version: 2.4.0
-date: 2026-09-11
+version: 2.5.0
+date: 2026-09-14
 author: docsor1212
 description: >
-  Stop redoing figures. One command renders publication-ready charts: 15 chart
+  Stop redoing figures. One command renders publication-ready charts: 21 chart
   types (bar, scatter, heatmap, forest, KM, ROC, violin, composite, PRISMA 2020
-  review flow...), 7 curated themes incl. colorblind-safe Okabe-Ito/GLM,
-  9 journal presets (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE + Chinese CMA
-  and CN-core with auto CJK), built-in PDF verification (text-overlap +
-  minimum font-size gates) that catches rejection-worthy flaws before you
-  export, a --suggest analyzer that picks the right chart type from your
-  data, --stats auto significance brackets, --alt accessibility text, Excel
-  (xlsx) input, and 10 scenario templates. 600dpi PNG/SVG/PDF/TIFF/EPS output,
-  100% local, data never leaves your machine. Triggers: make figure, generate
-  chart, plot data, bar chart, scatter plot, heatmap, forest plot, Kaplan-Meier,
-  ROC curve, survival curve, violin plot, composite figure, flow diagram,
-  PRISMA flow, systematic review, publication-ready figure, journal figure,
-  publication figure, hatching, colorblind-safe palette, 600dpi export.
+  review flow, funnel, Bland-Altman, PCA, paired, venn+Euler, cluster heatmap...),
+  9 curated themes incl. colorblind-safe Okabe-Ito/GLM plus NEJM/Lancet/Science
+  journal palettes, 9 journal presets (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE
+  + Chinese CMA and CN-core with auto CJK), reviewer-style --annotate arrows,
+  shared-legend control, built-in PDF verification (text-overlap + minimum
+  font-size gates) that catches rejection-worthy flaws before you export, a
+  --suggest analyzer that picks the right chart type from your data, --stats
+  auto significance brackets, --alt accessibility text, Excel (xlsx) input, and
+  16 scenario templates. 600dpi PNG/SVG/PDF/TIFF/EPS output, 100% local, data
+  never leaves your machine. Triggers: make figure, generate chart, plot data,
+  bar chart, scatter plot, heatmap, forest plot, Kaplan-Meier, ROC curve,
+  survival curve, violin plot, composite figure, flow diagram, PRISMA flow,
+  systematic review, publication-ready figure, journal figure, publication
+  figure, hatching, colorblind-safe palette, 600dpi export, annotate data point,
+  Euler diagram, venn diagram area.
 metadata:
   clawdbot:
     emoji: "📊"
@@ -174,7 +177,11 @@ plus a fix suggestion — no half-finished figures are ever written.
 | `classic` | Original matplotlib palette (pre-v2.0 default, kept for compatibility) | ❌ |
 | `nature` | NPG Nature journal palette | ❌ |
 | `lancet` | Lancet medical palette | ❌ |
+| `nejm` 🆕v2.5 | NEJM journal palette (brick red/steel blue/orange/green, 8 colors) | ❌ |
+| `science` 🆕v2.5 | Science (AAAS) journal palette (navy/red/green/purple, 10 colors) | ❌ |
 | `conservative` | Professional muted palette | ❌ |
+
+**Journal linkage (v2.5)**: `--journal nejm|lancet|science|nature` auto-applies the matching color theme when no explicit `--theme` is given (layout presets unchanged; explicit `--theme` always wins).
 
 ### Viewing & Choosing Themes (new in v2.0.1)
 
@@ -260,6 +267,36 @@ python3 scripts/gen_figure.py -t violin -d groups.json -o viol.pdf --stats auto 
   main plot. Needs `se_list` or symmetric CIs.
 - Library exceptions now carry Chinese explanations (e.g. KeyError → "缺少必需字段").
 
+## Submission Polish (v2.5)
+
+- **`--annotate "x,y:text"`** — reviewer-request tweaks on the exact data point:
+  arrow annotation at data coordinates, repeatable, with automatic declutter
+  (texts repel + spring back to anchor; arrows follow). Category axes accept
+  tick labels instead of numbers:
+  ```bash
+  python3 scripts/gen_figure.py -t scatter -d d.json -o f.png \
+      --annotate "3.2,5.1:p=0.01" --annotate "6.0,7.4:outlier"
+  python3 scripts/gen_figure.py -t bar -d d.json -o f.png --annotate "高剂量,4.2:显著上调"
+  ```
+  Coordinates must land inside the plotted range (or match a tick label);
+  otherwise the CLI exits 1 listing the valid ranges/labels.
+- **`--legend-loc LOC`** — explicit legend position (best/upper right/.../center);
+  **`--legend-outside`** — moves the legend outside the plot area; on composite
+  figures it merges all panels' legends into one shared figure legend
+  (duplicate entries deduped).
+- **venn `--area`** (Euler mode) — circles sized so areas match region counts
+  (default mode stays equal-circle with exact numbers). 2 sets: exact analytic
+  layout; 3 sets: least-squares fit of centers+radii (circles cannot realize
+  every region combination exactly — achieved fit is reported on stderr).
+  Region counts now also accept a dedicated `"regions"` key:
+  `{"regions": {"A": 30, "B": 25, "AB": 9}}` (2 sets, exactly 3 keys) or all
+  7 keys for 3 sets. (The numeric form of `"sets"` documented in v2.3 never
+  parsed — fixed in v2.5.)
+- **NEJM / Science color themes** — official-style palettes joining lancet;
+  `--journal nejm|science` auto-selects the matching theme (see Color Themes).
+- Library exception Chinese mapping expanded 9 → 18 (ParserError → "CSV 解析失败",
+  MemoryError → "数据规模超出可用内存", InvalidFileException → "不是有效的 xlsx", ...).
+
 ## Statistics Deep-Dive (v2.3)
 
 - **KM auto risk table + log-rank**: raw `[time, event]` data with >=2 groups now
@@ -274,8 +311,8 @@ python3 scripts/gen_figure.py -t violin -d groups.json -o viol.pdf --stats auto 
 - **New chart types**: `-t funnel` (Meta funnel, DL pooled line, `--egger`),
   `-t bland_altman` (LoA), `-t pca` (scores + group ellipses + top-5 loadings),
   `-t paired` (before-after lines + paired test), `-t venn` (2-3 sets, exact
-  region counts, not area-proportional), `-t cluster_heatmap` (Ward-reordered
-  matrix, <=3000 rows).
+  region counts; `--area` for area-proportional Euler mode), `-t cluster_heatmap`
+  (Ward-reordered matrix, <=3000 rows).
 
 ## Alt Text (--alt, v2.2)
 
@@ -460,6 +497,10 @@ See `references/data-formats.md` for complete schema per chart type.
 | `--column single\|double` | Column layout for `--journal` (default: double) |
 | `--verify` | Run pixel-level overlap verification on PDF output; exit 2 on overlaps |
 | `--suggest` | Analyze the data file and print ranked chart-type recommendations + a ready-to-run command |
+| `--annotate "x,y:text"` | Arrow annotation at data coords, repeatable; category axes accept tick labels (v2.5) |
+| `--legend-loc LOC` | Explicit legend position (nine-scheme, e.g. `lower right`) (v2.5) |
+| `--legend-outside` | Legend outside the plot; composite figures get one shared legend (v2.5) |
+| `--area` | venn only: area-proportional Euler mode (v2.5) |
 
 ## FAQ (v2.0.1)
 
@@ -564,6 +605,30 @@ academic-figures/
 
 ## Version History
 
+- **v2.5.0** (2026-09-14) — Submission polish:
+  - `--annotate "x,y:text"`: repeatable arrow annotations at data coordinates
+    (category axes accept tick labels), auto declutter, arrows track texts.
+  - NEJM + Science (AAAS) color themes; `--journal nejm|lancet|science|nature`
+    now auto-links the matching color theme (explicit `--theme` wins).
+  - venn `--area`: area-proportional Euler mode (2 sets analytic, 3 sets
+    least-squares fit of centers+radii with honest fit report); new `"regions"`
+    count input fixes the never-parseable numeric `"sets"` format from v2.3.
+  - `--legend-loc` + `--legend-outside` (composite figures merge to one shared
+    legend, duplicates removed).
+  - Library exception Chinese mapping 9 → 18; payload description now states
+    21 chart types / 9 themes (fixes stale "15 chart types" store summary).
+- **v2.4.0** (2026-09-13) — Meta analysis workstation:
+  - KM auto median survival + 95% CI (Greenwood log-log, lifelines-identical
+    on 20 randomized datasets) annotated in-plot; `--no-median` opts out.
+  - `forest --sensitivity`: leave-one-out DL re-pooling rendered under the main plot.
+  - Library exception Chinese explanations (9 entries) + FAQ (references/faq.md).
+  - CJK font enforcement mechanism: any CJK text found before render gets the
+    CJK font automatically (kills tofu blocks at the mechanism level).
+- **v2.3.0** (2026-09-12) — 6 new chart types (21 total): funnel (DL pooled line,
+  `--egger`), bland_altman, pca (grouping ellipses + loadings), paired
+  (paired-test brackets), venn (exact region counts), cluster_heatmap (Ward
+  reorder); `--batch` manifest rendering with report JSON; `--caption` sidecar;
+  vectorized KM (50k rows ≈ 3 s).
 - **v2.2.0** (2026-09-11) — Journal & workflow expansion:
   - Journal presets 2 → 9: added `science`, `cell`, `nejm`, `jama`, `ieee`, and
     Chinese presets `cma` (中华医学会系列) + `cn-core` (中文核心通用) with auto CJK.

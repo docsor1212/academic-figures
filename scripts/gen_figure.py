@@ -85,6 +85,28 @@ THEMES = {
         "spines": ["top", "right"],
         "colorblind_safe": False,
     },
+    # NEJM 官方风配色（ggsci nejm 色板，8 色）
+    "nejm": {
+        "figsize": (9, 6),
+        "dpi": 600,
+        "font_size": 8,
+        "colors": ["#BC3C29", "#0072B5", "#E18727", "#20854E", "#7876B1", "#6F99AD",
+                   "#FFDC91", "#EE4C97"],
+        "grid_alpha": 0.25,
+        "spines": ["top", "right"],
+        "colorblind_safe": False,
+    },
+    # Science（AAAS）官方风配色（ggsci aaas 色板，10 色）
+    "science": {
+        "figsize": (8, 5.5),
+        "dpi": 600,
+        "font_size": 7,
+        "colors": ["#3B4992", "#EE0000", "#008B45", "#631879", "#008280", "#BB0021",
+                   "#5F559B", "#A20056", "#808180", "#1B1919"],
+        "grid_alpha": 0.2,
+        "spines": ["top", "right"],
+        "colorblind_safe": False,
+    },
     "conservative": {
         "figsize": (9, 5.5),
         "dpi": 600,
@@ -146,6 +168,8 @@ THEME_ALIASES = {
     "cool": "cool", "cool-toned": "cool",
     "nature": "nature", "npg": "nature",
     "lancet": "lancet", "the-lancet": "lancet",
+    "nejm": "nejm", "new-england": "nejm", "new-england-journal": "nejm",
+    "science": "science", "aaas": "science",
     "conservative": "conservative", "conserv": "conservative",
 }
 
@@ -155,11 +179,14 @@ THEME_SWATCH_DESCRIPTIONS = {
     "okabe-ito": "Nature Methods 金标准 · 色盲安全 · 橙/天蓝/绿/黄/深蓝/红",
     "nature": "NPG 期刊风 · 红/蓝/绿/藏蓝",
     "lancet": "The Lancet 期刊风 · 深蓝/红/绿",
+    "nejm": "NEJM 期刊风 · 砖红/钢蓝/橙/绿（8 色）",
+    "science": "Science（AAAS）期刊风 · 藏蓝/红/绿/紫（10 色）",
     "conservative": "保守学术 · 蓝灰为主",
     "cool": "冷色调 · 深海军蓝→浅钢蓝 8 阶 · 色盲安全",
 }
 
-THEME_ORDER = ["glm", "classic", "okabe-ito", "nature", "lancet", "conservative", "cool"]
+THEME_ORDER = ["glm", "classic", "okabe-ito", "nature", "lancet", "nejm", "science",
+               "conservative", "cool"]
 
 
 def resolve_theme(name):
@@ -206,7 +233,8 @@ CHART_NOTES = {
     "paired": "paired: 配对前后图；JSON before/after 或 series 恰好两项（等长）；"
               "--stats auto 加配对检验（配对 t / Wilcoxon 符号秩）括号星号。",
     "venn": "venn: 韦恩图（2~3 集合）；JSON sets 为元素列表（自动求交并）或全部区域计数；"
-            "等圆示意，区域数字精确，不按面积比例。",
+            "默认等圆示意、区域数字精确；--area 按计数比例绘制（Euler，2 集合解析解/"
+            "3 集合最优拟合）。",
     "cluster_heatmap": "cluster_heatmap: 聚类热图；数据格式同 heatmap（matrix），行列按 Ward 层次"
                        "聚类重排（顺序写入 stderr/alt）；行数上限 3000；v2.3 暂不含树状图面板。",
 }
@@ -423,6 +451,10 @@ JOURNAL_PRESETS = {
                 "font_size": 9, "min_text_size": 6, "font_family": "Arial", "dpi": 300,
                 "cjk_default": True},
 }
+
+# v2.5：期刊预设 → 配色主题联动（用户显式给 --theme 时不覆盖）
+JOURNAL_THEME = {"nature": "nature", "lancet": "lancet",
+                 "nejm": "nejm", "science": "science"}
 
 # Hatching patterns for bar charts (print-friendly + accessibility)
 # ALL series get hatching when --hatch is enabled (including the first).
@@ -3052,6 +3084,16 @@ _EXC_ZH = {
     "UnicodeDecodeError": "文件编码不是 UTF-8/ASCII（请转存为 UTF-8）",
     "TypeError": "数据类型不匹配",
     "IndexError": "数据行/列数量不足",
+    # v2.5 扩充：底层库常见异常中文化（评估 R 处方——英文异常名仍保留在括号内可搜索）
+    "MemoryError": "数据规模超出可用内存（请减小数据量或分批处理）",
+    "OverflowError": "数值溢出（数据量级过大或含极端值）",
+    "ZeroDivisionError": "出现除零（数据退化：全为常数或完全相同）",
+    "ParserError": "CSV/表格解析失败（行列数不齐或格式错乱）",
+    "InvalidFileException": "不是有效的 xlsx 文件（或已损坏）",
+    "AttributeError": "数据结构与该图型要求不符",
+    "ModuleNotFoundError": "缺少依赖库（按提示 pip install 即可）",
+    "IsADirectoryError": "给的是目录路径，需要的是文件",
+    "StopIteration": "数据为空或已耗尽（检查文件内容是否为空）",
 }
 
 
@@ -3060,6 +3102,194 @@ def _zh_exception(e: BaseException) -> str:
     name = type(e).__name__
     head = _EXC_ZH.get(name, f"{name}")
     return f"{head}（{name}: {e}）"
+
+
+# ── 投稿精修（v2.5 --annotate / --legend-loc / --legend-outside）──────
+
+_LEGEND_LOCS = {"best", "upper right", "upper left", "lower left", "lower right",
+                "right", "center left", "center right", "lower center",
+                "upper center", "center"}
+
+
+def _parse_annotations(items):
+    """解析 --annotate "x,y:文字" 列表 → [(x, y, 文字, 原串)]；语法错误即报 ValueError。"""
+    out = []
+    for raw in items or []:
+        s = str(raw)
+        if ":" not in s:
+            raise ValueError(f'--annotate 语法为 "x,y:文字"（缺少冒号）：{raw}')
+        coord, text = s.split(":", 1)
+        parts = coord.split(",")
+        if len(parts) != 2 or not parts[0].strip() or not parts[1].strip():
+            raise ValueError(f'--annotate 坐标需为 "x,y"（数字或类别刻度标签）：{raw}')
+        text = text.strip()
+        if not text:
+            raise ValueError(f"--annotate 注释文字不能为空：{raw}")
+        out.append((parts[0].strip(), parts[1].strip(), text, s))
+    return out
+
+
+def _resolve_coord(axes, value, which):
+    """注释坐标解析：数字直接用；非数字在类别轴刻度标签里查（返回刻度位置）。失败 None。"""
+    s = str(value).strip()
+    try:
+        return float(s)
+    except ValueError:
+        pass
+    if which == "x":
+        labels, ticks = axes.get_xticklabels(), axes.get_xticks()
+    else:
+        labels, ticks = axes.get_yticklabels(), axes.get_yticks()
+    for i, t in enumerate(labels):
+        if t.get_text().strip() == s:
+            try:
+                return float(ticks[i])
+            except (TypeError, ValueError, IndexError):
+                return None
+    return None
+
+
+def _apply_annotations(fig, anns, theme, cjk_fp):
+    """在主数据轴上放置箭头注释（审稿改稿刚需）。返回（可能新启用的）cjk_fp。
+
+    - 目标轴选择：取"能解析全部注释坐标且坐标在轴范围内"的轴中数据元素最多者
+      （km 双轴自动优先主图而非风险表；组合图自动选中对应面板）
+    - 文字初始位：锚点黄金角环绕；复用 _declutter_texts 防重叠（引导线关闭，
+      对应关系由 FancyArrowPatch 箭头承担，文字移动后箭头起点跟随重设）
+    """
+    if not anns:
+        return cjk_fp
+    import math as _m
+    import matplotlib.patches as _mpatches
+
+    def _try_axes(a):
+        resolved = []
+        x0, x1 = a.get_xlim()
+        y0, y1 = a.get_ylim()
+        for xs, ys, _t, _raw in anns:
+            px = _resolve_coord(a, xs, "x")
+            py = _resolve_coord(a, ys, "y")
+            if px is None or py is None:
+                return None
+            if not (x0 - 0.02 * abs(x1 - x0) <= px <= x1 + 0.02 * abs(x1 - x0)):
+                return None
+            if not (y0 - 0.02 * abs(y1 - y0) <= py <= y1 + 0.02 * abs(y1 - y0)):
+                return None
+            resolved.append((px, py))
+        return resolved
+
+    def _data_score(a):
+        # 曲线/散点/图像是主图特征；纯矩形（km 风险表条块）权重压低
+        return (len(a.lines) * 10 + len(a.collections) * 10 + len(a.images) * 10
+                + len(a.containers) * 5 + len(a.patches))
+
+    target, resolved = None, None
+    for a in sorted(fig.axes, key=_data_score, reverse=True):
+        r = _try_axes(a)
+        if r is not None:
+            target, resolved = a, r
+            break
+    if target is None:
+        a = fig.axes[0] if fig.axes else None
+        detail = ""
+        if a is not None:
+            xl = [t.get_text() for t in a.get_xticklabels() if t.get_text()][:8]
+            x0, x1 = a.get_xlim()
+            y0, y1 = a.get_ylim()
+            detail = (f"（x 轴范围 {x0:.4g}~{x1:.4g}"
+                      + (f"，类别刻度: {','.join(xl)}" if xl else "")
+                      + f"；y 轴范围 {y0:.4g}~{y1:.4g}）")
+        print(f"ERROR: --annotate 无法定位坐标，请确认落在图表数据范围内{detail}",
+              file=sys.stderr)
+        sys.exit(1)
+
+    # 注释含中文但 cjk_fp 未启用：提前补字体（declutter 中途 draw 不能出现度量失真）
+    if cjk_fp is None and any(has_cjk(t) for _x, _y, t, _r in anns):
+        try:
+            cjk_fp, cjk_name = load_cjk_font(None)
+            if cjk_fp:
+                plt.rcParams['font.sans-serif'] = [cjk_name, 'DejaVu Sans'] \
+                    + plt.rcParams['font.sans-serif']
+                plt.rcParams['axes.unicode_minus'] = False
+                print(f"自动补启用中文字体: {cjk_name}（--annotate 含中文）", file=sys.stderr)
+        except Exception:
+            pass
+
+    x0, x1 = target.get_xlim()
+    y0, y1 = target.get_ylim()
+    span = min(abs(x1 - x0), abs(y1 - y0)) or 1.0
+    fs = theme["font_size"]
+    texts, arrows, anchors = [], [], []
+    for k, ((px, py), (_xs, _ys, txt, _raw)) in enumerate(zip(resolved, anns)):
+        ang = 2.399 * k
+        ox, oy = span * 0.07 * _m.cos(ang), span * 0.07 * _m.sin(ang)
+        t = target.text(px + ox, py + oy, txt, fontsize=fs, ha="center", va="center",
+                        color="#333333", zorder=8,
+                        fontproperties=cjk_fp if cjk_fp and has_cjk(txt) else None)
+        arr = _mpatches.FancyArrowPatch((px + ox, py + oy), (px, py),
+                                        arrowstyle="-|>", mutation_scale=fs * 0.9,
+                                        color="#555555", linewidth=0.9,
+                                        shrinkA=fs * 0.55, shrinkB=1.5, zorder=7)
+        target.add_patch(arr)
+        texts.append(t)
+        arrows.append(arr)
+        anchors.append((px, py))
+    # 复用散点标签防重叠（引导线阈值放大→不画，箭头已承担对应关系）
+    if _afcharts is not None and len(texts) >= 2:
+        _afcharts._declutter_texts(target, texts, anchors, leader_min_frac=10.0)
+    for arr, t, (ax_, ay_) in zip(arrows, texts, anchors):
+        tx, ty = t.get_position()
+        arr.set_positions((tx, ty), (ax_, ay_))
+    return cjk_fp
+
+
+def _apply_legend_control(fig, loc=None, outside=False, theme=None, cjk_fp=None):
+    """--legend-loc / --legend-outside：重定位既有图例（原位重建，保留标题/列数）。
+
+    - ≥2 个轴带图例 + outside：合并为全图共享图例（右侧，同名图例项去重）
+    - 单图例：outside 移到轴右侧；否则按 loc 九宫格重摆
+    """
+    if not loc and not outside:
+        return
+    entries = []
+    for a in fig.axes:
+        hs, ls = a.get_legend_handles_labels()
+        leg = a.get_legend()
+        title = leg.get_title().get_text() if leg is not None else ""
+        ncols = getattr(leg, "_ncols", None) or getattr(leg, "_ncol", None) or 1
+        if leg is not None:
+            leg.remove()
+        if hs:
+            entries.append((a, hs, ls, title, int(ncols)))
+    if not entries:
+        print("WARNING: 图中本无图例（--legend-loc/--legend-outside 未生效）",
+              file=sys.stderr)
+        return
+    fs = (theme or {}).get("font_size", 10) - 1
+    if outside and len(entries) >= 2:
+        seen, hs_all, ls_all = set(), [], []
+        for _a, hs, ls, _t, _n in entries:
+            for h, l in zip(hs, ls):
+                if l not in seen:
+                    seen.add(l)
+                    hs_all.append(h)
+                    ls_all.append(l)
+        fig.legend(hs_all, ls_all, loc="center left", bbox_to_anchor=(1.0, 0.5),
+                   framealpha=0.9, fontsize=fs, prop=cjk_fp if cjk_fp else None)
+        print(f"已合并 {len(entries)} 个面板的图例为全图共享图例（右侧）", file=sys.stderr)
+        return
+    for a, hs, ls, title, ncols in entries:
+        kw = {}
+        if title:
+            kw["title"] = title
+        if ncols > 1:
+            kw["ncols"] = ncols
+        if outside:
+            a.legend(hs, ls, loc="center left", bbox_to_anchor=(1.02, 0.5),
+                     framealpha=0.9, fontsize=fs, prop=cjk_fp if cjk_fp else None, **kw)
+        else:
+            a.legend(hs, ls, loc=loc, framealpha=0.9, fontsize=fs,
+                     prop=cjk_fp if cjk_fp else None, **kw)
 
 
 # ── Batch（v2.3 --batch）───────────────────────────────────────────────
@@ -3085,15 +3315,19 @@ def cmd_batch(manifest_path):
                 "-t", str(item["type"]), "-d", str(item["data"]), "-o", str(item["out"])]
         for key, flag in (("title", "--title"), ("xlabel", "--xlabel"), ("ylabel", "--ylabel"),
                           ("theme", "--theme"), ("journal", "--journal"), ("column", "--column"),
-                          ("stats", "--stats"), ("sheet", "--sheet"), ("risk_times", "--risk-times")):
+                          ("stats", "--stats"), ("sheet", "--sheet"), ("risk_times", "--risk-times"),
+                          ("legend_loc", "--legend-loc")):
             if item.get(key):
                 argv.extend([flag, str(item[key])])
         for key, flag in (("alt", "--alt"), ("caption", "--caption"), ("egger", "--egger"),
                           ("compare", "--compare"), ("cjk", "--cjk"), ("hatch", "--hatch"),
                           ("show_values", "--show-values"), ("no_legend", "--no-legend"),
-                          ("no_risk_table", "--no-risk-table")):
+                          ("no_risk_table", "--no-risk-table"), ("area", "--area"),
+                          ("legend_outside", "--legend-outside")):
             if item.get(key):
                 argv.append(flag)
+        for ann in (item.get("annotate") or []):
+            argv.extend(["--annotate", str(ann)])
         for key, flag in (("dpi", "--dpi"), ("width", "--width"), ("height", "--height")):
             if item.get(key):
                 argv.extend([flag, str(item[key])])
@@ -3134,7 +3368,7 @@ def main():
     parser.add_argument("--title", default="", help="图标题")
     parser.add_argument("--xlabel", default="", help="x 轴标签")
     parser.add_argument("--ylabel", default="", help="y 轴标签")
-    parser.add_argument("--theme", default="glm",
+    parser.add_argument("--theme", default=None,
                         help="配色主题（默认 glm；--list-themes 查看全部）")
     parser.add_argument("--style", default=None, choices=["glm-hatch"],
                         help="快捷风格：'glm-hatch' = GLM 黄蓝斜线风（theme glm + --hatch）")
@@ -3187,6 +3421,16 @@ def main():
                         help="roc：配对 DeLong 检验比较 >=2 个模型 AUC（需 labels + 各曲线 scores 原始分数）")
     parser.add_argument("--egger", action="store_true",
                         help="funnel：绘制 Egger 回归线并报告漏斗不对称检验")
+    parser.add_argument("--area", action="store_true",
+                        help="venn：按区域计数比例绘制（Euler 图），替代默认等圆示意")
+    parser.add_argument("--annotate", action="append", default=None, metavar='"X,Y:文字"',
+                        help="在数据坐标处加箭头注释，可重复使用；类别轴可用刻度标签"
+                             "定位（如 --annotate \"3.2,5.1:p=0.01\" 或 \"对照组:显著上调\"）")
+    parser.add_argument("--legend-loc", default=None, metavar="LOC",
+                        help="图例位置：best/upper right/upper left/lower left/lower "
+                             "right/right/center left/center right/center 等九宫格")
+    parser.add_argument("--legend-outside", dest="legend_outside", action="store_true",
+                        help="图例移到绘图区外侧；组合图自动合并为全图共享图例（右侧）")
     parser.add_argument("--no-risk-table", dest="no_risk_table", action="store_true",
                         help="km：关闭自动风险表（默认开启，位于主图下方）")
     def _risk_times_arg(v):
@@ -3255,10 +3499,33 @@ def main():
         args.theme = "glm"
         args.hatch = True
 
+    if getattr(args, "area", False) and args.type != "venn":
+        print("ERROR: --area 仅用于 venn（--type venn）。等圆模式为默认，无需参数。",
+              file=sys.stderr)
+        sys.exit(1)
+    if getattr(args, "legend_loc", None):
+        _loc = " ".join(args.legend_loc.strip().lower().replace("_", " ")
+                        .replace("-", " ").split())
+        if _loc not in _LEGEND_LOCS:
+            print(f"ERROR: 未知图例位置 '{args.legend_loc}'。可用: best, upper right, "
+                  "upper left, lower left, lower right, right, center left, "
+                  "center right, lower center, upper center, center", file=sys.stderr)
+            sys.exit(1)
+        args.legend_loc = _loc
+    try:
+        annotations = _parse_annotations(args.annotate)
+    except ValueError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
+
     theme_key = resolve_theme(args.theme)
     if not theme_key:
         print(f"ERROR: 未知主题 '{args.theme}'。运行 --list-themes 查看全部配色。", file=sys.stderr)
         sys.exit(1)
+    if args.journal and args.theme is None and args.journal in JOURNAL_THEME:
+        # v2.5 联动：--journal 期刊预设自动套同款配色（显式 --theme 优先）
+        theme_key = JOURNAL_THEME[args.journal]
+        print(f"配色已联动 {theme_key} 主题（显式 --theme 可覆盖）", file=sys.stderr)
     args.theme = theme_key
     theme = THEMES[theme_key]
     if args.journal:
@@ -3378,6 +3645,7 @@ def main():
         "sensitivity": getattr(args, "sensitivity", False),
         "median_auto": not getattr(args, "no_median", False),
         "egger": getattr(args, "egger", False),
+        "area_mode": getattr(args, "area", False),
         "risk_table": km_risk,
         "risk_axes": risk_axes if km_risk else None,
         "risk_times": getattr(args, "risk_times", None),
@@ -3428,6 +3696,14 @@ def main():
         audit_msg = legend_audit(ax, args.type, args.no_legend, n_series)
         if audit_msg:
             print(f"WARNING: {audit_msg}", file=sys.stderr)
+
+    # ── v2.5 投稿精修：注释与图例控制（置于 CJK 兜底前，新文本一并被兜底覆盖；
+    #    组合图/流程图等自管类型同样生效）──
+    if annotations:
+        cjk_fp = _apply_annotations(fig, annotations, theme, cjk_fp)
+    if getattr(args, "legend_loc", None) or getattr(args, "legend_outside", False):
+        _apply_legend_control(fig, loc=args.legend_loc, outside=args.legend_outside,
+                              theme=theme, cjk_fp=cjk_fp)
 
     # ── 机制级兜底（必须在一切 draw 前：tight_layout/防重叠/savefig 都会渲染文本）──
     # 两层防护：①调用点忘传 fontproperties ②用户数据无中文但引擎自动生成中文标注

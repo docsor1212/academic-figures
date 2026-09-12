@@ -33,6 +33,9 @@
 | `--show-ratio` / `--ratio-base` | grouped_bar | 静默忽略 |
 | `--lang zh` | prisma（中文标准措辞版） | 静默忽略 |
 | `--horizontal` | bar（等同 hbar） | — |
+| `--annotate "x,y:文字"` | 所有图型（组合图自动选面板） | 坐标越界/类别不匹配 → 中文报错 exit 1 |
+| `--legend-loc` / `--legend-outside` | 有图例的图型；组合图 outside=共享图例 | 无图例时 stderr 提示未生效 |
+| `--area` | 仅 venn | 其他图型 → 中文报错 exit 1 |
 
 ## 三、参数组合的注意事项
 
@@ -42,6 +45,9 @@
 - `--verify` 仅对 PDF 输出有意义（像素级文字重叠检查，发现重叠退出码 2）。
 - `--demo` 不需要 `--data`；`--suggest` 需要 `--data`。
 - 组合图（composite）的 panels 子图支持除 composite/diagram 外的所有图型；**面板内不能再嵌套 composite**。
+- `--journal nejm|lancet|science|nature` 未显式给 `--theme` 时自动联动同款配色；显式 `--theme` 优先。
+- venn `--area`：2 集合精确；3 集合为最优拟合（圆无法精确实现任意 7 区域面积），拟合偏差在
+  stderr 如实报告；0 计数区域无面积、图中省略数字（stderr 说明）。
 
 ## 四、输出格式边界
 

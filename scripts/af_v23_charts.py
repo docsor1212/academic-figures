@@ -451,19 +451,272 @@ def gen_paired(data, ax, theme, cjk_fp, **kwargs):
 
 # ── venn 韦恩图 ───────────────────────────────────────────────────────
 
-def gen_venn(data, ax, theme, cjk_fp, **kwargs):
-    """韦恩图（2~3 集合，等圆示意，不按面积比例——数字精确标注）。
+# ── venn 面积比例（Euler）几何求解 ────────────────────────────────────
 
-    数据: {"sets": {"A": [元素...], "B": [...], "C": [...]}}（列表自动求交并）
-          或区域计数 {"sets": {"A": 30, "B": 25, "AB": 9, "ABC": 3, ...}}。
+def _circle_overlap_area(d, r1, r2):
+    """两圆交集面积（d=圆心距）。d>=r1+r2 → 0；d<=|r1-r2| → 较小圆全面积。"""
+    import math as _m
+    if d >= r1 + r2:
+        return 0.0
+    r_min = min(r1, r2)
+    if d <= abs(r1 - r2):
+        return _m.pi * r_min * r_min
+    a1 = r1 * r1 * _m.acos((d * d + r1 * r1 - r2 * r2) / (2 * d * r1))
+    a2 = r2 * r2 * _m.acos((d * d + r2 * r2 - r1 * r1) / (2 * d * r2))
+    a3 = 0.5 * _m.sqrt(max(0.0, (-d + r1 + r2) * (d + r1 - r2)
+                                * (d - r1 + r2) * (d + r1 + r2)))
+    return a1 + a2 - a3
+
+
+_R_MIN = 0.04  # 空集/极小集合仍可辨识的最小视觉半径（0-1 归一坐标）
+
+
+def _fit_into_unit(centers, radii, margin=0.16):
+    """把布局（任意单位）平移缩放到 [0,1]² 内切（留 margin 给集合名标签）。
+    返回 (centers, radii, affine)，affine=(cx, cy, s) 供质心同批换算。"""
+    xs = [c[0] for c in centers]
+    ys = [c[1] for c in centers]
+    x0, x1 = min(xs) - max(radii), max(xs) + max(radii)
+    y0, y1 = min(ys) - max(radii), max(ys) + max(radii)
+    span = max(x1 - x0, y1 - y0) or 1.0
+    s = (1.0 - 2 * margin) / span
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    out_c = [((c[0] - cx) * s + 0.5, (c[1] - cy) * s + 0.5) for c in centers]
+    return out_c, [r * s for r in radii], (cx, cy, s)
+
+
+def _venn2_geometry(n1, n2, inter):
+    """2 集合 Euler 布局（解析解）。n1=|A\\B|, n2=|B\\A|, inter=|A∩B|（计数）。
+
+    返回 (centers, radii, notes)：notes 为需 stderr 提示的异常布局说明列表。"""
+    import math as _m
+    from scipy.optimize import brentq
+    t1, t2 = n1 + inter, n2 + inter
+    if inter > t1 or inter > t2:
+        raise ValueError("venn --area: 区域计数不自洽——交集计数不能大于任一集合的总数"
+                         f"（当前交={inter}，两集合总={t1}/{t2}）")
+    notes = []
+    if t1 <= 0 and t2 <= 0:
+        return [(0.40, 0.50), (0.60, 0.50)], [_R_MIN, _R_MIN], ["两个集合均为空"]
+    r1 = _m.sqrt(t1 / _m.pi) if t1 > 0 else None
+    r2 = _m.sqrt(t2 / _m.pi) if t2 > 0 else None
+    if inter <= 0:
+        # 不相交（或单侧为空）：留 12% 间隙并列
+        if t1 <= 0:
+            notes.append("集合 A 为空（图中以最小圆示意）")
+        if t2 <= 0:
+            notes.append("集合 B 为空（图中以最小圆示意）")
+        rr1 = max(r1 if t1 > 0 else 0.0, 0.0)
+        rr2 = max(r2 if t2 > 0 else 0.0, 0.0)
+        d = (rr1 + rr2) * 1.12
+        centers, radii, _aff = _fit_into_unit([(-d / 2, 0.0), (d / 2, 0.0)], [rr1, rr2])
+        return centers, radii, notes
+    if n1 <= 0 and n2 <= 0:
+        # 两集合完全相同：同心微偏，仍能看出两层边
+        r = _m.sqrt(t1 / _m.pi)
+        centers, radii, _aff = _fit_into_unit([(0.0, 0.0), (0.0, 0.0)], [r, r])
+        radii[1] = radii[0] * 0.985
+        notes.append("两集合元素完全相同（同心绘制）")
+        return centers, radii, notes
+    if n1 <= 0 or n2 <= 0:
+        # 单侧包含：A ⊆ B（或反向），内切
+        if n1 <= 0:
+            r_in, r_out = r1, r2
+        else:
+            r_in, r_out = r2, r1
+        d = r_out - r_in
+        centers, radii, _aff = _fit_into_unit([(0.0, 0.0), (d, 0.0)], [r_out, r_in])
+        if n1 <= 0:
+            centers = centers[::-1]
+            radii = radii[::-1]
+        notes.append("子集关系：小集合完全包含于大集合")
+        return centers, radii, notes
+    # 常规：半径固定，brentq 解圆心距 d 使交集面积=inter（面积单位=计数）
+    lo, hi = abs(r1 - r2) * (1 + 1e-9), (r1 + r2) * (1 - 1e-9)
+    f = lambda d: _circle_overlap_area(d, r1, r2) - inter
+    if f(lo) < 0:      # inter 达到包含上限（计数不自洽的边界）
+        d = lo
+    elif f(hi) > 0:    # inter 小于相切下限（几乎不相交）
+        d = hi
+    else:
+        d = brentq(f, lo, hi, xtol=1e-10, rtol=1e-12)
+    centers, radii, _aff = _fit_into_unit([(0.0, 0.0), (d, 0.0)], [r1, r2])
+    return centers, radii, notes
+
+
+def _venn_region_masks(centers, radii, box, res):
+    """网格化各区域（2 或 3 圆），返回 (area dict, centroid dict, cell_area)。
+    box=(x0,y0,x1,y1)；area 以坐标面积为单位；centroid 为数据坐标（空区域为 None）。
+    键：单集 "1"/"2"[/"3"]、两两 "12"…、三集 "123"。"""
+    xs = np.linspace(box[0], box[2], res)
+    ys = np.linspace(box[1], box[3], res)
+    X, Y = np.meshgrid(xs, ys)
+    cell = (box[2] - box[0]) * (box[3] - box[1]) / (res * res)
+    ins = [(X - c[0]) ** 2 + (Y - c[1]) ** 2 <= r * r for c, r in zip(centers, radii)]
+    if len(ins) == 2:
+        a, b = ins
+        masks = {"1": a & ~b, "2": b & ~a, "12": a & b}
+    else:
+        a, b, c = ins
+        masks = {"1": a & ~b & ~c, "2": b & ~a & ~c, "3": c & ~a & ~b,
+                 "12": a & b & ~c, "13": a & c & ~b, "23": b & c & ~a,
+                 "123": a & b & c}
+    areas, cents = {}, {}
+    for k, m in masks.items():
+        n = int(m.sum())
+        areas[k] = n * cell
+        cents[k] = (float(X[m].mean()), float(Y[m].mean())) if n else None
+    return areas, cents, cell
+
+
+def _triple_overlap_area(c1, c2, c3, r1, r2, r3, n=2048):
+    """三圆交集面积：竖弦长 1D 积分（凸集 → 截面交集=交集截面，无网格噪声）。
+    L(x) = max(0, min(上弦) − max(下弦))，逐圆弦在圆外时长度取 0。"""
+    cxs = (c1[0], c2[0], c3[0])
+    cys = (c1[1], c2[1], c3[1])
+    rs = (r1, r2, r3)
+    x0 = max(cx - r for cx, r in zip(cxs, rs))
+    x1 = min(cx + r for cx, r in zip(cxs, rs))
+    if x1 <= x0:
+        return 0.0
+    xs = np.linspace(x0, x1, n)
+    los, his = [], []
+    for cx, cy, r in zip(cxs, cys, rs):
+        dx2 = np.clip(r * r - (xs - cx) ** 2, 0.0, None)
+        s = np.sqrt(dx2)
+        los.append(cy - s)
+        his.append(cy + s)
+    lower = np.maximum.reduce(los)
+    upper = np.minimum.reduce(his)
+    L = np.clip(upper - lower, 0.0, None)
+    return float(np.sum((L[1:] + L[:-1]) * 0.5 * np.diff(xs)))
+
+
+def _venn3_geometry(regions, keys):
+    """3 集合 Euler 布局：半径由集合总数定，圆心按区域计数拟合。
+
+    目标函数 6/7 项解析（成对交集闭式解 + 容斥单集），仅三集合项用小网格，
+    避免纯网格分段常数导致的 trust-region 早停；初值=成对解析解三角布置。
+    regions 键：k1/k2/k3/k1k2/k1k3/k2k3/k1k2k3（计数）。
+    返回 (centers, radii, fit)；fit 含 max_rel_err（非零区域最大面积相对偏差）。
+    """
+    import math as _m
+    from scipy.optimize import least_squares, brentq
+    k1, k2, k3 = keys
+    idx = {k1: "1", k2: "2", k3: "3", k1 + k2: "12", k1 + k3: "13",
+           k2 + k3: "23", k1 + k2 + k3: "123"}
+    target = {v: float(regions[k]) for k, v in idx.items()}
+    totals = [target["1"] + target["12"] + target["13"] + target["123"],
+              target["2"] + target["12"] + target["23"] + target["123"],
+              target["3"] + target["13"] + target["23"] + target["123"]]
+    radii_ideal = [_m.sqrt(t / _m.pi) if t > 0 else 1e-3 for t in totals]
+
+    def _pair_d(i, j, ov):
+        """解析解两圆心距使交集面积=ov；不可行时夹到边界。"""
+        ri, rj = radii_ideal[i], radii_ideal[j]
+        lo, hi = abs(ri - rj) * (1 + 1e-9), (ri + rj) * (1 - 1e-9)
+        f = lambda d: _circle_overlap_area(d, ri, rj) - ov
+        if ov <= 0:
+            return hi + (ri + rj) * 0.12
+        if f(lo) < 0:
+            return lo
+        if f(hi) > 0:
+            return hi
+        return brentq(f, lo, hi, xtol=1e-10, rtol=1e-12)
+
+    # 初值：成对交集 = 两两区域 + 三集合，解析求三个圆心距 → 三角布置
+    d12 = _pair_d(0, 1, target["12"] + target["123"])
+    d13 = _pair_d(0, 2, target["13"] + target["123"])
+    d23 = _pair_d(1, 2, target["23"] + target["123"])
+
+    def regions_from_centers(centers, radii):
+        c1, c2, c3 = centers
+        ov12 = _circle_overlap_area(_m.hypot(c1[0] - c2[0], c1[1] - c2[1]),
+                                    radii[0], radii[1])
+        ov13 = _circle_overlap_area(_m.hypot(c1[0] - c3[0], c1[1] - c3[1]),
+                                    radii[0], radii[2])
+        ov23 = _circle_overlap_area(_m.hypot(c2[0] - c3[0], c2[1] - c3[1]),
+                                    radii[1], radii[2])
+        tri = _triple_overlap_area(c1, c2, c3, radii[0], radii[1], radii[2])
+        only1 = _m.pi * radii[0] ** 2 - ov12 - ov13 + tri
+        only2 = _m.pi * radii[1] ** 2 - ov12 - ov23 + tri
+        only3 = _m.pi * radii[2] ** 2 - ov13 - ov23 + tri
+        return [only1, only2, only3, ov12 - tri, ov13 - tri, ov23 - tri, tri]
+
+    # 圆心 + 半径联合拟合（venneuler 思路）：固定半径的圆无法精确实现任意
+    # 7 区域面积（数学上常无解），放开半径 + 锚定惩罚项可把误差压到低个位数 %
+    _rad_w = 0.35
+
+    def residuals(p):
+        centers = [(p[0], p[1]), (p[2], p[3]), (p[4], p[5])]
+        radii = [p[6], p[7], p[8]]
+        got = regions_from_centers(centers, radii)
+        res = [(g - t) / max(t, 1.0)
+               for g, t in zip(got, target.values())]
+        res += [_rad_w * (r - ri) / ri
+                for r, ri in zip(radii, radii_ideal)]
+        return res
+
+    # 多起点（成对解析三角布置 / 嵌套堆叠 / 等边对称），各自两段精修，取代价最小者
+    r_max0 = max(radii_ideal)
+    cos_a = (d12 * d12 + d13 * d13 - d23 * d23) / (2 * d12 * d13)
+    cos_a = max(-1.0, min(1.0, cos_a))
+    tri_pt = (d13 * cos_a, d13 * _m.sqrt(max(0.0, 1.0 - cos_a * cos_a)))
+    inits = [
+        np.array([0.0, 0.0, d12, 0.0, tri_pt[0], tri_pt[1], *radii_ideal]),
+        np.array([0.0, 0.0, 0.25 * radii_ideal[0], 0.0,
+                  0.1 * radii_ideal[0], 0.2 * radii_ideal[1], *radii_ideal]),
+        np.array([-1.1 * r_max0, 0.6 * r_max0, 1.1 * r_max0, 0.6 * r_max0,
+                  0.0, -0.8 * r_max0, *radii_ideal]),
+    ]
+    lo = np.array([-np.inf] * 6 + [0.02 * r for r in radii_ideal])
+    best = None
+    for x0 in inits:
+        sol = least_squares(residuals, x0, bounds=(lo, np.inf), diff_step=1e-3,
+                            xtol=1e-14, ftol=1e-14, max_nfev=1200)
+        sol = least_squares(residuals, sol.x, bounds=(lo, np.inf), diff_step=1e-4,
+                            xtol=1e-15, ftol=1e-15, max_nfev=1200)
+        if best is None or sol.cost < best.cost:
+            best = sol
+    sol = best
+    centers = [(sol.x[0], sol.x[1]), (sol.x[2], sol.x[3]), (sol.x[4], sol.x[5])]
+    radii = [float(sol.x[6]), float(sol.x[7]), float(sol.x[8])]
+    # 精细网格硬面积复算（报告 + 质心），与目标函数解耦
+    all_r = max(radii)
+    xs = [c[0] for c in centers]
+    ys = [c[1] for c in centers]
+    box = (min(xs) - all_r - 1.0, min(ys) - all_r - 1.0,
+           max(xs) + all_r + 1.0, max(ys) + all_r + 1.0)
+    areas, cents, _cell = _venn_region_masks(centers, radii, box, 500)
+    nz = [abs(areas[k] - target[k]) / target[k] for k in target if target[k] > 0]
+    max_rel = max(nz) if nz else 0.0
+    centers_u, radii_u, (cx, cy, s) = _fit_into_unit(centers, radii)
+    cents_u = {k: (None if v is None else ((v[0] - cx) * s + 0.5, (v[1] - cy) * s + 0.5))
+               for k, v in cents.items()}
+    fit = {"max_rel_err": max_rel, "centroids": cents_u}
+    return centers_u, radii_u, fit
+
+
+def gen_venn(data, ax, theme, cjk_fp, **kwargs):
+    """韦恩图（2~3 集合）。默认等圆示意、区域数字精确；--area 开面积比例
+    （Euler）模式：圆的大小与交集面积按区域计数比例（2 集合解析解，
+    3 集合圆心+半径联合最优拟合）。
+
+    数据两种格式（二选一）:
+      {"sets": {"A": [元素...], "B": [...]}} —— 元素列表，自动求交并（2~3 集合）
+      {"regions": {"A": 30, "B": 25, "AB": 9}} —— 全部区域计数：
+        2 集合恰 3 键 {A, B, A+B}；3 集合恰 7 键 {A,B,C,A+B,A+C,B+C,A+B+C}。
+        （v2.3 的数字型 sets 因键数歧义从未可用，v2.5 起以独立键 'regions' 修复）
     """
     import matplotlib.patches as mpatches
     sets = data.get("sets", None)
-    if not isinstance(sets, dict) or len(sets) not in (2, 3):
-        raise ValueError("venn: 'sets' 需为 2~3 个集合的字典")
-    keys = [str(k) for k in sets.keys()]
-    sample = sets[keys[0]]
-    if isinstance(sample, (list, tuple, set)):
+    regs = data.get("regions", None)
+    keys = None
+    if isinstance(sets, dict) and 2 <= len(sets) <= 3 and all(
+            isinstance(v, (list, tuple, set)) for v in sets.values()):
+        if regs is not None:
+            raise ValueError("venn: 'sets' 与 'regions' 只能二选一")
+        keys = [str(k) for k in sets.keys()]
         ss = {k: set(sets[k]) for k in keys}
         regions = {}
         if len(keys) == 2:
@@ -478,57 +731,149 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
                        keys[0] + keys[2]: len((A & C) - B),
                        keys[1] + keys[2]: len((B & C) - A),
                        keys[0] + keys[1] + keys[2]: len(A & B & C)}
-    else:
-        regions = {}
-        for k in keys:
-            v = sets[k]
+    elif isinstance(sets, dict):
+        raise ValueError("venn: 'sets' 需为 2~3 个集合、值为元素列表的字典；"
+                         "区域计数请改用 'regions' 键")
+    elif isinstance(regs, dict):
+        all_keys = [str(k) for k in regs.keys()]
+        for k in all_keys:
+            v = regs[k]
             if not isinstance(v, (int, float)) or v < 0:
                 raise ValueError(f"venn: 区域 '{k}' 需为非负数字（元素个数）")
-            regions[k] = int(v)
-        if len(keys) == 2:
-            need = {keys[0], keys[1], keys[0] + keys[1]}
-        else:
-            need = {keys[0], keys[1], keys[2], keys[0]+keys[1], keys[0]+keys[2],
-                    keys[1]+keys[2], keys[0]+keys[1]+keys[2]}
-        missing = [r for r in need if r not in regions]
-        if missing:
-            raise ValueError(f"venn: 缺少区域计数 {missing}——请提供全部交并区域（无交集填 0）")
-        for r, v in regions.items():
-            if not isinstance(v, (int, float)) or v < 0:
-                raise ValueError(f"venn: 区域 '{r}' 需为非负数字")
-        regions = {r: int(v) for r, v in regions.items()}
+        found = None
+        if len(all_keys) == 3:
+            for a in all_keys:
+                for b in all_keys:
+                    if a == b:
+                        continue
+                    if {a, b, a + b} == set(all_keys):
+                        found = [a, b]  # 集合名只有两个，第三个键是交集计数
+                        break
+                if found:
+                    break
+        elif len(all_keys) == 7:
+            for a in all_keys:
+                for b in all_keys:
+                    for c in all_keys:
+                        if a == b or b == c or a == c:
+                            continue
+                        need = {a, b, c, a + b, a + c, b + c, a + b + c}
+                        if need == set(all_keys):
+                            found = [a, b, c]
+        if not found:
+            raise ValueError("venn: 'regions' 键名不构成合法区域集——2 集合需恰 "
+                             "{A, B, A+B} 三键；3 集合需恰 {A,B,C,A+B,A+C,B+C,"
+                             "A+B+C} 七键（当前: " + ",".join(all_keys) + "）")
+        keys = found
+        regions = {r: int(regs[r]) for r in all_keys}
+    else:
+        raise ValueError("venn: 需要 'sets'（元素列表字典）或 'regions'（区域计数）")
+
+    def _fallback_pos(region, keys, centers):
+        parts = [keys.index(k) for k in keys if k in region] or [0]
+        n = len(parts)
+        return (sum(centers[i][0] for i in parts) / n,
+                sum(centers[i][1] for i in parts) / n)
 
     colors = theme["colors"][:len(keys)]
-    if len(keys) == 2:
-        centers = [(0.62, 0.5), (0.38, 0.5)]
-        r = 0.27
-        # 区域标签绝对坐标（与圆心几何对应）
-        k1, k2 = keys
-        label_xy = {k1: (0.76, 0.5), k2: (0.24, 0.5), k1 + k2: (0.5, 0.5)}
-    else:
-        centers = [(0.60, 0.62), (0.40, 0.62), (0.50, 0.40)]
-        r = 0.235
-        k1, k2, k3 = keys
-        label_xy = {k1: (0.745, 0.64), k2: (0.255, 0.64), k3: (0.50, 0.245),
-                    k1 + k2: (0.50, 0.705), k1 + k3: (0.585, 0.462),
-                    k2 + k3: (0.415, 0.462), k1 + k2 + k3: (0.50, 0.535)}
+    fs = theme["font_size"] + 2
+    area_mode = bool(kwargs.get("area_mode"))
     ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_aspect("equal"); ax.axis("off")
-    label_pos = [(-0.24, 0.16), (0.24, 0.16), (0.0, -0.26)] if len(keys) == 3 \
-        else [(-0.24, 0.0), (0.24, 0.0)]
-    for i, k in enumerate(keys):
-        cx, cy = centers[i]
-        ax.add_patch(mpatches.Circle((cx, cy), r, facecolor=colors[i],
-                                     edgecolor="#333333", linewidth=1.4,
-                                     alpha=0.42, zorder=2))
-        lx, ly = label_pos[i]
-        ax.annotate(k, (cx + lx * 1.15, cy + ly * 1.15), fontsize=theme["font_size"] + 2,
-                    fontweight="bold", ha="center", va="center",
-                    fontproperties=_fp(cjk_fp, k), color="#333333", zorder=5)
-    for region, cnt in regions.items():
-        lx, ly = label_xy[region]
-        ax.annotate(str(cnt), (lx, ly), fontsize=theme["font_size"] + 2,
-                    ha="center", va="center", fontweight="bold", color="#333333",
-                    zorder=6)
+
+    if area_mode:
+        # ── Euler 面积比例模式：圆的大小与交集面积按计数比例 ──
+        import math as _m
+        if len(keys) == 2:
+            k1, k2 = keys
+            centers, radii, vnotes = _venn2_geometry(regions[k1], regions[k2],
+                                                     regions[k1 + k2])
+            all_r = max(radii)
+            xs = [c[0] for c in centers]
+            ys = [c[1] for c in centers]
+            box = (min(xs) - all_r - 0.05, min(ys) - all_r - 0.05,
+                   max(xs) + all_r + 0.05, max(ys) + all_r + 0.05)
+            areas, cents, _cell = _venn_region_masks(centers, radii, box, 900)
+            cent_by_key = {k1: cents["1"], k2: cents["2"], k1 + k2: cents["12"]}
+            fit_err = None
+        else:
+            k1, k2, k3 = keys
+            centers, radii, fit = _venn3_geometry(regions, keys)
+            idx = {k1: "1", k2: "2", k3: "3", k1 + k2: "12", k1 + k3: "13",
+                   k2 + k3: "23", k1 + k2 + k3: "123"}
+            cent_by_key = {rk: fit["centroids"][mk] for rk, mk in idx.items()}
+            fit_err = fit["max_rel_err"]
+            vnotes = []
+        for msg in vnotes:
+            _warn(f"venn --area: {msg}")
+        if fit_err is not None:
+            if fit_err <= 0.05:
+                print(f"venn --area: 面积比例拟合完成（最大区域面积偏差 {fit_err*100:.1f}%）",
+                      file=sys.stderr)
+            else:
+                _warn(f"venn --area: 区域计数在几何上难以完全按比例呈现，已取最优拟合"
+                      f"（最大面积偏差 {fit_err*100:.1f}%）；区域数字仍为精确计数")
+        for i, k in enumerate(keys):
+            cx, cy = centers[i]
+            r_draw = max(radii[i], 0.012)
+            ax.add_patch(mpatches.Circle((cx, cy), r_draw, facecolor=colors[i],
+                                         edgecolor="#333333", linewidth=1.4,
+                                         alpha=0.42, zorder=2))
+        # 集合名：沿 圆心→图心 反向推到圆外（角度逐个微错开防同心/子集情形相撞）
+        for i, k in enumerate(keys):
+            cx, cy = centers[i]
+            r_draw = max(radii[i], 0.012)
+            dx, dy = cx - 0.5, cy - 0.5
+            norm = _m.hypot(dx, dy) or 1.0
+            ang = _m.atan2(dy / norm, dx / norm) + i * 0.25
+            lx = cx + _m.cos(ang) * (r_draw + 0.10)
+            ly = cy + _m.sin(ang) * (r_draw + 0.10)
+            ax.annotate(k, (lx, ly), fontsize=fs, fontweight="bold",
+                        ha="center", va="center",
+                        fontproperties=_fp(cjk_fp, k), color="#333333", zorder=5)
+        # 区域计数：放网格质心（视觉中心即数学中心）
+        zero_regions = [r for r, v in regions.items() if v <= 0]
+        for region, cnt in regions.items():
+            if cnt <= 0:
+                continue
+            pos = cent_by_key.get(region)
+            if pos is None:
+                pos = _fallback_pos(region, keys, centers)
+                _warn(f"venn --area: 区域 '{region}' 面积过小，计数标注在近似位置")
+            ax.annotate(str(cnt), pos, fontsize=fs, ha="center", va="center",
+                        fontweight="bold", color="#333333", zorder=6)
+        if zero_regions:
+            _warn(f"venn --area: 区域 {zero_regions} 计数为 0，无对应面积，图中省略数字")
+    else:
+        # ── 等圆示意模式（默认）：区域数字精确，面积不按比例 ──
+        if len(keys) == 2:
+            centers = [(0.62, 0.5), (0.38, 0.5)]
+            r = 0.27
+            # 区域标签绝对坐标（与圆心几何对应）
+            k1, k2 = keys
+            label_xy = {k1: (0.76, 0.5), k2: (0.24, 0.5), k1 + k2: (0.5, 0.5)}
+        else:
+            centers = [(0.60, 0.62), (0.40, 0.62), (0.50, 0.40)]
+            r = 0.235
+            k1, k2, k3 = keys
+            label_xy = {k1: (0.745, 0.64), k2: (0.255, 0.64), k3: (0.50, 0.245),
+                        k1 + k2: (0.50, 0.705), k1 + k3: (0.585, 0.462),
+                        k2 + k3: (0.415, 0.462), k1 + k2 + k3: (0.50, 0.535)}
+        label_pos = [(-0.24, 0.16), (0.24, 0.16), (0.0, -0.26)] if len(keys) == 3 \
+            else [(-0.24, 0.0), (0.24, 0.0)]
+        for i, k in enumerate(keys):
+            cx, cy = centers[i]
+            ax.add_patch(mpatches.Circle((cx, cy), r, facecolor=colors[i],
+                                         edgecolor="#333333", linewidth=1.4,
+                                         alpha=0.42, zorder=2))
+            lx, ly = label_pos[i]
+            ax.annotate(k, (cx + lx * 1.15, cy + ly * 1.15), fontsize=fs,
+                        fontweight="bold", ha="center", va="center",
+                        fontproperties=_fp(cjk_fp, k), color="#333333", zorder=5)
+        for region, cnt in regions.items():
+            lx, ly = label_xy[region]
+            ax.annotate(str(cnt), (lx, ly), fontsize=fs,
+                        ha="center", va="center", fontweight="bold", color="#333333",
+                        zorder=6)
     total = sum(regions.values())
     ax.set_title(f"n = {total}") if not data.get("title") else None
     return None
@@ -662,8 +1007,13 @@ def validate_extra(chart_type, data):
             fatal.append("paired: 需要 'before'+'after' 或 'series' 恰好两项")
     elif chart_type == "venn":
         s = data.get("sets")
-        if not isinstance(s, dict) or len(s) not in (2, 3):
-            fatal.append("venn: 'sets' 需为 2~3 个集合的字典")
+        rg = data.get("regions")
+        ok_sets = (isinstance(s, dict) and 2 <= len(s) <= 3 and not rg
+                   and all(isinstance(v, (list, tuple, set)) for v in s.values()))
+        ok_regs = isinstance(rg, dict) and len(rg) in (3, 7) and not s
+        if not (ok_sets or ok_regs):
+            fatal.append("venn: 需要 'sets'（2~3 个集合，值为元素列表）或 'regions'"
+                         "（区域计数：2 集合恰 {A,B,A+B} 三键 / 3 集合恰 7 键）")
     elif chart_type == "cluster_heatmap":
         m = data.get("matrix", data.get("data", data.get("values")))
         if m is None:

@@ -1586,5 +1586,243 @@ class TestV230Features(unittest.TestCase):
             self.assertIn("漏斗图", f.read())
 
 
+class TestV250SubmissionPolish(unittest.TestCase):
+    """v2.5.0 投稿精修：--annotate / 期刊配色主题 / venn --area / 图例控制。"""
+
+    def _run(self, chart_type, data, extra=(), name="v250"):
+        data_path = os.path.join(tempfile.gettempdir(), f"v250_{name}.json")
+        with open(data_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False)
+        out = os.path.join(tempfile.gettempdir(), f"v250_{name}.png")
+        if os.path.exists(out):
+            os.remove(out)
+        cmd = [sys.executable, GEN, "-t", chart_type, "-d", data_path, "-o", out,
+               "--dpi", "110"] + list(extra)
+        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        return proc, out
+
+    # ── 期刊配色主题 ──
+
+    def test_v250_theme_nejm_science_registered(self):
+        import gen_figure as gf
+        self.assertEqual(gf.resolve_theme("nejm"), "nejm")
+        self.assertEqual(gf.resolve_theme("new-england"), "nejm")
+        self.assertEqual(gf.resolve_theme("science"), "science")
+        self.assertEqual(gf.resolve_theme("aaas"), "science")
+        for t in ("nejm", "science"):
+            self.assertIn(t, gf.THEMES)
+            self.assertIn(t, gf.THEME_ORDER)
+            self.assertIn(t, gf.THEME_SWATCH_DESCRIPTIONS)
+        self.assertEqual(len(gf.THEMES["nejm"]["colors"]), 8)
+        self.assertEqual(len(gf.THEMES["science"]["colors"]), 10)
+
+    def test_v250_theme_science_smoke(self):
+        proc, out = self._run("bar", SAMPLE["bar"], ["--theme", "science"], "sci")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(os.path.exists(out))
+
+    def test_v250_journal_theme_linkage(self):
+        # --journal nejm 且未显式给 --theme → 自动联动 nejm 配色
+        proc, _ = self._run("scatter", SAMPLE["scatter"], ["--journal", "nejm"], "link")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertIn("配色已联动 nejm", proc.stderr)
+        # 显式 --theme 优先，不联动
+        proc2, _ = self._run("scatter", SAMPLE["scatter"],
+                             ["--journal", "nejm", "--theme", "glm"], "link2")
+        self.assertEqual(proc2.returncode, 0, proc2.stderr)
+        self.assertNotIn("配色已联动", proc2.stderr)
+
+    # ── --annotate ──
+
+    def test_v250_annotate_cli_scatter(self):
+        data = {"x": [1, 2, 3, 4, 5], "y": [2, 4, 3.5, 5, 4.8],
+                "groups": ["a", "a", "b", "b", "b"]}
+        proc, out = self._run("scatter", data,
+                              ["--annotate", "3,3.5:拐点", "--annotate", "5,4.8:峰值",
+                               "--cjk"], "ann")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(os.path.exists(out))
+        self.assertNotIn("ERROR", proc.stderr)
+
+    def test_v250_annotate_bad_syntax_rejected(self):
+        data = SAMPLE["scatter"]
+        proc, _ = self._run("scatter", data, ["--annotate", "3,3.5"], "ann_bad1")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("annotate", proc.stderr)
+        self.assertIn("语法", proc.stderr)
+        proc2, _ = self._run("scatter", data, ["--annotate", "3,3.5:"], "ann_bad2")
+        self.assertNotEqual(proc2.returncode, 0)
+        self.assertIn("文字不能为空", proc2.stderr)
+
+    def test_v250_annotate_category_axis_bar(self):
+        data = {"labels": ["对照组", "低剂量", "高剂量"], "series": {"表达量": [1.0, 2.5, 4.2]}}
+        proc, out = self._run("bar", data,
+                              ["--annotate", "高剂量,4.2:显著上调", "--cjk"], "ann_bar")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(os.path.exists(out))
+        # 未知道类别 → 中文报错
+        proc2, _ = self._run("bar", data, ["--annotate", "不存在组,1:高", "--cjk"], "ann_bar2")
+        self.assertNotEqual(proc2.returncode, 0)
+        self.assertIn("无法定位坐标", proc2.stderr)
+
+    def test_v250_annotate_zero_overlap_and_arrows_follow(self):
+        """回归锁（审稿注释）：同点三注释 declutter 后零重叠，箭头终点锚回数据点。"""
+        import gen_figure as gf
+        fig, ax = plt.subplots(figsize=(8, 5.5))
+        data = {"x": [1, 2, 3, 4], "y": [3, 3, 3, 3]}
+        gen = gf.GENERATORS["scatter"]
+        gen(data, ax, gf.THEMES["glm"], None)
+        anns = gf._parse_annotations(["2.5,3:注释甲", "2.5,3:注释乙", "2.5,3:注释丙"])
+        gf._apply_annotations(fig, anns, gf.THEMES["glm"], None)
+        gf.fix_tick_overlaps(fig)
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        bbs = [t.get_window_extent(renderer) for t in ax.texts if t.get_text()]
+        n_over = sum(1 for i in range(len(bbs)) for j in range(i + 1, len(bbs))
+                     if bbs[i].overlaps(bbs[j]))
+        self.assertEqual(n_over, 0, "注释文字仍有重叠")
+        arrows = [p for p in ax.patches if type(p).__name__ == "FancyArrowPatch"]
+        self.assertEqual(len(arrows), 3, "应有 3 条注释箭头")
+        for arr in arrows:
+            if hasattr(arr, "get_positions"):
+                _pa, pb = arr.get_positions()
+            else:
+                _pa, pb = arr._posA_posB
+            # 注释坐标 (2.5, 3)：箭头终点必须精确锚定在请求的坐标上
+            self.assertAlmostEqual(pb[0], 2.5, places=9, msg="箭头终点 x 未锚定")
+            self.assertAlmostEqual(pb[1], 3.0, places=9, msg="箭头终点 y 未锚定")
+
+    # ── 图例控制 ──
+
+    def test_v250_legend_loc_applied(self):
+        import gen_figure as gf
+        fig, ax = plt.subplots(figsize=(8, 5))
+        data = {"labels": ["t0", "t1", "t2"], "series": {"S1": [1, 2, 3], "S2": [3, 2.5, 2]}}
+        gen = gf.GENERATORS["line"]
+        gen(data, ax, gf.THEMES["glm"], None)
+        ax.legend()
+        gf._apply_legend_control(fig, loc="lower right", theme=gf.THEMES["glm"])
+        leg = ax.get_legend()
+        self.assertIsNotNone(leg)
+        self.assertEqual(int(leg._loc), 4)  # lower right 的 loc 代码
+
+    def test_v250_legend_loc_invalid_rejected(self):
+        proc, _ = self._run("line", SAMPLE["line"], ["--legend-loc", "top-left"], "legbad")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("未知图例位置", proc.stderr)
+
+    def test_v250_legend_outside_composite_shared(self):
+        """回归锁：组合图 --legend-outside 合并为全图共享图例（去重）。"""
+        import gen_figure as gf
+        fig, ax = plt.subplots(figsize=(10, 4))
+        data = {"layout": [1, 2], "panels": [
+            {"type": "bar", "data": {"labels": ["A", "B"], "series": {"S1": [1, 2], "S2": [2, 1]}},
+             "title": "Panel A", "pos": [0, 0]},
+            {"type": "line", "data": {"labels": ["t0", "t1"], "series": {"S1": [1, 2], "S2": [2, 1]}},
+             "title": "Panel B", "pos": [0, 1]}]}
+        gen = gf.GENERATORS["composite"]
+        extra = gen(data, ax, gf.THEMES["glm"], None)
+        self.assertEqual(extra, "composite")
+        panel_legs = [a for a in fig.axes if a.get_legend() is not None]
+        self.assertGreaterEqual(len(panel_legs), 2)
+        gf._apply_legend_control(fig, loc=None, outside=True, theme=gf.THEMES["glm"])
+        self.assertEqual(len(list(fig.legends)), 1, "应有唯一全图共享图例")
+        remaining = [a for a in fig.axes if a.get_legend() is not None]
+        self.assertEqual(len(remaining), 0, "面板图例应已移除")
+        labels = [t.get_text() for t in fig.legends[0].get_texts()]
+        self.assertEqual(sorted(labels), ["S1", "S2"], "共享图例应去重为 S1/S2")
+
+    # ── venn --area（Euler）──
+
+    def test_v250_venn2_area_geometry_exact(self):
+        import math
+        import gen_figure as gf
+        import af_v23_charts as ac
+        n1, n2, inter = 40, 60, 30
+        centers, radii, _notes = ac._venn2_geometry(n1, n2, inter)
+        d = math.hypot(centers[0][0] - centers[1][0], centers[0][1] - centers[1][1])
+        a1 = math.pi * radii[0] ** 2
+        a2 = math.pi * radii[1] ** 2
+        ov = ac._circle_overlap_area(d, radii[0], radii[1])
+        # 缩放不破坏比例：三个比值必须全等
+        self.assertAlmostEqual(a1 / (n1 + inter), a2 / (n2 + inter), places=12)
+        self.assertAlmostEqual(ov / inter, a1 / (n1 + inter), places=12)
+        # 子集：内切 d = r_out - r_in
+        c2, r2, notes2 = ac._venn2_geometry(0, 60, 30)
+        self.assertAlmostEqual(abs(c2[0][0] - c2[1][0]), abs(r2[0] - r2[1]), places=9)
+        # 不相交：d >= r1 + r2
+        c3, r3, _ = ac._venn2_geometry(50, 50, 0)
+        d3 = math.hypot(c3[0][0] - c3[1][0], c3[0][1] - c3[1][1])
+        self.assertGreaterEqual(d3, r3[0] + r3[1] - 1e-9)
+        # 完全相同：同心 + 说明
+        c4, _r4, notes4 = ac._venn2_geometry(0, 0, 50)
+        self.assertAlmostEqual(c4[0][0], c4[1][0], places=9)
+        self.assertTrue(any("相同" in s for s in notes4))
+
+    def test_v250_venn3_area_fit(self):
+        import af_v23_charts as ac
+        regions = {"A": 100, "B": 80, "C": 60, "AB": 30, "AC": 20, "BC": 15, "ABC": 8}
+        _c, _r, fit = ac._venn3_geometry(regions, ("A", "B", "C"))
+        self.assertLessEqual(fit["max_rel_err"], 0.15,
+                             f"常规三集合拟合偏差过大: {fit['max_rel_err']:.3f}")
+        # 三集合互不相交 → 应近乎精确
+        regions0 = {"A": 30, "B": 30, "C": 30, "AB": 0, "AC": 0, "BC": 0, "ABC": 0}
+        _c0, _r0, fit0 = ac._venn3_geometry(regions0, ("A", "B", "C"))
+        self.assertLessEqual(fit0["max_rel_err"], 0.02)
+
+    def test_v250_venn_area_cli_and_regions_format(self):
+        # regions 计数格式（v2.3 的数字 sets 从未可用，v2.5 修复）
+        data3 = {"regions": {"A": 100, "B": 80, "C": 60, "AB": 30, "AC": 20,
+                             "BC": 15, "ABC": 8}}
+        proc, out = self._run("venn", data3, ["--area"], "v3area")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(os.path.exists(out))
+        self.assertIn("面积", proc.stderr)
+        # 元素列表 + --area
+        data2 = {"sets": {"A": list(range(40)) + [f"x{i}" for i in range(30)],
+                          "B": list(range(100, 160)) + [f"x{i}" for i in range(30)]}}
+        proc2, out2 = self._run("venn", data2, ["--area"], "v2area")
+        self.assertEqual(proc2.returncode, 0, proc2.stderr)
+        self.assertTrue(os.path.exists(out2))
+        # 非法 regions 键名 → 中文报错
+        bad = {"regions": {"X": 1, "Y": 2, "Z": 3}}
+        proc3, _ = self._run("venn", bad, [], "vbad")
+        self.assertNotEqual(proc3.returncode, 0)
+        self.assertIn("regions", proc3.stderr)
+        # sets + regions 同时给 → 报错（validate 层提示两种格式的正确用法）
+        proc4, _ = self._run("venn", {"sets": {"A": [1], "B": [2]},
+                                      "regions": {"A": 1, "B": 1, "AB": 0}}, [], "vboth")
+        self.assertNotEqual(proc4.returncode, 0)
+        self.assertIn("venn", proc4.stderr)
+
+    def test_v250_area_flag_venn_only(self):
+        proc, _ = self._run("bar", SAMPLE["bar"], ["--area"], "areabad")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("--area 仅用于 venn", proc.stderr)
+
+    # ── 异常映射扩充 ──
+
+    def test_v250_exc_map_expanded(self):
+        import gen_figure as gf
+        try:
+            import pandas as pd
+        except ImportError:
+            pd = None
+        cases = [(MemoryError(), "内存"), (ZeroDivisionError(), "除零"),
+                 (AttributeError(), "结构")]
+        if pd is not None:
+            cases.append((pd.errors.ParserError("bad csv"), "解析"))
+        try:
+            from openpyxl.utils.exceptions import InvalidFileException
+            cases.append((InvalidFileException("bad xlsx"), "xlsx"))
+        except ImportError:
+            pass
+        self.assertGreaterEqual(len(cases), 3, "核心异常映射用例不足")
+        for exc, keyword in cases:
+            msg = gf._zh_exception(exc)
+            self.assertIn(keyword, msg, f"{type(exc).__name__} 映射缺中文释义")
+            self.assertIn(type(exc).__name__, msg, "应保留英文类名便于搜索")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

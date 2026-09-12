@@ -13,7 +13,7 @@ and first-class Chinese support.
 > | | |
 > |---|---|
 > | **License** | MIT-0 (no attribution required) |
-> | **Status** | v2.4.0 · 153 tests passing |
+> | **Status** | v2.5.0 · 168 tests passing |
 > | **Data privacy** | 100% local. Your data never leaves the machine. |
 
 ---
@@ -99,7 +99,7 @@ Available on skill registries:
 ## Tests
 
 ```bash
-python3 tests/run_tests.py    # 153 regression tests, stdlib unittest only
+python3 tests/run_tests.py    # 168 regression tests, stdlib unittest only
 ```
 
 Statistics implementations are cross-validated against reference libraries

@@ -1,19 +1,21 @@
 ---
 name: academic-figures
-version: 2.4.0
-date: 2026-09-11
+version: 2.5.0
+date: 2026-09-14
 author: docsor1212
 lang: zh
 description: >
   Academic-figures 论文配图一键生成（publication-ready figures）：别再为返工改图发愁。一条命令生成顶刊级论文配图：
   21种图表（柱状/散点/热力/森林/KM/ROC/
-  小提琴/组合/流程/PRISMA系统综述流程图…）、7套配色（含Okabe-Ito色盲安全）、
+  小提琴/组合/流程/PRISMA系统综述流程图/漏斗/BA图/PCA/韦恩+Euler…）、9套配色（含Okabe-Ito色盲安全
+  与 NEJM/Lancet/Science 期刊色板）、审稿改稿刚需的 --annotate 箭头注释、
   Nature/Lancet期刊预设，内置PDF文字重叠+最小字号双重门禁，导出前自动拦截拒稿级
   缺陷，--suggest 还能根据你的数据自动推荐该用哪种图。600dpi出版级输出
   PNG/SVG/PDF/TIFF/EPS，纯本地运行，数据不出机。中文零配置，告别乱码。
   触发词：论文配图、学术绘图、科研绘图、科研示意图、论文插图、画图、柱状图、
   热力图、散点图、森林图、KM生存曲线、ROC、小提琴图、组合图、流程图、
-  PRISMA流程图、系统综述、SCI配图、数据可视化、期刊配图、色盲安全。
+  PRISMA流程图、系统综述、SCI配图、数据可视化、期刊配图、色盲安全、
+  韦恩图、欧拉图、数据点注释、图例位置。
 metadata:
   clawdbot:
     emoji: "📊"
@@ -25,7 +27,7 @@ requires:
 
 # Academic Figures — 论文配图一键生成工具
 
-> 📊 **21种图表 · 7套配色（含色盲安全） · 零配置中文 · 600dpi出版级输出 · PDF/TIFF/SVG全支持 · PRISMA流程图**
+> 📊 **21种图表 · 9套配色（含色盲安全+期刊色板） · 零配置中文 · 600dpi出版级输出 · PDF/TIFF/SVG全支持 · PRISMA流程图**
 > 纯本地运行 · 数据不出本机 · Python一条命令搞定 · 内置校验+验证门禁
 
 **一条命令，输出即验证：**
@@ -161,7 +163,11 @@ python3 scripts/gen_legend.py -d data.json -t "治疗应答" -f 1 -o legend.txt
 | `classic` | 经典 matplotlib 色板（v2.0 前的旧默认，兼容保留） | ❌ |
 | `nature` | NPG Nature期刊配色 | ❌ |
 | `lancet` | Lancet医学配色 | ❌ |
+| `nejm` 🆕v2.5 | NEJM期刊配色（砖红/钢蓝/橙/绿，8色） | ❌ |
+| `science` 🆕v2.5 | Science（AAAS）期刊配色（藏蓝/红/绿/紫，10色） | ❌ |
 | `conservative` | 保守学术配色 | ❌ |
+
+**期刊联动（v2.5）**：`--journal nejm|lancet|science|nature` 在未显式给 `--theme` 时自动套用同款配色主题（版式预设照旧；显式 `--theme` 永远优先）。
 
 ### 查看与选择配色（v2.0.1 新增）
 
@@ -222,6 +228,28 @@ python3 scripts/audit_pdf.py nat.pdf --min-size 5
 # OK: no text below 5pt in nat.pdf
 ```
 
+## 投稿精修（v2.5）
+
+- **`--annotate "x,y:文字"`**——审稿改稿第一刚需：在数据坐标处画箭头注释，可重复使用；
+  文字自动防重叠（互斥+锚点回弹，箭头跟随）。类别轴可直接写刻度标签：
+  ```bash
+  python3 scripts/gen_figure.py -t scatter -d d.json -o f.png \
+      --annotate "3.2,5.1:p=0.01" --annotate "6.0,7.4:离群点"
+  python3 scripts/gen_figure.py -t bar -d d.json -o f.png --annotate "高剂量,4.2:显著上调"
+  ```
+  坐标须落在图内数据范围（或匹配刻度标签），否则 exit 1 并列出可用范围/标签。
+- **`--legend-loc 位置`**——图例九宫格定位（best/upper right/…/center）；
+  **`--legend-outside`**——图例移到绘图区外侧；组合图自动合并为全图共享图例（同名去重）。
+- **venn `--area`**（Euler 面积比例模式）——圆的大小与交集面积按区域计数比例
+  （默认仍为等圆示意+精确数字）。2 集合解析解精确；3 集合圆心+半径联合最优拟合
+  （圆无法精确实现任意区域组合，实际拟合偏差在 stderr 如实报告）。
+  区域计数也可用独立键：`{"regions": {"A": 30, "B": 25, "AB": 9}}`（2 集合恰 3 键，
+  3 集合恰 7 键）。（v2.3 文档承诺的数字型 `"sets"` 从未可用，v2.5 修复。）
+- **NEJM / Science 配色主题**——与 lancet 并列的官方风色板；
+  `--journal nejm|science` 自动联动同款配色（见配色方案）。
+- 库异常中文映射 9 → 18 条（ParserError→"CSV 解析失败"、MemoryError→"数据规模超出
+  可用内存"、InvalidFileException→"不是有效的 xlsx" 等）。
+
 ## 统计深水区（v2.3）
 
 - **KM 自动风险表 + 自动 log-rank**：原始 `[时间, 事件]` 数据且 >=2 组时，自动在图下渲染
@@ -234,7 +262,7 @@ python3 scripts/audit_pdf.py nat.pdf --min-size 5
 - **ROC `--compare`**：>=2 个模型 AUC 的配对 DeLong 检验（需 labels + 各曲线原始 scores）。
 - **新图型**：`-t funnel`（Meta 漏斗，DL 合并线，`--egger` 不对称检验）、`-t bland_altman`
   （一致性界值）、`-t pca`（得分+分组椭圆+载荷 top5）、`-t paired`（配对前后线+配对检验）、
-  `-t venn`（2~3 集合精确区域计数，不按面积比例）、`-t cluster_heatmap`（Ward 聚类重排，行数上限 3000）。
+  `-t venn`（2~3 集合精确区域计数；`--area` 面积比例 Euler 模式）、`-t cluster_heatmap`（Ward 聚类重排，行数上限 3000）。
 - **`--batch figures.json`** 批量出图（逐项独立进程，输出 .batch-report.json 汇总）；
   **`--caption`** 生成中英双语期刊式图注（<输出名>.caption.txt）。
 - 极端输入统一友好报错（中文提示+修正建议，绝不裸 traceback）；写出失败自动重试一次。
@@ -363,6 +391,10 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig.png --cjk
 | `--journal nature\|lancet` | 应用期刊预设（栏宽/字号/DPI，见上） |
 | `--column single\|double` | `--journal` 的栏位布局（默认双栏） |
 | `--verify` | 对PDF输出做像素级重叠验证，发现重叠 exit 2 |
+| `--annotate "x,y:文字"` | 数据坐标箭头注释，可重复；类别轴支持刻度标签定位（v2.5） |
+| `--legend-loc LOC` | 图例九宫格定位（如 `lower right`）（v2.5） |
+| `--legend-outside` | 图例移到绘图区外侧；组合图合并为共享图例（v2.5） |
+| `--area` | 仅 venn：面积比例 Euler 模式（v2.5） |
 
 ## 常见问题 FAQ（v2.0.1）
 
@@ -495,6 +527,11 @@ academic-figures/
 
 ## 版本历史
 
+- **v2.5.0** (2026-09-14) — 投稿精修：`--annotate "x,y:文字"` 数据坐标箭头注释（类别轴支持标签定位，
+  自动防重叠+箭头跟随）；NEJM/Science 期刊配色主题 + `--journal` 自动联动配色；
+  venn `--area` 面积比例 Euler 模式（2 集合解析解/3 集合最优拟合，拟合偏差如实报告）+
+  `regions` 区域计数键（修复 v2.3 数字型 sets 从未可用的缺陷）；`--legend-loc`/`--legend-outside`
+  （组合图合并共享图例）；库异常中文映射 9→18；发布描述更正为 21 图表/9 配色（修复"15 chart types"旧文案）。
 - **v2.4.0** (2026-09-12) — Meta 分析工作站：KM 自动中位生存（95%CI，与 lifelines 全等对拍）图内标注；
   forest --sensitivity 留一法敏感性分析（自动画在同一图下方）；库异常中文名映射；常见问题 FAQ。
 - **v2.3.0** (2026-09-11) — 统计深水区：KM 自动风险表+log-rank、--stats multi（Tukey/Dunn+Hochberg）、
