@@ -1,29 +1,34 @@
 ---
 name: academic-figures
-version: 2.5.0
-date: 2026-09-14
-author: docsor1212
-lang: zh
-description: >
-  Academic-figures 论文配图一键生成（publication-ready figures）：别再为返工改图发愁。一条命令生成顶刊级论文配图：
-  21种图表（柱状/散点/热力/森林/KM/ROC/
-  小提琴/组合/流程/PRISMA系统综述流程图/漏斗/BA图/PCA/韦恩+Euler…）、9套配色（含Okabe-Ito色盲安全
-  与 NEJM/Lancet/Science 期刊色板）、审稿改稿刚需的 --annotate 箭头注释、
-  Nature/Lancet期刊预设，内置PDF文字重叠+最小字号双重门禁，导出前自动拦截拒稿级
-  缺陷，--suggest 还能根据你的数据自动推荐该用哪种图。600dpi出版级输出
-  PNG/SVG/PDF/TIFF/EPS，纯本地运行，数据不出机。中文零配置，告别乱码。
-  触发词：论文配图、学术绘图、科研绘图、科研示意图、论文插图、画图、柱状图、
-  热力图、散点图、森林图、KM生存曲线、ROC、小提琴图、组合图、流程图、
-  PRISMA流程图、系统综述、SCI配图、数据可视化、期刊配图、色盲安全、
-  韦恩图、欧拉图、数据点注释、图例位置。
-metadata:
-  clawdbot:
-    emoji: "📊"
-    category: visualization
-requires:
-  python: ">=3.8"
-  pip: ["matplotlib", "numpy", "pymupdf", "scipy"]
+description: >-
+  论文配图一键生成：一条命令从 JSON/CSV/Excel 生成顶刊级图表。21 种图表
+  （柱状/散点/热力图/森林图/KM 生存曲线/ROC/小提琴/组合图/PRISMA 流程图/
+  漏斗/BA 一致性/PCA/韦恩/聚类热图），9 套配色（含色盲安全 Okabe-Ito 与
+  NEJM/Lancet/Science 期刊色板），9 种期刊投稿预设，--annotate 箭头注释，
+  韦恩 Euler 面积模式，图例控制，PDF 重叠+字号双门禁，600dpi 全格式输出。
+  纯本地运行，数据不出机，中文零配置。
+when_to_use: >-
+  用户要画图/出图/生成图表时使用：柱状图、散点图、热力图、森林图、KM 生存
+  曲线、ROC 曲线、小提琴图、箱线图、组合图、流程图、PRISMA 系统综述、Meta
+  漏斗图、韦恩/欧拉图、PCA 得分图、Bland-Altman 一致性；需要论文/期刊/SCI
+  配图导出（600dpi、色盲安全）；或把数据文件转成学术图表。
 ---
+
+<!--
+═══════════ 元数据归档（2026-09-13 frontmatter 规范化）═══════════
+ZCode 技能自动发现只识别 frontmatter 白名单键：
+  name / description / when_to_use / license / metadata
+且 description 超过 1024 字符会被静默丢弃（本技能 v2.x 自动发现
+失效根因）。以下键自 frontmatter 移出归档，信息不丢失：
+  version: 2.5.0
+  date: 2026-09-14
+  author: docsor1212
+  lang: zh
+  metadata: {clawdbot: {emoji: "📊", category: visualization}}
+  requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy]}
+运行依赖见 requirements.txt 与 scripts/setup_env.py；版本史见文末版本历史。
+═════════════════════════════════════════════════════════════════
+-->
 
 # Academic Figures — 论文配图一键生成工具
 

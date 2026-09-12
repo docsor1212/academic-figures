@@ -1,34 +1,38 @@
 ---
 name: academic-figures
-version: 2.5.0
-date: 2026-09-14
-author: docsor1212
-description: >
-  Stop redoing figures. One command renders publication-ready charts: 21 chart
-  types (bar, scatter, heatmap, forest, KM, ROC, violin, composite, PRISMA 2020
-  review flow, funnel, Bland-Altman, PCA, paired, venn+Euler, cluster heatmap...),
-  9 curated themes incl. colorblind-safe Okabe-Ito/GLM plus NEJM/Lancet/Science
-  journal palettes, 9 journal presets (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE
-  + Chinese CMA and CN-core with auto CJK), reviewer-style --annotate arrows,
-  shared-legend control, built-in PDF verification (text-overlap + minimum
-  font-size gates) that catches rejection-worthy flaws before you export, a
-  --suggest analyzer that picks the right chart type from your data, --stats
-  auto significance brackets, --alt accessibility text, Excel (xlsx) input, and
-  16 scenario templates. 600dpi PNG/SVG/PDF/TIFF/EPS output, 100% local, data
-  never leaves your machine. Triggers: make figure, generate chart, plot data,
-  bar chart, scatter plot, heatmap, forest plot, Kaplan-Meier, ROC curve,
-  survival curve, violin plot, composite figure, flow diagram, PRISMA flow,
-  systematic review, publication-ready figure, journal figure, publication
-  figure, hatching, colorblind-safe palette, 600dpi export, annotate data point,
-  Euler diagram, venn diagram area.
-metadata:
-  clawdbot:
-    emoji: "📊"
-    category: visualization
-requires:
-  python: ">=3.8"
-  pip: ["matplotlib", "numpy", "pymupdf", "scipy", "openpyxl"]
+description: >-
+  Publication-ready scientific figures from one command: 21 chart types (bar,
+  scatter, heatmap, forest plot, Kaplan-Meier, ROC, violin, composite, PRISMA
+  2020 flow, funnel, Bland-Altman, PCA, venn, clustered heatmap), 9 themes incl.
+  colorblind-safe Okabe-Ito and NEJM/Lancet/Science journal palettes, 9 journal
+  submission presets, reviewer-style --annotate arrows, Euler venn, legend
+  control, PDF text-overlap + font-size gates, 600dpi PNG/SVG/PDF/TIFF/EPS.
+  100% local — data never leaves your machine.
+when_to_use: >-
+  Use when making or generating any figure or chart from data: bar chart,
+  scatter plot, heatmap, forest plot, Kaplan-Meier / survival curve, ROC curve,
+  violin / box plot, composite multi-panel figure, flow diagram, PRISMA /
+  systematic review flow, meta-analysis funnel, venn / Euler diagram, PCA,
+  Bland-Altman; when exporting publication- or journal-ready figures (600dpi,
+  colorblind-safe); or when turning a JSON/CSV/Excel data file into an
+  academic figure.
 ---
+
+<!--
+═══════════ 元数据归档（2026-09-13 frontmatter 规范化）═══════════
+ZCode 技能自动发现只识别 frontmatter 白名单键：
+  name / description / when_to_use / license / metadata
+且 description 超过 1024 字符会被静默丢弃（v2.x 自动发现失效根因：
+v2.4 描述 1035 字符、v2.5 初版 1253 字符，均超限）。以下键自
+frontmatter 移出归档，信息不丢失：
+  version: 2.5.0
+  date: 2026-09-14
+  author: docsor1212
+  metadata: {clawdbot: {emoji: "📊", category: visualization}}
+  requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
+运行依赖见 requirements.txt 与 scripts/setup_env.py；版本史见文末 Version History。
+═════════════════════════════════════════════════════════════════
+-->
 
 # Academic Figures — Publication-Quality Chart Generator
 
