@@ -1665,6 +1665,15 @@ class TestV250SubmissionPolish(unittest.TestCase):
         self.assertNotEqual(proc2.returncode, 0)
         self.assertIn("无法定位坐标", proc2.stderr)
 
+    def test_v250_annotate_inverted_axis_forest(self):
+        """回归锁（B 电池抓出的 bug）：forest 的 y 轴倒置（get_ylim 返回 大→小），
+        合法坐标曾被升序假设的范围检查误判越界 → 修复后必须通过。"""
+        data = {"labels": ["S1", "S2"], "estimates": [1.2, 0.8],
+                "ci_low": [0.9, 0.5], "ci_high": [1.5, 1.1]}
+        proc, out = self._run("forest", data, ["--annotate", "1.2,0:S1 效应量"], "ann_for")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(os.path.exists(out))
+
     def test_v250_annotate_zero_overlap_and_arrows_follow(self):
         """回归锁（审稿注释）：同点三注释 declutter 后零重叠，箭头终点锚回数据点。"""
         import gen_figure as gf

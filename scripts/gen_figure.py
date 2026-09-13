@@ -3164,16 +3164,17 @@ def _apply_annotations(fig, anns, theme, cjk_fp):
 
     def _try_axes(a):
         resolved = []
-        x0, x1 = a.get_xlim()
-        y0, y1 = a.get_ylim()
+        # 排序后比较：兼容倒置轴（forest 的 y 轴自上而下，get_ylim() 返回 (大, 小)）
+        xa, xb = sorted(a.get_xlim())
+        ya, yb = sorted(a.get_ylim())
         for xs, ys, _t, _raw in anns:
             px = _resolve_coord(a, xs, "x")
             py = _resolve_coord(a, ys, "y")
             if px is None or py is None:
                 return None
-            if not (x0 - 0.02 * abs(x1 - x0) <= px <= x1 + 0.02 * abs(x1 - x0)):
+            if not (xa - 0.02 * (xb - xa) <= px <= xb + 0.02 * (xb - xa)):
                 return None
-            if not (y0 - 0.02 * abs(y1 - y0) <= py <= y1 + 0.02 * abs(y1 - y0)):
+            if not (ya - 0.02 * (yb - ya) <= py <= yb + 0.02 * (yb - ya)):
                 return None
             resolved.append((px, py))
         return resolved
@@ -3194,11 +3195,11 @@ def _apply_annotations(fig, anns, theme, cjk_fp):
         detail = ""
         if a is not None:
             xl = [t.get_text() for t in a.get_xticklabels() if t.get_text()][:8]
-            x0, x1 = a.get_xlim()
-            y0, y1 = a.get_ylim()
-            detail = (f"（x 轴范围 {x0:.4g}~{x1:.4g}"
+            xa, xb = sorted(a.get_xlim())
+            ya, yb = sorted(a.get_ylim())
+            detail = (f"（x 轴范围 {xa:.4g}~{xb:.4g}"
                       + (f"，类别刻度: {','.join(xl)}" if xl else "")
-                      + f"；y 轴范围 {y0:.4g}~{y1:.4g}）")
+                      + f"；y 轴范围 {ya:.4g}~{yb:.4g}）")
         print(f"ERROR: --annotate 无法定位坐标，请确认落在图表数据范围内{detail}",
               file=sys.stderr)
         sys.exit(1)
