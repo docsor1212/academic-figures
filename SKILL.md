@@ -25,7 +25,7 @@ ZCode 技能自动发现只识别 frontmatter 白名单键：
 且 description 超过 1024 字符会被静默丢弃（v2.x 自动发现失效根因：
 v2.4 描述 1035 字符、v2.5 初版 1253 字符，均超限）。以下键自
 frontmatter 移出归档，信息不丢失：
-  version: 2.5.0
+  version: 2.5.1
   date: 2026-09-14
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}

@@ -20,7 +20,7 @@ ZCode 技能自动发现只识别 frontmatter 白名单键：
   name / description / when_to_use / license / metadata
 且 description 超过 1024 字符会被静默丢弃（本技能 v2.x 自动发现
 失效根因）。以下键自 frontmatter 移出归档，信息不丢失：
-  version: 2.5.0
+  version: 2.5.1
   date: 2026-09-14
   author: docsor1212
   lang: zh
