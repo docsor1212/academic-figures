@@ -1,12 +1,14 @@
-# 场景模板库（v2.2）
+# 模板库（v2.6 全图型覆盖）
 
-10 个端到端模板 = 数据 JSON + 命令 + 图注模板。用法：
+22 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 22 种图型**。用法：
 
 ```bash
 cp templates/01-meta-forest.json my_data.json
 # 编辑 my_data.json，把示例数字换成你的真实数据
 python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme okabe-ito --verify
 ```
+
+## 场景模板（01–16）
 
 | 模板 | 场景 | 图型 | 推荐命令要点 |
 |---|---|---|---|
@@ -20,6 +22,23 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | 08-panel-composite | 期刊主图 | composite | A/B/C 面板；--alt 生成图注描述 |
 | 09-survey-stacked | 构成比 | stacked_bar | 百分比 + 总数 |
 | 10-cn-journal-hbar | 中文期刊横柱 | hbar | --journal cn-core 自动开中文；--alt |
+| 11-rct-grouped-bar | 两组×多时点对比 | grouped_bar | 误差棒+显著性标注 |
+| 12-dose-response-scatter | 浓度-反应分组散点 | scatter | groups 分色+趋势线 |
+| 13-qol-box | 评分分布比较 | box | --stats auto 显著性括号 |
+| 14-cytokine-violin | 分布形状对比 | violin | --stats multi 全两两 |
+| 15-lab-trend-dual-axis | 双轴指标趋势 | dual_axis | 左右轴各一系列 |
+| 16-study-design-diagram | 研究设计/CONSORT | diagram | blocks+arrows 定位 |
 
-每个 JSON 顶部有 `_scene/_command/_caption_template` 元字段，渲染时会被忽略。
+## 图型速查模板（按图型命名，覆盖其余 6 种）
+
+| 模板 | 图型 | 模板 | 图型 |
+|---|---|---|---|
+| bland_altman.json | bland_altman 一致性 | pca.json | pca 得分图 |
+| cluster_heatmap.json | cluster_heatmap 聚类热图 | paired.json | paired 配对变化 |
+| funnel.json | funnel 漏斗图 | venn.json | venn 韦恩/欧拉图 |
+
+> v2.6 起模板与 22 种图型一一对应；不确定用哪个图型可对数据跑
+> `python3 scripts/gen_figure.py --suggest -d 你的数据.json`。
+
+每个 JSON 顶部有 `_scene/_chart_type/_command/_caption_template` 元字段，渲染时会被忽略。
 示例数字仅示意，发表前请替换为真实数据。

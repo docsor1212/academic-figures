@@ -20,7 +20,7 @@ Usage:
 
 Data formats: JSON or CSV (first column = labels, rest = series)
 """
-import argparse, json, csv, subprocess, sys, os, time
+import argparse, json, csv, subprocess, sys, os, time, threading
 
 import matplotlib
 matplotlib.use('Agg')
@@ -28,6 +28,13 @@ import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 from matplotlib.transforms import BboxBase
 import numpy as np
+
+# v3.0.0 模块化：wizard 与异常诊断系统拆至独立模块（原名在此命名空间可用）
+from af_wizard import _run_wizard
+from af_diagnostics import (_EXIT_DATA_CLASSES, _EXIT_ENV_CLASSES,
+                            _classify_exit_code, _diagnose_exception,
+                            _print_v3_error, _EXC_ZH_V3, _DIAG_PATTERNS,
+                            _KNOWN_DATA_FIELDS)
 
 try:
     import af_v23_stats as _afstats
@@ -232,7 +239,7 @@ CHART_NOTES = {
            "feature_names（载荷箭头 top5）；默认标准化（相关矩阵），列上限 200。",
     "paired": "paired: 配对前后图；JSON before/after 或 series 恰好两项（等长）；"
               "--stats auto 加配对检验（配对 t / Wilcoxon 符号秩）括号星号。",
-    "venn": "venn: 韦恩图（2~3 集合）；JSON sets 为元素列表（自动求交并）或全部区域计数；"
+    "venn": "venn: 韦恩图（2~4 集合；4 集合为椭圆布局 v2.8）；JSON sets 为元素列表（自动求交并）或全部区域计数；"
             "默认等圆示意、区域数字精确；--area 按计数比例绘制（Euler，2 集合解析解/"
             "3 集合最优拟合）。",
     "cluster_heatmap": "cluster_heatmap: 聚类热图；数据格式同 heatmap（matrix），行列按 Ward 层次"
@@ -451,6 +458,56 @@ JOURNAL_PRESETS = {
                 "font_size": 9, "min_text_size": 6, "font_family": "Arial", "dpi": 300,
                 "cjk_default": True},
 }
+
+def _memory_hint(data, chart_type):
+    """A3(v2.7)：渲染前对超大数据规模给中文提示（防内存型失败；只提醒不拦截）。"""
+    try:
+        n = 0
+        if isinstance(data, dict):
+            for v in data.values():
+                if isinstance(v, list):
+                    n += len(v)
+                    n += sum(len(x) for x in v if isinstance(x, (list, tuple)))
+                elif isinstance(v, dict):
+                    for vv in v.values():
+                        n += len(vv) if isinstance(vv, list) else 1
+                elif isinstance(v, (int, float)):
+                    n += 1
+            if isinstance(data.get("matrix"), list):
+                n = sum(len(r) for r in data["matrix"] if isinstance(r, list))
+        if n > 1_000_000:
+            print(f"提示：数据规模约 {n} 个数值点，内存占用较大。热图/聚类建议先按行聚合；"
+                  "散点建议等距抽样到 1 万点内；也可降低 --dpi。", file=sys.stderr)
+    except Exception:
+        pass
+
+
+def _load_journal_presets(base_dir=None):
+    """A4(v2.7)：scripts/journal/*.json 为期刊预设唯一权威源（免费版=拍板基准）。
+    目录缺失/单文件损坏时按刊回退内置值（离线与旧包永不受损）。"""
+    import glob as _glob
+    d = os.path.join(base_dir or os.path.dirname(os.path.abspath(__file__)), "journal")
+    out = {}
+    if os.path.isdir(d):
+        for p in sorted(_glob.glob(os.path.join(d, "*.json"))):
+            name = os.path.splitext(os.path.basename(p))[0]
+            try:
+                with open(p, encoding="utf-8") as fh:
+                    spec = json.load(fh)
+                for k in ("widths_mm", "font_size", "dpi"):
+                    if k not in spec:
+                        raise KeyError(f"缺少 {k}")
+                out[name] = spec
+            except Exception as exc:
+                print(f"WARNING: 期刊预设 {os.path.basename(p)} 加载失败（{exc}），回退内置值",
+                      file=sys.stderr)
+    for k, v in _JOURNAL_BUILTIN.items():
+        out.setdefault(k, v)
+    return out
+
+
+_JOURNAL_BUILTIN = {k: dict(v) for k, v in JOURNAL_PRESETS.items()}
+JOURNAL_PRESETS = _load_journal_presets()
 
 # v2.5：期刊预设 → 配色主题联动（用户显式给 --theme 时不覆盖）
 JOURNAL_THEME = {"nature": "nature", "lancet": "lancet",
@@ -1114,10 +1171,48 @@ def load_data(path, chart_type=None, sheet=None):
 
         return result
     else:
-        raise ValueError(f"Unsupported format: {ext}. Use .json, .csv, .tsv or .xlsx")
+        raise ValueError(f"不支持的数据格式: {ext}。请改用 .json / .csv / .tsv / .xlsx")
 
 
 # ── Data validation layer (v2.0) ───────────────────────────────────────
+
+def _preflight_advisories(data, chart_type, downsample=None):
+    """v2.9：渲染前预判式提示（纯函数，返回中文提示列表）。提前预判，不等硬限报错。"""
+    msgs = []
+    try:
+        if (chart_type == "cluster_heatmap" and isinstance(data, dict)
+                and not downsample):
+            rows = len(data.get("matrix") or [])
+            if rows > 1500:
+                msgs.append(
+                    f"cluster_heatmap 行数 {rows} 已超过建议值 1500（硬上限 3000）："
+                    "聚类更慢、内存更高——建议加 --downsample 2000 等距采样；"
+                    "如确需全量渲染可忽略本提示")
+    except Exception:
+        pass
+    return msgs
+
+
+def _field_nearmiss_warnings(data):
+    """v2.9：dict 数据中出现"形似已知字段"的未知键时给中文纠错告警（非致命）。"""
+    msgs = []
+    try:
+        if isinstance(data, dict):
+            import difflib as _dif
+            for k in data.keys():
+                if (not isinstance(k, str) or k.startswith("_")
+                        or k in _KNOWN_DATA_FIELDS):
+                    continue
+                near = _dif.get_close_matches(k, _KNOWN_DATA_FIELDS, n=1, cutoff=0.6)
+                if near:
+                    msgs.append(
+                        f"字段名 '{k}' 不是有效字段——是否想用 '{near[0]}'？"
+                        "（大小写与下划线必须完全一致；无法识别的字段会被忽略；"
+                        "各图型字段见 --explain）")
+    except Exception:
+        pass
+    return msgs
+
 
 def validate_data(data, chart_type):
     """Unified data validation: fatal errors + degradation warnings.
@@ -1146,28 +1241,29 @@ def validate_data(data, chart_type):
         fvals = [float(v) for v in vals if _is_number(v)]
         if len(fvals) >= 2 and max(fvals) == min(fvals):
             warns.append(
-                f"Series '{name}' has identical values ({fvals[0]:g} everywhere); "
-                f"the chart will be flat — verify this is intended data, not a column mix-up")
+                f"系列 '{name}' 的值全部相同（恒为 {fvals[0]:g}）— 图会是一条平线。"
+                f"请确认这是数据本意，而不是取错了列")
 
     def _warn_non_numeric(name, vals):
         n_bad = sum(1 for v in vals if not _is_number(v))
         if n_bad:
             warns.append(
-                f"Series '{name}' contains {n_bad} non-numeric value(s) that will be skipped — "
-                f"check for 'NA', '—', or stray text in the source")
+                f"系列 '{name}' 里有 {n_bad} 个非数值项，画图时会跳过 — "
+                f"请检查源数据里是否混入了 'NA'、'—' 或文字")
 
     def _check_series_dict(series, err_key, req_nonempty=True):
         """Validate a {name: [values]} dict. Returns fatal messages list."""
         msgs = []
         if not isinstance(series, dict):
-            msgs.append(f"'{err_key}' must be a JSON object mapping names to value arrays")
+            msgs.append(f"'{err_key}' 必须是 JSON 对象（形如 {{\"系列名\": [数值, ...]}}）— 当前类型不符")
             return msgs
         if req_nonempty and not series:
-            msgs.append(f"'{err_key}' is empty — provide at least one series")
+            msgs.append(f"'{err_key}' 是空的 — 至少要有一个系列（一组名称+数值数组）")
             return msgs
         empty_names = [n for n, v in series.items() if not _nonempty_list(v)]
         if empty_names:
-            msgs.append(f"'{err_key}' contains empty series: {empty_names[:3]}{'...' if len(empty_names) > 3 else ''}")
+            msgs.append(f"'{err_key}' 里这些系列没有数据: {empty_names[:3]}"
+                        f"{'...' if len(empty_names) > 3 else ''} — 空系列无法画，请删掉或补数据")
         for n, v in series.items():
             if _nonempty_list(v):
                 _warn_non_numeric(n, v)
@@ -1188,8 +1284,8 @@ def validate_data(data, chart_type):
                 n_labels, n_groups = _len(labels), len(series)
                 if n_labels != n_groups:
                     fatal.append(
-                        f"labels has {n_labels} group names but {n_groups} series — "
-                        f"each box/violin needs exactly one group name; labels may be misaligned")
+                        f"labels 有 {n_labels} 个组名但 series 有 {n_groups} 组 — "
+                        f"每个箱线/小提琴图恰好对应一个组名，数量对不上多半是 labels 和数据错位了")
             else:
                 n_labels, n_first = _len(labels), _len(next(iter(series.values())))
                 if n_labels != n_first:
@@ -1206,7 +1302,7 @@ def validate_data(data, chart_type):
                 warns.append(f"errors 引用了数据里不存在的系列: {unknown[:3]}")
             for n, v in errs.items():
                 if n in series and _nonempty_list(v) and _len(v) != _len(series[n]):
-                    warns.append(f"errors['{n}'] has {_len(v)} values but series '{n}' has {_len(series[n])} — 误差棒可能错位")
+                    warns.append(f"errors['{n}'] 有 {_len(v)} 个值但系列 '{n}' 有 {_len(series[n])} 个 — 数量应一一对应，误差棒可能错位")
         # significance keys must reference existing series
         sig = data.get("significance", {})
         if isinstance(sig, dict) and sig:
@@ -1296,6 +1392,22 @@ def validate_data(data, chart_type):
             for gname, s in surv.items():
                 if _nonempty_list(s) and _len(s) != _len(data["time"]):
                     fatal.append(f"km: survival['{gname}'] 有 {_len(s)} 个值但 'time' 有 {_len(data['time'])} 个 — 长度必须一致")
+        elif isinstance(groups, dict) and groups:
+            # v2.6 A1: dict 有内容但值不是 [t, e] 成对列表。最常见是 CSV/Excel 长表
+            # （time/event/group 各一列、一行一名患者）被通用转换装进 series——
+            # 此前静默通过并渲染出无意义单曲线，必须拦截并给转换指引。
+            _long_keys = {"time", "event", "status", "group", "groups"}
+            _keys_l = {str(k).strip().lower() for k in groups}
+            if _keys_l & _long_keys:
+                fatal.append(
+                    "km: 检测到长表结构（time/event/group 各占一列，一行记录一名患者）—"
+                    "这种表无法直接画生存曲线。请转成 JSON："
+                    '{"groups": {"组名": [[时间, 事件(1=事件/0=删失), ...]], ...}}，'
+                    "每组一个数组；格式详见 references/data-formats.md")
+            else:
+                fatal.append(
+                    "km: groups 的每个值必须是 [时间, 事件(1/0)] 成对列表，当前是普通数值数组 —"
+                    '请改为 {"组名": [[12, 1], [24, 0], ...]}，或改用 time+survival 两个数组')
         elif not isinstance(groups, dict) or not groups:
             fatal.append("km 需要 'groups'（{组名: [[t, s], ...]}）或 'time'+'survival' 数组 — 都没找到")
 
@@ -1412,15 +1524,15 @@ def validate_data(data, chart_type):
                 bad = {r: n for r, n in reasons.items()
                        if isinstance(n, bool) or not isinstance(n, int) or n < 0}
                 if bad:
-                    fatal.append(f"prisma exclusion_reasons 的值必须是非负整数 "
-                                 f"integers, got: {bad}")
+                    fatal.append(f"prisma exclusion_reasons 的值必须是非负整数，"
+                                 f"这些键有问题: {bad}")
                 total = sum(n for n in reasons.values()
                             if isinstance(n, int) and not isinstance(n, bool))
                 inc = vals.get("studies_included")
                 if assessed is not None and inc is not None and total + inc != assessed:
-                    fatal.append(f"prisma 数字自洽校验失败: exclusion_reasons total ({total}) + "
+                    fatal.append(f"prisma 数字自洽校验失败: exclusion_reasons 总数 ({total}) + "
                                  f"studies_included ({inc}) != reports_assessed ({assessed}) "
-                                 f"— the flow does not add up")
+                                 f"— 排除人数+纳入数应等于评估全文数，请复核流程数字")
         lang = data.get("lang")
         if lang is not None and lang not in ("en", "zh"):
             fatal.append("prisma 'lang' 只能是 'en' 或 'zh'")
@@ -1789,10 +1901,17 @@ def gen_forest(data, ax, theme, cjk_fp, **kwargs):
     ci_high = data.get("ci_high", data.get("upper", []))
     weights = data.get("weights", None)  # Study weights for bubble size
     overall = data.get("overall", None)
-    ref_line = data.get("ref_line", 0)
+    measure = data.get("measure", "OR")  # Effect measure label: OR, RR, HR, MD, SMD
+    # v2.6.0 审核修复：缺省无效线按效应尺度自动取值——比率尺度（OR/RR/HR）无效线
+    # 是 1.0，差值尺度（MD/SMD）是 0.0；旧默认恒取 0 会把自然尺度 OR/HR 的
+    # "CI 是否跨过 1"画错位置，误导显著性判读。显式 ref_line 永远优先。
+    ref_line = data.get("ref_line", None)
+    if ref_line is None:
+        ref_line = 0.0 if str(measure).upper() in ("MD", "SMD") else 1.0
+        print(f"forest: 未指定 ref_line，按效应尺度 {measure} 自动取无效线 {ref_line:g}"
+              f"（log 尺度数据请显式传 ref_line=0）", file=sys.stderr)
     heterogeneity = data.get("heterogeneity", None)  # {"Q": float, "df": int, "I2": float, "p": float}
     events = data.get("events", None)  # [{"events": int, "total": int}, ...] per study
-    measure = data.get("measure", "OR")  # Effect measure label: OR, RR, HR, MD, SMD
     use_hatch = kwargs.get("hatch", False)
 
     # ── v2.4.0：留一法敏感性分析（--sensitivity）──
@@ -1966,6 +2085,30 @@ def gen_violin(data, ax, theme, cjk_fp, **kwargs):
         annotate_auto_stats(ax, series, positions, theme, "violin")
 
 
+def _km_note_box(ax, text, cjk_fp=None):
+    """KM 右上角注释框（log-rank/中位生存）：实测宽度自适应字号，
+    保证不越出坐标区、不压 y 轴刻度；不透明底+高 zorder 防曲线横穿文字。"""
+    fs = 8.0
+    t = None
+    for _ in range(7):
+        if t is not None:
+            t.remove()
+        t = ax.text(0.97, 0.96, text, transform=ax.transAxes, ha="right", va="top",
+                    fontsize=fs, fontstyle="italic", color="#333333", zorder=6,
+                    fontproperties=cjk_fp if (cjk_fp and has_cjk(text)) else None,
+                    bbox=dict(boxstyle="round,pad=0.3", facecolor="white", alpha=1.0,
+                              edgecolor="lightgray"))
+        fig = ax.figure
+        fig.canvas.draw()
+        renderer = fig.canvas.get_renderer()
+        bb = t.get_window_extent(renderer=renderer)
+        ax_bb = ax.get_window_extent(renderer=renderer)
+        if bb.x0 >= ax_bb.x0 or fs <= 6.0:
+            break
+        fs -= 0.5
+    return t
+
+
 def gen_km(data, ax, theme, cjk_fp, **kwargs):
     """Kaplan-Meier 生存曲线（v2.3：自动风险表 + 自动 log-rank）。
 
@@ -2103,7 +2246,7 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
                 median_notes.append(f"{gname}: 未到达")
             else:
                 if clo is not None and chi_ is not None:
-                    median_notes.append(f"{gname}: {med:g}（95%CI {clo:g}~{chi_:g}）")
+                    median_notes.append(f"{gname}: {med:g}（{clo:g}~{chi_:g}）")
                 else:
                     median_notes.append(f"{gname}: {med:g}")
                 if median_survival is None:
@@ -2111,32 +2254,23 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
                 median_survival.setdefault(gname, med)
         if median_notes:
             print("km: 自动中位生存（95%CI）：" + "；".join(median_notes), file=sys.stderr)
-
-    # ── log-rank 标注（v2.2 样式，用户供值优先）──
-    if log_rank:
-        p_val = log_rank.get("p", None)
-        method = log_rank.get("method", "Log-rank")
-        if p_val is not None:
+        if log_rank is not None:
+            method = log_rank.get("method", "log-rank")
+            p_val = log_rank.get("p")
             try:
                 p_val = float(p_val)
             except (ValueError, TypeError):
                 p_val = 1.0
             p_str = f"p = {p_val:.3f}" if p_val >= 0.001 else "p < 0.001"
             sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "NS"
-            _box_lines = [f'{method}\n{p_str} ({sig})'] + median_notes[:4]
-            ax.text(0.95, 0.95, "\n".join(_box_lines),
-                    transform=ax.transAxes, ha='right', va='top',
-                    fontsize=8, fontstyle='italic', color='#333333',
-                    bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.9,
-                              edgecolor='lightgray'))
+            _box_lines = [f"{method} {p_str}{sig}"]
+            if median_notes:
+                _box_lines.append("中位生存月（95%CI）")
+                _box_lines += median_notes[:4]
+            _km_note_box(ax, "\n".join(_box_lines), cjk_fp)
             median_notes = []
-
-    if median_notes:
-        ax.text(0.95, 0.95, "中位生存（95%CI）\nn" + "\n".join(median_notes[:4]),
-                transform=ax.transAxes, ha='right', va='top',
-                fontsize=8, fontstyle='italic', color='#333333',
-                bbox=dict(boxstyle='round,pad=0.3', facecolor='white', alpha=0.9,
-                          edgecolor='lightgray'))
+        if median_notes:
+            _km_note_box(ax, "中位生存月（95%CI）\n" + "\n".join(median_notes[:4]), cjk_fp)
 
     # ── 风险表（自动计算；独立坐标轴与主图共享 x 轴）──
     rendered = False
@@ -2169,18 +2303,31 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
             ra.tick_params(axis="x", labelbottom=False, length=0)
             ra.grid(False)
             _hdr_txt = ("Number at risk（处于风险人数）"
-                        if any(has_cjk(str(g)) for g, _, _ in rows) or (cjk_fp and _auto_cjk_hdr)
+                        if any(has_cjk(str(g)) for g, _, _ in rows) or bool(cjk_fp)
                         else "Number at risk")
             _fp_hdr = cjk_fp if cjk_fp and has_cjk(_hdr_txt) else None
             ra.text(0.0, -0.66, _hdr_txt,
                     fontsize=max(7, theme["font_size"] - 1), fontweight="bold",
                     color="#333333", ha="left", va="center", fontproperties=_fp_hdr,
                     clip_on=False)
-            _name_x = -x_max * 0.012
+            # 组名实测定位（修复组名与首列数字黏连）：右缘 = 首列数字左缘 - 间距
+            ra.figure.canvas.draw()
+            _renderer = ra.figure.canvas.get_renderer()
+            _inv_data = ra.transData.inverted()
+            _num_fs = max(6.5, theme["font_size"] - 1.5)
+            _t0 = min(disp_times)
+            _first_w = 0.0
+            for _g, _counts, _c in rows:
+                _p = ra.text(_t0, 0.5, str(_counts[0]), fontsize=_num_fs,
+                             ha="center", va="center")
+                _bb = _p.get_window_extent(renderer=_renderer).transformed(_inv_data)
+                _first_w = max(_first_w, _bb.width)
+                _p.remove()
+            _name_right = _t0 - _first_w / 2 - x_max * 0.02
             for ri, (gname, counts, col) in enumerate(rows):
                 y = ri + 0.5
                 _fp_g = cjk_fp if cjk_fp and has_cjk(str(gname)) else None
-                ra.text(_name_x, y, str(gname), fontsize=max(6.5, theme["font_size"] - 1.5),
+                ra.text(_name_right, y, str(gname), fontsize=max(6.5, theme["font_size"] - 1.5),
                         color=col, ha="right", va="center", fontweight="bold",
                         fontproperties=_fp_g, clip_on=False)
                 for t_v, cnt in zip(disp_times, counts):
@@ -2260,6 +2407,7 @@ def gen_roc(data, ax, theme, cjk_fp, **kwargs):
 
     elif curves:
         # Multiple ROC curves
+        _seen_labels = set()
         for i, curve in enumerate(curves):
             fpr_c = np.array(curve.get("fpr", curve.get("x", [])), dtype=float)
             tpr_c = np.array(curve.get("tpr", curve.get("y", [])), dtype=float)
@@ -2270,8 +2418,20 @@ def gen_roc(data, ax, theme, cjk_fp, **kwargs):
                 auc_c = np.trapezoid(tpr_c, fpr_c) if hasattr(np, 'trapezoid') else np.trapz(tpr_c, fpr_c)
 
             c = theme["colors"][i % len(theme["colors"])]
-            ax.plot(fpr_c, tpr_c, color=c, linewidth=2, zorder=3,
-                    label=f'{name} (AUC={auc_c:.3f})')
+            label = f'{name} (AUC={auc_c:.3f})'
+            # B3(v2.7)：两条曲线 AUC 相同（或同名）时图例标签会完全重复——
+            # 自动加序号消歧并 stderr 告知，避免图例两条一模一样无法区分
+            if label in _seen_labels:
+                uniq = f'{label} #{i + 1}'
+                k = 2
+                while uniq in _seen_labels:
+                    uniq = f'{label} #{k + 1}'
+                    k += 1
+                print(f"WARNING: ROC 曲线「{name}」图例标签重复（AUC 相同或同名），"
+                      f"已自动消歧为「{uniq}」", file=sys.stderr)
+                label = uniq
+            _seen_labels.add(label)
+            ax.plot(fpr_c, tpr_c, color=c, linewidth=2, zorder=3, label=label)
 
     # ── v2.3：配对 DeLong 多模型 AUC 比较（--compare，需原始分数）──
     if kwargs.get("roc_compare") and _afstats is not None:
@@ -2502,7 +2662,10 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
         panel_kwargs = {
             "show_values": panel.get("show_values", kwargs.get("show_values", False)),
             "trend": panel.get("trend", kwargs.get("trend", True)),
-            "horizontal": panel.get("horizontal", False),
+            # B3(v2.7)：hbar/horizontal_bar 面板自动横排（与主入口同规则；实战坑：composite
+            # 内 hbar 被当竖 bar 渲染，用户被迫改用 bar+horizontal 绕行）
+            "horizontal": panel.get("horizontal", False)
+                          or panel_type in ("hbar", "horizontal_bar"),
             "hatch": panel.get("hatch", False),
             "alternate": panel.get("alternate", False),
             "show_ratio": panel.get("show_ratio", False),
@@ -2809,17 +2972,25 @@ def gen_prisma(data, ax, theme, cjk_fp, **kwargs):
     # ── geometry (data units; aspect equal) ──
     SW, BW = 4.6, 4.4                 # spine / side box widths
     SX, XX = 0.0, 7.4                 # x origins
-    BH, GAP = 1.15, 0.78              # spine box height, vertical gap
+    GAP = 0.78                        # vertical gap
     n_reasons = max(1, len(reasons))
-    RH = max(BH, 0.55 + 0.36 * n_reasons)   # reasons box height
+    # 内容感知盒高：双行中文标签+计数行在固定盒高下会溢出框体——
+    # 盒高 = 标签行数×行高 + 计数行 + 内边距，行高随字号缩放
+    _lh = 0.62 * max(0.8, fs / 8.0)
+    def _box_h(label):
+        return max(1.15, (label.count(chr(10)) + 1) * _lh + 0.85)
+    BH_BY = {n: _box_h(L["included_box"] if n == "included" else L[n])
+             for n in ("identified", "screened", "sought", "assessed", "included")}
+    BH = max(BH_BY.values())
+    RH = max(BH, 0.95 + 0.42 * n_reasons * max(0.8, fs / 8.0))
 
     order = ["identified", "screened", "sought", "assessed", "included"]
     ys = {}
     top = 10.0
     y = top
     for name in order:
-        ys[name] = y - BH
-        y -= (BH + GAP)
+        ys[name] = y - BH_BY[name]
+        y -= (BH_BY[name] + GAP)
 
     def _cy(name):
         return ys[name] + BH / 2
@@ -2834,7 +3005,7 @@ def gen_prisma(data, ax, theme, cjk_fp, **kwargs):
     # reasons box: top-anchored to the assessed row's midline, growing
     # downward — this leaves the sought/assessed slot free for the
     # not-retrieved side box (official PRISMA 2020 arrangement)
-    y_reasons = ys["assessed"] + BH * 0.5 - RH
+    y_reasons = ys["assessed"] + BH_BY["assessed"] * 0.5 - RH
     implied_excluded = max(assessed - included, 0)
 
     # ── limits (set early so side-box text can be measured in data units) ──
@@ -2845,6 +3016,36 @@ def gen_prisma(data, ax, theme, cjk_fp, **kwargs):
     ax.set_aspect("equal")
     ax.axis("off")
     fig = ax.get_figure()
+    # 主框文字实测自愈：盒高系数是估算可能低估——以最终几何实测文字高度，
+    # 超出盒体就放大该盒并整体重排，迭代到全部装下（同侧框 auto-fit 思路）
+    if fig is not None:
+        for _round in range(4):
+            fig.canvas.draw()
+            _rend = fig.canvas.get_renderer()
+            _inv = ax.transData.inverted()
+            grew = False
+            for _name in order:
+                _label = L["included_box"] if _name == "included" else L[_name]
+                _t = ax.text(0.5, 0.5, _label + "\n" + "n = 000",
+                             fontsize=fs - 1, fontweight="bold",
+                             fontproperties=_fp(_label))
+                _need = _t.get_window_extent(renderer=_rend).transformed(_inv).height + 0.30
+                _t.remove()
+                if _need > BH_BY[_name] * 1.02:
+                    BH_BY[_name] = _need
+                    grew = True
+            if not grew:
+                break
+            BH = max(BH_BY.values())
+            RH = max(RH, BH)
+            _y = top
+            for _name in order:
+                ys[_name] = _y - BH_BY[_name]
+                _y -= (BH_BY[_name] + GAP)
+            y_reasons = ys["assessed"] + BH_BY["assessed"] * 0.5 - RH
+            ymin = min(ys["included"], y_reasons) - 1.1
+            ax.set_ylim(ymin, ymax)
+
 
     # ── side-box auto-fit: measure the real rendered width of every side-box
     # line, widen the boxes to fit, and wrap reason lines only as a last
@@ -2916,7 +3117,7 @@ def gen_prisma(data, ax, theme, cjk_fp, **kwargs):
                     item_display[r] = display
             extra = sum(len(v) - 1 for v in item_display.values())
             RH += 0.30 * extra
-            y_reasons = ys["assessed"] + BH * 0.5 - RH
+            y_reasons = ys["assessed"] + BH_BY["assessed"] * 0.5 - RH
         ymin = min(ys["included"], y_reasons) - 1.1
         ax.set_xlim(xmin, XX + BW + 0.5)
         ax.set_ylim(ymin, ymax)
@@ -2966,13 +3167,14 @@ def gen_prisma(data, ax, theme, cjk_fp, **kwargs):
 
     def _main_box(name, label, count, color=None):
         c = color or spine_color
-        ax.add_patch(FancyBboxPatch((SX, ys[name]), SW, BH, boxstyle="round,pad=0.08",
+        _bh = BH_BY[name]
+        ax.add_patch(FancyBboxPatch((SX, ys[name]), SW, _bh, boxstyle="round,pad=0.08",
                                     facecolor=c, edgecolor="white", linewidth=1.2,
                                     alpha=0.95, zorder=3))
-        ax.text(SX + SW / 2, ys[name] + BH * 0.68, label, ha="center", va="center",
+        ax.text(SX + SW / 2, ys[name] + _bh * 0.68, label, ha="center", va="center",
                 fontsize=fs - 1, color="white", fontweight="bold",
                 fontproperties=_fp(label))
-        ax.text(SX + SW / 2, ys[name] + BH * 0.22, f"n = {count}", ha="center",
+        ax.text(SX + SW / 2, ys[name] + _bh * 0.22, f"n = {count}", ha="center",
                 va="center", fontsize=fs - 1.5, color="white",
                 fontproperties=_fp(str(count)))
 
@@ -3034,7 +3236,7 @@ def gen_prisma(data, ax, theme, cjk_fp, **kwargs):
         _side_box(y_reasons, RH, L["reasons"], items)
     else:
         _side_box(y_reasons, BH, (L["reasons"], implied_excluded))
-    _arrow(SX + SW, ys["assessed"] + BH * 0.35, XX, ys["assessed"] + BH * 0.35, lw=1.4)
+    _arrow(SX + SW, ys["assessed"] + BH_BY["assessed"] * 0.35, XX, ys["assessed"] + BH_BY["assessed"] * 0.35, lw=1.4)
 
     # content-aware figure proportions (limits were set pre-draw for the
     # side-box auto-fit; BW/y_reasons carry the auto-fitted values)
@@ -3295,17 +3497,8 @@ def _apply_legend_control(fig, loc=None, outside=False, theme=None, cjk_fp=None)
 
 # ── Batch（v2.3 --batch）───────────────────────────────────────────────
 
-def cmd_batch(manifest_path):
-    """--batch：JSON 清单批量出图（逐项独立进程，互不干扰），完成后写汇总报告。"""
-    try:
-        with open(manifest_path, encoding="utf-8") as f:
-            items = json.load(f)
-    except Exception as e:
-        print(f"ERROR: 批量清单读取失败：{e}", file=sys.stderr)
-        sys.exit(1)
-    if not isinstance(items, list) or not items:
-        print("ERROR: 批量清单需为非空 JSON 数组（每项含 type/data/out）", file=sys.stderr)
-        sys.exit(1)
+def _run_batch_items(items, manifest_path):
+    """逐项独立进程渲染批量/流水线条目，完成后写汇总报告（--batch 与 --pipeline 共用）。"""
     results = []
     for i, item in enumerate(items):
         if not isinstance(item, dict) or not all(k in item for k in ("type", "data", "out")):
@@ -3329,14 +3522,23 @@ def cmd_batch(manifest_path):
                 argv.append(flag)
         for ann in (item.get("annotate") or []):
             argv.extend(["--annotate", str(ann)])
-        for key, flag in (("dpi", "--dpi"), ("width", "--width"), ("height", "--height")):
+        for key, flag in (("dpi", "--dpi"), ("width", "--width"), ("height", "--height"),
+                          ("timeout", "--timeout"), ("downsample", "--downsample")):
             if item.get(key):
                 argv.extend([flag, str(item[key])])
+        if item.get("multi_format"):
+            argv.extend(["--multi-format", str(item["multi_format"])])
+        elif item.get("format"):
+            argv.extend(["--format", str(item["format"])])
         try:
             proc = subprocess.run(argv, capture_output=True, text=True, timeout=300)
             out_path = str(item["out"])
-            ok = proc.returncode == 0 and (os.path.exists(out_path) or os.path.exists(
-                out_path + "." + str(item.get("format", "png"))))
+            _cands = [out_path, out_path + "." + str(item.get("format", "png"))]
+            for _f in str(item.get("multi_format") or "").replace("，", ",").split(","):
+                _f = _f.strip().lower()
+                if _f:
+                    _cands.append(out_path + "." + _f)
+            ok = proc.returncode == 0 and any(os.path.exists(c) for c in _cands)
             tail = proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else ""
         except subprocess.TimeoutExpired:
             ok, tail = False, "超时（>300s）"
@@ -3356,7 +3558,243 @@ def cmd_batch(manifest_path):
         sys.exit(2)
 
 
+def cmd_pipeline(pipeline_path):
+    """--pipeline：YAML/JSON 多图流水线（--batch 升级版，支持 defaults 全局默认）。
+
+    结构（YAML 示例）：
+        defaults:
+          theme: glm
+          dpi: 600
+        figures:
+          - type: km
+            data: survival.json
+            out: fig1_km
+            title: 总生存曲线
+    顶层直接写列表 = 无全局默认的精简写法。相对路径（data/out）相对
+    流水线文件所在目录解析；条目键与 --batch 单项一致（另支持 multi_format）。
+    """
+    ext = os.path.splitext(str(pipeline_path))[1].lower()
+    if ext in (".yaml", ".yml"):
+        try:
+            import yaml
+        except ImportError:
+            print("ERROR: YAML 流水线需要 PyYAML —— 先运行 pip install pyyaml；"
+                  "或改用 JSON 流水线 / --batch（无额外依赖）", file=sys.stderr)
+            sys.exit(1)
+        try:
+            with open(pipeline_path, encoding="utf-8") as f:
+                spec = yaml.safe_load(f)
+        except Exception as e:
+            print(f"ERROR: 流水线 YAML 解析失败：{e}", file=sys.stderr)
+            sys.exit(1)
+    elif ext == ".json":
+        try:
+            with open(pipeline_path, encoding="utf-8") as f:
+                spec = json.load(f)
+        except Exception as e:
+            print(f"ERROR: 流水线 JSON 读取失败：{e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        print("ERROR: 流水线文件需为 .yaml / .yml / .json", file=sys.stderr)
+        sys.exit(1)
+    if isinstance(spec, list):
+        defaults, figures = {}, spec
+    elif isinstance(spec, dict):
+        figures = spec.get("figures")
+        defaults = spec.get("defaults") or {}
+    else:
+        figures, defaults = None, {}
+    if not isinstance(figures, list) or not figures:
+        print("ERROR: 流水线需为非空列表，或含非空 'figures' 列表的对象"
+              "（可选 'defaults' 全局默认）", file=sys.stderr)
+        sys.exit(1)
+    if not isinstance(defaults, dict):
+        print("ERROR: 'defaults' 必须是对象（键值对形式的全局默认）", file=sys.stderr)
+        sys.exit(1)
+    base_dir = os.path.dirname(os.path.abspath(pipeline_path))
+    items = []
+    for fig in figures:
+        if not isinstance(fig, dict):
+            print(f"ERROR: figures 里的条目必须是对象，得到 {type(fig).__name__}",
+                  file=sys.stderr)
+            sys.exit(1)
+        merged = dict(defaults)
+        merged.update(fig)
+        for k in ("data", "out"):
+            v = merged.get(k)
+            if isinstance(v, str) and v and not os.path.isabs(v):
+                merged[k] = os.path.normpath(os.path.join(base_dir, v))
+        items.append(merged)
+    print(f"pipeline: {len(items)} 张图（defaults: "
+          f"{', '.join(sorted(defaults.keys())) if defaults else '无'}）", file=sys.stderr)
+    _run_batch_items(items, pipeline_path)
+
+
+def cmd_batch(manifest_path):
+    """--batch：JSON 清单批量出图（逐项独立进程，互不干扰），完成后写汇总报告。"""
+    try:
+        with open(manifest_path, encoding="utf-8") as f:
+            items = json.load(f)
+    except Exception as e:
+        print(f"ERROR: 批量清单读取失败：{e}", file=sys.stderr)
+        sys.exit(1)
+    if not isinstance(items, list) or not items:
+        print("ERROR: 批量清单需为非空 JSON 数组（每项含 type/data/out）", file=sys.stderr)
+        sys.exit(1)
+    _run_batch_items(items, manifest_path)
+
+
 # ── Main ───────────────────────────────────────────────────────────────
+
+def _run_cox_forest(args):
+    """B1(v2.7)：--stats cox —— 原始逐例生存数据自动拟合多因素 Cox 比例风险模型，
+    以 HR[95%CI] 森林图输出（无效线 1.0 自动）。数据格式：
+    JSON: {"time":[...], "event":[...], 其余顶层键=协变量}，或
+          {"time":[...], "event":[...], "covariates": {"名": [...]}}
+    CSV : 表头含时间/事件列（--cox-time/--cox-event 改名），其余数值列=协变量；
+          二分类文本列自动 0/1 编码（stderr 注明参照组）；>2 类目请先数值化。"""
+    import csv as _csv
+
+    path = args.data
+    if not path or not os.path.exists(path):
+        print(f"ERROR: 找不到数据文件：{path}", file=sys.stderr)
+        sys.exit(1)
+    ext = os.path.splitext(path)[1].lower()
+    time_col = args.cox_time
+    event_col = args.cox_event
+
+    def _is_num_list(seq):
+        try:
+            return all(np.isfinite(float(v)) for v in seq)
+        except (TypeError, ValueError):
+            return False
+
+    def _fatal(msg):
+        print(f"ERROR: {msg}", file=sys.stderr)
+        sys.exit(1)
+
+    cov_raw = {}
+    if ext == ".json":
+        try:
+            with open(path, encoding="utf-8-sig") as fh:
+                d = json.load(fh)
+        except Exception as exc:
+            _fatal(f"JSON 解析失败：{exc}")
+        if not isinstance(d, dict) or "time" not in d or "event" not in d:
+            _fatal("Cox 数据 JSON 必须包含 time 与 event 两个数组（逐例一行）")
+        if isinstance(d.get("covariates"), dict):
+            cov_raw = {k: v for k, v in d["covariates"].items()}
+        else:
+            cov_raw = {k: v for k, v in d.items()
+                       if k not in ("time", "event") and isinstance(v, list)}
+    elif ext in (".csv", ".tsv", ".txt"):
+        delim = "\t" if ext == ".tsv" else ","
+        try:
+            with open(path, encoding="utf-8-sig", newline="") as fh:
+                rows = list(_csv.DictReader(fh, delimiter=delim))
+        except Exception as exc:
+            _fatal(f"CSV 解析失败：{exc}")
+        if not rows:
+            _fatal("CSV 为空")
+        headers = list(rows[0].keys())
+        for need in (time_col, event_col):
+            if need not in headers:
+                _fatal(f"CSV 缺少必需列「{need}」（现有列：{ '、'.join(headers) }）。"
+                       f"可用 --cox-time/--cox-event 指定列名")
+        def colvals(name):
+            return [r[name] for r in rows]
+        times_raw = colvals(time_col)
+        events_raw = colvals(event_col)
+        for name in headers:
+            if name in (time_col, event_col):
+                continue
+            vals = [v for v in colvals(name) if str(v).strip() != ""]
+            if _is_num_list(vals):
+                cov_raw[name] = [float(v) for v in colvals(name)]
+            else:
+                uniq = sorted({str(v).strip() for v in vals})
+                if len(uniq) == 2:
+                    mapping = {uniq[0]: 0, uniq[1]: 1}
+                    cov_raw[name] = [mapping.get(str(v).strip()) for v in colvals(name)]
+                    if any(v is None for v in cov_raw[name]):
+                        _fatal(f"列「{name}」存在无法识别的取值（允许：{'、'.join(uniq)}）")
+                    print(f"Cox 编码：{name} → {uniq[0]}=0（参照）、{uniq[1]}=1"
+                          f"（该变量 HR 为「{uniq[1]} 相对 {uniq[0]}」）", file=sys.stderr)
+                elif len(uniq) > 2:
+                    _fatal(f"列「{name}」有 {len(uniq)} 个类目（{ '、'.join(uniq[:4]) }…）——"
+                           "多分类请先拆为哑变量（数值列）再提交")
+    else:
+        _fatal("--stats cox 支持 .json / .csv / .tsv 原始逐例数据；"
+               "效应量森林图（已有 HR/OR 点估计）不要加 --stats cox")
+
+    # 统一转数值
+    if ext == ".json":
+        if not _is_num_list(d["time"]) or not _is_num_list(d["event"]):
+            _fatal("time/event 必须是数值数组（event 用 0/1）")
+        times = [float(v) for v in d["time"]]
+        events = [float(v) for v in d["event"]]
+        for k, v in list(cov_raw.items()):
+            if not _is_num_list(v):
+                uniq = sorted({str(s) for s in v})
+                if len(uniq) == 2:
+                    cov_raw[k] = [1 if str(s) == uniq[1] else 0 for s in v]
+                    print(f"Cox 编码：{k} → {uniq[0]}=0（参照）、{uniq[1]}=1", file=sys.stderr)
+                else:
+                    _fatal(f"协变量「{k}」不是数值数组（类目数 {len(uniq)}）——请先数值化")
+        times = [float(v) for v in times]
+        events = [float(v) for v in events]
+        cov_raw = {k: [float(x) for x in v] for k, v in cov_raw.items()}
+    else:
+        try:
+            times = [float(v) for v in times_raw]
+            events = [float(v) for v in events_raw]
+        except (TypeError, ValueError):
+            _fatal("time/event 列存在非数值内容")
+
+    if args.cox_cols:
+        order = [c.strip() for c in str(args.cox_cols).split(",") if c.strip()]
+        missing = [c for c in order if c not in cov_raw]
+        if missing:
+            _fatal(f"--cox-cols 指定了不存在的列：{'、'.join(missing)}")
+        cov_raw = {c: cov_raw[c] for c in order}
+    if not cov_raw:
+        _fatal("没有可用的协变量列——Cox 多因素回归至少需要 1 个数值协变量")
+
+    if _afstats is None:
+        _fatal("统计模块 af_v23_stats 加载失败，无法执行 Cox 回归")
+    names = list(cov_raw.keys())
+    try:
+        fit = _afstats.coxph_fit(times, events,
+                                 np.column_stack([cov_raw[n] for n in names]),
+                                 names=names)
+    except ValueError as exc:
+        _fatal(str(exc))
+    ph = _afstats.cox_ph_test(fit)
+
+    print(f"Cox 多因素回归（Efron 法）：n={fit['n']}，事件数={fit['n_events']}，"
+          f"迭代 {fit['iterations']} 次{'收敛' if fit['converged'] else '未完全收敛'}，"
+          f"loglik={fit['loglik']:.3f}", file=sys.stderr)
+    print(f"{'协变量':<10}{'beta':>9}{'SE':>9}{'HR':>9}{'95%CI':>19}{'p':>10}{'PH-p':>9}",
+          file=sys.stderr)
+    for i, name in enumerate(names):
+        ci = f"[{fit['hr_low'][i]:.3f},{fit['hr_high'][i]:.3f}]"
+        print(f"{name:<10}{fit['beta'][i]:>9.4f}{fit['se'][i]:>9.4f}{fit['hr'][i]:>9.3f}"
+              f"{ci:>19}{fit['p'][i]:>10.4f}{ph['p'][i]:>9.4f}", file=sys.stderr)
+    low_ph = [n2 for n2, pv in zip(names, ph["p"]) if pv == pv and pv < 0.05]
+    if low_ph:
+        print(f"⚠ PH 提示：{'、'.join(low_ph)} 的比例风险假设近似检验 p<0.05——"
+              "该变量效应可能随时间变化（可考虑分层/时变系数/分段 KM 核对）", file=sys.stderr)
+
+    return {
+        "labels": names,
+        "estimates": [float(v) for v in fit["hr"]],
+        "ci_low": [float(v) for v in fit["hr_low"]],
+        "ci_high": [float(v) for v in fit["hr_high"]],
+        "measure": "HR",
+        "ref_line": 1.0,
+        "title_note": f"Cox 多因素回归（n={fit['n']}, 事件={fit['n_events']}）",
+    }
+
 
 def main():
     parser = argparse.ArgumentParser(description="academic-figures：一条命令生成投稿级学术图表")
@@ -3379,16 +3817,24 @@ def main():
                         help="渲染某主题的色卡预览图后退出")
     parser.add_argument("--demo", action="store_true",
                         help="交互演示：菜单选图型，用内置示例数据出图")
+    parser.add_argument("--wizard", action="store_true",
+                        help="选图向导：4 个问题生成完整命令；非交互环境打印决策树")
     parser.add_argument("--explain", default=None, metavar="CHART_TYPE",
                         help="打印某图型的用法说明与限制后退出")
     parser.add_argument("--suggest", action="store_true",
                         help="分析数据文件并推荐可用图型后退出")
+    parser.add_argument("--quick", action="store_true",
+                        help="一键出图：按数据自动选型并直接渲染（v3.1）")
     parser.add_argument("--cjk", action="store_true", help="启用中文字体（自动探测）")
     parser.add_argument("--cjk-font", default=None, help="指定中文字体文件路径")
     parser.add_argument("--width", type=float, default=None, help="图宽（英寸）")
     parser.add_argument("--height", type=float, default=None, help="图高（英寸）")
     parser.add_argument("--format", "-f", default=None, choices=["png", "svg", "pdf", "tiff", "eps"],
                         help="输出格式（默认按 --out 扩展名自动判断）")
+    parser.add_argument("--multi-format", default=None, metavar="F1,F2,...",
+                        help="一次输出多种格式（逗号分隔 png/svg/pdf/tiff/eps，兼容全角逗号）："
+                             "文件名取 --out 去扩展名后逐格式拼接，如 -o fig1 --multi-format tiff,png,pdf "
+                             "→ fig1.tiff/fig1.png/fig1.pdf；与 --format 同时给出时以本参数为准")
     parser.add_argument("--dpi", type=int, default=None,
                         help="位图 DPI（默认：线条图 600，照片类 300）")
     parser.add_argument("--legend", action="store_true", default=True, help="显示图例")
@@ -3405,10 +3851,29 @@ def main():
                         help="GLM 风格：单系列柱子交替前两种主题色")
     parser.add_argument("--show-ratio", action="store_true", help="分组柱上标注倍率（如 4.96x）")
     parser.add_argument("--ratio-base", type=int, default=0, help="倍率计算的基准系列序号（默认 0）")
-    parser.add_argument("--stats", default=None, choices=["auto", "multi"],
+    parser.add_argument("--stats", default=None, choices=["auto", "multi", "cox"],
                         help="box/violin 自动显著性标注：auto=各组 vs 第一组（Shapiro 定正态→"
                              "Welch t / Mann-Whitney U）；multi=全两两（正态→ANOVA+Tukey，"
-                             "否则 Kruskal-Wallis+Dunn+Hochberg）。括号+星号自动绘制")
+                             "否则 Kruskal-Wallis+Dunn+Hochberg）。括号+星号自动绘制。"
+                             "cox=仅 forest：原始逐例生存数据自动拟合多因素 Cox 比例风险模型，"
+                             "输出 HR[95%%CI] 森林图+系数表+PH 假设近似检验")
+    parser.add_argument("--timeout", type=float, default=None,
+                        help="渲染看门狗预算（秒）：超时强制中断并给中文建议（exit 5）；"
+                             "0=禁用；默认按图型与数据量自适应（30~1800s）")
+    parser.add_argument("--downsample", type=int, default=None, metavar="N",
+                        help="cluster_heatmap 行数超过 N 时等距采样到 N 行（确定性采样）")
+    parser.add_argument("--size", default=None,
+                        choices=["16:9", "4:5", "3:2", "1:1", "5:4", "9:16"],
+                        help="画幅比例预设（宽:高）：16:9 演示/PPT、4:5 与 3:2 通用、"
+                             "9:16 手机/社交竖版、1:1 方版。宽度仍由期刊预设/主题决定，"
+                             "仅按比例推算高度")
+    parser.add_argument("--cox-time", default="time",
+                        help="--stats cox 时生存时间列名（默认 time）")
+    parser.add_argument("--cox-event", default="event",
+                        help="--stats cox 时事件列名（默认 event；0=删失 1=事件）")
+    parser.add_argument("--cox-cols", default=None,
+                        help="--stats cox 时协变量列（逗号分隔，默认除时间/事件外全部数值列；"
+                             "顺序即森林图行序）")
     parser.add_argument("--alt", action="store_true",
                         help="输出旁生成无障碍描述文件（<输出名>.alt.txt）")
     parser.add_argument("--caption", action="store_true",
@@ -3449,6 +3914,11 @@ def main():
     parser.add_argument("--batch", default=None, metavar="FIGURES.json",
                         help="批量出图：JSON 清单（每项含 type/data/out，可带 title/theme/stats 等），"
                              "逐项渲染后写 .batch-report.json 汇总")
+    parser.add_argument("--pipeline", default=None, metavar="ANALYSIS.yaml",
+                        help="多图流水线（--batch 升级版）：YAML 或 JSON 描述一篇论文全部图表——"
+                             "defaults 全局默认 + figures 逐图条目（type/data/out 必填，可覆盖默认），"
+                             "一条命令批量渲染并写 .batch-report.json；相对路径相对流水线文件解析；"
+                             "YAML 需先 pip install pyyaml（JSON 无额外依赖）")
     parser.add_argument("--verify", action="store_true",
                         help="对 PDF 输出做像素级文字重叠检查；发现重叠则退出码 2")
     parser.add_argument("--journal", default=None, choices=sorted(JOURNAL_PRESETS.keys()),
@@ -3459,6 +3929,33 @@ def main():
 
     args = parser.parse_args()
 
+    if getattr(args, "multi_format", None):
+        _req_fmts = []
+        for _f in str(args.multi_format).replace("，", ",").split(","):
+            _f = _f.strip().lower()
+            if not _f:
+                continue
+            if _f not in ("png", "svg", "pdf", "tiff", "eps"):
+                print(f"ERROR: --multi-format 不支持 '{_f}'。可用: png, svg, pdf, tiff, eps",
+                      file=sys.stderr)
+                sys.exit(1)
+            if _f not in _req_fmts:
+                _req_fmts.append(_f)
+        if not _req_fmts:
+            print("ERROR: --multi-format 为空。示例：--multi-format tiff,png,pdf", file=sys.stderr)
+            sys.exit(1)
+        args.multi_format = _req_fmts
+        if args.format:
+            print("WARNING: --format 与 --multi-format 同时给出，按 --multi-format 输出",
+                  file=sys.stderr)
+
+    if args.batch and args.pipeline:
+        print("ERROR: --batch 与 --pipeline 只能二选一（--pipeline 是升级版，支持 YAML 与全局默认）",
+              file=sys.stderr)
+        sys.exit(1)
+    if args.pipeline:
+        cmd_pipeline(args.pipeline)
+        sys.exit(0)
     if args.batch:
         cmd_batch(args.batch)
         sys.exit(0)
@@ -3485,6 +3982,28 @@ def main():
             parser.error("--suggest 需要同时提供 -d/--data")
         cmd_suggest(args.data)
         sys.exit(0)
+
+    if getattr(args, "wizard", False):
+        _run_wizard()
+        sys.exit(0)
+
+    # ── v3.1：--quick 一键出图（自动选型 → 复用主渲染管线）──
+    if getattr(args, "quick", False):
+        if not args.data:
+            parser.error("--quick 需要 -d/--data 指向数据文件（不确定图型可先跑 --suggest）")
+        try:
+            _qdata = load_data(args.data)
+        except Exception as _e:
+            print(f"ERROR: cannot load '{args.data}': {_e}", file=sys.stderr)
+            sys.exit(1)
+        _recs = suggest_chart_type(_qdata)
+        _best = _recs[0][1] if _recs else "bar"
+        _alt = ", ".join(r[1] for r in _recs[1:3]) if _recs else "—"
+        args.type = _best
+        if not args.out:
+            args.out = "quick_" + _best + ".png"
+        print(f"--quick: 已按数据自动选择图型 {_best}（其他候选：{_alt}；"
+              "打分明细见 --suggest）", file=sys.stderr)
 
     if args.demo:
         if not cmd_demo(args):
@@ -3529,6 +4048,16 @@ def main():
         print(f"配色已联动 {theme_key} 主题（显式 --theme 可覆盖）", file=sys.stderr)
     args.theme = theme_key
     theme = THEMES[theme_key]
+
+    # ── v3.2：自动行为透明化（[auto] 前缀显式告知）──
+    if args.journal and getattr(args, "width", None):
+        print("[auto] --journal 锁定图宽，--width "
+              f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
+    if getattr(args, "verify", False):
+        _fmt = os.path.splitext(str(args.out or ""))[1].lower()
+        if _fmt and _fmt != ".pdf":
+            print("[auto] --verify 仅对 PDF 输出生效；当前输出为 "
+                  f"{_fmt or '无扩展名'}，本次不做像素级重叠检查", file=sys.stderr)
     if args.journal:
         preset = JOURNAL_PRESETS[args.journal]
         if preset.get("cjk_default"):
@@ -3544,7 +4073,52 @@ def main():
         print(f"期刊预设 {args.journal}（{args.column} 栏，宽 {w_in:.2f}in，"
               f"字体 {preset['font_family']} {preset['font_size']}pt，最小字号 {preset['min_text_size']}pt"
               f"— 可用 audit_pdf.py --min-size {preset['min_text_size']} 核查）", file=sys.stderr)
-    data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
+    if getattr(args, "size", None):
+        rw, rh = (float(v) for v in args.size.split(":"))
+        w_in, h_in = theme["figsize"]
+        theme["figsize"] = (w_in, w_in * rh / rw)
+        print(f"画幅预设 {args.size}：figsize {w_in:.2f}x{theme['figsize'][1]:.2f}in"
+              f"（宽度不变，高度按比例）", file=sys.stderr)
+    if args.stats == "cox":
+        if args.type != "forest":
+            print("ERROR: --stats cox 仅支持 forest 图型（原始生存数据→多因素 Cox→HR 森林图）。"
+                  "其他图型的 --stats 请用 auto/multi。", file=sys.stderr)
+            sys.exit(1)
+        data = _run_cox_forest(args)
+    else:
+        data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
+
+    # ── A4(v2.8)+v3.1：cluster_heatmap 降采样（确定性等距采样；校验前执行）──
+    # v3.1：行数>3000 且未给 --downsample 时自动采样到 2000 行并显著告知
+    #（此前为致命错退出；评测 errorHandling 指出"缺乏自动建议参数尝试"）。
+    if (args.type == "cluster_heatmap" and isinstance(data, dict)
+            and isinstance(data.get("matrix"), list)):
+        _m = data["matrix"]
+        _n = len(_m)
+        _ds = getattr(args, "downsample", None)
+        if _n > 3000 and not _ds:
+            _ds = 2000
+            print(f"AUTO-DOWNSAMPLE: cluster_heatmap 行数 {_n} 超过硬上限 3000——"
+                  "已自动等距采样到 2000 行（确定性采样；需要其他行数用 --downsample N）",
+                  file=sys.stderr)
+        if _ds and _n > _ds:
+            _step = -(-_n // max(int(_ds), 1))
+            _idx = list(range(0, _n, _step))
+            data["matrix"] = [_m[i] for i in _idx]
+            for _k in ("row_labels", "rows", "y_labels"):
+                if isinstance(data.get(_k), list) and len(data[_k]) == _n:
+                    data[_k] = [data[_k][i] for i in _idx]
+            print(f"downsample: cluster_heatmap 行数 {_n} → {len(data['matrix'])}"
+                  f"（等距采样，步长 {_step}）", file=sys.stderr)
+
+    # ── v2.9：cluster_heatmap 行数预判（半限 1500 即预警，不等 3000 硬限）──
+    for _adv in _preflight_advisories(data, args.type,
+                                      getattr(args, "downsample", None)):
+        print(f"WARNING: {_adv}", file=sys.stderr)
+
+    # ── v2.9：JSON 字段名近似匹配告警（拼写错误前置提醒，非致命）──
+    for _w in _field_nearmiss_warnings(data):
+        print(f"WARNING: {_w}", file=sys.stderr)
 
     fatal_msgs, warn_msgs = validate_data(data, args.type)
     for w in warn_msgs:
@@ -3557,6 +4131,11 @@ def main():
             print("HINT: CSV 不支持误差棒 → 改用 JSON 格式（见 --explain bar / 文档 §数据输入）",
                   file=sys.stderr)
         sys.exit(1)
+    _memory_hint(data, args.type)
+    # ── A1(v2.8)：看门狗武装（--timeout 覆盖自适应预算；0=禁用）──
+    if args.timeout is None or args.timeout > 0:
+        _watchdog_arm(args.type, data,
+                      budget=None if args.timeout is None else float(args.timeout))
     cjk_fp = None
     # Auto-detect: scan displayable text for CJK chars
     def _scan_cjk(obj):
@@ -3618,14 +4197,19 @@ def main():
         if not _has_groups and 0 < _pca_n:
             width = max(width, 8.5)
             height = max(height, 6.0)
-    if km_risk:
-        _n_rows = len(data.get("groups", data.get("series", {})) or {})
-        _rt_h = min(0.9, 0.34 + 0.24 * max(_n_rows, 1))
-        fig, (ax, risk_axes) = plt.subplots(
-            2, 1, figsize=(width, height + _rt_h),
-            gridspec_kw={"height_ratios": [3.4, _rt_h]})
-    else:
-        fig, ax = plt.subplots(figsize=(width, height))
+    def _make_fig():
+        """fig/ax/risk_axes 创建（km 风险表时主图+表轴双行）；A2 降级重建复用。"""
+        if km_risk:
+            _n_rows = len(data.get("groups", data.get("series", {})) or {})
+            _rt_h = min(0.9, 0.34 + 0.24 * max(_n_rows, 1))
+            _f, _axes = plt.subplots(
+                2, 1, figsize=(width, height + _rt_h),
+                gridspec_kw={"height_ratios": [3.4, _rt_h]})
+            return _f, _axes[0], _axes[1]
+        _f, _a = plt.subplots(figsize=(width, height))
+        return _f, _a, None
+
+    fig, ax, risk_axes = _make_fig()
 
     # Generate
     gen_func = GENERATORS[args.type]
@@ -3652,7 +4236,21 @@ def main():
         "risk_times": getattr(args, "risk_times", None),
         "auto_cjk_hdr": bool(args.cjk) and args.type in ("km", "survival"),
     }
-    extra = gen_func(data, ax, theme, cjk_fp, **kwargs)
+    _a2_degraded = False
+    for _a2_try in (1, 2):
+        try:
+            extra = gen_func(data, ax, theme, cjk_fp, **kwargs)
+            break
+        except MemoryError:
+            plt.close(fig)
+            if _a2_try == 2:
+                raise
+            width, height = width * 0.85, height * 0.85
+            fig, ax, risk_axes = _make_fig()
+            kwargs["risk_axes"] = risk_axes if km_risk else None
+            _a2_degraded = True
+            print("WARNING: 渲染内存不足——已自动降级重试（图幅 ×0.85，输出 DPI 减半）",
+                  file=sys.stderr)
 
     # composite/diagram manage their own axes and styling
     is_self_managed = extra in ("composite", "diagram")
@@ -3741,41 +4339,56 @@ def main():
     # degrade tick labels until no axis overlaps (works for composite panels)
     fix_tick_overlaps(fig)
 
-    # Determine output format and DPI
+    # Determine output format(s) and DPI（v2.6 C1：--multi-format 一次多格式）
     out_ext = os.path.splitext(args.out)[1].lower()
     fmt_map = {'.png': 'png', '.svg': 'svg', '.pdf': 'pdf', '.tiff': 'tiff', '.tif': 'tiff', '.eps': 'eps'}
-    out_format = args.format if args.format else fmt_map.get(out_ext, 'png')
+    if getattr(args, "multi_format", None):
+        _base = os.path.splitext(args.out)[0]
+        save_targets = [(fmt, _base + "." + fmt) for fmt in args.multi_format]
+    else:
+        out_format = args.format if args.format else fmt_map.get(out_ext, 'png')
+        _is_vec = out_format in ('svg', 'pdf', 'eps')
+        final_out = args.out
+        if not _is_vec and out_ext not in fmt_map:
+            final_out = args.out + '.' + out_format
+        save_targets = [(out_format, final_out)]
 
     # Smart DPI: raster formats use theme DPI (default 600 for line art),
     # vector formats ignore DPI (but we still set it for fallback)
-    is_vector = out_format in ('svg', 'pdf', 'eps')
     dpi = args.dpi if args.dpi else theme["dpi"]
+    if _a2_degraded:
+        dpi = max(150, int(dpi) // 2)
 
-    # For heatmaps or photo-heavy content, user can specify --dpi 300
-    save_kwargs = {
-        "dpi": dpi,
-        "bbox_inches": 'tight',
-        "facecolor": 'white',
-        "edgecolor": 'none',
-    }
-    if out_format == 'tiff':
-        save_kwargs["pil_kwargs"] = {"compression": "tiff_lzw"}
-
-    # Adjust output filename if format differs from extension
-    final_out = args.out
-    if not is_vector and out_ext not in fmt_map:
-        final_out = args.out + '.' + out_format
-
-    for _attempt in (1, 2):
-        try:
-            fig.savefig(final_out, format=out_format, **save_kwargs)
-            break
-        except OSError as e:
-            if _attempt == 1:
-                print(f"WARNING: 文件写出失败（{e}），0.5 秒后自动重试一次…", file=sys.stderr)
-                time.sleep(0.5)
-            else:
-                raise
+    saved_files = []
+    for out_format, final_out in save_targets:
+        is_vector = out_format in ('svg', 'pdf', 'eps')
+        # For heatmaps or photo-heavy content, user can specify --dpi 300
+        save_kwargs = {
+            "dpi": dpi,
+            "bbox_inches": 'tight',
+            "facecolor": 'white',
+            "edgecolor": 'none',
+        }
+        if out_format == 'tiff':
+            save_kwargs["pil_kwargs"] = {"compression": "tiff_lzw"}
+        for _attempt in (1, 2):
+            try:
+                fig.savefig(final_out, format=out_format, **save_kwargs)
+                break
+            except OSError as e:
+                if _attempt == 1:
+                    print(f"WARNING: 文件写出失败（{e}），0.5 秒后自动重试一次…", file=sys.stderr)
+                    time.sleep(0.5)
+                else:
+                    raise
+            except MemoryError:
+                if _attempt == 1:
+                    save_kwargs["dpi"] = max(150, int(save_kwargs["dpi"]) // 2)
+                    print("WARNING: 输出内存不足——DPI 已降为 "
+                          f"{save_kwargs['dpi']} 自动重试一次…", file=sys.stderr)
+                else:
+                    raise
+        saved_files.append((out_format, final_out, is_vector))
     plt.close()
 
     if args.alt:
@@ -3801,11 +4414,26 @@ def main():
         except Exception as e:  # caption 同样永不阻断渲染
             print(f"WARNING: caption generation failed: {e}", file=sys.stderr)
 
-    sz = os.path.getsize(final_out)
     cjk_info = " (colorblind-safe)" if theme.get("colorblind_safe") else ""
-    fmt_info = f"{out_format.upper()} @ {dpi}DPI" if not is_vector else f"{out_format.upper()} 矢量"
-    print(f"已保存: {final_out}（{sz:,} 字节，{fmt_info}{cjk_info}）", file=sys.stderr)
+    if len(saved_files) == 1:
+        out_format, final_out, is_vector = saved_files[0]
+        sz = os.path.getsize(final_out)
+        fmt_info = f"{out_format.upper()} @ {dpi}DPI" if not is_vector else f"{out_format.upper()} 矢量"
+        print(f"已保存: {final_out}（{sz:,} 字节，{fmt_info}{cjk_info}）", file=sys.stderr)
+    else:
+        for _fmt, _path, _isvec in saved_files:
+            sz = os.path.getsize(_path)
+            fmt_info = f"{_fmt.upper()} @ {dpi}DPI" if not _isvec else f"{_fmt.upper()} 矢量"
+            print(f"已保存: {_path}（{sz:,} 字节，{fmt_info}{cjk_info}）", file=sys.stderr)
 
+    if getattr(args, "multi_format", None):
+        _pdf_pick = [_p for _f, _p, _ in saved_files if _f == "pdf"]
+        if _pdf_pick:
+            out_format, final_out, is_vector = "pdf", _pdf_pick[0], True
+        else:
+            print("WARNING: --verify 只核查 PDF；--multi-format 中没有 PDF，跳过核查",
+                  file=sys.stderr)
+            args.verify = False
     if args.verify:
         if out_format != 'pdf':
             print("WARNING: --verify only applies to PDF output; skipping", file=sys.stderr)
@@ -3825,6 +4453,93 @@ def main():
                 print(f"VERIFY OK: no text overlaps in {final_out}", file=sys.stderr)
 
 
+
+
+# ── A1(v2.8)：渲染看门狗（v2.10：退出码分级与异常诊断拆至 af_diagnostics.py）──
+
+_WD_BASE_BUDGET = {
+    "cluster_heatmap": 240, "composite": 180, "pca": 120, "km": 120,
+    "forest": 90, "venn": 90, "prisma": 60,
+}
+_WD_DEFAULT_BUDGET = 90.0
+_WD_MIN, _WD_MAX = 30.0, 1800.0
+
+
+def _wd_estimate_rows(data):
+    """粗估数据规模（行数），供自适应预算；取不到返回 0。"""
+    try:
+        if not isinstance(data, dict):
+            return 0
+        m = data.get("matrix")
+        if isinstance(m, list) and m:
+            return len(m)
+        g = data.get("groups")
+        if isinstance(g, dict) and g:
+            return max(len(v) for v in g.values())
+        s = data.get("series")
+        if isinstance(s, dict) and s:
+            return max(len(v) for v in s.values())
+        x = data.get("x")
+        if isinstance(x, list):
+            return len(x)
+    except Exception:
+        pass
+    return 0
+
+
+def _wd_budget_for(chart_type, data):
+    rows = _wd_estimate_rows(data)
+    base = _WD_BASE_BUDGET.get(chart_type, _WD_DEFAULT_BUDGET)
+    factor = 1.0 + min(3.0, rows / 2000.0)
+    return max(_WD_MIN, min(_WD_MAX, base * factor))
+
+
+def _watchdog_arm(chart_type, data, budget=None):
+    """A1(v2.8)：看门狗。监控线程发现主线程超过预算仍未结束 → 中文三段式诊断 +
+    强制退出（exit 5）。跨平台（监控线程 + os._exit，不用 SIGALRM）；正常或异常
+    结束时主线程消亡，守护线程自行退出，不会误伤。AF_NO_WATCHDOG=1 亦可禁用。"""
+    if os.environ.get("AF_NO_WATCHDOG"):
+        return None
+    if budget is None:
+        budget = _wd_budget_for(chart_type, data)
+    start = time.time()
+    main_t = threading.main_thread()
+
+    def _fire():
+        el = time.time() - start
+        print("ERROR: 渲染看门狗超时——图表未能按时完成，已强制中断（exit 5）",
+              file=sys.stderr)
+        print(f"└ 已用时 {el:.0f}s，超过预算 {budget:.0f}s"
+              f"（图型={chart_type}，数据规模≈{_wd_estimate_rows(data)} 行）",
+              file=sys.stderr)
+        print("建议1: 数据过大先瘦身——cluster_heatmap 可加 --downsample 2000 等距采样",
+              file=sys.stderr)
+        print("建议2: 调大预算 --timeout 600；或本图禁用看门狗 --timeout 0",
+              file=sys.stderr)
+        print("建议3: composite 面板过多时拆成多图分别渲染", file=sys.stderr)
+        os._exit(5)
+
+    def _monitor():
+        warned = set()
+        while True:
+            time.sleep(1.0)
+            if not main_t.is_alive():
+                return
+            el = time.time() - start
+            if el >= budget:
+                _fire()
+                return
+            for frac, tag in ((0.5, "50%"), (0.8, "80%")):
+                if el >= budget * frac and tag not in warned:
+                    warned.add(tag)
+                    print(f"WARNING: 渲染已用时 {el:.0f}s（预算 {budget:.0f}s 的 {tag}）——"
+                          f"超时将中断并给出建议", file=sys.stderr)
+
+    t = threading.Thread(target=_monitor, name="af-watchdog", daemon=True)
+    t.start()
+    return t
+
+
 if __name__ == "__main__":
     try:
         main()
@@ -3834,12 +4549,12 @@ if __name__ == "__main__":
     except SystemExit:
         raise
     except (ValueError, KeyError, FileNotFoundError, json.JSONDecodeError) as e:
-        print(f"ERROR: 输入数据或参数有问题：{_zh_exception(e)}", file=sys.stderr)
-        print("HINT: 检查 --data 文件内容与 --type 要求的字段（--explain <图型> 查看说明）",
-              file=sys.stderr)
-        sys.exit(2)
-    except Exception as e:  # 未知异常：友好兜底，不裸 traceback
-        print(f"ERROR: 渲染失败（{type(e).__name__}: {e}）", file=sys.stderr)
-        print("HINT: 可直接重跑一次（瞬态问题已支持自动重试）；仍失败请用 --explain <图型>"
-              " 核对数据格式", file=sys.stderr)
-        sys.exit(2)
+        if os.environ.get("AF_DEBUG"):
+            raise
+        _print_v3_error(e)
+        sys.exit(_classify_exit_code(e))
+    except Exception as e:  # A2 v3：未知异常 → 中文诊断 + 原文保留 + 针对性建议
+        if os.environ.get("AF_DEBUG"):
+            raise  # 维护者/反馈通道：完整 traceback
+        _print_v3_error(e)
+        sys.exit(_classify_exit_code(e))

@@ -281,6 +281,8 @@ def gen_pca(data, ax, theme, cjk_fp, **kwargs):
     groups = data.get("groups", None)
     feature_names = list(data.get("feature_names", [f"特征{i+1}" for i in range(X.shape[1])]))
     if len(feature_names) != X.shape[1]:
+        print(f"WARNING: pca feature_names 数量（{len(feature_names)}）与变量数"
+              f"（{X.shape[1]}）不符，已自动改用默认名 特征1..{X.shape[1]}", file=sys.stderr)
         feature_names = [f"特征{i+1}" for i in range(X.shape[1])]
 
     scale = kwargs.get("scale", True)
@@ -697,8 +699,220 @@ def _venn3_geometry(regions, keys):
     return centers_u, radii_u, fit
 
 
+# ── v2.8 D1：venn 4 集合（椭圆风车布局）──────────────────────────────────
+_V4_R, _V4_A, _V4_B = 0.10, 0.32, 0.20  # 布局常数：网格探针验证 15 区域全非空
+
+
+def _venn4_ells(r=_V4_R, a=_V4_A, b=_V4_B):
+    """默认 4 椭圆布局（径向风车式，坐标中心为原点）：[(cx,cy,a,b,θrad)×4]。"""
+    import math as _m
+    return [(r * _m.cos(_m.pi / 2 + i * _m.pi / 2),
+             r * _m.sin(_m.pi / 2 + i * _m.pi / 2), a, b,
+             _m.pi / 2 + i * _m.pi / 2) for i in range(4)]
+
+
+def _venn4_region_masks(ells, box, res):
+    """网格化 4 椭圆的 15 个区域（确定性，无随机）。ells=[(cx,cy,a,b,θ)]，
+    返回 (areas, centroids, cell_area)，键为成员并排序号 "1".."4"/"12"/"1234"；
+    空区域 centroids=None。"""
+    import itertools as _it
+    xs = np.linspace(box[0], box[2], res)
+    ys = np.linspace(box[1], box[3], res)
+    X, Y = np.meshgrid(xs, ys)
+    cell = (box[2] - box[0]) * (box[3] - box[1]) / (res * res)
+    ins = []
+    for (cx, cy, a, b, th) in ells:
+        ct, st = np.cos(th), np.sin(th)
+        dx, dy = X - cx, Y - cy
+        u = dx * ct + dy * st
+        v = -dx * st + dy * ct
+        ins.append((u * u) / (a * a) + (v * v) / (b * b) <= 1.0)
+    areas, cents = {}, {}
+    for n in (1, 2, 3, 4):
+        for combo in _it.combinations(range(4), n):
+            m = np.ones_like(X, dtype=bool)
+            for i in range(4):
+                m = m & (ins[i] if i in combo else ~ins[i])
+            key = "".join(str(i + 1) for i in combo)
+            cnt = int(m.sum())
+            areas[key] = cnt * cell
+            cents[key] = (float(X[m].mean()), float(Y[m].mean())) if cnt else None
+    return areas, cents, cell
+
+
+def _venn4_geometry(regions, keys):
+    """4 集合 --area：椭圆联合最优拟合（eulerAPE 思路，零新依赖）。
+
+    (cx,cy,a,b,θ)×4 最小二乘，残差=15 区域网格面积 vs 目标比例；低分辨率网格
+    定向 + 高分辨率复核（全程确定性）。任意 15 区域面积组合在椭圆几何下可能
+    无解——非零区域最大面积相对偏差如实写入 fit["max_rel_err"] 由调用方披露。
+    返回 (ells_unit, fit)；ells_unit 已归一到 [0,1]²，fit["centroids"] 同坐标系。"""
+    import itertools as _it
+    import math as _m
+    from scipy.optimize import least_squares
+    idx = {}
+    for n in (1, 2, 3, 4):
+        for combo in _it.combinations(range(4), n):
+            idx["".join(keys[i] for i in combo)] = "".join(str(i + 1) for i in combo)
+    target = {mk: float(regions[nk]) for nk, mk in idx.items()}
+    tsum = sum(target.values()) or 1.0
+
+    def residuals(p, res):
+        ells = [(p[5 * i], p[5 * i + 1], abs(p[5 * i + 2]), abs(p[5 * i + 3]),
+                 p[5 * i + 4]) for i in range(4)]
+        got, _ce, _cl = _venn4_region_masks(ells, (-0.6, -0.6, 0.6, 0.6), res)
+        gsum = sum(got.values()) or 1.0
+        s = tsum / gsum
+        out = []
+        for mk in sorted(target):
+            t = target[mk]
+            if t > 0:
+                out.append((got[mk] * s - t) / max(t, 1.0))
+            else:
+                out.append(0.3 * min(got[mk] * s, 1.0))  # 零目标区域温和压空
+        return out
+
+    lo, hi = [], []
+    for _ in range(4):
+        lo += [-0.6, -0.6, 0.05, 0.04, -2 * _m.pi]
+        hi += [0.6, 0.6, 0.85, 0.85, 2 * _m.pi]
+    lo, hi = np.array(lo), np.array(hi)
+    x0 = []
+    for (cx, cy, a, b, th) in _venn4_ells():
+        x0 += [cx, cy, a, b, th]
+    x0 = np.array(x0)
+    scale0 = np.array([1, 1, 0.8, 0.8, 1] * 4)
+    best = None
+    for s0 in (x0, x0 * scale0, np.clip(x0 * 1.1, lo, hi)):
+        sol = least_squares(residuals, np.clip(s0, lo, hi), bounds=(lo, hi),
+                            args=(200,), diff_step=1e-2, xtol=1e-10, ftol=1e-10,
+                            max_nfev=400)
+        sol = least_squares(residuals, sol.x, bounds=(lo, hi), args=(320,),
+                            diff_step=3e-3, xtol=1e-12, ftol=1e-12, max_nfev=500)
+        if best is None or sol.cost < best.cost:
+            best = sol
+    p = best.x
+    ells = [(p[5 * i], p[5 * i + 1], abs(p[5 * i + 2]), abs(p[5 * i + 3]),
+             p[5 * i + 4]) for i in range(4)]
+    E = max(max(abs(e[0]) + e[2], abs(e[1]) + e[2]) for e in ells) or 1.0
+    s = 0.42 / E
+    ells_u = [(e[0] * s + 0.5, e[1] * s + 0.5, e[2] * s, e[3] * s, e[4])
+              for e in ells]
+    areas, cents, _c = _venn4_region_masks(ells_u, (0.0, 0.0, 1.0, 1.0), 620)
+    gsum = sum(areas.values()) or 1.0
+    s2 = tsum / gsum
+    nz = [abs(areas[mk] * s2 - t) / t for mk, t in target.items() if t > 0]
+    fit = {"max_rel_err": (max(nz) if nz else 0.0), "centroids": cents}
+    return ells_u, fit
+
+
+def _declutter_points(points, min_dist=0.078, iters=48, relax=0.6):
+    """确定性标签疏散：对过近标签对做对称排斥迭代（无随机，同输入同结果）。
+    points: {key: (x, y)}；返回新 dict（仅移动过近者，其余原位）。"""
+    pts = {k: [float(v[0]), float(v[1])] for k, v in sorted(points.items())
+           if v is not None}
+    keys = sorted(pts)
+    for _ in range(iters):
+        moved = False
+        for i in range(len(keys)):
+            for j in range(i + 1, len(keys)):
+                a, b = pts[keys[i]], pts[keys[j]]
+                dx, dy = b[0] - a[0], b[1] - a[1]
+                dist = (dx * dx + dy * dy) ** 0.5
+                if dist >= min_dist:
+                    continue
+                if dist < 1e-9:
+                    dx, dy, dist = 1.0, 0.0, 1.0
+                push = (min_dist - dist) * relax / 2.0
+                ux, uy = dx / dist, dy / dist
+                pts[keys[i]][0] -= ux * push
+                pts[keys[i]][1] -= uy * push
+                pts[keys[j]][0] += ux * push
+                pts[keys[j]][1] += uy * push
+                moved = True
+        if not moved:
+            break
+    return {k: tuple(v) for k, v in pts.items()}
+
+
+def _gen_venn4(ax, keys, regions, colors, fs, cjk_fp, area_mode):
+    """v2.8 D1：4 集合韦恩绘制（椭圆）。默认=固定风车布局、15 区域计数全标；
+    area_mode=按面积比例最优拟合（残差中文披露，数字仍为精确计数）。"""
+    import itertools as _it
+    import math as _m
+    import matplotlib.patches as mpatches
+    if area_mode:
+        ells, fit = _venn4_geometry(regions, keys)
+        _ar, cents, _c = _venn4_region_masks(ells, (0.0, 0.0, 1.0, 1.0), 620)
+        max_rel = fit["max_rel_err"]
+        if max_rel <= 0.05:
+            print(f"venn --area: 4 集合椭圆拟合完成"
+                  f"（最大区域面积偏差 {max_rel * 100:.1f}%）", file=sys.stderr)
+        else:
+            _warn(f"venn --area: 15 个区域面积在椭圆几何下无法完全按比例实现，"
+                  f"已取最优拟合（最大面积偏差 {max_rel * 100:.1f}%）；"
+                  f"区域数字仍为精确计数")
+            if max_rel > 0.15:
+                _warn("venn --area: 偏差较大——可尝试 ①减少集合数（2~3 集合拟合更准）"
+                      "②去掉占比悬殊的区域 ③改用默认等圆模式（放弃面积比例）")
+    else:
+        ells = [(cx + 0.5, cy + 0.5, a, b, th)
+                for (cx, cy, a, b, th) in _venn4_ells()]
+        _ar, cents, _c = _venn4_region_masks(ells, (0.0, 0.0, 1.0, 1.0), 420)
+
+    for i in range(4):
+        cx, cy, a, b, th = ells[i]
+        ax.add_patch(mpatches.Ellipse(
+            (cx, cy), 2 * a, 2 * b, angle=_m.degrees(th),
+            facecolor=colors[i % len(colors)], edgecolor="#333333",
+            linewidth=1.4, alpha=0.42, zorder=2))
+
+    zero_regions = []
+    label_plan = []  # (mkey, cnt, pos)：先收集，疏散后统一画（中心 5 区域质心彼此很近）
+    for n in (1, 2, 3, 4):
+        for combo in _it.combinations(range(4), n):
+            mkey = "".join(str(i + 1) for i in combo)
+            rname = "".join(keys[i] for i in combo)
+            cnt = regions[rname]
+            pos = cents.get(mkey)
+            if pos is None:
+                if cnt > 0:
+                    _warn(f"venn: 区域 '{rname}' 面积过小，计数标注在近似位置")
+                    members = [i for i in range(4) if str(i + 1) in mkey]
+                    pos = (sum(ells[i][0] for i in members) / len(members),
+                           sum(ells[i][1] for i in members) / len(members))
+                else:
+                    zero_regions.append(rname)
+                    continue
+            if area_mode and cnt <= 0:
+                zero_regions.append(rname)
+                continue
+            label_plan.append((mkey, cnt, pos))
+    spread = _declutter_points({mk: p for mk, _c, p in label_plan})
+    for mk, cnt, _p in label_plan:
+        ax.annotate(str(cnt), spread[mk], fontsize=fs, ha="center", va="center",
+                    fontweight="bold", color="#333333", zorder=6)
+    if zero_regions and area_mode:
+        _warn(f"venn --area: 区域 {zero_regions} 计数为 0，无对应面积，图中省略数字")
+
+    for i, k in enumerate(keys):
+        cx, cy, a_i, _b, _th = ells[i]
+        dx, dy = cx - 0.5, cy - 0.5
+        norm = _m.hypot(dx, dy)
+        if norm < 1e-9:
+            dx, dy, norm = 0.0, 1.0, 1.0
+        dist = norm + a_i + 0.035  # 椭圆尖端外侧——计数在区域质心，两者不相撞
+        lx = 0.5 + dx / norm * dist
+        ly = 0.5 + dy / norm * dist
+        lx = min(1.06, max(-0.06, lx))
+        ly = min(1.06, max(-0.06, ly))
+        ax.annotate(k, (lx, ly), fontsize=fs, fontweight="bold",
+                    ha="center", va="center",
+                    fontproperties=_fp(cjk_fp, k), color="#333333", zorder=5)
+
+
 def gen_venn(data, ax, theme, cjk_fp, **kwargs):
-    """韦恩图（2~3 集合）。默认等圆示意、区域数字精确；--area 开面积比例
+    """韦恩图（2~4 集合；4 集合为椭圆布局，v2.8）。默认等圆/等椭圆示意、区域数字精确；--area 开面积比例
     （Euler）模式：圆的大小与交集面积按区域计数比例（2 集合解析解，
     3 集合圆心+半径联合最优拟合）。
 
@@ -712,7 +926,7 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
     sets = data.get("sets", None)
     regs = data.get("regions", None)
     keys = None
-    if isinstance(sets, dict) and 2 <= len(sets) <= 3 and all(
+    if isinstance(sets, dict) and 2 <= len(sets) <= 4 and all(
             isinstance(v, (list, tuple, set)) for v in sets.values()):
         if regs is not None:
             raise ValueError("venn: 'sets' 与 'regions' 只能二选一")
@@ -723,7 +937,7 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
             A, B = ss[keys[0]], ss[keys[1]]
             regions = {keys[0]: len(A - B), keys[1]: len(B - A),
                        keys[0] + keys[1]: len(A & B)}
-        else:
+        elif len(keys) == 3:
             A, B, C = ss[keys[0]], ss[keys[1]], ss[keys[2]]
             regions = {keys[0]: len(A - B - C), keys[1]: len(B - A - C),
                        keys[2]: len(C - A - B),
@@ -731,8 +945,19 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
                        keys[0] + keys[2]: len((A & C) - B),
                        keys[1] + keys[2]: len((B & C) - A),
                        keys[0] + keys[1] + keys[2]: len(A & B & C)}
+        else:  # v2.8：4 集合 → 15 区域
+            import itertools as _it4
+            for _n in (1, 2, 3, 4):
+                for _combo in _it4.combinations(range(4), _n):
+                    _inter = set(ss[keys[_combo[0]]])
+                    for _i in _combo[1:]:
+                        _inter &= ss[keys[_i]]
+                    for _i in range(4):
+                        if _i not in _combo:
+                            _inter -= ss[keys[_i]]
+                    regions["".join(keys[_i] for _i in _combo)] = len(_inter)
     elif isinstance(sets, dict):
-        raise ValueError("venn: 'sets' 需为 2~3 个集合、值为元素列表的字典；"
+        raise ValueError("venn: 'sets' 需为 2~4 个集合、值为元素列表的字典；"
                          "区域计数请改用 'regions' 键")
     elif isinstance(regs, dict):
         all_keys = [str(k) for k in regs.keys()]
@@ -760,10 +985,21 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
                         need = {a, b, c, a + b, a + c, b + c, a + b + c}
                         if need == set(all_keys):
                             found = [a, b, c]
+        elif len(all_keys) == 15:  # v2.8：4 集合 15 区域
+            import itertools as _it4
+            for _names in _it4.permutations(all_keys, 4):
+                _need = set()
+                for _n in (1, 2, 3, 4):
+                    for _combo in _it4.combinations(_names, _n):
+                        _need.add("".join(_combo))
+                if _need == set(all_keys):
+                    found = list(_names)
+                    break
         if not found:
             raise ValueError("venn: 'regions' 键名不构成合法区域集——2 集合需恰 "
                              "{A, B, A+B} 三键；3 集合需恰 {A,B,C,A+B,A+C,B+C,"
-                             "A+B+C} 七键（当前: " + ",".join(all_keys) + "）")
+                             "A+B+C} 七键；4 集合需恰 15 键（A,B,C,D,A+B,…,A+B+C+D；"
+                             "当前: " + ",".join(all_keys) + "）")
         keys = found
         regions = {r: int(regs[r]) for r in all_keys}
     else:
@@ -779,6 +1015,9 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
     fs = theme["font_size"] + 2
     area_mode = bool(kwargs.get("area_mode"))
     ax.set_xlim(0, 1); ax.set_ylim(0, 1); ax.set_aspect("equal"); ax.axis("off")
+    if len(keys) == 4:  # v2.8 D1：4 集合走椭圆布局（默认与 --area 皆支持）
+        _gen_venn4(ax, keys, regions, colors, fs, cjk_fp, area_mode)
+        return
 
     if area_mode:
         # ── Euler 面积比例模式：圆的大小与交集面积按计数比例 ──
@@ -858,8 +1097,10 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
             label_xy = {k1: (0.745, 0.64), k2: (0.255, 0.64), k3: (0.50, 0.245),
                         k1 + k2: (0.50, 0.705), k1 + k3: (0.585, 0.462),
                         k2 + k3: (0.415, 0.462), k1 + k2 + k3: (0.50, 0.535)}
-        label_pos = [(-0.24, 0.16), (0.24, 0.16), (0.0, -0.26)] if len(keys) == 3 \
-            else [(-0.24, 0.0), (0.24, 0.0)]
+        # 标签偏移与圈位同侧：圈1 在右(0.60)、圈2 在左(0.40)、圈3 在下——
+        # 旧版偏移镜像导致前两个集合的名称互相标到对方的圈上（标签-圈错位 bug）
+        label_pos = [(0.24, 0.16), (-0.24, 0.16), (0.0, -0.26)] if len(keys) == 3 \
+            else [(0.24, 0.0), (-0.24, 0.0)]
         for i, k in enumerate(keys):
             cx, cy = centers[i]
             ax.add_patch(mpatches.Circle((cx, cy), r, facecolor=colors[i],
@@ -896,7 +1137,8 @@ def gen_cluster_heatmap(data, ax, theme, cjk_fp, **kwargs):
         raise ValueError(f"cluster_heatmap: 矩阵需 >=2×2（当前 {M.shape}）")
     if M.shape[0] > MAX_CLUSTER_ROWS:
         raise ValueError(f"cluster_heatmap: 行数 {M.shape[0]} 超过聚类上限 {MAX_CLUSTER_ROWS}"
-                         f"（层次聚类内存随行数平方增长，请先筛选特征/样本）")
+                         f"（层次聚类内存随行数平方增长，请先筛选特征/样本；"
+                         f"或加 --downsample 2000 等距采样到 2000 行后重试）")
     if np.any(~np.isfinite(M)):
         raise ValueError("cluster_heatmap: 矩阵含 NaN/Inf——请先补全（聚类不支持缺失值）")
     row_labels = list(data.get("row_labels", data.get("rows", data.get("y_labels", []))))
@@ -1008,18 +1250,20 @@ def validate_extra(chart_type, data):
     elif chart_type == "venn":
         s = data.get("sets")
         rg = data.get("regions")
-        ok_sets = (isinstance(s, dict) and 2 <= len(s) <= 3 and not rg
+        ok_sets = (isinstance(s, dict) and 2 <= len(s) <= 4 and not rg  # v2.8：4 集合
                    and all(isinstance(v, (list, tuple, set)) for v in s.values()))
-        ok_regs = isinstance(rg, dict) and len(rg) in (3, 7) and not s
+        ok_regs = isinstance(rg, dict) and len(rg) in (3, 7, 15) and not s  # v2.8：15 键
         if not (ok_sets or ok_regs):
-            fatal.append("venn: 需要 'sets'（2~3 个集合，值为元素列表）或 'regions'"
-                         "（区域计数：2 集合恰 {A,B,A+B} 三键 / 3 集合恰 7 键）")
+            fatal.append("venn: 需要 'sets'（2~4 个集合，值为元素列表）或 'regions'"
+                         "（区域计数：2 集合恰 {A,B,A+B} 三键 / 3 集合恰 7 键 /"
+                         " 4 集合恰 15 键）")
     elif chart_type == "cluster_heatmap":
         m = data.get("matrix", data.get("data", data.get("values")))
         if m is None:
             fatal.append("cluster_heatmap: 需要 'matrix'")
         elif isinstance(m, (list, tuple)) and len(m) > MAX_CLUSTER_ROWS:
-            fatal.append(f"cluster_heatmap: 行数 {len(m)} 超过聚类上限 {MAX_CLUSTER_ROWS}")
+            fatal.append(f"cluster_heatmap: 行数 {len(m)} 超过聚类上限 {MAX_CLUSTER_ROWS}"
+                         "（可加 --downsample 2000 等距采样后重试）")
     return fatal, warns
 
 

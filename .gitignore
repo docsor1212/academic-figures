@@ -1,8 +1,0 @@
-__pycache__/
-*.pyc
-*.pyo
-backup-*/
-*.bak*
-.DS_Store
-examples/previews/
-.ipynb_checkpoints/

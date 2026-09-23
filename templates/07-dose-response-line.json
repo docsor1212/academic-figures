@@ -1,5 +1,6 @@
 {
  "_scene": "剂量-反应折线",
+ "_description": "剂量-反应折线（line）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "line",
  "_command": "python3 scripts/gen_figure.py -t line -d templates/07-dose-response-line.json -o line.pdf --theme glm --journal science --verify",
  "_caption_template": "图X | 剂量-反应关系：随剂量升高，应答率呈饱和趋势。",

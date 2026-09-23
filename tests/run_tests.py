@@ -20,6 +20,8 @@ import contextlib
 import glob
 import io
 import json
+import random
+import shlex
 import os
 import subprocess
 import sys
@@ -190,12 +192,12 @@ class TestValidateData(unittest.TestCase):
     def test_bar_all_equal_warning(self):
         _, w = gen_figure.validate_data(
             {"labels": ["A", "B"], "series": {"S": [5.0, 5.0]}}, "bar")
-        self.assertTrue(any("flat" in m for m in w))
+        self.assertTrue(any("全部相同" in m and "平线" in m for m in w))
 
     def test_bar_empty_series_fatal(self):
         f, _ = gen_figure.validate_data(
             {"labels": ["A", "B"], "series": {"S": []}}, "bar")
-        self.assertTrue(any("empty" in m for m in f))
+        self.assertTrue(any("没有数据" in m for m in f))
 
     def test_heatmap_missing_matrix_fatal(self):
         f, _ = gen_figure.validate_data({"labels": ["A"]}, "heatmap")
@@ -1062,7 +1064,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 16, f"expected 16 templates, got {len(jsons)}")
+        self.assertEqual(len(jsons), 22, f"expected 22 templates (v2.6: all chart types), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -1394,7 +1396,8 @@ class TestV230Features(unittest.TestCase):
                                "-o", os.path.join(self.tmp, "x.png")],
                               capture_output=True, text=True, timeout=120)
         self.assertNotEqual(proc.returncode, 0)
-        self.assertIn("输入数据或参数有问题", proc.stderr)
+        self.assertIn("JSON 语法错误", proc.stderr)  # A2 v3：中文诊断+针对性建议
+        self.assertIn("建议", proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
 
     def test_stderr_chinese_gate(self):
@@ -1831,6 +1834,891 @@ class TestV250SubmissionPolish(unittest.TestCase):
             msg = gf._zh_exception(exc)
             self.assertIn(keyword, msg, f"{type(exc).__name__} 映射缺中文释义")
             self.assertIn(type(exc).__name__, msg, "应保留英文类名便于搜索")
+
+
+class TestV260Features(unittest.TestCase):
+    """v2.6.0：km 长表陷阱拦截（A1）+ 校验消息中文化（A2）+ multi-format/pipeline（C1/C2）。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="af_v26_")
+        self.gen = os.path.join(SCRIPT_DIR, "gen_figure.py")
+
+    def test_a1_km_longtable_series_fatal(self):
+        # CSV 长表被通用转换装进 series：{time:[...], event:[...]} —— 必须 fatal（曾静默出废图）
+        long_table = {"labels": ["12", "24", "36"],
+                      "series": {"time": [12.0, 24.0, 36.0],
+                                 "event": [1.0, 0.0, 1.0]}}
+        f, _ = gen_figure.validate_data(long_table, "km")
+        self.assertTrue(any("长表" in m and "groups" in m for m in f),
+                        "长表应被拦截并给转换指引，实际 fatal=%r" % (f,))
+
+    def test_a1_km_flat_groups_fatal(self):
+        # groups 值是普通数值数组（不是 [t,e] 对）→ fatal 且给格式示例
+        f, _ = gen_figure.validate_data({"groups": {"A": [1.0, 2.0, 3.0]}}, "km")
+        self.assertTrue(any("成对" in m for m in f))
+
+    def test_a1_km_pairs_still_pass(self):
+        data = {"groups": {"A": [[1, 1], [2, 0], [3, 1]],
+                           "B": [[1, 0], [2, 0], [4, 1]]}}
+        f, _ = gen_figure.validate_data(data, "km")
+        self.assertEqual(f, [], "合法 [t,e] 对不应报错：%r" % (f,))
+
+    def test_a1_km_csv_end_to_end_fatal(self):
+        # 原始问题输入重演：CSV 长表文件 → load_data → validate_data 必须 fatal
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "km_long.csv")
+            with open(p, "w", encoding="utf-8") as fh:
+                fh.write("time,event,group\n12,1,A\n24,0,A\n36,1,B\n")
+            data = gen_figure.load_data(p, chart_type="km")
+            f, _ = gen_figure.validate_data(data, "km")
+            self.assertTrue(any("长表" in m for m in f),
+                            "CSV 长表应 fatal，实际 load=%r fatal=%r" % (data, f))
+
+    def test_a2_chinese_messages(self):
+        # 曾经的纯英文消息路径，现在必须含中文关键词
+        _, w_flat = gen_figure.validate_data(
+            {"labels": [1, 2, 3], "series": {"A": [5, 5, 5]}}, "bar")
+        self.assertTrue(any("全部相同" in m for m in w_flat))
+        _, w_nn = gen_figure.validate_data(
+            {"labels": [1, 2], "series": {"A": ["NA", 2]}}, "bar")
+        self.assertTrue(any("非数值" in m for m in w_nn))
+        f_type, _ = gen_figure.validate_data({"series": "not-a-dict"}, "bar")
+        self.assertTrue(any("JSON 对象" in m for m in f_type))
+        f_empty, _ = gen_figure.validate_data({"series": {}, "labels": [1]}, "bar")
+        self.assertTrue(any("空" in m for m in f_empty))
+        f_box, _ = gen_figure.validate_data(
+            {"labels": ["A", "B", "C"], "series": {"A": [1.0], "B": [2.0]}}, "box")
+        self.assertTrue(any("组名" in m for m in f_box))
+
+    def test_a2_no_english_leftovers(self):
+        # prisma 两处残留英文必须清除
+        f, _ = gen_figure.validate_data(
+            {"records_identified": 100, "studies_included": 5,
+             "exclusion_reasons": {"x": -1}}, "prisma")
+        self.assertTrue(any("非负整数" in m for m in f))
+        self.assertFalse(any("integers, got" in m for m in f))
+        f2, _ = gen_figure.validate_data(
+            {"records_identified": 100, "records_screened": 90,
+             "reports_assessed": 50, "studies_included": 5,
+             "exclusion_reasons": {"a": 20, "b": 30}}, "prisma")
+        self.assertFalse(any("flow does not add up" in m for m in f2))
+        self.assertTrue(any("排除人数" in m for m in f2))
+
+
+    # ── C1: --multi-format ──
+
+    def test_c1_multi_format_cli(self):
+        d = os.path.join(self.tmp, "mf.json")
+        with open(d, "w", encoding="utf-8") as f:
+            json.dump({"labels": ["甲", "乙"], "series": {"S": [1, 2]}}, f)
+        out = os.path.join(self.tmp, "mf1")
+        proc = subprocess.run(
+            [sys.executable, self.gen, "-t", "bar", "-d", d, "-o", out,
+             "--multi-format", "png,pdf", "--dpi", "150"],
+            capture_output=True, text=True, timeout=180)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(os.path.exists(out + ".png"), proc.stderr)
+        self.assertTrue(os.path.exists(out + ".pdf"), proc.stderr)
+        self.assertIn(".pdf", proc.stderr)
+
+    def test_c1_multi_format_bad_value(self):
+        d = os.path.join(self.tmp, "mf2.json")
+        with open(d, "w", encoding="utf-8") as f:
+            json.dump({"labels": ["甲", "乙"], "series": {"S": [1, 2]}}, f)
+        proc = subprocess.run(
+            [sys.executable, self.gen, "-t", "bar", "-d", d,
+             "-o", os.path.join(self.tmp, "mf2"), "--multi-format", "bmp"],
+            capture_output=True, text=True, timeout=60)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("不支持", proc.stderr)
+
+    # ── C2: --pipeline ──
+
+    def test_c2_pipeline_json_defaults(self):
+        d1 = os.path.join(self.tmp, "p_bar.json")
+        d2 = os.path.join(self.tmp, "p_ba.json")
+        with open(d1, "w", encoding="utf-8") as f:
+            json.dump({"labels": ["甲", "乙"], "series": {"S": [1, 2]}}, f)
+        with open(d2, "w", encoding="utf-8") as f:
+            json.dump({"a": [1, 2, 3, 4], "b": [2, 3, 2, 5]}, f)
+        pipe = os.path.join(self.tmp, "analysis.json")
+        with open(pipe, "w", encoding="utf-8") as f:
+            json.dump({"defaults": {"dpi": 150},
+                       "figures": [
+                           {"type": "bar", "data": "p_bar.json", "out": "fig_p_bar"},
+                           {"type": "bland_altman", "data": d2, "out": "fig_p_ba"}]}, f)
+        proc = subprocess.run([sys.executable, self.gen, "--pipeline", pipe],
+                              capture_output=True, text=True, timeout=300)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        # 相对路径 data 相对流水线文件所在目录解析；out 落在同目录
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "fig_p_bar.png")), proc.stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "fig_p_ba.png")), proc.stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "analysis.batch-report.json")))
+
+    def test_c2_pipeline_yaml(self):
+        try:
+            import yaml  # noqa: F401
+        except ImportError:
+            self.skipTest("pyyaml 未安装")
+        d1 = os.path.join(self.tmp, "p_bar.json")
+        with open(d1, "w", encoding="utf-8") as f:
+            json.dump({"labels": ["甲", "乙"], "series": {"S": [1, 2]}}, f)
+        pipe = os.path.join(self.tmp, "analysis.yaml")
+        with open(pipe, "w", encoding="utf-8") as f:
+            f.write("defaults:\n  dpi: 150\nfigures:\n"
+                    "  - type: bar\n    data: p_bar.json\n    out: fig_yaml2\n")
+        proc = subprocess.run([sys.executable, self.gen, "--pipeline", pipe],
+                              capture_output=True, text=True, timeout=180)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertTrue(os.path.exists(os.path.join(self.tmp, "fig_yaml2.png")), proc.stderr)
+
+    def test_c2_pipeline_bad_ext_and_conflict(self):
+        p = os.path.join(self.tmp, "pipe.txt")
+        with open(p, "w", encoding="utf-8") as f:
+            f.write("x")
+        proc = subprocess.run([sys.executable, self.gen, "--pipeline", p],
+                              capture_output=True, text=True, timeout=60)
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn(".yaml", proc.stderr)
+        d = os.path.join(self.tmp, "c.json")
+        with open(d, "w", encoding="utf-8") as f:
+            json.dump({"labels": ["甲"], "series": {"S": [1]}}, f)
+        proc2 = subprocess.run(
+            [sys.executable, self.gen, "--batch", d, "--pipeline", d],
+            capture_output=True, text=True, timeout=60)
+        self.assertNotEqual(proc2.returncode, 0)
+        self.assertIn("二选一", proc2.stderr)
+
+    # ── 审核修复：forest 缺省无效线按 measure 自动 ──
+
+    def test_v260_forest_refline_auto_ratio(self):
+        # 自然尺度 OR/HR（全正、measure 默认 OR）→ 缺省无效线必须 1.0（旧默认 0 会误导显著性判读）
+        import matplotlib
+        import matplotlib.pyplot as plt
+        theme = gen_figure.THEMES[gen_figure.resolve_theme("glm")]
+        data = {"labels": ["全部", "亚组"], "estimates": [0.69, 0.81],
+                "ci_low": [0.54, 0.59], "ci_high": [0.89, 1.12]}
+        fig, ax = plt.subplots()
+        gen_figure.gen_forest(data, ax, theme, None)
+        verts = [float(ln.get_xdata()[0]) for ln in ax.lines
+                 if len(ln.get_xdata()) >= 2
+                 and ln.get_xdata()[0] == ln.get_xdata()[-1]]
+        self.assertIn(1.0, verts, "自然尺度 OR 缺省无效线应为 1.0")
+        plt.close(fig)
+
+    def test_v260_forest_refline_auto_difference(self):
+        import matplotlib
+        import matplotlib.pyplot as plt
+        theme = gen_figure.THEMES[gen_figure.resolve_theme("glm")]
+        data = {"labels": ["A", "B"], "estimates": [-0.3, 0.2],
+                "ci_low": [-0.6, -0.1], "ci_high": [0.0, 0.5], "measure": "SMD"}
+        fig, ax = plt.subplots()
+        gen_figure.gen_forest(data, ax, theme, None)
+        verts = [float(ln.get_xdata()[0]) for ln in ax.lines
+                 if len(ln.get_xdata()) >= 2
+                 and ln.get_xdata()[0] == ln.get_xdata()[-1]]
+        self.assertIn(0.0, verts, "MD/SMD 缺省无效线应为 0.0")
+        plt.close(fig)
+
+    def test_v260_forest_refline_explicit_wins(self):
+        import matplotlib
+        import matplotlib.pyplot as plt
+        theme = gen_figure.THEMES[gen_figure.resolve_theme("glm")]
+        data = {"labels": ["A", "B"], "estimates": [0.69, 0.81],
+                "ci_low": [0.54, 0.59], "ci_high": [0.89, 1.12], "ref_line": 0}
+        fig, ax = plt.subplots()
+        gen_figure.gen_forest(data, ax, theme, None)
+        verts = [float(ln.get_xdata()[0]) for ln in ax.lines
+                 if len(ln.get_xdata()) >= 2
+                 and ln.get_xdata()[0] == ln.get_xdata()[-1]]
+        self.assertIn(0.0, verts, "显式 ref_line=0 应优先于自动")
+        self.assertNotIn(1.0, verts)
+        plt.close(fig)
+
+
+# ── B3/B2(v2.7) 回归锁 ──
+class TestB3PracticalFixes(unittest.TestCase):
+    def test_composite_hbar_panel(self):
+        """B3：composite 内 hbar 面板必须自动横排（实战坑回归锁）。"""
+        data = {"layout": [1, 2], "panels": [
+            {"title": "A", "type": "bar", "pos": [0, 0],
+             "data": {"labels": ["A", "B"], "series": {"C": [1.0, 2.0]}}},
+            {"title": "B", "type": "hbar", "pos": [0, 1],
+             "data": {"labels": ["X", "Y"], "series": {"S": [1.5, 2.5]}}},
+        ]}
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "comp.json")
+            json.dump(data, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+            r = subprocess.run([sys.executable, GEN, "-t", "composite", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "80"],
+                               capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stderr[-400:])
+            self.assertTrue(os.path.exists(os.path.join(td, "out.png")))
+
+    def test_roc_duplicate_labels_disambiguated(self):
+        """B3：两条 AUC 相同的 ROC 曲线 → 图例标签自动消歧并 stderr 告知。"""
+        xs = [0.0, 0.5, 1.0]
+        data = {"curves": [
+            {"name": "模型", "fpr": xs, "tpr": [0.0, 0.7, 1.0], "auc": 0.85},
+            {"name": "模型", "fpr": xs, "tpr": [0.0, 0.7, 1.0], "auc": 0.85},
+        ]}
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "roc.json")
+            json.dump(data, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+            r = subprocess.run([sys.executable, GEN, "-t", "roc", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "80"],
+                               capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stderr[-400:])
+            self.assertIn("已自动消歧", r.stderr)
+
+    def test_pca_feature_names_length_notice(self):
+        """B3：pca feature_names 长度不符 → 自动替换并 stderr 提示（原为静默）。"""
+        data = {"matrix": [[1.0, 2.0, 3.0, 4.0], [2.0, 1.0, 4.0, 3.0],
+                           [3.0, 4.0, 1.0, 2.0], [4.0, 3.0, 2.0, 1.0]],
+                "feature_names": ["只有", "两个"]}
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "pca.json")
+            json.dump(data, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+            r = subprocess.run([sys.executable, GEN, "-t", "pca", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "80"],
+                               capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stderr[-400:])
+            self.assertIn("已自动改用默认名", r.stderr)
+
+    def test_size_presets(self):
+        """B2：--size 16:9 与 9:16 渲染成功且 figsize 提示出现。"""
+        data = {"labels": ["A", "B"], "series": {"S": [1.0, 2.0]}}
+        for size in ("16:9", "9:16"):
+            with tempfile.TemporaryDirectory() as td:
+                p = os.path.join(td, "d.json")
+                json.dump(data, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+                r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                    "-o", os.path.join(td, "out"), "--dpi", "80",
+                                    "--size", size],
+                                   capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 0, r.stderr[-400:])
+                self.assertIn(f"画幅预设 {size}", r.stderr)
+
+
+# ── A3(v2.7) 稳定性回归锁 ──
+class TestA3Stability(unittest.TestCase):
+    def test_deterministic_output(self):
+        """A3：同输入两次渲染 → PNG 逐字节一致（确定性输出）。"""
+        data = {"labels": ["甲", "乙", "丙"], "series": {"组1": [1.0, 2.0, 3.0], "组2": [2.0, 1.0, 2.5]}}
+        blobs = []
+        for _ in range(2):
+            with tempfile.TemporaryDirectory() as td:
+                p = os.path.join(td, "d.json")
+                json.dump(data, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+                r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                    "-o", os.path.join(td, "out"), "--dpi", "100"],
+                                   capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 0, r.stderr[-300:])
+                blobs.append(open(os.path.join(td, "out.png"), "rb").read())
+        self.assertEqual(blobs[0], blobs[1], "同输入渲染结果不一致（确定性被破坏）")
+
+    def test_low_memory_graceful(self):
+        """A3：低内存环境（ulimit 512MB）渲染 → 不裸 traceback（中文诊断或正常完成）。"""
+        data = {"labels": [str(i) for i in range(40)], "series": {"S": [float(i) for i in range(40)]}}
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+            cmd = ("ulimit -v 524288; exec python3 %s -t bar --data %s -o %s/out --dpi 80"
+                   % (shlex.quote(GEN), shlex.quote(p), shlex.quote(td)))
+            r = subprocess.run(["bash", "-c", cmd], capture_output=True, text=True, timeout=180)
+            self.assertNotIn("Traceback", r.stderr, r.stderr[-400:])
+
+    def test_soak_30_charts(self):
+        """A3：30 张混合图型连跑零失败（浸泡）。"""
+        rng = random.Random(11)
+        ok = 0
+        with tempfile.TemporaryDirectory() as td:
+            for i in range(30):
+                t = ["bar", "line", "scatter", "box", "violin", "roc", "forest", "pca"][i % 8]
+                if t == "bar":
+                    d = {"labels": [f"g{j}" for j in range(5)],
+                         "series": {f"s{k}": [rng.random() * 5 for _ in range(5)] for k in range(3)}}
+                elif t == "line":
+                    d = {"x": list(range(20)), "series": {"a": [rng.random() for _ in range(20)]}}
+                elif t == "scatter":
+                    d = {"x": [rng.random() for _ in range(50)], "y": [rng.random() for _ in range(50)]}
+                elif t in ("box", "violin"):
+                    d = {"labels": ["A", "B"], "series": {"A": [rng.random() for _ in range(20)],
+                                                          "B": [rng.random() for _ in range(20)]}}
+                elif t == "roc":
+                    d = {"curves": [{"name": "m1", "fpr": [0, .5, 1], "tpr": [0, .8, 1], "auc": 0.9}]}
+                elif t == "forest":
+                    d = {"labels": ["s1", "s2", "s3"], "estimates": [1.1, 0.9, 1.3],
+                         "ci_low": [0.8, 0.6, 1.0], "ci_high": [1.5, 1.2, 1.7], "measure": "RR"}
+                else:
+                    d = {"matrix": [[rng.random() for _ in range(4)] for _ in range(6)]}
+                p = os.path.join(td, f"d{i}.json")
+                json.dump(d, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+                r = subprocess.run([sys.executable, GEN, "-t", t, "--data", p,
+                                    "-o", os.path.join(td, f"o{i}"), "--dpi", "70"],
+                                   capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 0, f"{t} #{i}: {r.stderr[-300:]}")
+                ok += 1
+        self.assertEqual(ok, 30)
+
+
+# ── v2.8.0 B1：文档图型计数与代码注册表一致性守门 ──────────────────────────
+class TestV280DocCount(unittest.TestCase):
+    """B1(v2.8)：全部在售文档「N 种图表 / N 种图型 / N chart types」必须等于
+    代码注册表去纯别名后的图型数。起因：v2.7.0 官方评测抓到 SKILL_ZH 写
+    「21种图表」而实际 22 种——文档计数表述从此由测试锁死，新增图型时文档同步更新。"""
+
+    _ALIASES = {"horizontal_bar", "boxplot", "survival"}  # 纯别名，不计为独立图型
+    _DOC_FILES = ["SKILL.md", "SKILL_ZH.md",
+                  os.path.join("templates", "README.md"),
+                  os.path.join("references", "limits.md"),
+                  os.path.join("references", "faq.md"),
+                  os.path.join("references", "advanced.md"),
+                  os.path.join("references", "data-formats.md"),
+                  os.path.join("references", "pitfalls.md"),
+                  os.path.join("references", "python-api.md"),
+                  os.path.join("references", "composite-layouts.md")]
+
+    def test_chart_count_claims_match_registry(self):
+        import re
+        n = len(gen_figure.GENERATORS) - len(self._ALIASES)
+        self.assertGreaterEqual(n, 22, f"注册表图型数异常减少: {n}")
+        root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+        pat = re.compile(r"(\d+)\s*(?:种图表|种图型|chart types)")
+        claims, bad = [], []
+        for rel in self._DOC_FILES:
+            p = os.path.join(root, rel)
+            if not os.path.exists(p):
+                continue
+            with open(p, encoding="utf-8") as f:
+                txt = f.read()
+            for m in pat.finditer(txt):
+                v = int(m.group(1))
+                ln = txt.count("\n", 0, m.start()) + 1
+                claims.append((rel, ln, v))
+                if v != n:
+                    bad.append(f"{rel}:{ln} 写「{v}」，注册表实际 {n}")
+        self.assertTrue(claims, "没有扫描到任何图型计数表述——正则或文档路径可能已变化")
+        self.assertEqual(bad, [], "文档图型计数与代码注册表不一致：\n" + "\n".join(bad))
+
+
+# ── v2.8.0 A 线：看门狗 / 退出码分级 / 降采样出口 ─────────────────────────
+class TestV280Watchdog(unittest.TestCase):
+    """A1/A3(v2.8)：看门狗硬中断 exit 5、--timeout 0 禁用、退出码分类。"""
+
+    def _big_cluster(self, td, rows=3000, cols=16):
+        import random as _r
+        rng = _r.Random(7)
+        data = {"matrix": [[rng.random() for _ in range(cols)] for _ in range(rows)],
+                "row_labels": [f"r{i}" for i in range(rows)],
+                "col_labels": [f"c{j}" for j in range(cols)]}
+        p = os.path.join(td, "big.json")
+        json.dump(data, open(p, "w", encoding="utf-8"))
+        return p
+
+    def test_watchdog_kills_slow_render_exit5(self):
+        """看门狗：--timeout 1 而渲染未完 → exit 5 + 中文诊断（不无限挂起）。"""
+        import random as _r
+        rng = _r.Random(7)
+        with tempfile.TemporaryDirectory() as td:
+            data = {"matrix": [[rng.random() for _ in range(16)] for _ in range(3000)],
+                    "row_labels": [f"r{i}" for i in range(3000)],
+                    "col_labels": [f"c{j}" for j in range(16)]}
+            p = os.path.join(td, "big.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "cluster_heatmap", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "200",
+                                "--timeout", "1"],
+                               capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 5,
+                             f"期望看门狗 exit 5，实际 {r.returncode}：{r.stderr[-300:]}")
+            self.assertIn("看门狗", r.stderr)
+            self.assertIn("--timeout", r.stderr)
+
+    def test_timeout_zero_disables_watchdog(self):
+        """--timeout 0 → 禁用看门狗，正常渲染完成 exit 0。"""
+        with tempfile.TemporaryDirectory() as td:
+            p = self._big_cluster(td, rows=800, cols=8)
+            r = subprocess.run([sys.executable, GEN, "-t", "cluster_heatmap", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "60",
+                                "--timeout", "0"],
+                               capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.exists(os.path.join(td, "out.png")))
+
+    def test_exit_code_classification(self):
+        """A3：v3 兜底退出码分类——数据侧=3、环境侧=4、内存=6、其余=2。"""
+        f = gen_figure._classify_exit_code
+        self.assertEqual(f(ValueError("x")), 3)
+        self.assertEqual(f(KeyError("k")), 3)
+        self.assertEqual(f(IndexError("i")), 3)
+        self.assertEqual(f(TypeError("t")), 3)
+        self.assertEqual(f(FileNotFoundError("f")), 3)
+        try:
+            json.loads("{bad json")
+        except json.JSONDecodeError as e:
+            self.assertEqual(f(e), 3)
+        self.assertEqual(f(ImportError("no mod")), 4)
+        self.assertEqual(f(ModuleNotFoundError("no mod")), 4)
+        self.assertEqual(f(OSError("io")), 4)
+        self.assertEqual(f(PermissionError("denied")), 4)
+        self.assertEqual(f(RuntimeError("rt")), 4)
+        self.assertEqual(f(MemoryError("oom")), 6)
+        self.assertEqual(f(Exception("misc")), 2)
+
+
+class TestV280Downsample(unittest.TestCase):
+    """A4(v2.8)：cluster_heatmap 超限指引 + --downsample 等距采样出口。"""
+
+    def test_over_limit_hint_mentions_downsample(self):
+        import random as _r
+        rng = _r.Random(3)
+        with tempfile.TemporaryDirectory() as td:
+            data = {"matrix": [[rng.random() for _ in range(5)] for _ in range(3500)]}
+            p = os.path.join(td, "big.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "cluster_heatmap", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "60"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("AUTO-DOWNSAMPLE", r.stderr)
+
+    def test_downsample_renders_under_limit(self):
+        import random as _r
+        rng = _r.Random(3)
+        with tempfile.TemporaryDirectory() as td:
+            data = {"matrix": [[rng.random() for _ in range(5)] for _ in range(3500)],
+                    "row_labels": [f"g{i}" for i in range(3500)]}
+            p = os.path.join(td, "big.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "cluster_heatmap", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "60",
+                                "--downsample", "1500"],
+                               capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("等距采样", r.stderr)
+            self.assertTrue(os.path.exists(os.path.join(td, "out.png")))
+
+
+# ── v2.8.0 C 线：异常词条覆盖（评测点名 ImportError 裸英文）────────────────
+class TestV280ExceptionUX(unittest.TestCase):
+    """C1(v2.8)：ImportError/OSError 等不再落「未知类型」，中文诊断含依赖指引。"""
+
+    def test_importerror_has_chinese_diagnosis(self):
+        zh, orig, tips = gen_figure._diagnose_exception(ImportError("No module named 'scipy'"))
+        self.assertNotEqual(zh, "未知类型的错误")
+        self.assertIn("依赖", zh)
+        joined = " ".join(tips)
+        self.assertIn("pip install", joined)
+
+    def test_modulenotfounderror_and_oserror_covered(self):
+        zh1, _, _ = gen_figure._diagnose_exception(ModuleNotFoundError("No module named 'x'"))
+        zh2, _, _ = gen_figure._diagnose_exception(OSError("disk full"))
+        self.assertIn("依赖", zh1)
+        self.assertNotEqual(zh2, "未知类型的错误")
+
+    def test_timeout_entry_mentions_flag(self):
+        zh, _, tips = gen_figure._diagnose_exception(TimeoutError("slow"))
+        self.assertIn("超时", zh)
+        self.assertTrue(any("--timeout" in t for t in tips),
+                        "TimeoutError 建议应包含 --timeout 指引")
+
+
+# ── v2.8.0 D1：venn 4 集合椭圆 ──────────────────────────────────────────
+class TestV280Venn4(unittest.TestCase):
+    """D1(v2.8)：4 集合椭圆布局（默认确定性 / --area 拟合+披露）与区域契约。"""
+
+    def test_default_layout_all_15_regions_nonempty(self):
+        import itertools
+        import importlib
+        ac = importlib.import_module("af_v23_charts")
+        ells = ac._venn4_ells()
+        areas, cents, _ = ac._venn4_region_masks(ells, (-0.5, -0.5, 0.5, 0.5), 400)
+        self.assertEqual(len(areas), 15)
+        for k, v in areas.items():
+            self.assertGreater(v, 0, f"默认布局区域 {k} 为空")
+            self.assertIsNotNone(cents[k])
+
+    def _sets4_data(self):
+        return {"sets": {
+            "组A": [f"a{i}" for i in range(40)],
+            "组B": [f"a{i}" for i in range(15, 55)],
+            "组C": [f"a{i}" for i in range(30, 70)],
+            "组D": [f"a{i}" for i in range(5, 45, 2)] + [f"d{i}" for i in range(10)]}}
+
+    def test_venn4_sets_mode_cli(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "v4.json")
+            json.dump(self._sets4_data(), open(p, "w", encoding="utf-8"),
+                      ensure_ascii=False)
+            r = subprocess.run([sys.executable, GEN, "-t", "venn", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "70"],
+                               capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.exists(os.path.join(td, "out.png")))
+
+    def test_venn4_regions15_and_bad_keys(self):
+        import itertools
+        sets = self._sets4_data()["sets"]
+        keys = list(sets)
+        ss = {k: set(v) for k, v in sets.items()}
+        regs = {}
+        for n in (1, 2, 3, 4):
+            for combo in itertools.combinations(range(4), n):
+                inter = set(ss[keys[combo[0]]])
+                for i in combo[1:]:
+                    inter &= ss[keys[i]]
+                for i in range(4):
+                    if i not in combo:
+                        inter -= ss[keys[i]]
+                regs["".join(keys[i] for i in combo)] = len(inter)
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "r15.json")
+            json.dump({"regions": regs}, open(p, "w", encoding="utf-8"),
+                      ensure_ascii=False)
+            r = subprocess.run([sys.executable, GEN, "-t", "venn", "--data", p,
+                                "-o", os.path.join(td, "out"), "--dpi", "70"],
+                               capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            bad = dict(list(regs.items())[:14])
+            p2 = os.path.join(td, "r14.json")
+            json.dump({"regions": bad}, open(p2, "w", encoding="utf-8"),
+                      ensure_ascii=False)
+            r2 = subprocess.run([sys.executable, GEN, "-t", "venn", "--data", p2,
+                                 "-o", os.path.join(td, "bad"), "--dpi", "70"],
+                                capture_output=True, text=True, timeout=120)
+            self.assertEqual(r2.returncode, 1)
+            self.assertIn("15 键", r2.stderr)
+
+    def test_venn4_area_mode_discloses_and_deterministic(self):
+        sets = self._sets4_data()["sets"]
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "v4.json")
+            json.dump({"sets": sets}, open(p, "w", encoding="utf-8"),
+                      ensure_ascii=False)
+            blobs = []
+            errs = []
+            for i in range(2):
+                out = os.path.join(td, f"area{i}")
+                r = subprocess.run([sys.executable, GEN, "-t", "venn", "--data", p,
+                                    "-o", out, "--dpi", "70", "--area"],
+                                   capture_output=True, text=True, timeout=600)
+                self.assertEqual(r.returncode, 0, r.stderr[-300:])
+                self.assertIn("面积偏差", r.stderr)  # 拟合完成/最优拟合两分支均含
+                blobs.append(open(out + ".png", "rb").read())
+                errs.append(r.stderr)
+            self.assertEqual(blobs[0], blobs[1], "--area 两次渲染不一致（确定性破坏）")
+            self.assertIn("面积偏差", errs[0])
+
+
+# ── v2.8.0 D2：--wizard 向导 ────────────────────────────────────────────
+class TestV280Wizard(unittest.TestCase):
+    """D2(v2.8)：非 TTY 不挂起打印决策树；AF_WIZARD_FORCE 管道走交互并出命令。"""
+
+    def test_wizard_non_tty_prints_guide(self):
+        r = subprocess.run([sys.executable, GEN, "--wizard"],
+                           capture_output=True, text=True, timeout=60, input="")
+        self.assertEqual(r.returncode, 0, r.stderr[-200:])
+        self.assertIn("决策树", r.stdout)
+        self.assertIn("-t", r.stdout)
+
+    def test_wizard_interactive_pipe_generates_command(self):
+        env = dict(os.environ, AF_WIZARD_FORCE="1")
+        r = subprocess.run([sys.executable, GEN, "--wizard"],
+                           capture_output=True, text=True, timeout=60,
+                           input="1\n1\n1\n\n", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr[-200:])
+        self.assertIn("-t bar", r.stdout, "向导应生成 bar 命令")
+        self.assertIn("-d templates/", r.stdout)
+        self.assertIn("-o figure.png", r.stdout)
+
+    def test_wizard_eof_falls_back_to_defaults(self):
+        env = dict(os.environ, AF_WIZARD_FORCE="1")
+        r = subprocess.run([sys.executable, GEN, "--wizard"],
+                           capture_output=True, text=True, timeout=60,
+                           input="", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr[-200:])
+        self.assertIn("-t bar", r.stdout)
+
+
+class TestV280Help(unittest.TestCase):
+    """回归锁（v2.8）：--help 可用且含新参数。v2.7.0 曾因 --stats help 文本含
+    裸 %（95%CI）触发 argparse %-格式化崩溃——--help 整体不可用。"""
+
+    def test_help_works_and_lists_v28_flags(self):
+        r = subprocess.run([sys.executable, GEN, "--help"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, f"--help 崩溃: {r.stderr[-200:]}")
+        for flag in ("--timeout", "--downsample", "--wizard", "--stats"):
+            self.assertIn(flag, r.stdout + r.stderr, f"--help 缺 {flag}")
+
+
+
+class TestV290DocsAndAdvisories(unittest.TestCase):
+    """v2.9.0：边界收拢（limits §六/§七）、独立快速入门、预判 advisory、KeyError 纠错。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.dirname(SCRIPT_DIR)
+        cls.qs = os.path.join(cls.root, "references", "quickstart.md")
+        cls.lim = os.path.join(cls.root, "references", "limits.md")
+        cls.zh = io.open(os.path.join(cls.root, "SKILL_ZH.md"), encoding="utf-8").read()
+        cls.en = io.open(os.path.join(cls.root, "SKILL.md"), encoding="utf-8").read()
+
+    def test_quickstart_exists_with_sections(self):
+        self.assertTrue(os.path.isfile(self.qs), "quickstart.md 缺失")
+        t = io.open(self.qs, encoding="utf-8").read()
+        for kw in ("完整选图决策树", "上手四步", "Python 内调用", "常见第一坑", "--wizard"):
+            self.assertIn(kw, t, "quickstart 缺小节: " + kw)
+
+    def test_limits_has_new_sections(self):
+        t = io.open(self.lim, encoding="utf-8").read()
+        for kw in ("输出与默认行为交互", "运行环境边界", "--verify", "--width",
+                   "matplotlib.use('Agg')"):
+            self.assertIn(kw, t, "limits.md 缺: " + kw)
+
+    def test_main_docs_point_to_quickstart(self):
+        self.assertIn("references/quickstart.md", self.zh)
+        self.assertIn("references/quickstart.md", self.en)
+        self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
+        self.assertIn("Group comparison", self.en)
+        self.assertIn("version: 3.2.0", self.zh)
+        self.assertIn("version: 3.2.0", self.en)
+
+    def test_cluster_advisory_preflight(self):
+        data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
+        msgs = gen_figure._preflight_advisories(data, "cluster_heatmap", None)
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("--downsample", msgs[0])
+        self.assertIn("1500", msgs[0])
+        self.assertEqual(
+            gen_figure._preflight_advisories(data, "cluster_heatmap", 500), [])
+        small = {"matrix": [[1.0, 2.0], [3.0, 4.0]]}
+        self.assertEqual(
+            gen_figure._preflight_advisories(small, "cluster_heatmap", None), [])
+        self.assertEqual(gen_figure._preflight_advisories(data, "bar", None), [])
+
+    def test_keyerror_near_miss_hint(self):
+        zh, orig, tips = gen_figure._diagnose_exception(KeyError("lables"))
+        joined = " ".join(tips)
+        self.assertIn("labels", joined)
+        self.assertIn("lables", joined)
+        zh2, o2, t2 = gen_figure._diagnose_exception(KeyError("zzzzzz"))
+        self.assertIsInstance(t2, list)
+        zh3, o3, t3 = gen_figure._diagnose_exception(ValueError("x"))
+        self.assertTrue(isinstance(t3, list))
+
+
+
+
+class TestV290FieldNearMiss(unittest.TestCase):
+    """v2.9：字段名近似匹配告警。"""
+
+    def test_typo_labels_warns(self):
+        msgs = gen_figure._field_nearmiss_warnings(
+            {"lables": ["a", "b"], "series": {"s": [1, 2]}})
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("lables", msgs[0])
+        self.assertIn("labels", msgs[0])
+
+    def test_known_and_underscore_keys_silent(self):
+        self.assertEqual(gen_figure._field_nearmiss_warnings(
+            {"labels": ["a"], "series": {"s": [1]}, "_command": "x"}), [])
+
+    def test_random_unknown_key_silent(self):
+        self.assertEqual(gen_figure._field_nearmiss_warnings(
+            {"labels": ["a"], "my_custom_note": "x"}), [])
+
+
+
+
+class TestV300Docs(unittest.TestCase):
+    """v3.0.0：类别列、速查卡、行内警示、模块拆分。"""
+
+    @classmethod
+    def setUpClass(cls):
+        root = os.path.dirname(SCRIPT_DIR)
+        cls.zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
+        cls.en = io.open(os.path.join(root, "SKILL.md"), encoding="utf-8").read()
+        cs_p = os.path.join(root, "references", "cheatsheet.md")
+        cls.cs = io.open(cs_p, encoding="utf-8").read() if os.path.isfile(cs_p) else ""
+
+    def test_category_column(self):
+        self.assertIn("| 类别 | 类型 | 命令 |", self.zh)
+        self.assertIn("| Category | Type | Command |", self.en)
+        for cat in ("统计推断", "生存分析", "系统综述"):
+            self.assertIn(cat, self.zh)
+        for cat in ("Inference", "Survival", "Review"):
+            self.assertIn(cat, self.en)
+
+    def test_cheatsheet_complete(self):
+        for kw in ("速查卡", "图型命令骨架", "全量参数速查", "退出码", "边界 Top 5", "--journal"):
+            self.assertIn(kw, self.cs, "cheatsheet 缺: " + kw)
+
+    def test_inline_warnings(self):
+        self.assertIn("自动联动同款配色", self.zh)
+        self.assertIn("auto-link a matching theme", self.en)
+        self.assertIn("references/cheatsheet.md", self.zh)
+        self.assertIn("references/cheatsheet.md", self.en)
+
+    def test_modules_exist(self):
+        self.assertTrue(os.path.isfile(os.path.join(SCRIPT_DIR, "af_wizard.py")))
+        self.assertTrue(os.path.isfile(os.path.join(SCRIPT_DIR, "af_diagnostics.py")))
+        self.assertTrue(callable(gen_figure._run_wizard))
+        self.assertTrue(callable(gen_figure._diagnose_exception))
+
+    def test_medwiki_section(self):
+        """v3.1：MedWiki 导流节（同一作者披露+免责+负向触发行）。"""
+        self.assertIn("docsor.cn", self.zh)
+        self.assertIn("## 相关资源（同一作者·论文全家桶）", self.zh)
+        self.assertIn("不构成诊疗或用药建议", self.zh)
+        self.assertIn("不提及 MedWiki", self.zh)
+        self.assertIn("docsor.cn", self.en)
+        self.assertIn("Related Resources (same author · paper toolkit)", self.en)
+        self.assertIn("prescription-level pages are gated", self.en)
+
+    def test_version_2100(self):
+        self.assertIn("version: 3.2.0", self.zh)
+        self.assertIn("version: 3.2.0", self.en)
+        self.assertNotIn("version: 2.9.0", self.zh)
+        self.assertNotIn("version: 2.9.0", self.en)
+
+
+
+
+    def test_km_cjk_risk_table_no_regression(self):
+        """v3.0.1 热修回归锁：加载 CJK 字体+英文组名的 km，风险表不得渲染失败
+        （v3.0.0 曾因未定义 _auto_cjk_hdr 丢整个风险表）。"""
+        data = {"groups": {"ArmA": [[3.1, 1], [7.4, 0], [12.2, 1], [20.5, 1]],
+                           "ArmB": [[2.3, 1], [9.8, 0], [15.1, 1], [25.0, 1]]}}
+        f = os.path.join(tempfile.gettempdir(), "af_km_cjk_lock.json")
+        io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+        r = subprocess.run(
+            [sys.executable, GEN, "-t", "km", "-d", f,
+             "-o", os.path.join(tempfile.gettempdir(), "af_km_cjk_lock.png"),
+             "--cjk", "--dpi", "100"],
+            capture_output=True, text=True, timeout=240)
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertNotIn("自动风险表渲染失败", r.stderr, r.stderr[-300:])
+
+
+
+
+class TestV3100(unittest.TestCase):
+    """v3.1.0：--quick 一键出图 + 自动降采样 + 文档口径。"""
+
+    def test_quick_renders(self):
+        with tempfile.TemporaryDirectory() as td:
+            data = {"labels": ["A", "B", "C"],
+                    "series": {"s1": [1, 2, 3], "s2": [2, 3, 4]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            out = os.path.join(td, "q.png")
+            r = subprocess.run([sys.executable, GEN, "--quick", "--data", p,
+                                "--out", out, "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.isfile(out))
+            self.assertIn("自动选择图型", r.stderr)
+
+    def test_quick_requires_data(self):
+        r = subprocess.run([sys.executable, GEN, "--quick"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertNotEqual(r.returncode, 0)
+
+    def test_auto_downsample_4000(self):
+        import random as _r
+        rng = _r.Random(11)
+        with tempfile.TemporaryDirectory() as td:
+            data = {"matrix": [[rng.random() for _ in range(4)] for _ in range(4000)],
+                    "row_labels": [f"r{i}" for i in range(4000)]}
+            p = os.path.join(td, "big.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            out = os.path.join(td, "auto.png")
+            r = subprocess.run([sys.executable, GEN, "-t", "cluster_heatmap", "--data", p,
+                                "-o", out, "--dpi", "60"],
+                               capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("AUTO-DOWNSAMPLE", r.stderr)
+
+    def test_docs_310(self):
+        root = os.path.dirname(SCRIPT_DIR)
+        zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
+        lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
+        df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
+        self.assertIn("version: 3.2.0", zh)
+        self.assertIn("--quick", zh)
+        self.assertIn("自动等距采样到 2000 行", zh)
+        self.assertIn("性能参考表", lim)
+        self.assertIn("JSON vs CSV 能力对照", df)
+
+
+
+
+class TestV3200(unittest.TestCase):
+    """v3.2.0：自动行为透明化 + 安全声明 + FAQ 扩充。"""
+
+    @classmethod
+    def setUpClass(cls):
+        root = os.path.dirname(SCRIPT_DIR)
+        cls.zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
+        cls.en = io.open(os.path.join(root, "SKILL.md"), encoding="utf-8").read()
+        cls.faq = io.open(os.path.join(root, "references", "faq.md"), encoding="utf-8").read()
+
+    def test_journal_width_lock_announced(self):
+        with tempfile.TemporaryDirectory() as td:
+            data = {"labels": ["A", "B"], "series": {"s": [1, 2]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                "-o", os.path.join(td, "o.pdf"), "--journal", "nature",
+                                "--width", "10", "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[auto]", r.stderr)
+            self.assertIn("已被忽略", r.stderr)
+
+    def test_verify_non_pdf_announced(self):
+        with tempfile.TemporaryDirectory() as td:
+            data = {"labels": ["A", "B"], "series": {"s": [1, 2]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                "-o", os.path.join(td, "o.png"), "--verify", "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("仅对 PDF", r.stderr)
+
+    def test_safety_statement_bilingual(self):
+        self.assertIn("## 安全与数据（行为声明）", self.zh)
+        self.assertIn("不发起任何网络请求", self.zh)
+        self.assertIn("## Safety & Data (behavior statement)", self.en)
+        self.assertIn("zero network requests", self.en)
+
+    def test_faq_conflicts_expanded(self):
+        for kw in ("参数冲突与边界 FAQ", "--journal", "--verify", "--hatch"):
+            self.assertIn(kw, self.faq)
+
+    def test_top3_boundary_banner(self):
+        self.assertIn("三条最常用边界", self.zh)
+        self.assertIn("Top-3 boundaries", self.en)
+
+
+    def test_toolkit_billboard(self):
+        """v3.2.0 工单③：全家桶广告牌+Pro 转化入口+官网入口。"""
+        for kw in ("论文全家桶", "paper-polisher-pro", "pubmed-verifier", "doc-holmes",
+                   "paper-rewriter", "cn-med-oa", "cite-holmes", "docsor.cn"):
+            self.assertIn(kw, self.zh)
+        self.assertIn("academic-figures-pro", self.zh)
+        self.assertIn("Paper toolkit", self.en)
+        self.assertIn("docsor.cn", self.en)
+
+
+
+    def test_version_320(self):
+        self.assertIn("version: 3.2.0", self.zh)
+        self.assertIn("version: 3.2.0", self.en)
+
 
 
 if __name__ == "__main__":

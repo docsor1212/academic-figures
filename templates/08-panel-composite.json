@@ -1,5 +1,6 @@
 {
  "_scene": "多面板组合图",
+ "_description": "多面板组合图（composite）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "composite",
  "_command": "python3 scripts/gen_figure.py -t composite -d templates/08-panel-composite.json -o composite.png --theme okabe-ito --verify --alt",
  "_caption_template": "图X | 多面板组合图：A 应答率；B 生物标志物动态；C 相关性。",

@@ -1,5 +1,6 @@
 {
  "_scene": "相关性热图",
+ "_description": "相关性热图（heatmap）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "heatmap",
  "_command": "python3 scripts/gen_figure.py -t heatmap -d templates/05-correlation-heatmap.json -o heatmap.png --cmap RdBu_r --vmin -1 --vmax 1 --journal cell --verify",
  "_caption_template": "图X | 各临床变量 Pearson 相关矩阵（蓝=负相关，红=正相关）。",

@@ -1,5 +1,6 @@
 {
  "_scene": "RCT 结局对比柱状图",
+ "_description": "RCT 结局对比柱状图（bar）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "bar",
  "_command": "python3 scripts/gen_figure.py -t bar -d templates/02-rct-baseline-bar.json -o bar.pdf --theme lancet --journal jama --verify",
  "_caption_template": "图X | 治疗组 ACR50 应答率在各时间点均高于对照组（Wk 52：78% vs 35%，P<0.001）。",

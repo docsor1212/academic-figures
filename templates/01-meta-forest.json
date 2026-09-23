@@ -1,5 +1,6 @@
 {
  "_scene": "荟萃分析森林图",
+ "_description": "荟萃分析森林图（forest）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "forest",
  "_command": "python3 scripts/gen_figure.py -t forest -d templates/01-meta-forest.json -o forest.pdf --theme okabe-ito --verify",
  "_caption_template": "图X | 森林图显示……合并效应量 OR = 1.18（95%CI 0.98–1.42），异质性低（I²=51.9%）。",

@@ -143,7 +143,7 @@ Each series value is an array of raw data points.
 - `estimates`: Point estimates
 - `ci_low` / `ci_high`: Confidence interval bounds
 - `overall` (optional): Diamond summary estimate
-- `ref_line` (optional): Reference/null line (default: 0)
+- `ref_line` (optional): Reference/null line. Default: auto by `measure` (OR/RR/HR → 1.0, MD/SMD → 0.0; log-scale data pass `ref_line`: 0 explicitly)
 
 ### Enhanced (v1.3.0) — Recommended for meta-analysis
 
@@ -524,3 +524,16 @@ PRISMA 2020 系统综述流程图。必需字段：`records_identified`、`studi
 - `lang: "zh"` 输出中文标准措辞（识别/筛选/纳入）；`exclusion_reasons` 的键始终按你给的内容
   原样渲染（中英文均可）。
 - 数值为 0 且未显式给出的侧盒自动省略。
+
+## JSON vs CSV 能力对照（v3.1 收拢）
+
+| 能力 | JSON | CSV/TSV |
+|---|---|---|
+| 基础绘图（柱/线/散点/箱/小提琴等） | ✅ | ✅ |
+| 误差棒 + 显著性标记 | ✅ `errors`/`significance` | ❌ 请改用 JSON |
+| KM 风险表/log-rank | ✅ 原始 [时间,事件] 格式 | ❌ |
+| 多因素 Cox 森林图 | ✅ 逐例试者数据 | ✅ 长表 CSV 亦可 |
+| 组合图 panels / 复杂布局 | ✅ | ❌ |
+| Excel 直读 | — | `--sheet` 需 `.xlsx` |
+
+> 原则：需要误差棒、统计标注或复杂结构时用 JSON；简单数值用 CSV 即可。

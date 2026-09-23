@@ -8,10 +8,10 @@
 | 维度 | 上限 | 超出行为 |
 |---|---|---|
 | km / survival 每组样本 | 无硬上限（5 万行实测 3s 渲染） | — |
-| cluster_heatmap 行数 | **3000 行** | 友好报错：请先筛选特征/样本 |
+| cluster_heatmap 行数 | **3000 行** | v3.1 起 >3000 行自动等距采样到 2000 行并显著告知（`--downsample N` 可自定行数） |
 | pca 特征列数 | **200 列** | 友好报错：请先降维/筛选 |
 | pca 最少样本 | 3 行 | 报错提示 |
-| venn 集合数 | **2~3 个** | 报错提示 |
+| venn 集合数 | **2~4 个**（4 集合为椭圆布局；区域计数需恰 15 键） | 报错提示 |
 | paired / bland_altman | 两组**等长**数据 | 报错提示实际长度差 |
 | heatmap 矩阵 | 无硬上限；>200×200 建议 PNG/SVG（TIFF 会很大） | — |
 | Shapiro 正态检验 | 每组 n>5000 自动跳过（视为正态） | stderr 提示 |
@@ -63,3 +63,38 @@
 各图型字段要求见 `references/data-formats.md`；十场景+六新图型的可运行示例在
 `templates/`（每个 JSON 头部带 `_command`，复制即可跑）；组合图布局见
 `references/composite-layouts.md`。PRISMA 数字自洽校验规则见 `--explain prisma`。
+
+## 六、输出与默认行为交互（v2.9 收拢：易忽略的参数交互）
+
+| 交互/默认 | 事实 | 建议 |
+|---|---|---|
+| `--journal` × `--width` | journal 预设锁定宽度，`--width` 被覆盖（`--height` 仍生效） | 要自定义尺寸就不加 `--journal` |
+| PDF 重叠检测 | 仅 PDF 输出有意义，且**必须显式 `--verify`**（发现重叠→退出码 2，不落盘）；不加则不做像素级检查 | 投稿 PDF 一律加 `--verify` |
+| 默认 DPI | 线条图 600、照片类 300（`--dpi` 72–600 覆盖） | 期刊成品保持默认即可 |
+| 渲染看门狗 | 默认自适应 30–1800s；`--timeout N` 覆盖，`--timeout 0` 禁用 | 超大图适当调大 |
+| journal × theme | `--journal nejm/lancet/science/nature` 未显式 `--theme` 时自动联动同款配色 | 显式 `--theme` 优先 |
+| `--stats multi` × `auto` | 互斥（multi 优先）；两组数据用 auto（multi 需 ≥3 组） | 两组比较选 auto |
+| `--demo` / `--suggest` | `--demo` 不需要 `--data`；`--suggest` 需要 | — |
+
+## 七、运行环境边界
+
+- **无显示环境（CI/容器/SSH）**：引擎已内置 `matplotlib.use('Agg')`，无需 display/X11，开箱即跑。
+- **中文字体**：`--cjk` 自动探测系统字体；`scripts/setup_env.py` 一键检测/修复；
+  `--journal cma|cn-core` 自动启用中文（无需 `--cjk`，加了也不冲突）。
+- **import 嵌入调用**：作为库使用时需自行 `matplotlib.use('Agg')`（见 `references/python-api.md` 方式二）。
+- **输出目录**：必须可写；输出文件被占用（如 PDF 阅读器开着）会 PermissionError——
+  换目录或关闭占用程序后重试。
+- **cluster_heatmap 行数**：>1500 行渲染时即输出建议降采样的 WARNING（硬上限 3000 行，
+  层次聚类内存随行数平方增长）——提前预判，不等超限报错。
+
+## 八、性能参考表（实测，2026-09 v3.0/v3.1 基线）
+
+| 场景 | 实测 |
+|---|---|
+| km 原始数据 5 万行 | ~3 秒（无硬上限） |
+| cluster_heatmap 3000 行 | 内存护栏内（层次聚类 O(n²)，超限自动采样） |
+| 200 图连跑压测 | 162 秒全成（15 图型轮转） |
+| 22 模板带 CJK 全量渲染 | 全部通过（v3.0 扫描基线） |
+| 输出 600dpi TIFF | 单图 0.1~0.6MB（LZW 压缩） |
+
+数值随机器而异，此处为 82 开发机（RTX A5000/24GB）实测口径。

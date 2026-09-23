@@ -1,5 +1,6 @@
 {
  "_scene": "KM 生存曲线",
+ "_description": "KM 生存曲线（km）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "km",
  "_command": "python3 scripts/gen_figure.py -t km -d templates/03-survival-km.json -o km.png --theme lancet --journal nejm --verify",
  "_caption_template": "图X | Kaplan-Meier 生存曲线。治疗组中位生存 60 个月，对照组 30 个月（log-rank P=0.032）。",

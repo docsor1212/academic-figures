@@ -1,5 +1,6 @@
 {
  "_scene": "中文期刊横向柱图（cn-core 预设）",
+ "_description": "中文期刊横向柱图（cn-core 预设）（hbar）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "hbar",
  "_command": "python3 scripts/gen_figure.py -t hbar -d templates/10-cn-journal-hbar.json -o hbar.pdf --theme glm --journal cn-core --cjk --verify --alt",
  "_caption_template": "图X | 五种生物制剂的 ACR50/ACR70 应答率（%）对比。",

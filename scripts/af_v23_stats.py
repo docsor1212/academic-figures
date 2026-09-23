@@ -506,3 +506,170 @@ def delong_paired(labels, scores_by_model):
                 p = float(2.0 * _st.norm.sf(z))
             pairs.append((names[i], names[j], p, float(z)))
     return aucs, pairs
+
+
+# ── B1(v2.7)：Cox 比例风险多因素回归（Efron 结基线，Newton-Raphson，零新依赖）──
+
+def _cox_efron(beta, t, e, X, ev_times):
+    """Efron 对数偏似然、梯度、信息阵（在给定 β 处）。
+    η 统一减 max(η) 保数值稳定（Efron 似然对 η 平移不变）。"""
+    p = X.shape[1]
+    eta = X @ beta
+    shift = eta.max() if eta.size else 0.0
+    w = np.exp(eta - shift)
+    ll = 0.0
+    grad = np.zeros(p)
+    info = np.zeros((p, p))
+    for te, i0 in ev_times:
+        th = w[i0:]
+        xR = X[i0:]
+        S0 = th.sum()
+        S1 = th @ xR
+        S2 = (xR * th[:, None]).T @ xR
+        is_ev = (t[i0:] == te) & (e[i0:] == 1)
+        if not is_ev.any():
+            continue
+        thD = th[is_ev]
+        xD = xR[is_ev]
+        d = int(is_ev.sum())
+        D0 = thD.sum()
+        D1 = thD @ xD
+        D2 = (xD * thD[:, None]).T @ xD
+        ll += float(np.log(thD).sum())
+        grad += xD.sum(axis=0)  # B1fix：事件受试者自身协变量的似然正项（漏写=梯度恒错）
+        for l in range(d):
+            f = l / d
+            Z0 = S0 - f * D0
+            Z1 = S1 - f * D1
+            Z2 = S2 - f * D2
+            ll -= float(np.log(Z0))
+            grad -= Z1 / Z0
+            info += Z2 / Z0 - np.outer(Z1, Z1) / (Z0 * Z0)
+    return ll, grad, info
+
+
+def coxph_fit(times, events, cov, names=None, tol=1e-10, max_iter=60):
+    """Cox 比例风险多因素回归。times (n,)>0；events (n,) 0/1；cov (n,p) 数值。
+    内部标准化保收敛；Efron 结基线；Newton-Raphson + 步长减半。
+    返回 dict(names, beta, se, z, p, hr, hr_low, hr_high, n, n_events,
+              loglik, iterations, converged, info, _sort_state)。
+    p 值为正态近似（df=1，不引入 scipy）。异常一律 ValueError(中文)。"""
+    import math
+    t = np.asarray(times, dtype=float)
+    e = np.asarray(events, dtype=float)
+    X = np.asarray(cov, dtype=float)
+    if X.ndim == 1:
+        X = X[:, None]
+    n, p = X.shape
+    if names is None:
+        names = [f"x{k + 1}" for k in range(p)]
+    names = [str(x) for x in names]
+    if not (len(t) == len(e) == n):
+        raise ValueError(f"time/event/协变量行数不一致：{len(t)}/{len(e)}/{n}")
+    if n < 10:
+        raise ValueError(f"样本量过小（n={n}）：Cox 回归至少需要约 10 例（建议 ≥10×每协变量）")
+    if (t <= 0).any():
+        raise ValueError("time 存在非正数——生存时间必须 >0")
+    if not np.isin(e, (0, 1)).all():
+        raise ValueError("event 必须为 0/1（0=删失，1=事件）")
+    if not np.isfinite(X).all():
+        bad = np.argwhere(~np.isfinite(X))
+        raise ValueError(f"协变量含 NaN/Inf（共 {len(bad)} 处，如第 {bad[0][0] + 1} 行"
+                         f"第 {names[bad[0][1]]} 列）——请先清洗缺失值")
+    sd = X.std(axis=0)
+    if (sd == 0).any():
+        bad = [names[k] for k in np.where(sd == 0)[0]]
+        raise ValueError(f"协变量为常数列（无变异）：{ '、'.join(bad) }——请移除后重试")
+    mu = X.mean(axis=0)
+    Xs = (X - mu) / sd
+
+    order = np.argsort(t, kind="mergesort")
+    t, e, Xs = t[order], e[order], Xs[order]
+    ev_times = [(float(tv), int(np.searchsorted(t, tv, side="left")))
+                for tv in np.unique(t[e == 1])]
+
+    beta = np.zeros(p)
+    converged = False
+    it = 0
+    for it in range(1, max_iter + 1):
+        ll, grad, info = _cox_efron(beta, t, e, Xs, ev_times)
+        try:
+            step = np.linalg.solve(info, grad)
+        except np.linalg.LinAlgError:
+            raise ValueError("信息矩阵奇异（协变量间可能完全共线）——"
+                             "请检查并移除线性相关的协变量")
+        f = 1.0
+        while f > 1e-8:
+            b2 = beta + f * step
+            ll2, _, _ = _cox_efron(b2, t, e, Xs, ev_times)
+            if ll2 >= ll - 1e-10:
+                break
+            f /= 2
+        if np.max(np.abs(f * step)) < tol:
+            converged = True
+            break
+        beta = beta + f * step
+    if not converged:
+        ll, grad, info = _cox_efron(beta, t, e, Xs, ev_times)
+        print(f"WARNING: Cox 牛顿迭代 {max_iter} 次未完全收敛（可能共线或数据极端），"
+              f"结果仅供参考", file=sys.stderr)
+
+    info_s = info
+    cov_s = np.linalg.inv(info_s)
+    se_s = np.sqrt(np.diag(cov_s))
+    beta_raw = beta / sd
+    se_raw = se_s / sd
+    z = beta_raw / se_raw
+    pvals = np.array([math.erfc(abs(zz) / math.sqrt(2)) for zz in z])
+    hr = np.exp(beta_raw)
+    zq = 1.959963984540054  # 双侧 95%
+    return {
+        "names": names, "beta": beta_raw, "se": se_raw, "z": z, "p": pvals,
+        "hr": hr, "hr_low": np.exp(beta_raw - zq * se_raw),
+        "hr_high": np.exp(beta_raw + zq * se_raw),
+        "n": int(n), "n_events": int(e.sum()),
+        "loglik": float(ll), "iterations": it, "converged": converged,
+        "info": info_s,
+        "_state": (t, e, Xs),
+    }
+
+
+def cox_ph_test(fit):
+    """Grambsch–Therneau 近似 PH 检验：scaled Schoenfeld 残差对 log(事件时间)
+    的线性斜率 z 检验（逐协变量）。p<0.05 提示该协变量的比例风险假设可能不成立。
+    返回 dict(names, p, z)。近似法；正式报告建议配合生存曲线分层目检。"""
+    import math
+    t, e, Xs = fit["_state"]
+    sd = Xs.std(axis=0)
+    # 残差在标准化空间计算：beta_scaled = beta_raw * sd
+    beta_s = fit["beta"] * sd
+    info_s = fit["info"]
+    p = Xs.shape[1]
+    ev_idx = np.where(e == 1)[0]
+    if len(ev_idx) < p + 5:
+        return {"names": fit["names"], "p": np.full(p, np.nan), "z": np.zeros(p)}
+    d = len(ev_idx)
+    inv_info = np.linalg.inv(info_s)
+    r_scaled = np.empty((d, p))
+    t_ev = np.empty(d)
+    for k, i in enumerate(ev_idx):
+        te = t[i]
+        i0 = int(np.searchsorted(t, te, side="left"))
+        th = np.exp(Xs[i0:] @ beta_s)
+        wmean = (th @ Xs[i0:]) / th.sum()
+        r_scaled[k] = d * (inv_info @ (Xs[i] - wmean)) + beta_s
+        t_ev[k] = te
+    g = np.log(t_ev)
+    gc = g - g.mean()
+    denom = (gc ** 2).sum()
+    names, ps, zs = fit["names"], [], []
+    for k in range(p):
+        rk = r_scaled[:, k]
+        slope = (gc * (rk - rk.mean())).sum() / denom
+        resid = rk - rk.mean() - slope * gc
+        s2 = (resid ** 2).sum() / max(len(g) - 2, 1)
+        se = math.sqrt(s2 / denom)
+        z = slope / se if se > 0 else 0.0
+        zs.append(z)
+        ps.append(math.erfc(abs(z) / math.sqrt(2)))
+    return {"names": names, "p": np.array(ps), "z": np.array(zs)}

@@ -1,5 +1,6 @@
 {
  "_scene": "构成比堆叠柱",
+ "_description": "构成比堆叠柱（stacked_bar）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "stacked_bar",
  "_command": "python3 scripts/gen_figure.py -t stacked_bar -d templates/09-survey-stacked.json -o stacked.png --theme okabe-ito --verify",
  "_caption_template": "图X | 三类血管炎的器官受累构成比（%）。",

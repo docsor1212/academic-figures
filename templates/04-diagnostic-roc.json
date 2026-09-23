@@ -1,5 +1,6 @@
 {
  "_scene": "诊断试验 ROC",
+ "_description": "诊断试验 ROC（roc）。用模板自带 _command 一键渲染示例。",
  "_chart_type": "roc",
  "_command": "python3 scripts/gen_figure.py -t roc -d templates/04-diagnostic-roc.json -o roc.png --theme okabe-ito --verify",
  "_caption_template": "图X | ROC 曲线。联合标志物 A+B 的 AUC（0.942）高于单一标志物 A（0.897）。",
