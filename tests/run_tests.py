@@ -17,6 +17,7 @@ Usage:
 """
 
 import contextlib
+import re
 import glob
 import io
 import json
@@ -2482,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 3.2.0", self.zh)
-        self.assertIn("version: 3.2.0", self.en)
+        self.assertIn("version: 3.3.0", self.zh)
+        self.assertIn("version: 3.3.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2578,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 3.2.0", self.zh)
-        self.assertIn("version: 3.2.0", self.en)
+        self.assertIn("version: 3.3.0", self.zh)
+        self.assertIn("version: 3.3.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2646,7 +2647,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 3.2.0", zh)
+        self.assertIn("version: 3.3.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2716,8 +2717,70 @@ class TestV3200(unittest.TestCase):
 
 
     def test_version_320(self):
-        self.assertIn("version: 3.2.0", self.zh)
-        self.assertIn("version: 3.2.0", self.en)
+        self.assertIn("version: 3.3.0", self.zh)
+        self.assertIn("version: 3.3.0", self.en)
+
+
+
+
+class TestV3300(unittest.TestCase):
+    """v3.3.0：frontmatter 冒号炸弹防御 + README 官方化。"""
+
+    @classmethod
+    def setUpClass(cls):
+        root = os.path.dirname(SCRIPT_DIR)
+        cls.readme = os.path.join(root, "README.md")
+        cls._fm = {}
+        for name in ("SKILL.md", "SKILL_ZH.md"):
+            t = io.open(os.path.join(root, name), encoding="utf-8").read()
+            cls._fm[name] = re.match(r"^---\n(.*?)\n---\n", t, re.S).group(1)
+
+    def test_no_colon_bomb_in_frontmatter(self):
+        import re as _re
+        for name, fm in self._fm.items():
+            hits = []
+            for ln in fm.splitlines():
+                if _re.match(r"^[A-Za-z_][\w-]*:\s", ln):
+                    continue  # 键行合法（YAML 键语法）
+                if _re.search(r"[a-zA-Z]:\s", ln):
+                    hits.append(ln.strip()[:60])  # 折叠值续行里的 word: value = 炸弹
+            self.assertEqual(len(hits), 0, f"{name} frontmatter 折叠值仍有冒号+空格: {hits[:3]}")
+
+    def test_readme_official(self):
+        self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
+        t = io.open(self.readme, encoding="utf-8").read()
+        for kw in ("Quick Start", "22 chart types", "docsor.cn", "paper-polisher-pro",
+                   "zero telemetry", "setup_env.py"):
+            self.assertIn(kw, t)
+
+
+    def test_nature_clean_style(self):
+        """v3.3：--style nature-clean 顶刊版式（渲染成功+stderr 告知+与默认输出不同）。"""
+        import tempfile as _tf
+        with _tf.TemporaryDirectory() as td:
+            data = {"labels": ["A", "B", "C"], "series": {"s1": [1, 2, 3], "s2": [2, 3, 4]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            o1 = os.path.join(td, "plain.png")
+            o2 = os.path.join(td, "nc.png")
+            r1 = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                 "-o", o1, "--dpi", "80"],
+                                capture_output=True, text=True, timeout=240)
+            r2 = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                 "-o", o2, "--style", "nature-clean", "--dpi", "80"],
+                                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r1.returncode, 0, r1.stderr[-200:])
+            self.assertEqual(r2.returncode, 0, r2.stderr[-200:])
+            self.assertIn("nature-clean", r2.stderr)
+            self.assertNotEqual(open(o1, "rb").read(), open(o2, "rb").read())
+
+
+
+    def test_version_330(self):
+        root = os.path.dirname(SCRIPT_DIR)
+        for name in ("SKILL.md", "SKILL_ZH.md"):
+            t = io.open(os.path.join(root, name), encoding="utf-8").read()
+            self.assertIn("version: 3.3.0", t, name + " 缺 3.3.0 版本行")
 
 
 

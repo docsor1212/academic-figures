@@ -6,6 +6,15 @@
 
 ## Version History
 
+- **v3.3.0** (2026-09-24) — Discovery-channel release (small & safe; no behavior changes):
+  - **Frontmatter colon-bomb fix**: the platform's YAML reader treats ": " inside folded
+    description/when_to_use values as a mapping and reports "no valid skill" (observed on
+    another skill). Both EN frontmatter values rewritten with em-dash/parenthesis phrasing.
+  - **README.md (official)**: bilingual first screen for the GitHub discovery channel —
+    badges, quick start, "why" section, docs map, paper toolkit, docsor.cn site link.
+  - GitHub sync is now step-10 of the release chain (sync_github.sh, one-way mirror,
+    hygiene hard-scan; pitfalls.md excluded via .gh-sync-exclude).
+
 - **v3.2.0** (2026-09-22) — Auto-behavior transparency + safety statement (targets the
   v3.1.0 evaluation's lowest items: accuracy 4.6, antiPatternFaq 4.7):
   - **`[auto]` transparency**: automatic behaviors are explicitly announced —
@@ -17,6 +26,11 @@
     --stats×chart-type, --compare scores, --egger funnel, --hatch vs --style, CSV errors).
   - **Safety & Data statement** (bilingual): fully-local rendering, zero network requests,
     no telemetry, explicit optional setup_env, --demo temp dir, per-process debug switches.
+  - **`--style nature-clean`** (design-language pack, first slice): Okabe-Ito palette,
+    top/right spines removed, grid off, frameless legend — the Nature-style visual
+    language, answering the "default style looks provincial" critique with a
+    one-flag switch. Pure addition: default behavior unchanged.
+
   - **Templates**: every scenario template gains a `_description` line.
 
 - **v3.1.0** (2026-09-21) — One-command figure + auto-downsample + KM risk-table hotfix
@@ -74,6 +88,15 @@
     the closest legal field names (difflib) in the Chinese diagnosis.
   - Python API surfaced from the Quick Start section; version bumps to 2.9.0.
 
+- **v3.3.0**（2026-09-24）—— 发现渠道版（小而稳；无行为变更）：
+  - **frontmatter 冒号炸弹修复**：平台 YAML 解析器把 description/when_to_use 折叠值中的
+    "冒号+空格"当作映射，导致判"无有效 skill"（其他 skill 已踩坑）。英文两处值改写为
+    破折号/括号表述；
+  - **README.md 官方化**：GitHub 发现渠道第一屏——双语徽章/快速开始/卖点/文档地图/
+    论文全家桶/docsor.cn 官网入口；
+  - GitHub 同步固化为发布链第⑩步（sync_github.sh 单向镜像+卫生硬扫描；
+    pitfalls.md 经 .gh-sync-exclude 排除不上公开面）。
+
 - **v3.2.0**（2026-09-22）—— 自动行为透明化与安全声明（对标 v3.1.0 评测最低项：
   accuracy 4.6、antiPatternFaq 4.7）：
   - **`[auto]` 透明化**：自动行为显式告知——`--journal` 锁宽度时明示 `--width` 被忽略；
@@ -84,6 +107,10 @@
     --compare scores、--egger、--hatch vs --style、CSV 误差棒）；
   - **「安全与数据」声明（双语）**：纯本地渲染零网络请求、无遥测、setup_env 为可选显式
     动作、--demo 临时目录、调试开关均为进程内显式设置；
+  - **`--style nature-clean`**（设计语言包第一刀）：Okabe-Ito 配色+去顶右框线+无网格+
+    无框图例——Nature 系版式语言一键开关，正面回应"默认风格保守"批评。
+    纯增量：默认行为零变化。
+
   - **模板**：全部场景模板补 `_description` 说明行。
 
 - **v3.1.0**（2026-09-21）—— 一键出图+自动降采样+KM 风险表热修（合并发布，含同日早间的

@@ -29,6 +29,8 @@ import matplotlib.font_manager as fm
 from matplotlib.transforms import BboxBase
 import numpy as np
 
+_STYLE_NO_GRID = [False]  # v3.3 --style nature-clean：图型级网格关闭开关
+
 # v3.0.0 模块化：wizard 与异常诊断系统拆至独立模块（原名在此命名空间可用）
 from af_wizard import _run_wizard
 from af_diagnostics import (_EXIT_DATA_CLASSES, _EXIT_ENV_CLASSES,
@@ -1572,6 +1574,10 @@ def apply_base_style(ax, theme):
     """Apply common styling to axes."""
     for spine in theme["spines"]:
         ax.spines[spine].set_visible(False)
+    if _STYLE_NO_GRID[0]:
+        ax.grid(False)
+        ax.tick_params(labelsize=theme["font_size"] - 1, length=3, width=1.0)
+        return
     ax.yaxis.grid(True, alpha=theme["grid_alpha"], linestyle='--')
     ax.tick_params(labelsize=theme["font_size"] - 1)
 
@@ -3809,8 +3815,9 @@ def main():
     parser.add_argument("--ylabel", default="", help="y 轴标签")
     parser.add_argument("--theme", default=None,
                         help="配色主题（默认 glm；--list-themes 查看全部）")
-    parser.add_argument("--style", default=None, choices=["glm-hatch"],
-                        help="快捷风格：'glm-hatch' = GLM 黄蓝斜线风（theme glm + --hatch）")
+    parser.add_argument("--style", default=None, choices=["glm-hatch", "nature-clean"],
+                        help="快捷风格：'glm-hatch' = GLM 黄蓝斜线风（theme glm + --hatch）；"
+                             "'nature-clean' = 顶刊版式（Okabe-Ito 配色+去顶右框线+无网格+无框图例，v3.3）")
     parser.add_argument("--list-themes", action="store_true",
                         help="列出全部配色主题（含色卡预览）后退出")
     parser.add_argument("--theme-swatch", default=None, metavar="THEME",
@@ -4018,6 +4025,21 @@ def main():
     if args.style == "glm-hatch":
         args.theme = "glm"
         args.hatch = True
+
+    if args.style == "nature-clean":
+        # ── v3.3：顶刊版式（设计语言包第一刀）——纯增量，默认行为零变化 ──
+        args.theme = "okabe-ito"
+        _STYLE_NO_GRID[0] = True
+        plt.rcParams.update({
+            "axes.spines.top": False,
+            "axes.spines.right": False,
+            "axes.linewidth": 1.0,
+            "legend.frameon": False,
+            "grid.alpha": 0.0,
+            "grid.linestyle": "-",
+        })
+        print("[style] nature-clean：Okabe-Ito 配色 + 去顶右框线 + 无网格 + 无框图例"
+              "（Nature 系版式语言）", file=sys.stderr)
 
     if getattr(args, "area", False) and args.type != "venn":
         print("ERROR: --area 仅用于 venn（--type venn）。等圆模式为默认，无需参数。",

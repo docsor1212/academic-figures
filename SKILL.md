@@ -1,9 +1,9 @@
 ---
 name: academic-figures
-version: 3.2.0
+version: 3.3.0
 description: >-
-  Publication-ready scientific figures from one command: 22 chart types (bar,
-  grouped bar, scatter, heatmap, forest plot, Kaplan-Meier survival, ROC,
+  Publication-ready scientific figures from one command — 22 chart types (bar,
+  grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
   violin, box, composite panels, PRISMA 2020 flow, funnel, Bland-Altman, PCA,
   venn 2-4 sets, clustered heatmap, dual-axis, Cox multi-variable regression
   forest), 9 themes incl. colorblind-safe Okabe-Ito and NEJM/Lancet/Science
@@ -13,7 +13,7 @@ description: >-
   reviewer-style --annotate arrows, PDF text-overlap + font-size gates, 600dpi
   output. 100% local — data never leaves your machine.
 when_to_use: >-
-  Use when making or generating any figure or chart from data: bar chart,
+  Use when making or generating any figure or chart from data (bar chart,
   scatter plot, heatmap, forest plot, Kaplan-Meier / survival curve, ROC curve,
   violin / box plot, composite multi-panel figure, flow diagram, PRISMA /
   systematic review flow, meta-analysis funnel, venn / Euler diagram, PCA,
@@ -29,7 +29,7 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 3.2.0
+  version: 3.3.0
   date: 2026-09-17
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -187,7 +187,7 @@ see `references/limits.md` §6 and §7.
 **Recommendation**: use `--theme okabe-ito` for submissions (major journals require colorblind-safe
 figures; red-green schemes are a top rejection reason). **Journal linkage**: `--journal
 nejm|lancet|science|nature` auto-applies the matching theme when no explicit `--theme` is given.
-**GLM signature style**: `--style glm-hatch` = glm palette + black hatching (print-friendly);
+**GLM signature style**: `--style glm-hatch` = glm palette + black hatching (print-friendly); **journal-clean style**: `--style nature-clean` = Okabe-Ito palette + no top/right spines + no grid + frameless legend (Nature-style design language, new in v3.3);
 `--alternate` alternates yellow/blue per bar. Aliases: `okabe`→okabe-ito; case-insensitive,
 prefix matching (`--theme gla` → glm).
 
