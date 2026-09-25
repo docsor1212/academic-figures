@@ -6,6 +6,15 @@
 
 ## Version History
 
+- **v3.4.0** (2026-09-25) — Design-language pack, second slice: direct labeling
+  (targets the v3.3.0 evaluation's creativity 4.7 / accuracy 4.7):
+  - **`--direct-label`**: multi-series line charts label each series directly at the
+    line end (auto vertical collision avoidance) instead of a legend box — Nature-style
+    annotation. `glm-brand`/`nature-clean` themes enable it by default for line charts
+    (`--no-direct-label` opt-out; explicit `--legend-loc` wins).
+  - **Title hierarchy**: glm-brand/nature-clean themes render titles bold + left-aligned.
+  - Pro API: options pass through whitelisted `style`/`theme` (regex-guarded).
+
 - **v3.3.0** (2026-09-24) — Discovery-channel release (small & safe; no behavior changes):
   - **Frontmatter colon-bomb fix**: the platform's YAML reader treats ": " inside folded
     description/when_to_use values as a mapping and reports "no valid skill" (observed on
@@ -87,6 +96,14 @@
   - **KeyError near-miss hints**: a misspelled JSON field in the error path now suggests
     the closest legal field names (difflib) in the Chinese diagnosis.
   - Python API surfaced from the Quick Start section; version bumps to 2.9.0.
+
+- **v3.4.0**（2026-09-25）—— 设计语言第二刀：直接标注（对标 v3.3.0 评测 creativity 4.7 /
+  accuracy 4.7）：
+  - **`--direct-label`**：多系列线图在线末端直接标注系列名（自动上下避让碰撞），替代
+    图例框——Nature 风标注语言；glm-brand/nature-clean 主题下 line 默认开启
+    （`--no-direct-label` 关闭；显式 `--legend-loc` 优先）；
+  - **标题层级**：glm-brand/nature-clean 主题标题加粗+左对齐；
+  - Pro API options 白名单透传 style/theme（正则防护，引擎侧最终校验）。
 
 - **v3.3.0**（2026-09-24）—— 发现渠道版（小而稳；无行为变更）：
   - **frontmatter 冒号炸弹修复**：平台 YAML 解析器把 description/when_to_use 折叠值中的

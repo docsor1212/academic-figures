@@ -148,6 +148,24 @@ THEMES = {
         "spines": ["top", "right"],
         "colorblind_safe": True,
     },
+    "glm-brand": {
+        "figsize": (10, 6),
+        "dpi": 600,
+        "font_size": 11,
+        "colors": ["#2E5E8F",  # 深钢蓝（墨蓝方向一档，黑纹对比安全）
+                   "#FFB627",  # 信号黄（品牌 token，蓝黄轴色盲安全）
+                   "#6BA776",  # sage green
+                   "#9B7BB8",  # dusty purple
+                   "#C9694E",  # muted coral
+                   "#5BA0A0",  # teal
+                   "#B47A8E",  # mauve
+                   "#7A7A7A",  # warm gray
+                   "#C4A44A",  # mustard gold
+                   "#8A9BA8"],  # blue gray
+        "spines": ["top", "right"],
+        "grid_alpha": 0.0,  # 品牌风格：无网格（Nature 版式语言）
+        "hatch_edge": "auto",  # 斜纹色=填充同系深色（品牌精修）
+    },
     # Cool theme: elegant muted cool-toned palette (blues, teals, slate)
     # All colors in 190-260° hue range, low-medium saturation
     # Inspired by editorial design (FT/Economist) cool palettes
@@ -173,7 +191,7 @@ THEME_ALIASES = {
     "okabe": "okabe-ito", "colorblind": "okabe-ito", "colorblind-safe": "okabe-ito",
     "okabeIto": "okabe-ito", "okabeito": "okabe-ito",
     "classic": "classic", "matplotlib": "classic", "default": "glm",
-    "glm": "glm", "glm-blog": "glm", "glmblog": "glm",
+    "glm": "glm", "glm-blog": "glm", "glmblog": "glm", "glm-brand": "glm-brand", "brand": "glm-brand", "glmb": "glm-brand",
     "cool": "cool", "cool-toned": "cool",
     "nature": "nature", "npg": "nature",
     "lancet": "lancet", "the-lancet": "lancet",
@@ -184,6 +202,7 @@ THEME_ALIASES = {
 
 THEME_SWATCH_DESCRIPTIONS = {
     "glm": "GLM 素雅莫兰迪风（默认）· 色盲安全 · 钢蓝/暖黄/鼠尾草绿/灰紫/珊瑚",
+    "glm-brand": "GLM 品牌视觉 · 信号黄对比强化 · 无网格 · 同系深色斜纹（Pro 默认）",
     "classic": "经典 matplotlib 色板（v2.0 前的旧默认）",
     "okabe-ito": "Nature Methods 金标准 · 色盲安全 · 橙/天蓝/绿/黄/深蓝/红",
     "nature": "NPG 期刊风 · 红/蓝/绿/藏蓝",
@@ -1570,6 +1589,15 @@ def legend_audit(ax, chart_type, no_legend, n_series):
 
 # ── Figure generators ──────────────────────────────────────────────────
 
+def _hatch_edgecolor(theme, fill_color):
+    """斜纹描边色：主题声明 hatch_edge=auto 时用填充同系深色，否则黑色（历史行为）。"""
+    if not isinstance(theme, dict) or theme.get("hatch_edge") != "auto":
+        return "black"
+    fills = fill_color if isinstance(fill_color, list) else [fill_color]
+    return [_darken_color(c, 0.55) for c in fills] if isinstance(fill_color, list) \
+        else _darken_color(fill_color, 0.55)
+
+
 def apply_base_style(ax, theme):
     """Apply common styling to axes."""
     for spine in theme["spines"]:
@@ -1620,10 +1648,11 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
         else:
             bar_colors = colors[i % len(colors)]
         if use_hatch:
-            # GLM-5.2 blog style: ALL bars get hatching with black hatch lines
-            # on colored fill. Black edgecolor ensures visibility on any fill.
+            # GLM-5.2 blog style: ALL bars get hatching. glm-brand: 同系深色纹+边
+            #（视觉精修）；其他主题保持黑色纹（历史行为）。
             bars = bar_func(x + offset, values, w, yerr=errs,
-                            color=bar_colors, edgecolor='black', linewidth=0.6,
+                            color=bar_colors,
+                            edgecolor=_hatch_edgecolor(theme, bar_colors), linewidth=0.6,
                             hatch=hatch_val, capsize=3,
                             error_kw={'linewidth': 1}, label=name)
         else:
@@ -1843,6 +1872,7 @@ def gen_line(data, ax, theme, cjk_fp, **kwargs):
 
     x = np.arange(len(labels)) if not any(isinstance(l, (int, float)) for l in labels) else np.array(labels)
 
+    _line_ends = []  # v3.4 直接标注收集器
     for i, (name, values) in enumerate(series.items()):
         c = theme["colors"][i % len(theme["colors"])]
         mk = markers[i % len(markers)]
@@ -1856,6 +1886,27 @@ def gen_line(data, ax, theme, cjk_fp, **kwargs):
                 lower = [v - e for v, e in zip(values, errs)]
                 upper = [v + e for v, e in zip(values, errs)]
                 ax.fill_between(x, lower, upper, color=c, alpha=0.15, zorder=2)
+        if kwargs.get("direct_label"):
+            _line_ends.append((str(name), values[-1], c))
+
+    # ── v3.4：直接标注（线末端系列名，自动上下避让，替代图例框）──
+    if kwargs.get("direct_label") and _line_ends:
+        _span = (max(v for _, v, _ in _line_ends) - min(v for _, v, _ in _line_ends)) or 1.0
+        _gap = _span * 0.08
+        _order = sorted(range(len(_line_ends)), key=lambda i: _line_ends[i][1])
+        _adj = {i: _line_ends[i][1] for i in _order}
+        for _a, _b in zip(_order, _order[1:]):
+            if _adj[_b] - _adj[_a] < _gap:
+                _adj[_b] = _adj[_a] + _gap
+        _x_span = (max(x) - min(x)) or 1.0
+        ax.set_xlim(right=max(x) + _x_span * 0.22)
+        _any_cjk = cjk_fp and any(has_cjk(n) for n, _, _ in _line_ends)
+        for _i, (_name, _v, _c) in enumerate(_line_ends):
+            ax.annotate(_name, xy=(max(x) + _x_span * 0.03, _adj[_i]),
+                        textcoords="data", color=_c, fontweight="bold",
+                        fontsize=theme["font_size"] - 1, va="center", ha="left",
+                        fontproperties=cjk_fp if _any_cjk else None,
+                        annotation_clip=False)
 
     ax.set_xticks(x if not any(isinstance(l, (int, float)) for l in labels) else range(len(labels)))
     if not any(isinstance(l, (int, float)) for l in labels):
@@ -2497,7 +2548,7 @@ def gen_stacked_bar(data, ax, theme, cjk_fp, **kwargs):
         c = colors[i % len(colors)]
         hatch_val = HATCH_PATTERNS[i % len(HATCH_PATTERNS)] if use_hatch else None
         bars = ax.bar(x, vals, 0.65, bottom=bottoms, color=c,
-                      edgecolor='black' if use_hatch else 'white',
+                      edgecolor=_hatch_edgecolor(theme, colors[i % len(colors)]) if use_hatch else 'white',
                       linewidth=0.6 if use_hatch else 0.5,
                       hatch=hatch_val, label=name, zorder=2)
 
@@ -3815,9 +3866,10 @@ def main():
     parser.add_argument("--ylabel", default="", help="y 轴标签")
     parser.add_argument("--theme", default=None,
                         help="配色主题（默认 glm；--list-themes 查看全部）")
-    parser.add_argument("--style", default=None, choices=["glm-hatch", "nature-clean"],
+    parser.add_argument("--style", default=None, choices=["glm-hatch", "nature-clean", "glm-brand"],
                         help="快捷风格：'glm-hatch' = GLM 黄蓝斜线风（theme glm + --hatch）；"
-                             "'nature-clean' = 顶刊版式（Okabe-Ito 配色+去顶右框线+无网格+无框图例，v3.3）")
+                             "'nature-clean' = 顶刊版式（Okabe-Ito 配色+去顶右框线+无网格+无框图例，v3.3）；"
+                             "'glm-brand' = 品牌视觉（信号黄对比强化+无网格+同系深色斜纹，v3.3.1）")
     parser.add_argument("--list-themes", action="store_true",
                         help="列出全部配色主题（含色卡预览）后退出")
     parser.add_argument("--theme-swatch", default=None, metavar="THEME",
@@ -3899,6 +3951,10 @@ def main():
     parser.add_argument("--annotate", action="append", default=None, metavar='"X,Y:文字"',
                         help="在数据坐标处加箭头注释，可重复使用；类别轴可用刻度标签"
                              "定位（如 --annotate \"3.2,5.1:p=0.01\" 或 \"对照组:显著上调\"）")
+    parser.add_argument("--direct-label", action="store_true",
+                        help="线图直接标注系列名于线末端（替代图例框，Nature 风格；v3.4）")
+    parser.add_argument("--no-direct-label", dest="direct_label", action="store_false",
+                        help="关闭直接标注（glm-brand/nature-clean 主题下 line 默认开启）")
     parser.add_argument("--legend-loc", default=None, metavar="LOC",
                         help="图例位置：best/upper right/upper left/lower left/lower "
                              "right/right/center left/center right/center 等九宫格")
@@ -4026,6 +4082,13 @@ def main():
         args.theme = "glm"
         args.hatch = True
 
+    if args.style == "glm-brand":
+        args.theme = "glm-brand"
+        args.hatch = True
+
+    if args.style in ("glm-brand", "nature-clean") and args.type == "line" \
+            and not args.legend_loc:
+        args.direct_label = True  # 设计语言第二刀：品牌/顶刊风格下 line 默认直接标注
     if args.style == "nature-clean":
         # ── v3.3：顶刊版式（设计语言包第一刀）——纯增量，默认行为零变化 ──
         args.theme = "okabe-ito"
@@ -4037,6 +4100,8 @@ def main():
             "legend.frameon": False,
             "grid.alpha": 0.0,
             "grid.linestyle": "-",
+            "axes.titleweight": "bold",
+            "axes.titlelocation": "left",
         })
         print("[style] nature-clean：Okabe-Ito 配色 + 去顶右框线 + 无网格 + 无框图例"
               "（Nature 系版式语言）", file=sys.stderr)
@@ -4243,6 +4308,7 @@ def main():
         "vmax": args.vmax,
         "horizontal": args.horizontal or args.type in ("hbar", "horizontal_bar"),
         "hatch": args.hatch,
+        "direct_label": getattr(args, "direct_label", False),
         "alternate": args.alternate,
         "show_ratio": args.show_ratio,
         "ratio_base": args.ratio_base,
@@ -4304,7 +4370,8 @@ def main():
                               fontproperties=cjk_fp if cjk_fp and has_cjk(cbar_label) else None)
 
         # Legend (skip if no labeled artists)
-        if not args.no_legend and args.legend and ax.get_legend_handles_labels()[1]:
+        _dl = getattr(args, "direct_label", False) and args.type == "line"
+        if not _dl and not args.no_legend and args.legend and ax.get_legend_handles_labels()[1]:
             ax.legend(fontsize=theme["font_size"] - 1, loc='best', framealpha=0.9,
                       prop=cjk_fp if cjk_fp else None)
         if args.type in ("bar", "grouped_bar", "hbar", "horizontal_bar", "line", "stacked_bar"):

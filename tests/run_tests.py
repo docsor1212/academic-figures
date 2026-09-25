@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 3.3.0", self.zh)
-        self.assertIn("version: 3.3.0", self.en)
+        self.assertIn("version: 3.4.0", self.zh)
+        self.assertIn("version: 3.4.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 3.3.0", self.zh)
-        self.assertIn("version: 3.3.0", self.en)
+        self.assertIn("version: 3.4.0", self.zh)
+        self.assertIn("version: 3.4.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2647,7 +2647,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 3.3.0", zh)
+        self.assertIn("version: 3.4.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2717,8 +2717,8 @@ class TestV3200(unittest.TestCase):
 
 
     def test_version_320(self):
-        self.assertIn("version: 3.3.0", self.zh)
-        self.assertIn("version: 3.3.0", self.en)
+        self.assertIn("version: 3.4.0", self.zh)
+        self.assertIn("version: 3.4.0", self.en)
 
 
 
@@ -2780,7 +2780,44 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.3.0", t, name + " 缺 3.3.0 版本行")
+            self.assertIn("version: 3.4.0", t, name + " 缺 3.4.0 版本行")
+
+
+
+
+class TestV3400(unittest.TestCase):
+    """v3.4.0：直接标注 + 标题层级 + Pro 透传。"""
+
+    def test_direct_label_renders(self):
+        import tempfile as _tf
+        with _tf.TemporaryDirectory() as td:
+            data = {"labels": [1, 2, 3, 4, 5],
+                    "series": {"干预组": [10, 8, 6, 4, 2], "对照组": [2, 3, 5, 7, 9]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "line", "--data", p,
+                                "-o", os.path.join(td, "dl.png"), "--direct-label",
+                                "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+
+    def test_theme_default_direct_label(self):
+        with tempfile.TemporaryDirectory() as td:
+            data = {"labels": [1, 2, 3], "series": {"A": [1, 2, 3], "B": [3, 2, 1]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "line", "--data", p,
+                                "-o", os.path.join(td, "o.png"), "--style", "glm-brand",
+                                "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+
+    def test_version_340(self):
+        root = os.path.dirname(SCRIPT_DIR)
+        for name in ("SKILL.md", "SKILL_ZH.md"):
+            t = io.open(os.path.join(root, name), encoding="utf-8").read()
+            self.assertIn("version: 3.4.0", t, name)
+            self.assertIn("--direct-label", t, name)
 
 
 

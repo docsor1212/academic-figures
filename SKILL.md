@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 3.3.0
+version: 3.4.0
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -29,7 +29,7 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 3.3.0
+  version: 3.4.0
   date: 2026-09-17
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -61,6 +61,7 @@ python3 scripts/setup_env.py
 # 0️⃣ Three ways to get unstuck: wizard / interactive demo / per-type usage
 python3 scripts/gen_figure.py --wizard            # 4 questions -> a ready command
 python3 scripts/gen_figure.py --quick -d data.csv # v3.1 one-command figure: auto-pick + render
+python3 scripts/gen_figure.py -t line -d series.json -o fig.png --direct-label  # v3.4 label series at line ends (default under glm-brand/nature-clean)
 python3 scripts/gen_figure.py --demo --cjk        # pick a type, renders sample data
 python3 scripts/gen_figure.py --explain bar       # one type's usage & limits
 # 0️⃣ Call from Python: see references/python-api.md (subprocess recommended;
@@ -400,7 +401,7 @@ academic-figures/
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v3.2.0** auto-behavior transparency + safety statement; **v3.1.0** --quick + auto-downsample; **v3.0.0** main-doc layering +
+Full bilingual history: `references/changelog.md`. Recent: **v3.4.0** direct labeling + title hierarchy; **v3.3.0** colon fix + README + safety statement; **v3.2.0** transparency + safety statement; **v3.1.0** --quick + auto-downsample; **v3.0.0** main-doc layering +
 cheatsheet + script modularization (wizard/diagnostics extracted); **v2.9.0** boundary
 consolidation + standalone quickstart; **v2.8.0** render watchdog + graded exit codes +
 venn 4-set ellipse.
