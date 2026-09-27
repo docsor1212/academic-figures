@@ -1810,8 +1810,8 @@ class TestV250SubmissionPolish(unittest.TestCase):
 
     def test_v250_area_flag_venn_only(self):
         proc, _ = self._run("bar", SAMPLE["bar"], ["--area"], "areabad")
-        self.assertNotEqual(proc.returncode, 0)
-        self.assertIn("--area 仅用于 venn", proc.stderr)
+        self.assertEqual(proc.returncode, 0)  # v3.6：降级为 [ignored] 告知，非致命
+        self.assertIn("仅用于 venn", proc.stderr)
 
     # ── 异常映射扩充 ──
 
@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 3.5.0", self.zh)
-        self.assertIn("version: 3.5.0", self.en)
+        self.assertIn("version: 3.6.0", self.zh)
+        self.assertIn("version: 3.6.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 3.5.0", self.zh)
-        self.assertIn("version: 3.5.0", self.en)
+        self.assertIn("version: 3.6.0", self.zh)
+        self.assertIn("version: 3.6.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2647,7 +2647,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 3.5.0", zh)
+        self.assertIn("version: 3.6.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2717,8 +2717,8 @@ class TestV3200(unittest.TestCase):
 
 
     def test_version_320(self):
-        self.assertIn("version: 3.5.0", self.zh)
-        self.assertIn("version: 3.5.0", self.en)
+        self.assertIn("version: 3.6.0", self.zh)
+        self.assertIn("version: 3.6.0", self.en)
 
 
 
@@ -2780,7 +2780,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.5.0", t, name + " 缺 3.5.0 版本行")
+            self.assertIn("version: 3.6.0", t, name + " 缺 3.6.0 版本行")
 
 
 
@@ -2867,7 +2867,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.5.0", t, name)
+            self.assertIn("version: 3.6.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -2931,6 +2931,62 @@ class TestV3500(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-250:])
             self.assertIn("stats bootstrap", r.stderr)
             self.assertIn("95%CI", r.stderr)
+
+
+
+
+class TestV3600(unittest.TestCase):
+    """v3.6.0：静默忽略显式化 + CSV 误差棒前置 + 历史披露。"""
+
+    def test_stats_ignored_announced(self):
+        import tempfile as _tf
+        with _tf.TemporaryDirectory() as td:
+            data = {"labels": [1, 2, 3], "series": {"A": [1, 2, 3]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "line", "--data", p,
+                                "-o", os.path.join(td, "o.png"), "--stats", "auto",
+                                "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-200:])
+            self.assertIn("[ignored]", r.stderr)
+            self.assertIn("仅 box/violin", r.stderr)
+
+    def test_multiple_ignored_announced(self):
+        with tempfile.TemporaryDirectory() as td:
+            data = {"labels": [1, 2, 3], "series": {"A": [1, 2, 3]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "line", "--data", p,
+                                "-o", os.path.join(td, "o2.png"), "--stats", "auto",
+                                "--egger", "--area", "--hatch", "--sheet", "S1",
+                                "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0)
+            for kw in ("--egger", "--area", "--hatch"):
+                self.assertIn(kw, r.stderr)
+
+    def test_csv_errorbar_hint(self):
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "d.csv")
+            open(p, "w", encoding="utf-8").write("group,value\nA,1\nB,2")
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-200:])
+            self.assertIn("CSV 不支持误差棒", r.stderr)
+
+    def test_labreport_disclosure(self):
+        root = os.path.dirname(SCRIPT_DIR)
+        p = io.open(os.path.join(root, "references", "pitfalls.md"), encoding="utf-8").read()
+        self.assertIn("Lab Report PDF", p)
+        self.assertIn("v2.0.1", p)
+
+    def test_version_360(self):
+        root = os.path.dirname(SCRIPT_DIR)
+        for name in ("SKILL.md", "SKILL_ZH.md"):
+            t = io.open(os.path.join(root, name), encoding="utf-8").read()
+            self.assertIn("version: 3.6.0", t, name)
 
 
 

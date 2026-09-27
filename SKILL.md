@@ -1,5 +1,6 @@
 ---
 name: academic-figures
+version: 3.6.0
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -28,7 +29,7 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 3.5.0
+  version: 3.6.0
   date: 2026-09-17
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}

@@ -6,6 +6,16 @@
 
 ## Version History
 
+- **v3.6.0** (2026-09-26) — Flag-interaction transparency (targets the v3.5.0
+  evaluation's usability 4.7 / accuracy 4.7 / completeness 4.8):
+  - **`[ignored]` announcements**: incompatible flags are no longer silently ignored —
+    six key combinations (--stats on non-box/violin, --compare/--egger/--area/--hatch/
+    --sheet misuse) print an explicit stderr notice.
+  - **CSV error-bar pre-hint**: bar/grouped_bar with .csv input prints the JSON
+    errors-field guidance up front (previously only after a failed render attempt).
+  - **Historical disclosure**: Lab Report PDF extraction (removed in v2.0.1) documented
+    in pitfalls.md with the alternative path.
+
 - **v3.5.0** (2026-09-26) — Bootstrap confidence-interval workstation (substantive
   statistical feature; targets creativity 4.7 / accuracy 4.7):
   - **`--stats bootstrap`** (box/violin): percentile bootstrap (Efron 1979), 5000
@@ -115,6 +125,14 @@
     the closest legal field names (difflib) in the Chinese diagnosis.
   - Python API surfaced from the Quick Start section; version bumps to 2.9.0.
 
+- **v3.6.0**（2026-09-26）—— 参数交互显式化（对标 v3.5.0 评测 usability 4.7 /
+  accuracy 4.7 / completeness 4.8）：
+  - **`[ignored]` 显式告知**：不兼容参数不再静默忽略——六组关键组合（--stats 用于
+    非 box/violin、--compare/--egger/--area/--hatch/--sheet 误用）stderr 显式提示；
+  - **CSV 误差棒前置提示**：bar/grouped_bar + .csv 输入即提示 JSON errors 字段路径
+    （此前渲染失败后才提示）；
+  - **历史功能披露**：Lab Report PDF 提取（v2.0.1 移除）入 pitfalls.md，附替代路径。
+
 - **v3.5.0**（2026-09-26）—— Bootstrap 置信区间工作站（实质统计功能；对标 creativity 4.7 /
   accuracy 4.7）：
   - **`--stats bootstrap`**（box/violin）：percentile bootstrap（Efron 1979 经典方法），
@@ -161,6 +179,8 @@
     纯增量：默认行为零变化。
 
   - **模板**：全部场景模板补 `_description` 说明行。
+  - **历史功能披露**：Lab Report PDF 提取功能于 v2.0.1 移除（提取错误率不可接受），
+    pitfalls.md 增补说明与替代路径（手工转录→标准管线）。
 
 - **v3.1.0**（2026-09-21）—— 一键出图+自动降采样+KM 风险表热修（合并发布，含同日早间的
   v3.0.1 全部内容）。对标 v3.0.0 评测最低项：usability 4.6、errorHandling 4.8。

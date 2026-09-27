@@ -4178,9 +4178,11 @@ def main():
               "（Nature 系版式语言）", file=sys.stderr)
 
     if getattr(args, "area", False) and args.type != "venn":
-        print("ERROR: --area 仅用于 venn（--type venn）。等圆模式为默认，无需参数。",
-              file=sys.stderr)
-        sys.exit(1)
+        # v3.6：与其他静默忽略项统一口径——显式告知而非致命错（limits/faq 已同步）
+        print("[ignored] --area 仅用于 venn；对", args.type,
+              "不适用，已忽略（等圆模式为 venn 默认）", file=sys.stderr)
+        args.area = False
+
     if getattr(args, "legend_loc", None):
         _loc = " ".join(args.legend_loc.strip().lower().replace("_", " ")
                         .replace("-", " ").split())
@@ -4209,6 +4211,12 @@ def main():
 
     # ── v3.2：自动行为透明化（[auto] 前缀显式告知）──
     if args.journal and getattr(args, "width", None):
+        print("[auto] --journal 锁定图宽，--width "
+              f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
+    if (args.type in ("bar", "grouped_bar") and args.data
+            and str(args.data).lower().endswith(".csv")):
+        print("[hint] CSV 不支持误差棒——需要误差棒/显著性标记请改用 JSON 格式"
+              "（errors/significance 字段，见 --explain bar）", file=sys.stderr)
         print("[auto] --journal 锁定图宽，--width "
               f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
     if getattr(args, "verify", False):
@@ -4273,6 +4281,23 @@ def main():
     for _adv in _preflight_advisories(data, args.type,
                                       getattr(args, "downsample", None)):
         print(f"WARNING: {_adv}", file=sys.stderr)
+
+    # ── v3.6：参数不适用显式告知（消除"静默忽略"——accuracy/usability 靶点）──
+    _ignored = []
+    if args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin"):
+        _ignored.append(f"--stats {args.stats}（仅 box/violin 生效）")
+    if args.compare and args.type != "roc":
+        _ignored.append("--compare（仅 roc 生效）")
+    if args.egger and args.type != "funnel":
+        _ignored.append("--egger（仅 funnel 生效）")
+    if args.hatch and args.type not in ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar"):
+        _ignored.append("--hatch（仅 bar 系生效）")
+    if args.area and args.type != "venn":
+        _ignored.append("--area（仅 venn 生效）")
+    if args.sheet and not str(args.data or "").lower().endswith((".xlsx", ".xls")):
+        _ignored.append("--sheet（仅 .xlsx 生效）")
+    for _ig in _ignored:
+        print(f"[ignored] {_ig} 对 {args.type} 不适用，本次渲染已忽略", file=sys.stderr)
 
     # ── v2.9：JSON 字段名近似匹配告警（拼写错误前置提醒，非致命）──
     for _w in _field_nearmiss_warnings(data):
