@@ -5,7 +5,13 @@ import shutil
 import subprocess
 import sys
 
-REQUIRED = {"matplotlib": "matplotlib", "numpy": "numpy", "pymupdf": "pymupdf", "scipy": "scipy"}
+# v3.7：版本下限精确化（boundary 评测靶点：多库依赖具体版本要求）
+REQUIRED = {
+    "matplotlib": "matplotlib>=3.5",
+    "numpy": "numpy>=1.21",
+    "pymupdf": "pymupdf>=1.20",
+    "scipy": "scipy>=1.7",
+}
 MIN_PYTHON = (3, 8)
 FAIL_EMOJI = "\u2717"
 OK_EMOJI = "\u2713"

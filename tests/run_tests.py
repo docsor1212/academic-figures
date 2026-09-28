@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 3.6.0", self.zh)
-        self.assertIn("version: 3.6.0", self.en)
+        self.assertIn("version: 3.7.0", self.zh)
+        self.assertIn("version: 3.7.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,10 +2579,28 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 3.6.0", self.zh)
-        self.assertIn("version: 3.6.0", self.en)
+        self.assertIn("version: 3.7.0", self.zh)
+        self.assertIn("version: 3.7.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
+
+
+
+
+    def test_toolkit_billboard(self):
+        """v3.2.0 工单③：全家桶广告牌+Pro 转化入口+官网入口。"""
+        for kw in ("论文全家桶", "paper-polisher-pro", "pubmed-verifier", "doc-holmes",
+                   "paper-rewriter", "cn-med-oa", "cite-holmes", "docsor.cn"):
+            self.assertIn(kw, self.zh)
+        self.assertIn("academic-figures-pro", self.zh)
+        self.assertIn("Paper toolkit", self.en)
+        self.assertIn("docsor.cn", self.en)
+
+
+
+    def test_version_current(self):
+        self.assertIn("version: 3.7.0", self.zh)
+        self.assertIn("version: 3.7.0", self.en)
 
 
 
@@ -2647,7 +2665,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 3.6.0", zh)
+        self.assertIn("version: 3.7.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2705,21 +2723,57 @@ class TestV3200(unittest.TestCase):
         self.assertIn("Top-3 boundaries", self.en)
 
 
-    def test_toolkit_billboard(self):
-        """v3.2.0 工单③：全家桶广告牌+Pro 转化入口+官网入口。"""
-        for kw in ("论文全家桶", "paper-polisher-pro", "pubmed-verifier", "doc-holmes",
-                   "paper-rewriter", "cn-med-oa", "cite-holmes", "docsor.cn"):
-            self.assertIn(kw, self.zh)
-        self.assertIn("academic-figures-pro", self.zh)
-        self.assertIn("Paper toolkit", self.en)
-        self.assertIn("docsor.cn", self.en)
 
+class TestV3700(unittest.TestCase):
+    """v3.7.0：Aalen-Johansen 竞争风险——三重对拍锁 + 渲染 E2E。"""
 
+    @classmethod
+    def setUpClass(cls):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "af_v23_stats", os.path.join(SCRIPT_DIR, "af_v23_stats.py"))
+        cls.st = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(cls.st)
 
-    def test_version_320(self):
-        self.assertIn("version: 3.6.0", self.zh)
-        self.assertIn("version: 3.6.0", self.en)
+    def test_no_competing_degenerates_to_1_minus_km(self):
+        times = [1, 2, 2, 3, 4, 4, 5, 6, 7, 8]
+        events = [1, 0, 1, 1, 0, 1, 0, 1, 1, 0]
+        res = self.st.aalen_johansen(times, events)
+        km = self.st.km_estimate(times, [1 if e == 1 else 0 for e in events])
+        max_d = 0.0
+        for tt, ss in zip(km[0], km[1]):
+            if tt <= 0:
+                continue
+            idx = [j for j, at in enumerate(res["times"]) if abs(at - tt) < 1e-9]
+            if idx:
+                max_d = max(max_d, abs((1 - ss) - res["cif"][1][idx[0]]))
+        self.assertLess(max_d, 1e-10, f"退化恒等式破坏 max={max_d}")
 
+    def test_completeness_identity_with_competing(self):
+        res = self.st.aalen_johansen([1, 2, 2, 3, 3, 4, 5], [1, 2, 0, 1, 2, 1, 2])
+        for i, s_ in enumerate(res["survival"]):
+            total = s_ + sum(res["cif"][j][i] for j in res["cif"])
+            self.assertLess(abs(1 - total), 1e-12)
+
+    def test_literature_six_patient_example(self):
+        res = self.st.aalen_johansen([1, 2, 2, 3, 3, 4], [1, 2, 0, 1, 2, 1])
+        self.assertAlmostEqual(res["cif"][1][-1], 0.6111, places=4)
+        self.assertAlmostEqual(res["cif"][2][-1], 0.3889, places=4)
+        self.assertAlmostEqual(res["survival"][-1], 0.0, places=6)
+
+    def test_competing_km_render_e2e(self):
+        km_cr = {"groups": {
+            "移植组": [[1,1],[2,2],[4,1],[6,0],[8,1],[10,2],[12,1]],
+            "化疗组": [[2,1],[3,2],[5,1],[7,0],[9,2],[11,1],[13,0]]},
+            "cause_names": {"2": "移植相关死亡"}}
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "kmcr.json")
+            json.dump(km_cr, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+            r = subprocess.run([sys.executable, GEN, "-t", "km", "--data", p,
+                                "-o", os.path.join(td, "kmcr.png"), "--cjk", "--dpi", "100"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("Aalen-Johansen", r.stderr)
 
 
 
@@ -2780,7 +2834,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.6.0", t, name + " 缺 3.6.0 版本行")
+            self.assertIn("version: 3.7.0", t, name)
 
 
 
@@ -2867,7 +2921,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.6.0", t, name)
+            self.assertIn("version: 3.7.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -2986,7 +3040,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.6.0", t, name)
+            self.assertIn("version: 3.7.0", t, name)
 
 
 

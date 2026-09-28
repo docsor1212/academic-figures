@@ -2297,8 +2297,13 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
             if isinstance(raw[0], (list, tuple)):
                 times = np.array([p[0] for p in raw], dtype=float)
                 second = np.array([p[1] for p in raw], dtype=float)
+                # v3.7：竞争风险编码（整数且含 ≥2）优先于预计算判定——
+                # 此前含 2 的原始数据被误当预计算生存概率静默绘制
+                _is_int_code = np.all(second == np.floor(second)) and np.any(second >= 2)
                 if np.all(np.isin(second, (0.0, 1.0))):
                     raw_groups[gname] = (times, second)   # [时间, 事件0/1]
+                elif _is_int_code:
+                    raw_groups[gname] = (times, second)   # [时间, 事件0/1/2+竞争风险]
                 else:
                     # [时间, 预计算生存概率]：直接阶梯绘制（v2.2 曾误当事件数，
                     # 曲线数学错误；v2.3 起正确识别），不计入自动统计
@@ -2310,6 +2315,37 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
                 continue
             times = np.array(raw, dtype=float)
             raw_groups[gname] = (times, np.ones(len(times)))
+
+        # ── v3.7：竞争风险检测（任一组 events 含 ≥2 编码 → Aalen-Johansen CIF 模式）──
+        _competing = any(
+            np.any(np.asarray(ev) >= 2)
+            for (_t, ev) in raw_groups.values() if len(ev) == len(_t))
+        if _competing and _afstats is not None:
+            _cn_src = data.get("cause_names") if isinstance(data, dict) else None
+            _cause_names = _cn_src if isinstance(_cn_src, dict) else {}
+            print("[auto] km: 检测到竞争风险事件编码（≥2）——切换 Aalen-Johansen "
+                  "累计发生率曲线（每因一条）", file=sys.stderr)
+            for i, gname in enumerate(group_names):
+                if gname not in raw_groups:
+                    continue
+                c = theme["colors"][i % len(theme["colors"])]
+                times, events = raw_groups[gname]
+                _aj = _afstats.aalen_johansen(times, events)
+                for j, state in enumerate(sorted(_aj["cif"].keys())):
+                    _cl = _cause_names.get(state) if isinstance(_cause_names, dict) else None
+                    label = _cl or (f"{gname}·原因{state}" if state >= 2 else f"{gname}·目标事件")
+                    ax.step(_aj["times"], _aj["cif"][state], where="post",
+                            color=theme["colors"][(i * 3 + j) % len(theme["colors"])],
+                            linewidth=2, label=label, zorder=3)
+                _ttl = (kwargs.get("competing_title")
+                        or f"{gname}: 累计发生率（Aalen-Johansen，竞争风险）")
+                if i == 0:
+                    ax.set_title(_ttl, fontsize=theme["font_size"],
+                                 fontproperties=cjk_fp if cjk_fp and has_cjk(_ttl) else None)
+            ax.set_ylabel("累计发生率 Cumulative Incidence",
+                          fontsize=theme["font_size"] - 1,
+                          fontproperties=cjk_fp if cjk_fp else None)
+            return  # AJ 模式独立渲染，不走 KM 主循环
 
         for i, gname in enumerate(group_names):
             if gname not in raw_groups:

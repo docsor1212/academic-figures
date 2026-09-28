@@ -728,3 +728,92 @@ def bootstrap_vs_first(series, n_boot=None, seed=20260925):
         lo, hi = np.percentile(stats, [2.5, 97.5])
         out.append((name, float(other.mean() - first.mean()), float(lo), float(hi)))
     return out
+
+
+# ── v3.7：Aalen-Johansen 竞争风险累计发生率（医学 KM 刚需：事件编码
+#    0=删失 1=目标事件 ≥2=竞争风险；自研实现，三重对拍锁定）──
+
+
+def aalen_johansen(times, events, eval_times=None):
+    """Aalen-Johansen 累计发生率估计。
+
+    Args:
+        times: 事件时间列表
+        events: 同长度编码列表（0=删失，1=目标事件，≥2=竞争风险编号）
+        eval_times: 求值时间点列表（缺省=全部事件时间）
+
+    Returns:
+        dict: {"times": [...], "cif": {state: [...]}, "survival": [...]}
+        完备性恒等式：sum(cif).at(t) + survival.at(t) == 1（机器精度）。
+
+    数学：Aalen-Johansen 1978 多状态非参数估计。CIF 增量用转移前生存
+    S(t-)：cif_j(t) = cif_j(t-) + S(t-) · d_j/n(t)。
+    """
+    import numpy as np
+    t = np.asarray([float(v) for v in times], dtype=float)
+    e = np.asarray([int(v) for v in events], dtype=int)
+    if t.size != e.size or t.size == 0:
+        raise ValueError("aalen_johansen: times/events 需同长非空")
+    if np.any(np.isnan(t)) or np.any(e < 0):
+        raise ValueError("aalen_johansen: 时间不可为 NaN，事件编码需 ≥0")
+
+    order = np.argsort(t, kind="stable")
+    t, e = t[order], e[order]
+    uniq = np.unique(t)
+    states = sorted(set(int(x) for x in e if x >= 1))
+    if not states:
+        raise ValueError("aalen_johansen: 无事件（全删失）——无法估计累计发生率")
+
+    surv = 1.0
+    cif = {j: 0.0 for j in states}
+    out_t, out_s = [], []
+    out_cif = {j: [] for j in states}
+
+    for tk in uniq:
+        at_risk = int((t >= tk).sum())
+        if at_risk == 0:
+            continue
+        d_all = int(((t == tk) & (e >= 1)).sum())
+        s_before = surv  # 转移前生存 S(t-)
+        if d_all > 0:
+            surv *= 1.0 - d_all / at_risk
+        for j in states:
+            d_j = int(((t == tk) & (e == j)).sum())
+            if d_j > 0:
+                cif[j] += s_before * d_j / at_risk
+        out_t.append(float(tk))
+        out_s.append(surv)
+        for j in states:
+            out_cif[j].append(cif[j])
+
+    if eval_times is not None:
+        et = [float(v) for v in eval_times]
+
+        def _step(steps, values, q):
+            cur = 0.0 if not steps else values[0] * 0 + (values[0] if steps[0] <= q else (0.0 if steps[0] > q else values[0]))
+            cur = 0.0
+            for st, val in zip(steps, values):
+                if st <= q + 1e-12:
+                    cur = val
+                else:
+                    break
+            return cur
+
+        res_t = [float(v) for v in et]
+        res_s = [_step(out_t, out_s, q) for q in et]
+        res_cif = {j: [_step(out_t, out_cif[j], q) for q in et] for j in states}
+        return {"times": res_t, "survival": res_s, "cif": res_cif}
+    return {"times": out_t, "survival": out_s, "cif": out_cif}
+
+
+def _aj_step(steps, values, q):
+    """阶梯函数取值（右连续；q 早于首步=0）。"""
+    cur = 0.0
+    for st, val in zip(steps, values):
+        if st <= q + 1e-12:
+            cur = val
+        else:
+            break
+    return cur
+
+

@@ -6,6 +6,17 @@
 
 ## Version History
 
+- **v3.7.0** (2026-09-26) — Competing-risks analysis (substantive statistical feature,
+  second item of the statistics-methods roadmap; targets creativity 4.5/4.7):
+  - **Aalen-Johansen estimator** (self-implemented): events encoded 0=censored,
+    1=event, ≥2=competing risks → per-cause cumulative-incidence step curves.
+    Triple validation: degenerates to 1-KM without competing risks (machine precision),
+    completeness identity ΣCIF+S=1, and a hand-computed 6-patient literature example.
+  - **Auto-switch**: KM with any event code ≥2 renders AJ cumulative-incidence curves
+    with an `[auto]` notice; `cause_names` in data maps state codes to labels.
+  - boundary: setup_env dependency versions pinned (matplotlib>=3.5, numpy>=1.21,
+    pymupdf>=1.20, scipy>=1.7) and surfaced in the Safety & Data statement.
+
 - **v3.6.0** (2026-09-26) — Flag-interaction transparency (targets the v3.5.0
   evaluation's usability 4.7 / accuracy 4.7 / completeness 4.8):
   - **`[ignored]` announcements**: incompatible flags are no longer silently ignored —
@@ -124,6 +135,15 @@
   - **KeyError near-miss hints**: a misspelled JSON field in the error path now suggests
     the closest legal field names (difflib) in the Chinese diagnosis.
   - Python API surfaced from the Quick Start section; version bumps to 2.9.0.
+
+- **v3.7.0**（2026-09-26）—— 竞争风险分析（实质统计功能第二项，统计方法线规划落地；
+  对标 creativity 4.5/4.7）：
+  - **Aalen-Johansen 估计器**（自研实现）：事件编码 0=删失 1=事件 ≥2=竞争风险 →
+    每因累计发生率阶梯曲线。三重验证：无竞争风险退化恒等式 CIF=1-KM（机器精度）、
+    完备性 ΣCIF+S=1、文献 6 人例手算对拍；
+  - **自动切换**：KM 数据任一组 events 含 ≥2 编码即自动切 AJ 累计发生率曲线
+    （[auto] 告知）；数据可带 cause_names 映射原因标签；
+  - boundary：setup_env 依赖版本钉死（matplotlib>=3.5 等）并写入安全声明。
 
 - **v3.6.0**（2026-09-26）—— 参数交互显式化（对标 v3.5.0 评测 usability 4.7 /
   accuracy 4.7 / completeness 4.8）：

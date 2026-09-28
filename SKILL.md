@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 3.6.0
+version: 3.7.0
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -29,7 +29,7 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 3.6.0
+  version: 3.7.0
   date: 2026-09-17
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -129,7 +129,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Matrix | Heatmap | `-t heatmap` | Cell annotations, custom colormap, colorbar |
 | Matrix | Clustered Heatmap | `-t cluster_heatmap` | Hierarchical reordering, `--downsample` exit for big matrices |
 | Inference | Forest | `-t forest` | CI whiskers, weight bubbles, overall diamond, I², events/total; `--stats cox` multi-variable HR |
-| Survival | Kaplan-Meier | `-t km` | Step function, censor marks, log-rank test, risk table, median survival |
+| Survival | Kaplan-Meier | `-t km` | Step function, censor marks, log-rank test, risk table, median survival; **v3.7 competing risks** (event codes ≥2 auto-switch to Aalen-Johansen cumulative incidence) |
 | Diagnosis | ROC | `-t roc` | AUC, 95% CI, optimal cutoff, DeLong multi-model comparison |
 | Sets | Venn | `-t venn` | 2-4 sets (4 sets = ellipse layout, v2.8); `--area` proportional Euler |
 | Composite | **Composite** | `-t composite` | Multi-panel (A+B+C), any chart type per panel (⚠ no nested composite), journal figure layouts |
@@ -362,8 +362,9 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
   the machine. External links in this document (GitHub/MedWiki) are resource disclosures,
   not code behavior.
 - **No telemetry**: nothing is collected or reported.
-- **`setup_env.py`**: an optional, explicit action (installs matplotlib/numpy/scipy from
-  PyPI and self-checks) — run by the user on purpose; runtime deps are exactly these four.
+- **`setup_env.py`**: an optional, explicit action (installs matplotlib>=3.5, numpy>=1.21,
+  pymupdf>=1.20, scipy>=1.7 from PyPI and self-checks) — run by the user on purpose;
+  runtime deps are exactly these four.
 - **`--demo`**: writes demo data into a built-in temp dir (`af_demo_*`); delete anytime.
 - **Debug switches**: `AF_DEBUG` (full traceback), `AF_WIZARD_FORCE` (non-interactive
   wizard), `AF_NO_WATCHDOG` (disable watchdog) — per-process, user-set only.
