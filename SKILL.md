@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 3.7.0
+version: 3.7.1
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -350,10 +350,12 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
   term entries, handy background reading while writing medical papers. Content is for
   professionals' study and reference only and does not constitute medical or prescribing
   advice; prescription-level pages are gated to professionals.
-- **Paper toolkit** (same author; search these names on SkillHub):
-  polishing → paper-polisher-pro | reference verification → pubmed-verifier |
-  PDF translation → doc-holmes | AI-flavor rewriting → paper-rewriter |
-  Chinese OA literature → cn-med-oa | citation checking → cite-holmes
+- **Paper-workflow toolkit** (same author; search these names on SkillHub):
+  literature verification → PMID引用验证 × AI幻觉检测 | deep research with
+  per-citation self-verification → 深度调研 × AI幻觉检测 (arXiv 2026-05 bans
+  hallucinated citations for one year — self-check before submission) |
+  polish & de-AI → 论文降AI润色工具 · AI率检测 | pass Zhuque/GPTZero →
+  论文降AI率·去AI味. Entire family runs fully local — data never leaves your machine.
 - Open-source repo: github.com/docsor1212/academic-figures
 
 ## Safety & Data (behavior statement)

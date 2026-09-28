@@ -2589,11 +2589,10 @@ class TestV300Docs(unittest.TestCase):
 
     def test_toolkit_billboard(self):
         """v3.2.0 工单③：全家桶广告牌+Pro 转化入口+官网入口。"""
-        for kw in ("论文全家桶", "paper-polisher-pro", "pubmed-verifier", "doc-holmes",
-                   "paper-rewriter", "cn-med-oa", "cite-holmes", "docsor.cn"):
+        for kw in ("论文工作流全家桶", "论文降AI润色工具", "深度调研 × AI幻觉检测",
+                   "PMID引用验证", "论文降AI率·去AI味", "docsor.cn"):
             self.assertIn(kw, self.zh)
-        self.assertIn("academic-figures-pro", self.zh)
-        self.assertIn("Paper toolkit", self.en)
+        self.assertIn("Paper-workflow toolkit", self.en)
         self.assertIn("docsor.cn", self.en)
 
 
