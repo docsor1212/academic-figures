@@ -6,6 +6,12 @@
 
 ## Version History
 
+  - **Median bootstrap CI**: `--stats bootstrap` now also reports per-group
+    **median** 95%CI alongside mean CI — the robust choice for skewed data
+    (median CI printed with guidance note).
+  - **`--pub-ready`**: one-flag submission bundle — expands to --verify +
+    colorblind-safe theme + pdf,png multi-format (semantic sugar over four flags).
+
 - **v3.7.0** (2026-09-26) — Competing-risks analysis (substantive statistical feature,
   second item of the statistics-methods roadmap; targets creativity 4.5/4.7):
   - **Aalen-Johansen estimator** (self-implemented): events encoded 0=censored,
@@ -135,6 +141,11 @@
   - **KeyError near-miss hints**: a misspelled JSON field in the error path now suggests
     the closest legal field names (difflib) in the Chinese diagnosis.
   - Python API surfaced from the Quick Start section; version bumps to 2.9.0.
+
+  - **中位数 bootstrap CI**：`--stats bootstrap` 现同时报告每组**中位数** 95%CI——
+    偏态数据的稳健引用口径（附引用建议注释）；
+  - **`--pub-ready`**：一键投稿包——自动展开为 --verify + 色盲安全主题 + pdf,png
+    多格式导出（四参数语义糖）。
 
 - **v3.7.0**（2026-09-26）—— 竞争风险分析（实质统计功能第二项，统计方法线规划落地；
   对标 creativity 4.5/4.7）：

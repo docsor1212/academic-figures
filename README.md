@@ -65,12 +65,15 @@ python3 scripts/setup_env.py    # optional: install deps + self-check
 Or install as an agent skill from [SkillHub](https://skillhub.cn/skill/academic-figures)
 (中文) — search `academic-figures`.
 
-## Paper toolkit (same author)
+## Related tools · 相关工具
 
-polishing → **paper-polisher-pro** · reference verification → **pubmed-verifier** ·
-PDF translation → **doc-holmes** · AI-flavor rewriting → **paper-rewriter** ·
-Chinese OA literature → **cn-med-oa** · citation checking → **cite-holmes** ·
-Medical wiki → **[MedWiki](https://docsor.cn)**
+- pubmed-verifier —— 批量核验 PMID/DOI 引用真实性
+- cite-holmes —— 引用与上下文一致性核查（幻觉引用检测）
+- paper-polisher-pro —— 论文润色 · AI 率检测
+- paper-rewriter —— AI 痕迹风格改写
+- doc-holmes —— PDF 精确翻译/全文提取
+- cn-med-oa —— 中文 OA 医学文献检索与引用核验
+- [MedWiki](https://docsor.cn) —— 医学维基参考站（药品说明书/医学术语）
 
 ## License
 

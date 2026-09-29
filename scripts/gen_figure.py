@@ -619,8 +619,9 @@ def annotate_bootstrap_stats(ax, series, positions, theme, chart_type):
     import os as _os
     seed = int(_os.environ.get("AF_BOOTSTRAP_SEED", "20260925"))
     try:
-        from af_v23_stats import bootstrap_ci, bootstrap_vs_first
+        from af_v23_stats import bootstrap_ci, bootstrap_vs_first, bootstrap_median_ci
         per_group = [(n,) + bootstrap_ci(v, seed=seed) for n, v in series.items()]
+        med_ci = [(n,) + bootstrap_median_ci(v, seed=seed) for n, v in series.items()]
         diffs = bootstrap_vs_first(series, seed=seed)
     except ImportError:
         print("WARNING: --stats bootstrap requires numpy（环境侧，退出码 4）", file=sys.stderr)
@@ -643,6 +644,9 @@ def annotate_bootstrap_stats(ax, series, positions, theme, chart_type):
     print(f"stats bootstrap（percentile 法，{5000} 次重采样，种子 {seed}）：", file=sys.stderr)
     for name, stat, lo, hi in per_group:
         print(f"  {name}: 均值={stat:.4g}, 95%CI[{lo:.4g},{hi:.4g}]", file=sys.stderr)
+    for (name, med, mlo, mhi), (_, stat, lo, hi) in zip(med_ci, per_group):
+        print(f"  {name}: 中位数={med:.4g}, 95%CI[{mlo:.4g},{mhi:.4g}]"
+              f"（偏态数据建议引用中位数 CI 而非均值 CI）", file=sys.stderr)
     g0 = names[0]
     for name, diff, lo, hi in diffs:
         if diff is None:
@@ -3997,6 +4001,9 @@ def main():
     parser.add_argument("--height", type=float, default=None, help="图高（英寸）")
     parser.add_argument("--format", "-f", default=None, choices=["png", "svg", "pdf", "tiff", "eps"],
                         help="输出格式（默认按 --out 扩展名自动判断）")
+    parser.add_argument("--pub-ready", action="store_true",
+                        help="一键投稿包：自动加 --verify + --multi-format pdf,png + 色盲安全主题"
+                             "（--pub-ready theme,NAME 可指定主题；v3.8）")
     parser.add_argument("--multi-format", default=None, metavar="F1,F2,...",
                         help="一次输出多种格式（逗号分隔 png/svg/pdf/tiff/eps，兼容全角逗号）："
                              "文件名取 --out 去扩展名后逐格式拼接，如 -o fig1 --multi-format tiff,png,pdf "
@@ -4156,6 +4163,17 @@ def main():
     if getattr(args, "wizard", False):
         _run_wizard()
         sys.exit(0)
+
+    # ── v3.8：--pub-ready 一键投稿包（语义糖：展开为四件套显式参数）──
+    if getattr(args, "pub_ready", False):
+        args.verify = True
+        if not args.multi_format:
+            args.multi_format = ["pdf", "png"]  # 列表形式（与主解析块输出一致）
+        if not args.theme:
+            args.theme = "okabe-ito"
+        args.pub_ready_applied = True
+        print("[pub-ready] 已应用投稿包：--verify（PDF 重叠门禁）+ 色盲安全主题 "
+              f"{args.theme} + 多格式导出 {args.multi_format}", file=sys.stderr)
 
     # ── v3.1：--quick 一键出图（自动选型 → 复用主渲染管线）──
     if getattr(args, "quick", False):

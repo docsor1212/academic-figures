@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 3.7.1
+version: 3.8.0
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -29,7 +29,7 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 3.7.0
+  version: 3.8.0
   date: 2026-09-17
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -49,6 +49,8 @@ Generate figures from JSON/CSV/Excel data. Local execution, no data leaves the m
 **One command, verified output:**
 ```bash
 python3 scripts/gen_figure.py -t bar -d data.json -o fig.pdf --theme okabe-ito --verify
+# 或一键投稿包（自动加 --verify + 色盲安全主题 + pdf,png 多格式，v3.8）
+python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 # exit codes: see "Data Validation & Exit Codes" below; --verify overlap = exit 2 (fix, don't ship)
 ```
 
@@ -343,19 +345,18 @@ Run `python3 scripts/setup_env.py` (exit code 4 = environment-side problem).
 Provide alt text per figure (Springer Nature, NSF, most major publishers). `--alt` generates the
 sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
 
-## Related Resources (same author · paper toolkit)
+## Related tools
 
 - **Site/docs**: https://docsor.cn
 - **MedWiki** (https://docsor.cn/?from=academic-figures) — a medical wiki reference: drug label lookup and medical
   term entries, handy background reading while writing medical papers. Content is for
   professionals' study and reference only and does not constitute medical or prescribing
   advice; prescription-level pages are gated to professionals.
-- **Paper-workflow toolkit** (same author; search these names on SkillHub):
-  literature verification → PMID引用验证 × AI幻觉检测 | deep research with
-  per-citation self-verification → 深度调研 × AI幻觉检测 (arXiv 2026-05 bans
-  hallucinated citations for one year — self-check before submission) |
-  polish & de-AI → 论文降AI润色工具 · AI率检测 | pass Zhuque/GPTZero →
-  论文降AI率·去AI味. Entire family runs fully local — data never leaves your machine.
+- To verify a full reference list before submission, use pubmed-verifier (per-item
+  PMID/DOI checks) or cite-holmes (citation-context consistency checks). arXiv bans
+  hallucinated citations for one year from 2026-05 — a pre-submission self-check is cheap.
+- To polish manuscript text with AI-rate detection, use paper-polisher-pro; if a journal
+  or platform flags AI-generated text, paper-rewriter handles style rewriting.
 - Open-source repo: github.com/docsor1212/academic-figures
 
 ## Safety & Data (behavior statement)

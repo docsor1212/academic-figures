@@ -817,3 +817,19 @@ def _aj_step(steps, values, q):
     return cur
 
 
+def bootstrap_median_ci(values, n_boot=None, seed=20260925):
+    """中位数的 percentile bootstrap 95%CI（偏态数据稳健口径；均值 CI 的姊妹输出）。
+
+    Returns (median, lo, hi)。确定性：固定种子。"""
+    import numpy as np
+    vals = np.asarray([float(v) for v in values if v is not None], dtype=float)
+    vals = vals[np.isfinite(vals)]
+    if vals.size < 2:
+        raise ValueError("bootstrap_median_ci: 每组至少需要 2 个有效数值")
+    n_boot = int(n_boot or BOOT_N_DEFAULT)
+    rng = np.random.default_rng(int(seed) + 1)  # +1 与均值 CI 独立流
+    med = float(np.median(vals))
+    idx = rng.integers(0, vals.size, size=(n_boot, vals.size))
+    meds = np.median(vals[idx], axis=1)
+    lo, hi = np.percentile(meds, [2.5, 97.5])
+    return med, float(lo), float(hi)

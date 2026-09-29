@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 3.7.0", self.zh)
-        self.assertIn("version: 3.7.0", self.en)
+        self.assertIn("version: 3.8.0", self.zh)
+        self.assertIn("version: 3.8.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2569,18 +2569,18 @@ class TestV300Docs(unittest.TestCase):
         self.assertTrue(callable(gen_figure._diagnose_exception))
 
     def test_medwiki_section(self):
-        """v3.1：MedWiki 导流节（同一作者披露+免责+负向触发行）。"""
+        """v3.1：MedWiki 导流节（v3.8.0 起并入『相关工具』中性节：免责+负向触发行保留）。"""
         self.assertIn("docsor.cn", self.zh)
-        self.assertIn("## 相关资源（同一作者·论文全家桶）", self.zh)
+        self.assertIn("## 相关工具", self.zh)
         self.assertIn("不构成诊疗或用药建议", self.zh)
         self.assertIn("不提及 MedWiki", self.zh)
         self.assertIn("docsor.cn", self.en)
-        self.assertIn("Related Resources (same author · paper toolkit)", self.en)
+        self.assertIn("## Related tools", self.en)
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 3.7.0", self.zh)
-        self.assertIn("version: 3.7.0", self.en)
+        self.assertIn("version: 3.8.0", self.zh)
+        self.assertIn("version: 3.8.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2588,18 +2588,24 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_toolkit_billboard(self):
-        """v3.2.0 工单③：全家桶广告牌+Pro 转化入口+官网入口。"""
-        for kw in ("论文工作流全家桶", "论文降AI润色工具", "深度调研 × AI幻觉检测",
-                   "PMID引用验证", "论文降AI率·去AI味", "docsor.cn"):
+        """v3.8.0 相关工具中性化（用户 09-29 改版令）：功能导向一句话提示；
+        禁止家族/全家桶/搜招牌名等营销修辞回潮；裸 paper-polisher 非我方不得出现。"""
+        for kw in ("## 相关工具", "pubmed-verifier", "cite-holmes",
+                   "paper-polisher-pro", "paper-rewriter", "docsor.cn"):
             self.assertIn(kw, self.zh)
-        self.assertIn("Paper-workflow toolkit", self.en)
+        self.assertIn("## Related tools", self.en)
         self.assertIn("docsor.cn", self.en)
+        for banned in ("全家桶", "搜招牌名", "全家族", "同一作者"):
+            self.assertNotIn(banned, self.zh)
+        for banned in ("Paper-workflow toolkit", "Entire family", "same author"):
+            self.assertNotIn(banned, self.en)
+        self.assertNotIn("paper-polisher", self.zh.replace("paper-polisher-pro", ""))
 
 
 
     def test_version_current(self):
-        self.assertIn("version: 3.7.0", self.zh)
-        self.assertIn("version: 3.7.0", self.en)
+        self.assertIn("version: 3.8.0", self.zh)
+        self.assertIn("version: 3.8.0", self.en)
 
 
 
@@ -2664,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 3.7.0", zh)
+        self.assertIn("version: 3.8.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2833,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.7.0", t, name)
+            self.assertIn("version: 3.8.0", t, name)
 
 
 
@@ -2920,7 +2926,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.7.0", t, name)
+            self.assertIn("version: 3.8.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3039,7 +3045,75 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.7.0", t, name)
+            self.assertIn("version: 3.8.0", t, name)
+
+
+
+
+class TestV3800(unittest.TestCase):
+    """v3.8.0：--pub-ready 一键投稿包 + 中位数 bootstrap CI。"""
+
+    def test_pub_ready_e2e(self):
+        import tempfile as _tf
+        with _tf.TemporaryDirectory() as td:
+            data = {"labels": ["A", "B"], "series": {"s": [1, 2]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                "-o", os.path.join(td, "pr"), "--pub-ready", "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("[pub-ready]", r.stderr)
+            outs = os.listdir(td)
+            self.assertTrue(any(f.endswith(".pdf") for f in outs))
+            self.assertTrue(any(f.endswith(".png") for f in outs))
+
+    def test_pub_ready_explicit_mf_wins(self):
+        import tempfile as _tf
+        with _tf.TemporaryDirectory() as td:
+            data = {"labels": ["A", "B"], "series": {"s": [1, 2]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                "-o", os.path.join(td, "pr2"), "--pub-ready",
+                                "--multi-format", "svg", "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(any(f.endswith(".svg") for f in os.listdir(td)))
+
+    def test_bootstrap_median_ci(self):
+        import numpy as _np
+        import importlib.util as _ilu
+        _spec = _ilu.spec_from_file_location(
+            "af_v23_stats", os.path.join(SCRIPT_DIR, "af_v23_stats.py"))
+        _st = _ilu.module_from_spec(_spec)
+        _spec.loader.exec_module(_st)
+        med, lo, hi = _st.bootstrap_median_ci(list(_np.random.default_rng(3).normal(30, 5, 800)), seed=3)
+        self.assertLess(lo, med)
+        self.assertLess(med, hi)
+        self.assertLess(abs(med - 30), 1.5)
+
+    def test_bootstrap_median_reported(self):
+        import tempfile as _tf
+        with _tf.TemporaryDirectory() as td:
+            data = {"labels": ["A", "B"],
+                    "series": {"A": [10, 12, 11, 9, 10.5], "B": [9, 10, 10.2, 8.8, 9.5]}}
+            p = os.path.join(td, "d.json")
+            json.dump(data, open(p, "w", encoding="utf-8"))
+            r = subprocess.run([sys.executable, GEN, "-t", "box", "--data", p,
+                                "-o", os.path.join(td, "b.png"), "--stats", "bootstrap",
+                                "--dpi", "80"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("中位数=", r.stderr)
+            self.assertIn("偏态数据建议引用中位数 CI", r.stderr)
+
+    def test_version_380(self):
+        root = os.path.dirname(SCRIPT_DIR)
+        for name in ("SKILL.md", "SKILL_ZH.md"):
+            t = io.open(os.path.join(root, name), encoding="utf-8").read()
+            self.assertIn("version: 3.8.0", t, name)
+            self.assertIn("--pub-ready", t, name)
 
 
 
