@@ -106,7 +106,7 @@ auto=各组对第一组（两组就能用）；multi=全两两（需 ≥3 组，
 矢量投稿图建议 PDF + `--verify`。
 
 **Q：`--stats auto` 能用在折线图/散点图上吗？**
-不能——仅 box/violin（其他图型静默忽略）。两组前后配对数据请用 `-t paired`。
+不能——仅 box/violin（其他图型 stderr 以 `[ignored]` 显式告知，不静默）。两组前后配对数据请用 `-t paired`。
 
 **Q：`--compare`（DeLong）能用在没有 scores 的 ROC 数据上吗？**
 不能——需各曲线提供 `scores`（原始打分）；只有 fpr/tpr 时无法做配对检验（stderr 提示）。
@@ -123,6 +123,23 @@ v3.1 起不会——自动等距采样到 2000 行并显著告知（`AUTO-DOWNSA
 
 **Q：CSV 能带误差棒吗？**
 不能——JSON 的 `errors` 字段才支持。详见 data-formats.md 的 JSON/CSV 能力对照表。
+
+**Q：投稿一键出图怎么做？**
+`--pub-ready`（v3.8）：一条 flag 自动展开 `--verify`（PDF 重叠门禁）+ 色盲安全主题 + pdf,png
+多格式（语义糖，显式传参优先）。等价于手动四件套，投稿图组一条命令。
+
+**Q：想让柱状图按数值大小/时间点排序？**
+`--order auto`（按第一系列值降序；box/violin 按各组中位数降序）或显式列表
+`--order "T0,T1,T2"`（须覆盖全部标签，多/少/重复=exit 1）。系列/误差数组同步重排，
+significance 列索引自动改写。仅 bar 系/box/violin/line。
+
+**Q：相对表达量（对照=1）/指数化时序（T0=100）怎么归一？**
+`--normalize baseline`（各系列÷第一系列均值）或 `--normalize pct100`（各系列÷自身首点×100）。
+误差棒同步缩放；仅 bar 系/line——分布图不做均值归一（`[ignored]` 提示）。原始数值保留源数据。
+
+**Q：参数太多怕组合错？**
+`--doctor`（v3.9）：渲染前参数/环境体检报告（组合冲突/数据 schema/依赖/输出目录）。
+带 `-o` 体检后照常出图；省略 `-o` 纯体检不渲染（exit 1=有发现）。
 
 **Q：数据不满足正态/样本量小，--stats auto 可信吗？**
 `--stats bootstrap`（v3.5）：非参数 bootstrap 置信区间——每组均值 95%CI + 组间均值差 CI

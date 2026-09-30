@@ -6,6 +6,32 @@
 
 ## Version History
 
+## 3.9.1 — 2026-09-30
+
+  - **Docs accuracy pass** (post-release TRACE review): chart-type table now
+    lists all 22 types (grouped_bar/paired/bland_altman/pca/funnel were
+    missing); limits.md §2 flag-behavior column aligned with the actual
+    `[ignored]` transparency mechanism (stats/egger/hatch/sheet/area rows were
+    stale) and now covers `--order`/`--normalize`/`--doctor`/`--stats cox`;
+    FAQ gains pub-ready/order/normalize/doctor entries; quickstart step 4 and
+    pitfall #7 reference `--pub-ready`/`--doctor`; cheatsheet adds a
+    scenario→flag-combination table; file-structure section lists all
+    references/ docs. Zero code changes — documentation only.
+
+## 3.9.0 — 2026-09-30
+
+  - **`--order`**: custom category order for bar/box/violin/line — explicit
+    comma list (must cover all labels) or `auto` (descending by first-series
+    values; box/violin by group medians). Series/error arrays permuted and
+    `significance` column indices remapped automatically.
+  - **`--normalize`**: baseline scaling — `baseline` divides every series by
+    the first series' mean (control = 1); `pct100` rescales each series to its
+    own first point = 100. Error bars rescaled; distribution charts
+    (box/violin) deliberately excluded.
+  - **`--doctor`**: pre-render parameter/environment check report (flag
+    compatibility, data schema, dependencies, output dir). Report-only with
+    `-o`; omit `-o` for check-only mode (exit 1 = findings).
+
   - **Median bootstrap CI**: `--stats bootstrap` now also reports per-group
     **median** 95%CI alongside mean CI — the robust choice for skewed data
     (median CI printed with guidance note).
@@ -397,6 +423,26 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v3.9.1（2026-09-30）
+
+- **文档准确性热修**（发布后 TRACE 评测反馈）：图表类型表补齐 22 种
+  （grouped_bar/paired/bland_altman/pca/funnel 曾缺失）；limits.md §二参数行为列
+  对齐 `[ignored]` 透明化机制（stats/egger/hatch/sheet/area 五行过时）并补入
+  `--order`/`--normalize`/`--doctor`/`--stats cox`；FAQ 增 pub-ready/order/
+  normalize/doctor 四问；quickstart 上手四步与第一坑接入 `--pub-ready`/`--doctor`；
+  cheatsheet 新增「典型场景参数组合」节；文件结构节列全 references/ 全部文档。
+  零代码变更，纯文档。
+
+### v3.9.0（2026-09-30）
+
+- **`--order`**：类别顺序重排（bar/box/violin/line）——显式逗号列表（须覆盖全部
+  标签）或 `auto`（按第一系列值降序；box/violin 按各组中位数降序）。
+  系列/误差数组同步重排，significance 列索引自动改写。
+- **`--normalize`**：归一化——`baseline` 各系列÷第一系列均值（对照=1）；
+  `pct100` 各系列÷自身首点×100。误差棒同步缩放；分布图（box/violin）明确不适用。
+- **`--doctor`**：渲染前参数/环境体检（参数组合/数据/依赖/输出目录）。
+  带 `-o` 只报告不拦截；省略 `-o` 纯体检模式（exit 1=有发现）。
 
 ## 版本历史
 

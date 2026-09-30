@@ -22,20 +22,24 @@
 
 | 参数 | 适用图型 | 其他图型上传入时 |
 |---|---|---|
-| `--stats auto` / `--stats multi` / `--stats bootstrap` | 仅 box / violin | 静默忽略 |
+| `--stats auto` / `--stats multi` / `--stats bootstrap` | 仅 box / violin | 其他图型 → `[ignored]` 显式告知（stderr） |
 | `--compare`（DeLong） | 仅 roc，且需 `labels` + 各曲线 `scores` | 只有 fpr/tpr 时 stderr 提示无法检验 |
-| `--egger` | 仅 funnel（≥3 研究） | 静默忽略 |
+| `--egger` | 仅 funnel（≥3 研究） | 其他图型 → `[ignored]` 显式告知 |
 | `--no-risk-table` / `--risk-times` | 仅 km（原始 `[时间,事件]` 格式） | 预计算曲线格式时 stderr 提示 |
-| `--hatch` | bar 系（bar/grouped_bar/hbar/stacked_bar） | 静默忽略 |
+| `--hatch` | bar 系（bar/grouped_bar/hbar/stacked_bar） | 其他图型 → `[ignored]` 显式告知 |
 | `--cmap` / `--vmin` / `--vmax` | heatmap / cluster_heatmap | 静默忽略 |
 | `--trend` / `--no-trend` | scatter | 静默忽略 |
-| `--sheet` | 仅 `--data *.xlsx` | CSV/JSON 时忽略 |
+| `--sheet` | 仅 `--data *.xlsx` | CSV/JSON → `[ignored]` 显式告知 |
 | `--show-ratio` / `--ratio-base` | grouped_bar | 静默忽略 |
 | `--lang zh` | prisma（中文标准措辞版） | 静默忽略 |
 | `--horizontal` | bar（等同 hbar） | — |
 | `--annotate "x,y:文字"` | 所有图型（组合图自动选面板） | 坐标越界/类别不匹配 → 中文报错 exit 1 |
 | `--legend-loc` / `--legend-outside` | 有图例的图型；组合图 outside=共享图例 | 无图例时 stderr 提示未生效 |
-| `--area` | 仅 venn | 其他图型 → 中文报错 exit 1 |
+| `--stats cox` | 仅 forest（fatal 校验：其他图型中文报错 exit 1） | — |
+| `--order` | bar 系 / box / violin / line（box/violin 重排系列键） | 其他图型 → `[ignored]` 显式告知；显式列表须覆盖全部标签（多/少/重复=exit 1） |
+| `--normalize` | 仅 bar 系 / line（分布图不做均值归一） | 其他图型 → `[ignored]` 显式告知 |
+| `--doctor` | 全图型可用；只报告不改退出码 | 省 `-o` 纯体检（exit 1=有发现） |
+| `--area` | 仅 venn | 其他图型 → `[ignored]` 显式告知（v3.7 起不再致命） |
 
 ## 三、参数组合的注意事项
 
@@ -74,6 +78,9 @@
 | 渲染看门狗 | 默认自适应 30–1800s；`--timeout N` 覆盖，`--timeout 0` 禁用 | 超大图适当调大 |
 | journal × theme | `--journal nejm/lancet/science/nature` 未显式 `--theme` 时自动联动同款配色 | 显式 `--theme` 优先 |
 | `--stats multi` × `auto` | 互斥（multi 优先）；两组数据用 auto（multi 需 ≥3 组） | 两组比较选 auto |
+| `--order` | 显式列表须恰好覆盖全部标签（多/少/重复=exit 1）；significance 列索引自动改写；box/violin 重排系列键 | 类别有天然顺序（时间点/剂量）时显式列表 |
+| `--normalize` | 仅 bar 系/line（分布图不做均值归一）；baseline=÷第一系列均值，pct100=÷自身首点×100；误差棒同步缩放 | 原始数值保留源数据文件 |
+| `--doctor` | 只报告不改退出码；带 `-o` 体检后继续渲染，省略 `-o` 纯体检（exit 1=有发现） | 新参数组合先跑一次体检 |
 | `--demo` / `--suggest` | `--demo` 不需要 `--data`；`--suggest` 需要 | — |
 
 ## 七、运行环境边界

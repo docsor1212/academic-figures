@@ -7,7 +7,7 @@
 [![Site](https://img.shields.io/badge/Site-docsor.cn-teal)](https://docsor.cn)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Tests](https://img.shields.io/badge/tests-233%20pass-brightgreen)
+![Tests](https://img.shields.io/badge/tests-271%20pass-brightgreen)
 
 **22 chart types** (bar/box/violin/scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/
 venn 4-set ellipse/Bland-Altman/PCA/funnel/paired/dual-axis/stacked/composite/diagram/
@@ -52,7 +52,7 @@ python3 scripts/gen_figure.py -t km -d survival.json -o km.png --cjk
 - Getting started: `references/quickstart.md` · One-page cheatsheet:
   `references/cheatsheet.md` · Limits & flag interactions: `references/limits.md`
 - Scenario templates: `templates/` (22, each with a ready-to-run command)
-- Regression suite: `tests/run_tests.py` (233 tests)
+- Regression suite: `tests/run_tests.py` (271 tests)
 
 ## Install
 

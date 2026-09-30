@@ -39,8 +39,9 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
    先用示例数据渲染一张确认环境无问题。
 3. **换成自己的数据**：数据格式对照 `references/data-formats.md`；先小尺寸
    （如 `--dpi 150`）快速出一张核对内容，再出 600dpi 成品。
-4. **投稿成品**：默认 DPI（线条图 600）+ `--multi-format tiff,png`；PDF 记得加
-   `--verify`（像素级重叠检查）。数字边界与参数交互见 `references/limits.md`。
+4. **投稿成品**：一条命令 `--pub-ready`（= `--verify` 重叠门禁 + 色盲安全主题 +
+   pdf,png 双格式）；或手动默认 DPI（线条图 600）+ `--multi-format tiff,png`、PDF 加
+   `--verify`。数字边界与参数交互见 `references/limits.md`。
 
 ## 四、Python 内调用
 
@@ -61,3 +62,5 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
    3000 行，层次聚类内存随行数平方增长）。
 5. **组合图面板内不能再嵌 composite**；面板支持除 composite/diagram 外的所有图型。
 6. **投稿 PDF 忘加 `--verify`**：重叠检测只在显式加 `--verify` 时执行（重叠→退出码 2）。
+7. **参数组合拿不准**：`--doctor` 渲染前体检一次（省略 `-o` 只体检；组合冲突/数据/依赖/
+   输出目录一次说清，exit 1=有发现）。

@@ -1301,6 +1301,222 @@ def _field_nearmiss_warnings(data):
     return msgs
 
 
+# ── v3.9：--order 类别顺序 / --normalize 归一化 / --doctor 体检 ──────────
+_ORDER_CHARTS = ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar",
+                 "box", "violin", "line")
+_NORM_CHARTS = ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar", "line")
+
+
+def apply_series_order(data, order, chart_type):
+    """v3.9 --order：重排类别（bar 系/line 重排 labels 并同位列数组；
+    box/violin 重排系列键）。显式列表须恰好覆盖全部标签；
+    auto=按第一系列值降序（box/violin 按各组中位数降序）。
+    significance 的 "系列:列索引" 键随重排改写。"""
+    if chart_type in ("box", "violin"):
+        series = data.get("series", data.get("datasets"))
+        if not isinstance(series, dict) or not series:
+            print("WARNING: --order 需要 {组名: 数值数组} 系列型数据，未找到——跳过",
+                  file=sys.stderr)
+            return
+        names = list(series.keys())
+        if order == "auto":
+            new_names = sorted(
+                names,
+                key=lambda n: -float(np.median([float(v) for v in series[n]])))
+        else:
+            want = [w.strip() for w in order.split(",") if w.strip()]
+            missing = [w for w in want if w not in names]
+            if missing:
+                raise ValueError(f"--order 标签未找到：{'、'.join(missing)}"
+                                 f"（现有组：{'、'.join(names)}）")
+            if sorted(want) != sorted(names):
+                raise ValueError("--order 须恰好列出全部组名（不得多/少/重复）")
+            new_names = want
+        data["series"] = {n: series[n] for n in new_names}
+        for k in ("labels", "x"):
+            if isinstance(data.get(k), list) and len(data[k]) == len(names):
+                data[k] = list(new_names)
+        print(f"order: 类别顺序已重排 → {' → '.join(new_names)}", file=sys.stderr)
+        return
+    labels = data.get("labels", data.get("x"))
+    series = data.get("series", data.get("datasets"))
+    if not isinstance(labels, list) or not labels or not isinstance(series, dict):
+        print("WARNING: --order 需要 labels+series 数据结构，未找到——跳过", file=sys.stderr)
+        return
+    labels = [str(l) for l in labels]
+    if order == "auto":
+        first = next(iter(series.values()))
+        try:
+            fv = [float(first[i]) for i in range(len(labels))]
+        except Exception:
+            print("WARNING: --order auto 无法读取第一系列数值——跳过", file=sys.stderr)
+            return
+        pairs = sorted(range(len(labels)), key=lambda i: -fv[i])
+        new_labels = [labels[i] for i in pairs]
+    else:
+        want = [w.strip() for w in order.split(",") if w.strip()]
+        missing = [w for w in want if w not in labels]
+        if missing:
+            raise ValueError(f"--order 标签未找到：{'、'.join(missing)}"
+                             f"（现有：{'、'.join(labels)}）")
+        if len(want) != len(labels) or len(set(want)) != len(labels):
+            raise ValueError("--order 须恰好列出全部类别标签（不得重复/缺漏）")
+        new_labels = want
+    perm = [labels.index(l) for l in new_labels]
+
+    def _perm(arr):
+        if isinstance(arr, list) and len(arr) == len(labels):
+            return [arr[i] for i in perm]
+        return arr
+
+    data["labels"] = new_labels
+    if isinstance(data.get("x"), list):
+        data["x"] = new_labels
+    for sk, sv in series.items():
+        if isinstance(sv, list):
+            series[sk] = _perm(sv)
+    if isinstance(data.get("errors"), dict):
+        for ek, ev in data["errors"].items():
+            if isinstance(ev, list):
+                data["errors"][ek] = _perm(ev)
+    sig = data.get("significance")
+    if isinstance(sig, dict) and sig:
+        inv = {old: new for new, old in enumerate(perm)}
+        data["significance"] = {
+            (f"{k.rpartition(':')[0]}:{inv[int(k.rpartition(':')[2])]}"
+             if k.rpartition(":")[1] and k.rpartition(":")[2].isdigit()
+             and int(k.rpartition(":")[2]) in inv else k): v
+            for k, v in sig.items()}
+    print(f"order: 类别顺序已重排 → {' → '.join(new_labels)}", file=sys.stderr)
+
+
+def apply_normalize(data, mode, chart_type):
+    """v3.9 --normalize：baseline=各系列÷第一系列均值（对照=1）；
+    pct100=各系列÷自身首点×100（T0=100）。误差数组同步缩放。
+    分布类（box/violin）不适用（flag 门 [ignored] 拦截）。"""
+    series = data.get("series", data.get("datasets"))
+    if not isinstance(series, dict) or not series:
+        print("WARNING: --normalize 需要 series 数据，未找到——跳过", file=sys.stderr)
+        return
+
+    def _num(arr):
+        try:
+            return [float(v) for v in arr]
+        except (TypeError, ValueError):
+            return None
+
+    names = list(series.keys())
+    conv = {}
+    if mode == "baseline":
+        base_vals = _num(series[names[0]])
+        if not base_vals:
+            raise ValueError(f"--normalize baseline：第一系列「{names[0]}」非数值")
+        base = float(np.mean(base_vals))
+        if base == 0:
+            raise ValueError("--normalize baseline：第一系列均值为 0，不能作基线（请检查数据）")
+        for n in names:
+            vals = _num(series[n])
+            if vals is None:
+                raise ValueError(f"--normalize：系列「{n}」含非数值")
+            series[n] = [v / base for v in vals]
+            conv[n] = 1.0 / base
+        print(f"normalize baseline: 各系列已÷第一系列「{names[0]}」均值 {base:.4g}"
+              f"（该系列现=1.00；误差棒同步缩放；原始数值请保留源数据）", file=sys.stderr)
+    else:
+        for n in names:
+            vals = _num(series[n])
+            if not vals:
+                raise ValueError(f"--normalize：系列「{n}」非数值")
+            if vals[0] == 0:
+                raise ValueError(f"--normalize pct100：系列「{n}」首点为 0，"
+                                 "不能作基期（请检查数据或改用 --normalize baseline）")
+            f = 100.0 / vals[0]
+            series[n] = [v * f for v in vals]
+            conv[n] = f
+        print("normalize pct100: 各系列已按自身首点=100 归一"
+              "（误差棒同步缩放；原始数值请保留源数据）", file=sys.stderr)
+    if isinstance(data.get("errors"), dict):
+        for ek, ev in data["errors"].items():
+            vals = _num(ev) if isinstance(ev, list) else None
+            if vals and ek in conv:
+                data["errors"][ek] = [v * conv[ek] for v in vals]
+
+
+def _doctor_report(args, data):
+    """v3.9 --doctor：渲染前参数/环境体检。返回需注意项数（0=全绿）。
+    只报告不改退出码（带 -o 时继续渲染）；省略 -o 时 exit 1=有问题。"""
+    import importlib
+    issues = 0
+    print("── doctor 参数/环境体检（v3.9）──", file=sys.stderr)
+    combos = [
+        (args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin"),
+         f"--stats {args.stats} 仅 box/violin 生效"),
+        (args.stats == "cox" and args.type != "forest", "--stats cox 仅 forest 生效"),
+        (bool(args.compare) and args.type != "roc", "--compare 仅 roc 生效"),
+        (bool(args.egger) and args.type != "funnel", "--egger 仅 funnel 生效"),
+        (bool(args.hatch) and args.type not in ("bar", "grouped_bar", "hbar",
+                                                "horizontal_bar", "stacked_bar"),
+         "--hatch 仅 bar 系生效"),
+        (bool(args.area) and args.type != "venn", "--area 仅 venn 生效"),
+        (bool(args.sheet) and not str(args.data or "").lower().endswith((".xlsx", ".xls")),
+         "--sheet 仅 .xlsx/.xls 生效"),
+        (bool(getattr(args, "order", None)) and args.type not in _ORDER_CHARTS,
+         "--order 仅 bar/box/violin/line 系生效"),
+        (bool(getattr(args, "normalize", None)) and args.type not in _NORM_CHARTS,
+         "--normalize 仅 bar 系/line 生效（分布数据不做均值归一）"),
+        (bool(args.journal) and bool(args.width),
+         "--journal 会锁定图宽，--width 将被覆盖（去掉 --width 或改用 --column）"),
+    ]
+    for bad, msg in combos:
+        if bad:
+            issues += 1
+            print(f"  [!] {msg}", file=sys.stderr)
+    try:
+        fatal, warns = validate_data(data, args.type)
+        if fatal:
+            issues += len(fatal)
+            for m in fatal:
+                print(f"  [!] 数据致命: {m}", file=sys.stderr)
+        else:
+            print(f"  [ok] 数据结构校验通过（{args.type}）"
+                  + (f"；{len(warns)} 条警告" if warns else ""), file=sys.stderr)
+    except Exception as e:
+        issues += 1
+        print(f"  [!] 数据校验异常: {e}", file=sys.stderr)
+    for mod, hint in (("numpy", "numpy"), ("matplotlib", "matplotlib"),
+                      ("scipy", "scipy（仅 --stats 需要）")):
+        try:
+            importlib.import_module(mod)
+        except Exception:
+            print(f"  [!] 缺依赖 {hint}", file=sys.stderr)
+            issues += 1
+    if args.out:
+        od = os.path.dirname(os.path.abspath(args.out))
+        if not os.path.isdir(od):
+            issues += 1
+            print(f"  [!] 输出目录不存在: {od}", file=sys.stderr)
+        elif not os.access(od, os.W_OK):
+            issues += 1
+            print(f"  [!] 输出目录不可写: {od}", file=sys.stderr)
+        else:
+            print(f"  [ok] 输出目录可写: {od}", file=sys.stderr)
+
+    def _scan(o):
+        if isinstance(o, str):
+            return has_cjk(o)
+        if isinstance(o, dict):
+            return any(_scan(k) or _scan(v) for k, v in o.items())
+        if isinstance(o, (list, tuple)):
+            return any(_scan(v) for v in o)
+        return False
+
+    if any(has_cjk(t) for t in (args.title, args.xlabel, args.ylabel) if t) or _scan(data):
+        print("  [i] 检测到中文文本——将自动加载 CJK 字体（--cjk 可显式指定）", file=sys.stderr)
+    print(f"── doctor 完成：{'✅ 未发现问题' if issues == 0 else f'⚠️ {issues} 项需注意'} ──",
+          file=sys.stderr)
+    return issues
+
+
 def validate_data(data, chart_type):
     """Unified data validation: fatal errors + degradation warnings.
 
@@ -4004,6 +4220,15 @@ def main():
     parser.add_argument("--pub-ready", action="store_true",
                         help="一键投稿包：自动加 --verify + --multi-format pdf,png + 色盲安全主题"
                              "（--pub-ready theme,NAME 可指定主题；v3.8）")
+    parser.add_argument("--order", default=None, metavar="L1,L2,...|auto",
+                        help="自定义类别顺序：逗号分隔标签，或 auto=按第一系列值降序"
+                             "（box/violin 按各组中位数降序）（v3.9；仅 bar/box/violin/line 系）")
+    parser.add_argument("--normalize", default=None, choices=["baseline", "pct100"],
+                        help="归一化：baseline=各系列÷第一系列均值（对照=1）；"
+                             "pct100=各系列÷自身首点×100（T0=100）（v3.9；仅 bar 系/line）")
+    parser.add_argument("--doctor", action="store_true",
+                        help="渲染前参数/环境体检报告（组合冲突/数据/依赖/输出目录），"
+                             "只报告不改退出码；省略 -o 可只体检不渲染（v3.9）")
     parser.add_argument("--multi-format", default=None, metavar="F1,F2,...",
                         help="一次输出多种格式（逗号分隔 png/svg/pdf/tiff/eps，兼容全角逗号）："
                              "文件名取 --out 去扩展名后逐格式拼接，如 -o fig1 --multi-format tiff,png,pdf "
@@ -4193,6 +4418,14 @@ def main():
         print(f"--quick: 已按数据自动选择图型 {_best}（其他候选：{_alt}；"
               "打分明细见 --suggest）", file=sys.stderr)
 
+    if getattr(args, "doctor", False) and not args.out:
+        # v3.9 --doctor 只体检模式：不渲染不出图
+        if not args.type or not args.data:
+            parser.error("--doctor（省略 -o）仍需 -t/--type 与 -d/--data")
+        _d = load_data(args.data, chart_type=args.type, sheet=args.sheet)
+        _n = _doctor_report(args, _d)
+        sys.exit(1 if _n else 0)
+
     if args.demo:
         if not cmd_demo(args):
             sys.exit(1)
@@ -4350,6 +4583,12 @@ def main():
         _ignored.append("--area（仅 venn 生效）")
     if args.sheet and not str(args.data or "").lower().endswith((".xlsx", ".xls")):
         _ignored.append("--sheet（仅 .xlsx 生效）")
+    if getattr(args, "order", None) and args.type not in _ORDER_CHARTS:
+        _ignored.append("--order（仅 bar/box/violin/line 系生效）")
+        args.order = None
+    if getattr(args, "normalize", None) and args.type not in _NORM_CHARTS:
+        _ignored.append("--normalize（仅 bar 系/line 生效；分布数据不做均值归一）")
+        args.normalize = None
     for _ig in _ignored:
         print(f"[ignored] {_ig} 对 {args.type} 不适用，本次渲染已忽略", file=sys.stderr)
 
@@ -4369,6 +4608,21 @@ def main():
                   file=sys.stderr)
         sys.exit(1)
     _memory_hint(data, args.type)
+    # ── v3.9：--order / --normalize（渲染前数据变换，stderr 透明告知）──
+    if getattr(args, "order", None):
+        try:
+            apply_series_order(data, args.order, args.type)
+        except ValueError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
+    if getattr(args, "normalize", None):
+        try:
+            apply_normalize(data, args.normalize, args.type)
+        except ValueError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            sys.exit(1)
+    if getattr(args, "doctor", False):
+        _doctor_report(args, data)
     # ── A1(v2.8)：看门狗武装（--timeout 覆盖自适应预算；0=禁用）──
     if args.timeout is None or args.timeout > 0:
         _watchdog_arm(args.type, data,

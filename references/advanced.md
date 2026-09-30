@@ -2,8 +2,6 @@
 
 > 从主文档外移的进阶内容：统计深水区与投稿精修。主文档保持精简，按需查阅本文件。
 
-## Statistics Deep-Dive (English)
-
 ## Statistics Deep-Dive (v2.3)
 
 - **KM auto risk table + log-rank**: raw `[time, event]` data with >=2 groups now
@@ -20,8 +18,6 @@
   `-t paired` (before-after lines + paired test), `-t venn` (2-3 sets, exact
   region counts; `--area` for area-proportional Euler mode), `-t cluster_heatmap`
   (Ward-reordered matrix, <=3000 rows).
-
-## Submission Polish (English)
 
 ## Submission Polish (v2.5)
 

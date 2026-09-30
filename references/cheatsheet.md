@@ -42,6 +42,9 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | `--show-values` / `--show-ratio` | 数值标签 / 组间比率标注 |
 | `--hatch` / `--style glm-hatch` / `--alternate` | 斜纹 / GLM 签名风格 / 交替配色 |
 | `--stats auto\|multi\|cox` | 显著性 / Tukey·Dunn / Cox 多因素 |
+| `--order "C,A,B" \| auto` | 类别顺序（bar/box/violin/line；auto=值/中位数降序） |
+| `--normalize baseline\|pct100` | 归一化（对照=1 / 首点=100；误差棒同步） |
+| `--doctor` | 渲染前参数/环境体检（省略 -o 只体检） |
 | `--cmap NAME` / `--vmin --vmax` | 热图色阶与范围 |
 | `--sheet NAME` | Excel 工作表 |
 | `--cjk` / `--cjk-font PATH` | 中文字体（数据含中文自动检测） |
@@ -66,7 +69,17 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | 5 | 渲染看门狗超时 |
 | 6 | 内存护栏拒绝（自动降级重试仍败） |
 
-## 四、边界 Top 5
+## 四、典型场景参数组合
+
+| 场景 | 一条命令骨架 |
+|---|---|
+| 期刊投稿单图 | `-t bar … --pub-ready`（=verify+色盲安全主题+pdf,png） |
+| 多组显著性比较 | `-t box --stats multi`（≥3 组；正态→Tukey，否则 Dunn+Hochberg） |
+| 偏态/小样本推断 | `-t violin --stats bootstrap`（均值+中位数 95%CI，固定种子） |
+| 相对表达量/指数化 | `-t bar --normalize baseline --order auto`（对照=1+按值排序） |
+| 新参数组合先体检 | `--doctor`（省略 -o 纯体检，exit 1=有发现） |
+
+## 五、边界 Top 5
 
 1. cluster_heatmap：>1500 行建议 `--downsample`（硬上限 3000 行）。
 2. pca：≤200 特征列。

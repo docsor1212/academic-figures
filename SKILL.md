@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 3.8.0
+version: 3.9.1
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -29,8 +29,8 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 3.8.0
-  date: 2026-09-17
+  version: 3.9.1
+  date: 2026-09-30
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -122,17 +122,22 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 |----------|------|---------|-------------|
 | Compare | Bar | `-t bar` | Grouped bars, error bars, significance brackets, hatching, ratio annotations |
 | Compare | Horizontal Bar | `-t hbar` | Horizontal bars, ratio annotations |
+| Comparison | Grouped bar | `-t grouped_bar` | group × series two-way grouping; `--show-ratio` per-group ratio labels |
 | Composition | Stacked Bar | `-t stacked_bar` | Subgroup proportions, percentage labels, total annotations |
 | Distribution | Box | `-t box` | Box-and-whisker, jitter points |
 | Distribution | Violin | `-t violin` | Density estimation, inner mean/median |
+| Paired | Before-after | `-t paired` | per-subject pairing lines + paired test (annotated at n≥6) |
 | Trend | Scatter | `-t scatter` | Trend line, r value, color grouping, mean points, point labels |
 | Trend | Line | `-t line` | Multiple series, error bands, markers |
 | Trend | Dual Y-Axis | `-t dual_axis` | Two Y-axes, solid+dashed lines, combined legend |
 | Matrix | Heatmap | `-t heatmap` | Cell annotations, custom colormap, colorbar |
 | Matrix | Clustered Heatmap | `-t cluster_heatmap` | Hierarchical reordering, `--downsample` exit for big matrices |
+| Multivariate | PCA | `-t pca` | scores + group ellipses + top-5 loadings; ≤200 feature columns |
 | Inference | Forest | `-t forest` | CI whiskers, weight bubbles, overall diamond, I², events/total; `--stats cox` multi-variable HR |
+| Meta-analysis | Funnel | `-t funnel` | publication bias, DL pooled line; `--egger` test (≥3 studies) |
 | Survival | Kaplan-Meier | `-t km` | Step function, censor marks, log-rank test, risk table, median survival; **v3.7 competing risks** (event codes ≥2 auto-switch to Aalen-Johansen cumulative incidence) |
 | Diagnosis | ROC | `-t roc` | AUC, 95% CI, optimal cutoff, DeLong multi-model comparison |
+| Agreement | Bland-Altman | `-t bland_altman` | bias line + limits of agreement (LoA); two equal-length groups |
 | Sets | Venn | `-t venn` | 2-4 sets (4 sets = ellipse layout, v2.8); `--area` proportional Euler |
 | Composite | **Composite** | `-t composite` | Multi-panel (A+B+C), any chart type per panel (⚠ no nested composite), journal figure layouts |
 | Flow | **Diagram** | `-t diagram` | Architecture/flow blocks, arrows, groupings, annotations |
@@ -165,6 +170,9 @@ km has no hard cap (50k rows render in ~3s).
 (`--width` is overridden); `--area` venn only.
 **Timeout**: the render watchdog budget is adaptive per type and data size (30-1800s);
 `--timeout N` adjusts it, `--timeout 0` disables.
+**v3.9 flag scopes**: `--order` applies to bar/box/violin/line families (explicit list must
+cover all labels); `--normalize` applies to bar family/line only (distribution charts are
+never mean-normalized); `--doctor` works for every type (omit -o for check-only).
 
 Full matrix: `references/limits.md`. FAQ: `references/faq.md`. Over-limit inputs are rejected with a Chinese error message
 plus a fix suggestion — no half-finished figures are ever written.
@@ -322,6 +330,9 @@ High-frequency flags (full cheatsheet: `references/cheatsheet.md`):
 |------|-------------|
 | `--journal` / `--column` | Journal presets / column layout (⚠ locks width, see above) |
 | `--stats auto\|cox\|bootstrap` | Significance brackets on box/violin / Cox multi-variable forest (v2.7) |
+| `--order "C,A,B" \| auto` | Reorder categories (bar/box/violin/line; explicit list must cover all labels; auto = descending by value/median) |
+| `--normalize baseline\|pct100` | Normalize: divide by control mean (control = 1) / first point = 100 (bar family/line; error bars rescaled) |
+| `--doctor` | Pre-render parameter/environment check report (omit -o for check-only, exit 1 = findings) |
 | `--cjk` | CJK font auto-detection |
 | `--verify` | Pixel-level overlap verification on PDF output; exit 2 on overlaps |
 | `--multi-format tiff,png,pdf` | One-run multi-format export (v2.6) |
@@ -400,15 +411,18 @@ academic-figures/
 ├── examples/                ← example_*.json, run-ready
 ├── tests/run_tests.py       ← Full regression suite
 └── references/              ← data-formats / python-api / limits / faq /
-                               pitfalls / advanced / changelog
+                               cheatsheet / quickstart / pitfalls / advanced /
+                               clinical-lab-trends / composite-layouts /
+                               reverse-engineering-colors / changelog
+                               （v1.5-upgrade-analysis 为历史升级分析档案）
 ```
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v3.4.0** direct labeling + title hierarchy; **v3.3.0** colon fix + README + safety statement; **v3.2.0** transparency + safety statement; **v3.1.0** --quick + auto-downsample; **v3.0.0** main-doc layering +
-cheatsheet + script modularization (wizard/diagnostics extracted); **v2.9.0** boundary
-consolidation + standalone quickstart; **v2.8.0** render watchdog + graded exit codes +
-venn 4-set ellipse.
+Full bilingual history: `references/changelog.md`. Recent: **v3.9.0** --order category
+reordering + --normalize baseline scaling + --doctor pre-render check; **v3.8.0**
+--pub-ready submission bundle + median bootstrap CI; **v3.7.x** Aalen-Johansen
+competing risks + median_auto fix; earlier versions in changelog.
 
 ## 🚀 Pro Edition
 

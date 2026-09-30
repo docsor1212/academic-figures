@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 3.8.0", self.zh)
-        self.assertIn("version: 3.8.0", self.en)
+        self.assertIn("version: 3.9.1", self.zh)
+        self.assertIn("version: 3.9.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 3.8.0", self.zh)
-        self.assertIn("version: 3.8.0", self.en)
+        self.assertIn("version: 3.9.1", self.zh)
+        self.assertIn("version: 3.9.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 3.8.0", self.zh)
-        self.assertIn("version: 3.8.0", self.en)
+        self.assertIn("version: 3.9.1", self.zh)
+        self.assertIn("version: 3.9.1", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 3.8.0", zh)
+        self.assertIn("version: 3.9.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.8.0", t, name)
+            self.assertIn("version: 3.9.1", t, name)
 
 
 
@@ -2926,7 +2926,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.8.0", t, name)
+            self.assertIn("version: 3.9.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3045,7 +3045,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.8.0", t, name)
+            self.assertIn("version: 3.9.1", t, name)
 
 
 
@@ -3112,9 +3112,179 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.8.0", t, name)
+            self.assertIn("version: 3.9.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
+
+
+class TestV3900(unittest.TestCase):
+    """v3.9.0：--order 类别顺序 + --normalize 归一化 + --doctor 体检。"""
+
+    def test_order_function_bar(self):
+        import gen_figure as g
+        d = {"labels": ["A", "B", "C"], "series": {"s1": [1, 2, 3], "s2": [2, 4, 6]},
+             "errors": {"s1": [0.1, 0.2, 0.3]},
+             "significance": {"s1:0": "*", "s2:2": "NS"}}
+        g.apply_series_order(d, "C,A,B", "bar")
+        self.assertEqual(d["labels"], ["C", "A", "B"])
+        self.assertEqual(d["series"]["s1"], [3, 1, 2])
+        self.assertEqual(d["series"]["s2"], [6, 2, 4])
+        self.assertEqual(d["errors"]["s1"], [0.3, 0.1, 0.2])
+        # significance 列索引随重排改写（A:旧0→新1；C:旧2→新0）
+        self.assertEqual(d["significance"], {"s1:1": "*", "s2:0": "NS"})
+
+    def test_order_auto_box_median(self):
+        import gen_figure as g
+        d = {"series": {"g1": [1, 2, 3, 4], "g2": [5, 6, 7, 8], "g3": [2, 3, 2, 3]}}
+        g.apply_series_order(d, "auto", "box")
+        self.assertEqual(list(d["series"].keys()), ["g2", "g1", "g3"])
+
+    def test_order_unknown_label_fatal(self):
+        import gen_figure as g
+        d = {"labels": ["A", "B"], "series": {"s": [1, 2]}}
+        with self.assertRaises(ValueError):
+            g.apply_series_order(d, "A,X", "bar")
+
+    def test_normalize_baseline_mean_is_one(self):
+        import gen_figure as g
+        d = {"series": {"a": [2, 4, 6], "b": [1, 1, 3]}}
+        g.apply_normalize(d, "baseline", "bar")
+        self.assertAlmostEqual(sum(d["series"]["a"]) / 3, 1.0)  # 对照均值=1
+        self.assertAlmostEqual(d["series"]["b"][1], 0.25)
+
+    def test_normalize_pct100_first_point(self):
+        import gen_figure as g
+        d = {"series": {"a": [2, 4], "b": [5, 10]}}
+        g.apply_normalize(d, "pct100", "line")
+        self.assertEqual(d["series"]["a"], [100.0, 200.0])
+        self.assertEqual(d["series"]["b"], [100.0, 200.0])
+
+    def test_order_e2e_reorder_renders(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B", "C"], "series": {"s1": [1, 2, 3], "s2": [2, 4, 6]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f,
+                 "-o", os.path.join(td, "o.pdf"), "--order", "C,A,B", "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("order: 类别顺序已重排 → C → A → B", r.stderr)
+
+    def test_order_wrong_chart_ignored(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "h.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"matrix": [[1, 2], [3, 4]], "row_labels": ["r1", "r2"],
+                 "x_labels": ["c1", "c2"]}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "heatmap", "-d", f,
+                 "-o", os.path.join(td, "o.png"), "--order", "c2,c1", "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[ignored] --order", r.stderr)
+
+    def test_normalize_box_ignored(self):
+        # 分布图不做均值归一（统计语义防错）
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "b.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps({"series": {"g1": [1, 2, 3]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "box", "-d", f,
+                 "-o", os.path.join(td, "o.png"), "--normalize", "baseline", "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[ignored] --normalize", r.stderr)
+
+    def test_doctor_check_only_exit_codes(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B"], "series": {"s": [1, 2]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "--doctor"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("doctor 完成", r.stderr)
+            self.assertIn("未发现问题", r.stderr)
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "--doctor",
+                 "--width", "5", "--journal", "nature"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("--width 将被覆盖", r.stderr)
+
+    def test_doctor_with_render(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B"], "series": {"s": [1, 2]}}))
+            out = os.path.join(td, "o.pdf")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "-o", out,
+                 "--doctor", "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("doctor 参数/环境体检", r.stderr)
+
+
+class TestV3910(unittest.TestCase):
+    """v3.9.1 文档准确性热修（发布后 TRACE 评测反馈）回归锁。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.dirname(SCRIPT_DIR)
+        cls.zh = io.open(os.path.join(cls.root, "SKILL_ZH.md"), encoding="utf-8").read()
+        cls.en = io.open(os.path.join(cls.root, "SKILL.md"), encoding="utf-8").read()
+        cls.REF = os.path.join(cls.root, "references")
+
+    def test_type_table_complete_22(self):
+        """类型表须含全部 22 图型（v3.9.0 曾缺 5 种=docQuality 病灶）。"""
+        for flag in ("-t grouped_bar", "-t paired", "-t bland_altman",
+                     "-t pca", "-t funnel"):
+            self.assertIn(flag, self.zh)
+            self.assertIn(flag, self.en)
+
+    def test_limits_flag_behavior_aligned(self):
+        """limits §二行为列须与 [ignored] 透明化机制一致（boundary 靶点）。"""
+        lm = io.open(os.path.join(self.REF, "limits.md"), encoding="utf-8").read()
+        self.assertNotIn("中文报错 exit 1 |", lm.split("## 三")[0].split("--area")[1].split("\n")[0])
+        self.assertIn("v3.7 起不再致命", lm)
+        for row_key in ("--stats auto", "--egger", "--hatch"):
+            for line in lm.splitlines():
+                if row_key in line and "静默忽略" in line:
+                    self.fail(f"limits.md 过时行为描述: {line}")
+        self.assertEqual(lm.count("静默忽略"), 4,
+                         "limits.md '静默忽略' 仅限 cmap/trend/show-ratio/lang 四行")
+        for flag in ("--order", "--normalize", "--doctor", "--stats cox"):
+            self.assertIn(flag, lm)
+
+    def test_faq_covers_new_flags(self):
+        """FAQ 须覆盖 v3.8/v3.9 新 flag（antiPatternFaq 靶点）。"""
+        fq = io.open(os.path.join(self.REF, "faq.md"), encoding="utf-8").read()
+        for kw in ("--pub-ready", "--order auto", "--normalize baseline", "--doctor"):
+            self.assertIn(kw, fq)
+        self.assertNotIn("其他图型静默忽略", fq)
+
+    def test_quickstart_cheatsheet_guidance(self):
+        qs = io.open(os.path.join(self.REF, "quickstart.md"), encoding="utf-8").read()
+        self.assertIn("--pub-ready", qs)
+        self.assertIn("--doctor", qs)
+        cs = io.open(os.path.join(self.REF, "cheatsheet.md"), encoding="utf-8").read()
+        self.assertIn("典型场景参数组合", cs)
+
+    def test_references_all_listed(self):
+        """文件结构节须列全 references 文档（progressive 靶点）。"""
+        for kw in ("clinical-lab-trends", "composite-layouts",
+                   "reverse-engineering-colors", "cheatsheet / quickstart"):
+            self.assertIn(kw, self.zh)
+            self.assertIn(kw, self.en)
+
+    def test_advanced_no_empty_dup_headings(self):
+        ad = io.open(os.path.join(self.REF, "advanced.md"), encoding="utf-8").read()
+        self.assertNotIn("(English)\n\n## Statistics", ad)
+        self.assertNotIn("(English)\n\n## Submission", ad)
 
 
 if __name__ == "__main__":
