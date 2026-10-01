@@ -6,6 +6,24 @@
 
 ## Version History
 
+## 3.10.0 — 2026-10-01
+
+  - **`dual_axis` rebuilt to the canonical bars+lines form**: left-axis series
+    now draw as grouped BARS and right-axis series as dashed LINES (paid-link
+    feedback A1: the old all-lines form did not match the chart type). Override
+    per side with data keys `left_type` / `right_type` ("bar"|"line").
+  - **Legend rebuilt for dual_axis (A2+A4)**: the merged legend now covers
+    series from BOTH axes and is drawn frameless inside a reserved top band on
+    both scales — it can no longer occlude data peaks. `--legend-loc` /
+    `--legend-outside` still honored.
+  - **Single-series visual polish**: top-N emphasis (max bar in accent color,
+    others muted), hatch exemption for single series, integer value labels
+    (620 instead of 620.0), single-series legend suppression.
+  - `left_ylabel` / `right_ylabel` data keys documented (per-axis titles).
+  - **`left_floor` / `right_floor`** (optional): numeric lower bound per Y-axis —
+    e.g. `"right_floor": 35` for a clean percentage-axis start (default 5% margin
+    unchanged). Real-delivery feedback from the paid-link tester.
+
 ## 3.9.1 — 2026-09-30
 
   - **Docs accuracy pass** (post-release TRACE review): chart-type table now
@@ -423,6 +441,21 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v3.10.0（2026-10-01）
+
+- **`dual_axis` 重构为经典"左柱右线"形态**：左轴系列画分组柱、右轴系列画虚线
+  （真金付费链路反馈 A1：旧的全折线形态与图型定义不符）。数据键
+  `left_type` / `right_type`（"bar"|"line"）可按侧覆盖。
+- **dual_axis 图例重构（A2+A4）**：合并图例覆盖左右轴全部系列，无边框绘制在
+  双侧预留顶部带内——不再可能遮挡数据峰值。`--legend-loc` / `--legend-outside`
+  仍可覆盖。
+- **单系列视觉增强**：Top-N 强调（最大条主色、其余淡化）、单系列斜纹豁免、
+  整数值标签（620 而非 620.0）、单系列图例抑制。
+- `left_ylabel` / `right_ylabel` 数据键补文档（双轴各自标题）。
+- **`left_floor` / `right_floor`**（可选）：双轴各自 Y 轴下限数值——如
+  `"right_floor": 35` 让百分比右轴整数起算（投稿规范；默认 5% 边距行为不变）。
+  真金交付链路测试者建议采纳。
 
 ### v3.9.1（2026-09-30）
 

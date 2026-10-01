@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 3.9.1", self.zh)
-        self.assertIn("version: 3.9.1", self.en)
+        self.assertIn("version: 3.10.0", self.zh)
+        self.assertIn("version: 3.10.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 3.9.1", self.zh)
-        self.assertIn("version: 3.9.1", self.en)
+        self.assertIn("version: 3.10.0", self.zh)
+        self.assertIn("version: 3.10.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 3.9.1", self.zh)
-        self.assertIn("version: 3.9.1", self.en)
+        self.assertIn("version: 3.10.0", self.zh)
+        self.assertIn("version: 3.10.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 3.9.1", zh)
+        self.assertIn("version: 3.10.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.9.1", t, name)
+            self.assertIn("version: 3.10.0", t, name)
 
 
 
@@ -2926,7 +2926,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.9.1", t, name)
+            self.assertIn("version: 3.10.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3045,7 +3045,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.9.1", t, name)
+            self.assertIn("version: 3.10.0", t, name)
 
 
 
@@ -3112,7 +3112,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.9.1", t, name)
+            self.assertIn("version: 3.10.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3285,6 +3285,128 @@ class TestV3910(unittest.TestCase):
         ad = io.open(os.path.join(self.REF, "advanced.md"), encoding="utf-8").read()
         self.assertNotIn("(English)\n\n## Statistics", ad)
         self.assertNotIn("(English)\n\n## Submission", ad)
+
+
+class TestV31000(unittest.TestCase):
+    """v3.10.0：dual_axis 左柱右线重构（A1）+图例不遮挡（A2/A4）+单系列视觉增强。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import matplotlib
+        matplotlib.use("Agg")
+        sys.path.insert(0, SCRIPT_DIR)
+        cls.g = __import__("gen_figure")
+
+    def _theme(self):
+        return {"colors": ["#3B6FA0", "#E6B84C"], "font_size": 9,
+                "spines": ["top", "right"], "grid_alpha": 0.3,
+                "colorblind_safe": False}
+
+    def _dual_data(self):
+        return {"labels": ["W1", "W4", "W8", "W12", "W19"],
+                "left": {"样本量": [120, 118, 115, 110, 108]},
+                "right": {"指标B占比": [45.2, 52.1, 58.3, 60.0, 61.5],
+                          "指标C占比": [30.1, 33.5, 38.2, 40.1, 43.6]}}
+
+    def test_dualaxis_left_bar_right_line(self):
+        """A1：默认左轴柱+右轴虚线（经典形态）。"""
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax2 = self.g.gen_dual_axis(self._dual_data(), ax, self._theme(), None)
+        bars = [p for p in ax.patches
+                if isinstance(p, matplotlib.patches.Rectangle) and p.get_height() > 0]
+        self.assertGreaterEqual(len(bars), 5)
+        self.assertEqual(len(ax2.get_lines()), 2)
+        plt.close(fig)
+
+    def test_dualaxis_type_override(self):
+        """left_type/right_type 数据键可互换形态（向后兼容全折线用法）。"""
+        import matplotlib.pyplot as plt
+        d = dict(self._dual_data(), left_type="line", right_type="bar")
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax2 = self.g.gen_dual_axis(d, ax, self._theme(), None)
+        rbars = [p for p in ax2.patches
+                 if isinstance(p, matplotlib.patches.Rectangle) and p.get_height() > 0]
+        self.assertGreaterEqual(len(rbars), 5)
+        self.assertEqual(len(ax.get_lines()), 1)
+        plt.close(fig)
+
+    def test_dualaxis_legend_complete_no_occlusion(self):
+        """A2+A4：图例含左右轴全部系列，且嵌入顶部预留带（不遮数据）。"""
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax2 = self.g.gen_dual_axis(self._dual_data(), ax, self._theme(), None)
+        l1 = ax.get_legend_handles_labels()[1]
+        l2 = ax2.get_legend_handles_labels()[1]
+        self.assertEqual(l1 + l2, ["样本量", "指标B占比", "指标C占比"])
+        leg = ax.get_legend()
+        self.assertIsNotNone(leg)
+        self.assertEqual(len(leg.get_texts()), 3)
+        self.assertFalse(leg.get_frame_on())
+        self.assertGreater(ax.get_ylim()[1], 130)     # 左轴预留带
+        self.assertGreater(ax2.get_ylim()[1], 67)     # 右轴预留带（峰值 61.5 之上）
+        plt.close(fig)
+
+    def test_dualaxis_legend_loc_override(self):
+        """显式 --legend-loc 仍被尊重。"""
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6, 4))
+        self.g.gen_dual_axis(self._dual_data(), ax, self._theme(), None,
+                             legend_loc="lower right")
+        import matplotlib.legend as _mlg
+        self.assertEqual(ax.get_legend()._loc, _mlg.Legend.codes["lower right"])
+        plt.close(fig)
+
+    def test_single_series_emphasis(self):
+        """单系列：最大条强调色+其余淡化；斜纹豁免；图例抑制。"""
+        import matplotlib.pyplot as plt
+        d = {"labels": ["A", "B", "C", "D"], "series": {"n": [10, 40, 20, 30]}}
+        fig, ax = plt.subplots(figsize=(5, 4))
+        self.g.gen_bar(d, ax, self._theme(), None,
+                       hatch=True, show_values=True)
+        rects = [r for r in ax.patches if isinstance(r, matplotlib.patches.Rectangle)
+                 and r.get_height() > 0]
+        self.assertEqual(len(rects), 4)
+        faces = {tuple(round(c, 4) for c in r.get_facecolor()) for r in rects}
+        self.assertEqual(len(faces), 2, f"应有强调/淡化两色: {faces}")
+        all_hatches = {r.get_hatch() for r in rects}
+        self.assertEqual(all_hatches, {None}, "单系列斜纹应豁免")
+        self.assertEqual(ax.get_legend_handles_labels()[1], [])
+        plt.close(fig)
+
+    def test_single_series_int_labels(self):
+        """整数值标签不出现 .0（620 而非 620.0）。"""
+        import matplotlib.pyplot as plt
+        d = {"labels": ["A", "B"], "series": {"n": [620, 160]}}
+        fig, ax = plt.subplots(figsize=(5, 4))
+        self.g.gen_bar(d, ax, self._theme(), None, horizontal=True,
+                       show_values=True)
+        texts = [t.get_text() for t in ax.texts]
+        self.assertIn("620", texts)
+        self.assertNotIn("620.0", texts)
+        plt.close(fig)
+
+    def test_dualaxis_axis_floor(self):
+        """left_floor/right_floor 轴下限覆盖（真金交付反馈采纳项）。"""
+        import matplotlib.pyplot as plt
+        d = self._dual_data()
+        d["right_floor"] = 35
+        fig, ax = plt.subplots(figsize=(6, 4))
+        ax2 = self.g.gen_dual_axis(d, ax, self._theme(), None)
+        self.assertAlmostEqual(ax2.get_ylim()[0], 35.0)
+        self.assertGreater(ax2.get_ylim()[1], 61.5)  # 峰值仍完整可见
+        plt.close(fig)
+
+    def test_dualaxis_e2e_renders(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(self._dual_data(), ensure_ascii=False))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "dual_axis", "-d", f,
+                 "-o", os.path.join(td, "da.png"), "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.exists(os.path.join(td, "da.png")))
 
 
 if __name__ == "__main__":

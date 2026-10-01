@@ -328,7 +328,7 @@ EGPA,5,45,30,10,10
 
 ---
 
-## Dual Y-Axis Line Chart (`--type dual_axis`)
+## Dual Y-Axis Chart (`--type dual_axis`) — left bars + right lines
 
 ```json
 {
@@ -351,8 +351,15 @@ EGPA,5,45,30,10,10
 ```
 
 - `labels`: X-axis labels (time points).
-- `left` / `y1`: Series for the **left Y-axis** (solid lines).
-- `right` / `y2`: Series for the **right Y-axis** (dashed lines).
+- `left` / `y1`: Series for the **left Y-axis** — drawn as grouped BARS by default (v3.10).
+- `right` / `y2`: Series for the **right Y-axis** — drawn as dashed LINES by default (v3.10).
+- `left_type` (optional, v3.10): `"bar"` (default) or `"line"` — form of the left-axis series.
+- `right_type` (optional, v3.10): `"line"` (default) or `"bar"` — form of the right-axis series.
+- `left_floor` / `right_floor` (optional, v3.10): numeric lower bound for that Y-axis —
+  e.g. `"right_floor": 35` starts a percentage axis at a clean 35 (journal convention);
+  default keeps matplotlib's 5% margin. Ignored (with a warning) if ≥ the data maximum.
+- Legend: merged from both axes, drawn frameless in a reserved top band (never occludes data);
+  CLI `--legend-loc` / `--legend-outside` override.
 - `left_errors` / `y1_errors` (optional): Error band values for left axis series.
 - `right_errors` / `y2_errors` (optional): Error band values for right axis series.
 - `left_ylabel` (optional): Left Y-axis label.

@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 3.9.1
+version: 3.10.0
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -29,8 +29,8 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 3.9.1
-  date: 2026-09-30
+  version: 3.10.0
+  date: 2026-10-01
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -129,7 +129,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Paired | Before-after | `-t paired` | per-subject pairing lines + paired test (annotated at n≥6) |
 | Trend | Scatter | `-t scatter` | Trend line, r value, color grouping, mean points, point labels |
 | Trend | Line | `-t line` | Multiple series, error bands, markers |
-| Trend | Dual Y-Axis | `-t dual_axis` | Two Y-axes, solid+dashed lines, combined legend |
+| Trend | Dual Y-axis | `-t dual_axis` | **left bars + right dashed lines** (swappable via `left_type`/`right_type`); frameless legend in reserved top band, never occludes data |
 | Matrix | Heatmap | `-t heatmap` | Cell annotations, custom colormap, colorbar |
 | Matrix | Clustered Heatmap | `-t cluster_heatmap` | Hierarchical reordering, `--downsample` exit for big matrices |
 | Multivariate | PCA | `-t pca` | scores + group ellipses + top-5 loadings; ≤200 feature columns |
@@ -419,10 +419,9 @@ academic-figures/
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v3.9.0** --order category
-reordering + --normalize baseline scaling + --doctor pre-render check; **v3.8.0**
---pub-ready submission bundle + median bootstrap CI; **v3.7.x** Aalen-Johansen
-competing risks + median_auto fix; earlier versions in changelog.
+Full bilingual history: `references/changelog.md`. Recent: **v3.10.0** dual_axis bars+lines rebuild + single-series visual polish (top-N accent,
+integer labels); **v3.9.1** docs-accuracy hotfix; **v3.9.0** --order/--normalize/--doctor;
+earlier versions in changelog.
 
 ## 🚀 Pro Edition
 

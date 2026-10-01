@@ -1924,36 +1924,53 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                 errs = [errs] * n_groups
 
         hatch_val = HATCH_PATTERNS[i % len(HATCH_PATTERNS)] if use_hatch else None
+        # v3.10 单系列视觉增强（真金链路反馈"默认出图朴素"）：
+        # ①Top-N 强调层级——最大条(含并列)主题主色，其余同色淡化（focus+context）
+        # ②斜纹豁免——斜纹是"系列区分"工具，单系列铺满=噪声
+        # ③图例抑制——单系列图例=系列名复读（label 不设，图例自然消失）
+        _single_enh = (n_series == 1 and len(values) >= 3
+                       and not kwargs.get("alternate", False))
         if kwargs.get("alternate", False) and n_series == 1:
             # GLM-5.2 blog style: alternate first two theme colors per bar
             bar_colors = [colors[j % 2] for j in range(len(values))]
+        elif _single_enh:
+            from matplotlib.colors import to_rgba
+            _vals = [float(v) for v in values]
+            _vmax = max(_vals)
+            _accent = colors[i % len(colors)]
+            _muted = to_rgba(_accent, 0.42)
+            bar_colors = [_accent if abs(v - _vmax) < 1e-12 else _muted for v in _vals]
+            hatch_val = None  # 单系列斜纹豁免
         else:
             bar_colors = colors[i % len(colors)]
-        if use_hatch:
+        if use_hatch and not (n_series == 1 and hatch_val is None):
             # GLM-5.2 blog style: ALL bars get hatching. glm-brand: 同系深色纹+边
             #（视觉精修）；其他主题保持黑色纹（历史行为）。
             bars = bar_func(x + offset, values, w, yerr=errs,
                             color=bar_colors,
                             edgecolor=_hatch_edgecolor(theme, bar_colors), linewidth=0.6,
                             hatch=hatch_val, capsize=3,
-                            error_kw={'linewidth': 1}, label=name)
+                            error_kw={'linewidth': 1},
+                            label=name if n_series > 1 else None)
         else:
             bars = bar_func(x + offset, values, w, yerr=errs,
                             color=bar_colors, edgecolor='white', linewidth=0.5,
-                            capsize=3, error_kw={'linewidth': 1}, label=name)
+                            capsize=3, error_kw={'linewidth': 1},
+                            label=name if n_series > 1 else None)
         all_bars.append((name, values, bars, offset))
 
         # Value labels on bars
         if kwargs.get("show_values", False):
             for j, v in enumerate(values):
                 err = errs[j] if errs and j < len(errs) else 0
+                _fv = f'{int(v)}' if float(v).is_integer() else f'{v:.1f}'
                 if horizontal:
                     ax.text(v + err + max(values) * 0.01, x[j] + offset,
-                            f'{v:.1f}', ha='left', va='center', fontsize=7,
+                            _fv, ha='left', va='center', fontsize=7,
                             color=colors[i % len(colors)])
                 else:
                     ax.text(x[j] + offset, v + err + max(values) * 0.01,
-                            f'{v:.1f}', ha='center', va='bottom', fontsize=7,
+                            _fv, ha='center', va='bottom', fontsize=7,
                             color=colors[i % len(colors)])
 
     # Ratio annotations (e.g., "4.96x" above second series bars)
@@ -2900,7 +2917,11 @@ def gen_stacked_bar(data, ax, theme, cjk_fp, **kwargs):
 
 
 def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
-    """Dual Y-axis line chart for comparing two metrics on different scales."""
+    """Dual Y-axis chart, canonical 左柱右线 form (v3.10): left-axis series draw
+    as BARS, right-axis series as dashed LINES — override per side with data keys
+    left_type/right_type ("bar"|"line"). The merged legend covers BOTH axes and is
+    drawn frameless inside a reserved top band so it never occludes peaks (v3.10
+    A2/A4 修复); --legend-loc / --legend-outside still honored."""
     labels = data.get("labels", data.get("x", []))
     left_series = data.get("left", data.get("y1", {}))  # {"CRP (mg/L)": [5, 8, 12, ...]}
     right_series = data.get("right", data.get("y2", {}))  # {"DAS28": [3.2, 4.1, 5.6, ...]}
@@ -2908,6 +2929,12 @@ def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
     right_errors = data.get("right_errors", data.get("y2_errors", {}))
     left_ylabel = data.get("left_ylabel", "")
     right_ylabel = data.get("right_ylabel", "")
+    left_type = str(data.get("left_type", "bar")).strip().lower()
+    right_type = str(data.get("right_type", "line")).strip().lower()
+    if left_type not in ("bar", "line"):
+        left_type = "bar"
+    if right_type not in ("bar", "line"):
+        right_type = "line"
 
     def _check_series_dict(sd, which):
         if not isinstance(sd, dict):
@@ -2927,16 +2954,33 @@ def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
     # Create second axis
     ax2 = ax.twinx()
 
-    # Plot left axis series
-    for i, (name, values) in enumerate(left_series.items()):
-        c = theme["colors"][i % len(theme["colors"])]
-        mk = markers[i % len(markers)]
-        ax.plot(x, values, color=c, marker=mk, markersize=6, linewidth=2, label=name, zorder=3)
-        if name in left_errors and left_errors[name]:
-            errs = left_errors[name]
-            lower = [v - e for v, e in zip(values, errs)]
-            upper = [v + e for v, e in zip(values, errs)]
-            ax.fill_between(x, lower, upper, color=c, alpha=0.15, zorder=2)
+    # Plot left axis series（v3.10：默认柱状——经典左柱右线形态）
+    n_left = len(left_series)
+    n_right = len(right_series)
+    _label_all = (n_left + n_right) > 1  # 唯一系列不设 label（图例抑制）
+    if left_type == "bar":
+        w_left = 0.72 / max(n_left, 1)
+        for i, (name, values) in enumerate(left_series.items()):
+            c = theme["colors"][i % len(theme["colors"])]
+            offs = (i - (n_left - 1) / 2) * w_left
+            errs = left_errors.get(name) or None
+            if errs is not None and not all(isinstance(e, (int, float)) for e in errs):
+                errs = None
+            ax.bar(x + offs, values, w_left * 0.9, yerr=errs,
+                   color=c, edgecolor='white', linewidth=0.5, capsize=3,
+                   error_kw={'linewidth': 1},
+                   label=name if _label_all else None, zorder=2.5)
+    else:
+        for i, (name, values) in enumerate(left_series.items()):
+            c = theme["colors"][i % len(theme["colors"])]
+            mk = markers[i % len(markers)]
+            ax.plot(x, values, color=c, marker=mk, markersize=6, linewidth=2,
+                    label=name if _label_all else None, zorder=3)
+            if name in left_errors and left_errors[name]:
+                errs = left_errors[name]
+                lower = [v - e for v, e in zip(values, errs)]
+                upper = [v + e for v, e in zip(values, errs)]
+                ax.fill_between(x, lower, upper, color=c, alpha=0.15, zorder=2)
 
     # Plot right axis series
     right_colors = ['#D55E00', '#CC79A7', '#0072B2', '#009E73', '#F0E442']  # distinct from left
@@ -2945,16 +2989,29 @@ def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
         offset = len(left_series)
         right_colors = [theme["colors"][(offset + j) % len(theme["colors"])] for j in range(5)]
 
-    for i, (name, values) in enumerate(right_series.items()):
-        c = right_colors[i % len(right_colors)]
-        mk = markers[(len(left_series) + i) % len(markers)]
-        ax2.plot(x, values, color=c, marker=mk, markersize=6, linewidth=2,
-                 linestyle='--', label=name, zorder=3)
-        if name in right_errors and right_errors[name]:
-            errs = right_errors[name]
-            lower = [v - e for v, e in zip(values, errs)]
-            upper = [v + e for v, e in zip(values, errs)]
-            ax2.fill_between(x, lower, upper, color=c, alpha=0.15, zorder=2)
+    if right_type == "bar":
+        w_right = 0.72 / max(n_right, 1)
+        for i, (name, values) in enumerate(right_series.items()):
+            c = right_colors[i % len(right_colors)]
+            offs = (i - (n_right - 1) / 2) * w_right
+            errs = right_errors.get(name) or None
+            if errs is not None and not all(isinstance(e, (int, float)) for e in errs):
+                errs = None
+            ax2.bar(x + offs, values, w_right * 0.9, yerr=errs,
+                    color=c, edgecolor='white', linewidth=0.5, capsize=3,
+                    error_kw={'linewidth': 1},
+                    label=name if _label_all else None, zorder=2.5)
+    else:
+        for i, (name, values) in enumerate(right_series.items()):
+            c = right_colors[i % len(right_colors)]
+            mk = markers[(n_left + i) % len(markers)]
+            ax2.plot(x, values, color=c, marker=mk, markersize=6, linewidth=2,
+                     linestyle='--', label=name if _label_all else None, zorder=3)
+            if name in right_errors and right_errors[name]:
+                errs = right_errors[name]
+                lower = [v - e for v, e in zip(values, errs)]
+                upper = [v + e for v, e in zip(values, errs)]
+                ax2.fill_between(x, lower, upper, color=c, alpha=0.15, zorder=2)
 
     # Style right axis
     ax2.spines['right'].set_visible(True)
@@ -2978,11 +3035,39 @@ def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
                        fontproperties=cjk_fp if cjk_fp and has_cjk(right_ylabel) else None)
         _ensure_ylabel_clear(ax2)
 
-    # Combine legends from both axes
+    # Combine legends from both axes（v3.10 A2/A4：显式合并+不遮挡）
     lines1, labels1 = ax.get_legend_handles_labels()
     lines2, labels2 = ax2.get_legend_handles_labels()
-    ax.legend(lines1 + lines2, labels1 + labels2, fontsize=theme["font_size"] - 1,
-              loc='best', framealpha=0.9, prop=cjk_fp if cjk_fp else None)
+    handles, lbls = lines1 + lines2, labels1 + labels2
+    # v3.10：可选轴下限覆盖（如 right_floor=35 让百分比右轴整数起算——投稿规范；默认保持 5% 边距）
+    for _key, _ax in (("left_floor", ax), ("right_floor", ax2)):
+        _fl = data.get(_key)
+        if isinstance(_fl, (int, float)) and not isinstance(_fl, bool):
+            _lo, _hi = _ax.get_ylim()
+            if _fl < _hi:
+                _ax.set_ylim(float(_fl), _hi)
+            else:
+                print(f"WARNING: dual_axis {_key}={_fl} 不小于当前上限 {_hi:.4g}，已忽略",
+                      file=sys.stderr)
+    if handles:
+        if kwargs.get("legend_outside"):
+            ax.legend(handles, lbls, fontsize=theme["font_size"] - 1,
+                      loc='lower center', bbox_to_anchor=(0.5, 1.02),
+                      ncol=min(len(lbls), 4), frameon=False,
+                      prop=cjk_fp if cjk_fp else None)
+        elif kwargs.get("legend_loc"):
+            ax.legend(handles, lbls, fontsize=theme["font_size"] - 1,
+                      loc=kwargs["legend_loc"], framealpha=0.9,
+                      prop=cjk_fp if cjk_fp else None)
+        else:
+            # 默认：左右轴各留顶部预留带，图例嵌入预留区（无边框，物理不遮数据）
+            for _a in (ax, ax2):
+                _lo, _hi = _a.get_ylim()
+                if _hi > _lo:
+                    _a.set_ylim(_lo, _hi + (_hi - _lo) * (0.18 if len(lbls) <= 4 else 0.28))
+            ax.legend(handles, lbls, fontsize=theme["font_size"] - 1,
+                      loc='upper center', ncol=min(len(lbls), 4), frameon=False,
+                      prop=cjk_fp if cjk_fp else None)
 
     # Store ax2 reference for downstream use
     return ax2
