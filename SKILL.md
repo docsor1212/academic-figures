@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 4.0.0
+version: 4.1.0
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -29,8 +29,8 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 4.0.0
-  date: 2026-10-02
+  version: 4.1.0
+  date: 2026-10-03
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -139,7 +139,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Diagnosis | ROC | `-t roc` | AUC, 95% CI, optimal cutoff, DeLong multi-model comparison |
 | Agreement | Bland-Altman | `-t bland_altman` | bias line + limits of agreement (LoA); two equal-length groups |
 | Sets | Venn | `-t venn` | 2-4 sets (4 sets = ellipse layout, v2.8); `--area` proportional Euler |
-| Composite | **Composite** | `-t composite` | Multi-panel (A+B+C), any chart type per panel (⚠ no nested composite), journal figure layouts |
+| Composite | **Composite** | `-t composite` | Multi-panel A+B+C, any chart per panel (⚠ no nested composite); `panel_labels:true` auto bold corner letters (journal style, v4.1) |
 | Flow | **Diagram** | `-t diagram` | Architecture/flow blocks, arrows, groupings, annotations |
 | Review | **PRISMA Flow** | `-t prisma` | PRISMA 2020 review flow; counts auto-validated (must add up), EN/ZH wording via `lang` |
 
@@ -333,6 +333,8 @@ High-frequency flags (full cheatsheet: `references/cheatsheet.md`):
 | `--order "C,A,B" \| auto` | Reorder categories (bar/box/violin/line; explicit list must cover all labels; auto = descending by value/median) |
 | `--normalize baseline\|pct100` | Normalize: divide by control mean (control = 1) / first point = 100 (bar family/line; error bars rescaled) |
 | `--doctor` | Pre-render parameter/environment check report (omit -o for check-only, exit 1 = findings) |
+| `--subtitle "Sub"` / `--source "Note"` | Subtitle line under the title / bottom-right source note (v4.0) |
+| `--summary` | Auto data-summary subtitle (pure counts: n/groups/events, no inference; v4.1) |
 | `--cjk` | CJK font auto-detection |
 | `--verify` | Pixel-level overlap verification on PDF output; exit 2 on overlaps |
 | `--multi-format tiff,png,pdf` | One-run multi-format export (v2.6) |
@@ -419,9 +421,9 @@ academic-figures/
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v4.0.0** engine modularization (drawing layer → af_draw/af_shared) + structured
-title block (--subtitle/--source); **v3.10.0** dual_axis bars+lines + single-series polish;
-**v3.9.x** docs hotfix/--order/--normalize/--doctor; earlier versions in changelog.
+Full bilingual history: `references/changelog.md`. Recent: **v4.1.0** composite auto panel letters (panel_labels) + --summary data-summary
+subtitle; **v4.0.0** engine modularization + structured title block; **v3.10.0** dual_axis
+bars+lines; earlier versions in changelog.
 
 ## 🚀 Pro Edition
 

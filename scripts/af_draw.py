@@ -1463,7 +1463,18 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                            hspace=0.35, wspace=0.3,
                            left=0.08, right=0.95, top=0.92, bottom=0.08)
 
-    for panel in panels:
+    # v4.1 自动面板标签（期刊 A/B/C 规范自动化）："panel_labels": true → 按
+    # pos 行序自动加粗 A/B/C…；传数组（如 ["I","II"]）自定义序列；缺省 false
+    # （兼容既有图，避免与手写 "Panel A:" 类标题重复标注）。
+    panel_labels = data.get("panel_labels", False)
+    _pl_seq = panel_labels if isinstance(panel_labels, list) else None
+    _pl_on = bool(panel_labels)
+    _pos_order = sorted(range(len(panels)),
+                        key=lambda i: (panels[i].get("pos", [9, 9])[0],
+                                       panels[i].get("pos", [9, 9])[1]))
+    _pl_of = {idx: k for k, idx in enumerate(_pos_order)}
+
+    for _pi, panel in enumerate(panels):
         pos = panel.get("pos", [0, 0])
         panel_type = panel.get("type", "bar")
         panel_data = panel.get("data", {})
@@ -1500,6 +1511,15 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
 
         extra = gen_func(panel_data, sub_ax, theme, cjk_fp, **panel_kwargs)
         apply_base_style(sub_ax, theme)
+
+        # v4.1 自动面板标签：左上角加粗 A/B/C…（轴外，永不压数据）
+        if _pl_on:
+            _lab = (_pl_seq[_pl_of[_pi]] if _pl_seq
+                    else chr(65 + _pl_of[_pi]))
+            sub_ax.text(-0.08, 1.05, str(_lab), transform=sub_ax.transAxes,
+                        fontsize=theme["font_size"] + 3, fontweight="bold",
+                        ha="right", va="bottom",
+                        fontproperties=cjk_fp if cjk_fp and has_cjk(str(_lab)) else None)
 
         # Panel-specific labels
         ptitle = panel.get("title", "")

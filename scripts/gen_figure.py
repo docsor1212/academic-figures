@@ -1185,6 +1185,34 @@ def apply_normalize(data, mode, chart_type):
                 data["errors"][ek] = [v * conv[ek] for v in vals]
 
 
+def _auto_summary(data, chart_type):
+    """v4.1 --summary：从数据派生纯计数事实摘要（零推断）。派生不了的图型返回 None。"""
+    def _num_list(v):
+        return [float(x) for x in v if isinstance(x, (int, float))]
+
+    if chart_type in ("km", "survival"):
+        groups = data.get("groups") or {}
+        if not isinstance(groups, dict) or not groups:
+            return None
+        n = ev = 0
+        for pairs in groups.values():
+            for p in pairs if isinstance(pairs, list) else []:
+                if isinstance(p, (list, tuple)) and len(p) >= 2:
+                    n += 1
+                    if p[1] == 1:
+                        ev += 1
+        return f"n={n} 例 · 事件 {ev} 例 · {len(groups)} 组"
+    series = data.get("series", data.get("datasets"))
+    labels = data.get("labels", data.get("x", []))
+    if not isinstance(series, dict) or not series:
+        return None
+    n = sum(len(_num_list(v)) for v in series.values())
+    if n == 0:
+        return None
+    g_txt = f"{len(labels)} 组" if isinstance(labels, list) and labels else f"{len(series)} 系列"
+    return f"n={n} · {g_txt}"
+
+
 def _doctor_report(args, data):
     """v3.9 --doctor：渲染前参数/环境体检。返回需注意项数（0=全绿）。
     只报告不改退出码（带 -o 时继续渲染）；省略 -o 时 exit 1=有问题。"""
@@ -2179,6 +2207,9 @@ def main():
     parser.add_argument("--pub-ready", action="store_true",
                         help="一键投稿包：自动加 --verify + --multi-format pdf,png + 色盲安全主题"
                              "（--pub-ready theme,NAME 可指定主题；v3.8）")
+    parser.add_argument("--summary", action="store_true",
+                        help="自动数据摘要副标题（v4.1）：纯计数事实（样本量/组数/"
+                             "事件数等，零推断）；--subtitle 显式给出时以其为准")
     parser.add_argument("--subtitle", default=None,
                         help="副标题（主标题下方第二行，小号灰色——标题层级 v4.0；"
                              "兼容 --title \"主/副\" 斜杠写法）")
@@ -2724,6 +2755,16 @@ def main():
             ax.set_title(title_text, fontsize=theme["font_size"] + 1, fontweight='bold',
                          pad=_t_pad,
                          fontproperties=cjk_fp if cjk_fp and has_cjk(title_text) else None)
+        if getattr(args, "summary", False) and not getattr(args, "subtitle", None):
+            # v4.1 自动数据摘要副标题：只陈述计数事实（零推断，accuracy 优先）。
+            # 单列观测计 wide 系列"系列名: 列表"的全部数值个数；km 统计例数与事件数。
+            try:
+                _sum_txt = _auto_summary(data, args.type)
+            except Exception:
+                _sum_txt = None
+            if _sum_txt:
+                print(f"summary: {_sum_txt}", file=sys.stderr)
+            args.subtitle = _sum_txt
         if getattr(args, "subtitle", None):
             # v4.0 标题层级：副标题主标题正下方第二行（小号灰色，非加粗）
             _sub = str(args.subtitle).strip()[:200]

@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.0.0", self.zh)
-        self.assertIn("version: 4.0.0", self.en)
+        self.assertIn("version: 4.1.0", self.zh)
+        self.assertIn("version: 4.1.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.0.0", self.zh)
-        self.assertIn("version: 4.0.0", self.en)
+        self.assertIn("version: 4.1.0", self.zh)
+        self.assertIn("version: 4.1.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.0.0", self.zh)
-        self.assertIn("version: 4.0.0", self.en)
+        self.assertIn("version: 4.1.0", self.zh)
+        self.assertIn("version: 4.1.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.0.0", zh)
+        self.assertIn("version: 4.1.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.0.0", t, name)
+            self.assertIn("version: 4.1.0", t, name)
 
 
 
@@ -2928,7 +2928,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.0.0", t, name)
+            self.assertIn("version: 4.1.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3047,7 +3047,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.0.0", t, name)
+            self.assertIn("version: 4.1.0", t, name)
 
 
 
@@ -3114,7 +3114,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.0.0", t, name)
+            self.assertIn("version: 4.1.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3458,6 +3458,81 @@ class TestV40000(unittest.TestCase):
                  "--subtitle", "双轴副标题", "--source", "来源：测试"],
                 capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
+
+
+class TestV41000(unittest.TestCase):
+    """v4.1.0：composite 自动面板标签（panel_labels）+ --summary 自动数据摘要副标题。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import matplotlib
+        matplotlib.use("Agg")
+        sys.path.insert(0, SCRIPT_DIR)
+        cls.g = __import__("gen_figure")
+        cls.theme = {"colors": ["#3B6FA0", "#E6B84C"], "font_size": 9,
+                     "spines": ["top", "right"], "grid_alpha": 0.3,
+                     "colorblind_safe": False}
+
+    def _composite(self, panel_labels):
+        return {"layout": [1, 2], "panel_labels": panel_labels,
+                "panels": [
+                    {"pos": [0, 1], "type": "bar", "data": {"labels": ["a"], "series": {"s": [1]}}},
+                    {"pos": [0, 0], "type": "bar", "data": {"labels": ["a"], "series": {"s": [1]}}}]}
+
+    def test_panel_labels_row_major(self):
+        """乱序 pos 也按行序标 A/B（期刊规范）。"""
+        import matplotlib.text as mtext
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6, 3))
+        self.g.gen_composite(self._composite(True), ax, self.theme, None)
+        labs = [t.get_text() for t in fig.findobj(mtext.Text) if t.get_text() in ("A", "B")]
+        self.assertEqual(sorted(labs), ["A", "B"])
+        plt.close(fig)
+
+    def test_panel_labels_custom_seq(self):
+        import matplotlib.text as mtext
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6, 3))
+        self.g.gen_composite(self._composite(["I", "II"]), ax, self.theme, None)
+        labs = [t.get_text() for t in fig.findobj(mtext.Text) if t.get_text() in ("I", "II")]
+        self.assertEqual(sorted(labs), ["I", "II"])
+        plt.close(fig)
+
+    def test_panel_labels_default_off(self):
+        """缺省关闭——兼容既有图（手写 Panel A 标题不重复标注）。"""
+        import matplotlib.text as mtext
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(6, 3))
+        d = self._composite(False)
+        del d["panel_labels"]
+        self.g.gen_composite(d, ax, self.theme, None)
+        labs = [t.get_text() for t in fig.findobj(mtext.Text) if t.get_text() in ("A", "B")]
+        self.assertEqual(labs, [])
+        plt.close(fig)
+
+    def test_summary_bar(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B"], "series": {"s": [1, 2]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f,
+                 "-o", os.path.join(td, "s.png"), "--dpi", "70", "--summary"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("summary: n=2 · 2 组", r.stderr)
+
+    def test_summary_km_events(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "k.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"groups": {"对照": [[3, 1], [5, 0]], "处理": [[4, 1], [6, 1]]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "km", "-d", f,
+                 "-o", os.path.join(td, "k.png"), "--dpi", "70", "--summary"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("n=4 例 · 事件 3 例 · 2 组", r.stderr)
 
 
 if __name__ == "__main__":
