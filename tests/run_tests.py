@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 3.10.0", self.zh)
-        self.assertIn("version: 3.10.0", self.en)
+        self.assertIn("version: 4.0.0", self.zh)
+        self.assertIn("version: 4.0.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 3.10.0", self.zh)
-        self.assertIn("version: 3.10.0", self.en)
+        self.assertIn("version: 4.0.0", self.zh)
+        self.assertIn("version: 4.0.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 3.10.0", self.zh)
-        self.assertIn("version: 3.10.0", self.en)
+        self.assertIn("version: 4.0.0", self.zh)
+        self.assertIn("version: 4.0.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 3.10.0", zh)
+        self.assertIn("version: 4.0.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.10.0", t, name)
+            self.assertIn("version: 4.0.0", t, name)
 
 
 
@@ -2916,7 +2916,9 @@ class TestV3400(unittest.TestCase):
     def test_km_median_unit_neutral(self):
         """v3.4.1（55 线发现）：KM 注释框单位中性化——不得再出现『中位生存月』。"""
         root = os.path.dirname(SCRIPT_DIR)
-        g = io.open(os.path.join(root, "scripts", "gen_figure.py"), encoding="utf-8").read()
+        # v4.0.0 模块化后生成器源在 af_draw.py——扫描全部引擎文件
+        g = "".join(io.open(os.path.join(root, "scripts", f), encoding="utf-8").read()
+                    for f in ("gen_figure.py", "af_draw.py", "af_shared.py"))
         self.assertEqual(g.count("中位生存月"), 0)
         self.assertIn("中位生存（95%CI）", g)
 
@@ -2926,7 +2928,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.10.0", t, name)
+            self.assertIn("version: 4.0.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3045,7 +3047,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.10.0", t, name)
+            self.assertIn("version: 4.0.0", t, name)
 
 
 
@@ -3112,7 +3114,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 3.10.0", t, name)
+            self.assertIn("version: 4.0.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3407,6 +3409,55 @@ class TestV31000(unittest.TestCase):
                 capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
             self.assertTrue(os.path.exists(os.path.join(td, "da.png")))
+
+
+class TestV40000(unittest.TestCase):
+    """v4.0.0：模块化第四刀（af_shared/af_draw 拆分）+ 结构化标题栏（--subtitle/--source）。"""
+
+    def test_modules_exist_and_importable(self):
+        root = os.path.dirname(SCRIPT_DIR)
+        for f in ("af_shared.py", "af_draw.py"):
+            self.assertTrue(os.path.isfile(os.path.join(root, "scripts", f)), f)
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_shared
+        import af_draw
+        import gen_figure
+        self.assertTrue(hasattr(af_draw, "gen_km"))
+        self.assertTrue(hasattr(af_draw, "GENERATORS"))
+        # 再导出：import gen_figure 用法不变
+        for name in ("gen_bar", "gen_dual_axis", "apply_base_style", "has_cjk",
+                     "GENERATORS", "annotate_auto_stats", "pairwise_vs_first"):
+            self.assertTrue(hasattr(gen_figure, name), name)
+        # 主文件瘦身断言（模块化第四刀实效）
+        gf_lines = sum(1 for _ in open(os.path.join(root, "scripts", "gen_figure.py"),
+                                       encoding="utf-8"))
+        self.assertLess(gf_lines, 3200, f"gen_figure.py 应 <3200 行（当前 {gf_lines}）")
+
+    def test_subtitle_source_flags_render(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B", "C"], "series": {"s": [1, 2, 3]}}))
+            out = os.path.join(td, "s.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "-o", out, "--dpi", "80",
+                 "--title", "主标题", "--subtitle", "副标题 n=3", "--source", "数据来源：测试"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.exists(out))
+
+    def test_dualaxis_with_subtitle_source(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["W1", "W2"], "left": {"样本量": [100, 98]},
+                 "right": {"占比": [45.0, 50.5]}}, ensure_ascii=False))
+            out = os.path.join(td, "da.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "dual_axis", "-d", f, "-o", out, "--dpi", "80",
+                 "--subtitle", "双轴副标题", "--source", "来源：测试"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
 
 
 if __name__ == "__main__":

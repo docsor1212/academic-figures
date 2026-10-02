@@ -45,6 +45,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | `--order "C,A,B" \| auto` | 类别顺序（bar/box/violin/line；auto=值/中位数降序） |
 | `--normalize baseline\|pct100` | 归一化（对照=1 / 首点=100；误差棒同步） |
 | `--doctor` | 渲染前参数/环境体检（省略 -o 只体检） |
+| `--subtitle "副标题"` / `--source "来源注"` | 标题层级第二行 / 图底右对齐来源注（v4.0） |
 | `--cmap NAME` / `--vmin --vmax` | 热图色阶与范围 |
 | `--sheet NAME` | Excel 工作表 |
 | `--cjk` / `--cjk-font PATH` | 中文字体（数据含中文自动检测） |

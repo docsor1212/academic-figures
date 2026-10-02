@@ -6,6 +6,19 @@
 
 ## Version History
 
+## 4.0.0 — 2026-10-02
+
+  - **Engine modularization (4th cut, named in three consecutive reviews)**:
+    the drawing layer moved out of gen_figure.py into `af_draw.py` (chart
+    generators + stats-annotation helpers, ~2100 lines) and `af_shared.py`
+    (leaf utilities: has_cjk/HATCH_PATTERNS/_ensure_ylabel_clear, 84 lines);
+    gen_figure.py shrinks 5142 → ~3000 lines (args/validation/stats/pipeline).
+    `import gen_figure` re-exports everything — zero API change.
+  - **Structured title block (design-language item ⑥)**: new `--subtitle`
+    (second line under the main title, smaller gray) and `--source`
+    (bottom-right source note via fig.supxlabel — tight_layout-aware, never
+    overlaps tick labels). The `--title "main / sub"` slash form stays valid.
+
 ## 3.10.0 — 2026-10-01
 
   - **`dual_axis` rebuilt to the canonical bars+lines form**: left-axis series
@@ -441,6 +454,18 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v4.0.0（2026-10-02）
+
+- **引擎模块化第四刀**（连续三版评测点名）：绘制层自 gen_figure.py 拆出——
+  `af_draw.py`（14 类图型生成器+统计标注助手，约 2100 行）+ `af_shared.py`
+  （叶工具 has_cjk/HATCH_PATTERNS/_ensure_ylabel_clear，84 行）；
+  gen_figure.py 5142 → ~3000 行（保留参数解析/校验/统计/流水线/文档）。
+  `import gen_figure` 全量再导出——API 零变更。
+- **结构化标题栏（设计语言⑥收官）**：新增 `--subtitle`（主标题下方第二行，
+  小号灰色）与 `--source`（图底右对齐来源注，经 fig.supxlabel 参与
+  tight_layout 自动让位，绝不与刻度标签重叠）。`--title "主/副"` 斜杠写法
+  继续兼容。
 
 ### v3.10.0（2026-10-01）
 

@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 3.10.0
+version: 4.0.0
 description: >-
   Publication-ready scientific figures from one command — 22 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
@@ -29,8 +29,8 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 3.10.0
-  date: 2026-10-01
+  version: 4.0.0
+  date: 2026-10-02
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -419,9 +419,9 @@ academic-figures/
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v3.10.0** dual_axis bars+lines rebuild + single-series visual polish (top-N accent,
-integer labels); **v3.9.1** docs-accuracy hotfix; **v3.9.0** --order/--normalize/--doctor;
-earlier versions in changelog.
+Full bilingual history: `references/changelog.md`. Recent: **v4.0.0** engine modularization (drawing layer → af_draw/af_shared) + structured
+title block (--subtitle/--source); **v3.10.0** dual_axis bars+lines + single-series polish;
+**v3.9.x** docs hotfix/--order/--normalize/--doctor; earlier versions in changelog.
 
 ## 🚀 Pro Edition
 
