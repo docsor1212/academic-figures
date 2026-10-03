@@ -328,6 +328,27 @@ EGPA,5,45,30,10,10
 
 ---
 
+## Slope Chart (`--type slope`, v4.2)
+
+```json
+{
+  "left_label": "基线",
+  "right_label": "12 周",
+  "items": {
+    "药物A": [72, 85],
+    "药物B": [65, 61],
+    "对照": [70, 71]
+  }
+}
+```
+
+- `items`: **恰好 2 个数值** `[左值, 右值]` 每项；至少 2 项。
+- `left_label` / `right_label`（可选）：两端列标题（默认 Before/After）。
+- 形态：每项一条左→右连线，两端直标"名称+数值"（自动避让）；
+  最大上升项主题色强调、最大下降项暖橙。多时点请改用 line。
+
+---
+
 ## Dual Y-Axis Chart (`--type dual_axis`) — left bars + right lines
 
 ```json

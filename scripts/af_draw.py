@@ -314,6 +314,19 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                             label=name if n_series > 1 else None)
         all_bars.append((name, values, bars, offset))
 
+        # v4.2 --peak-label：最大值点自动注记（数据事实，单/多系列均取全局峰）
+        if kwargs.get("peak_label", False) and i == n_series - 1:
+            _gl = next(iter(series))  # 全局峰所在系列
+            _best, _bv = None, None
+            for _n, _vals in series.items():
+                for _j, _v in enumerate(_vals):
+                    if _bv is None or float(_v) > _bv:
+                        _best, _bv = (_n, _j), float(_v)
+            if _best is not None:
+                _annotate_peak(ax, list(range(len(labels))), labels, series[_best[0]],
+                               horizontal, theme, cjk_fp,
+                               series_name=_best[0] if n_series > 1 else None)
+
         # Value labels on bars
         if kwargs.get("show_values", False):
             for j, v in enumerate(values):
@@ -561,6 +574,16 @@ def gen_line(data, ax, theme, cjk_fp, **kwargs):
                         fontsize=theme["font_size"] - 1, va="center", ha="left",
                         fontproperties=cjk_fp if _any_cjk else None,
                         annotation_clip=False)
+
+    # ── v4.2 --peak-label：全局最大值点注记（数据事实）──
+    if kwargs.get("peak_label") and series:
+        _best_n, _best_i = None, None
+        for _n, _vals in series.items():
+            for _j, _v in enumerate(_vals):
+                if _best_i is None or float(_v) > float(_best_v):
+                    _best_n, _best_i, _best_v = _n, _j, _v
+        _annotate_peak(ax, list(x), labels, series[_best_n], False, theme, cjk_fp,
+                       series_name=_best_n if len(series) > 1 else None)
 
     ax.set_xticks(x if not any(isinstance(l, (int, float)) for l in labels) else range(len(labels)))
     if not any(isinstance(l, (int, float)) for l in labels):
@@ -1269,6 +1292,111 @@ def gen_stacked_bar(data, ax, theme, cjk_fp, **kwargs):
 
     if percentage:
         ax.set_ylim(0, max(bottoms) * 1.1)
+
+
+def _fmt_num(v):
+    return f'{int(v)}' if float(v).is_integer() else f'{v:.1f}'
+
+
+def _annotate_peak(ax, xs, labels, values, horizontal, theme, cjk_fp, series_name=None):
+    """v4.2 --peak-label：最大值点自动注记（纯数据事实：峰值+所在类目）。"""
+    vals = [float(v) for v in values]
+    if len(vals) < 2:
+        return
+    im = int(max(range(len(vals)), key=lambda k: vals[k]))
+    head = f"峰值 {_fmt_num(vals[im])}"
+    lab = str(labels[im]) if im < len(labels) else ""
+    txt = head + (f"（{lab}）" if lab else "") + (f" · {series_name}" if series_name else "")
+    _px = xs[im] if isinstance(xs, (list, tuple)) and im < len(xs) else im
+    ax.annotate(txt, xy=(_px, vals[im]) if not horizontal else (vals[im], im),
+                xytext=(0, 14) if not horizontal else (14, 0),
+                textcoords="offset points", ha="center" if not horizontal else "left",
+                fontsize=max(6, theme["font_size"] - 0.5), color="#B3541E",
+                fontproperties=cjk_fp if cjk_fp and has_cjk(txt) else None,
+                arrowprops=dict(arrowstyle="-", color="#B3541E", lw=0.8), zorder=6)
+    print(f"peak: {txt}", file=sys.stderr)
+
+
+def gen_slope(data, ax, theme, cjk_fp, **kwargs):
+    """Slope chart（v4.2，第 23 种图型）：两时点比较——每项一条左→右连线，
+    两端直接标注"名称+数值"，最大上升项主题色强调、最大下降项暖橙。
+    期刊 pre/post 标准形态（如治疗前后、基线→随访）。
+
+    JSON: {"left_label": "基线", "right_label": "12 周",
+           "items": {"药物A": [72, 85], "药物B": [65, 61]}}  # 每项恰好 2 个数值
+    """
+    items = data.get("items")
+    if not isinstance(items, dict) or len(items) < 2:
+        raise ValueError("slope: 需要 'items'（至少 2 项，每项 [左值, 右值]）")
+    for n, v in items.items():
+        if not (isinstance(v, (list, tuple)) and len(v) == 2
+                and all(isinstance(x, (int, float)) for x in v)):
+            raise ValueError(f"slope: items['{n}'] 必须是恰好 2 个数值 [左值, 右值]")
+    names = list(items.keys())
+    lv = [float(items[n][0]) for n in names]
+    rv = [float(items[n][1]) for n in names]
+    deltas = [r - l for l, r in zip(lv, rv)]
+    i_rise = int(max(range(len(names)), key=lambda k: deltas[k]))
+    i_fall = int(min(range(len(names)), key=lambda k: deltas[k]))
+
+    from matplotlib.colors import to_rgba
+    accent = theme["colors"][0]
+    x0, x1 = 0.0, 1.0
+    for i, n in enumerate(names):
+        if i == i_rise and deltas[i_rise] > 0:
+            c, lw, z = accent, 2.6, 3
+        elif i == i_fall and deltas[i_fall] < 0:
+            c, lw, z = "#D55E00", 2.2, 3
+        else:
+            c, lw, z = to_rgba(accent, 0.32), 1.5, 2
+        ax.plot([x0, x1], [lv[i], rv[i]], color=c, lw=lw, zorder=z,
+                marker="o", markersize=4, markerfacecolor=c)
+
+    def _spread(vals):
+        order = sorted(range(len(vals)), key=lambda k: vals[k])
+        out = [0.0] * len(vals)
+        lo, hi = min(vals), max(vals)
+        gap = max((hi - lo) * 0.07, 1e-9)
+        for a in range(1, len(order)):
+            p, q = order[a - 1], order[a]
+            out[q] = max(out[p] + gap, vals[q]) if vals[q] >= vals[p] else vals[q]
+        # 自下而上推开后，若顶到底顺序错位再自上而下收一遍
+        for a in range(len(order) - 2, -1, -1):
+            p, q = order[a], order[a + 1]
+            if out[q] - out[p] < gap:
+                out[p] = out[q] - gap
+        return out
+
+    ly, ry = _spread(lv), _spread(rv)
+    _fp = cjk_fp
+    for i, n in enumerate(names):
+        fp = _fp if _fp and has_cjk(n) else None
+        ax.plot([x0], [lv[i]], "o", color=accent if i == i_rise else "#888888",
+                markersize=4, zorder=3)
+        ax.text(x0 - 0.04, ly[i], f"{n}  {_fmt_num(lv[i])}", ha="right", va="center",
+                fontsize=theme["font_size"] - 0.5, color="#333333", fontproperties=fp)
+        ax.text(x1 + 0.04, ry[i], f"{_fmt_num(rv[i])}  {n}", ha="left", va="center",
+                fontsize=theme["font_size"] - 0.5, color="#333333", fontproperties=fp)
+
+    ll = str(data.get("left_label", "") or "")
+    rl = str(data.get("right_label", "") or "")
+    ax.set_xlim(-0.6, 1.6)
+    ax.set_xticks([x0, x1])
+    ax.set_xticklabels([ll or "Before", rl or "After"],
+                       fontsize=theme["font_size"], fontweight="bold",
+                       fontproperties=_fp if _fp and (has_cjk(ll) or has_cjk(rl)) else None)
+    _top = _fp if _fp and (has_cjk(ll) or has_cjk(rl)) else None
+    if ll:
+        ax.text(0, 1.03, ll, transform=ax.get_xaxis_transform(), ha="center",
+                fontsize=theme["font_size"], fontweight="bold", color="#555555",
+                fontproperties=_top)
+    if rl:
+        ax.text(1, 1.03, rl, transform=ax.get_xaxis_transform(), ha="center",
+                fontsize=theme["font_size"], fontweight="bold", color="#555555",
+                fontproperties=_top)
+    apply_base_style(ax, theme)
+    ax.grid(False)
+    ax.set_yticks([])
 
 
 def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
@@ -2115,4 +2243,5 @@ GENERATORS = {
     "composite": gen_composite,
     "diagram": gen_diagram,
     "prisma": gen_prisma,
+    "slope": gen_slope,
 }

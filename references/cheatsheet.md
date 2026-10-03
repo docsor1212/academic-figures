@@ -1,6 +1,6 @@
 # 速查卡（Cheat Sheet）
 
-> 一页速查：22 种图型命令骨架、全量参数、退出码、边界 Top 5。
+> 一页速查：23 种图型命令骨架、全量参数、退出码、边界 Top 5。
 > 细节：`--explain <类型>`；数据格式 `references/data-formats.md`；参数交互 `references/limits.md`。
 
 ## 一、图型命令骨架（通用格式）
@@ -27,6 +27,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |
 | composite | panels 内除 composite/diagram 外任意图型；不可嵌套 |
+| slope | 两时点 [左值, 右值]；`panel_labels`/`left_floor` 等 + `--peak-label` 峰值注记（v4.2） |
 | diagram | blocks/arrows 字段 |
 | prisma | `lang=zh` 中文标准措辞；数字必须自洽 |
 

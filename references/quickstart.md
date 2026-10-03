@@ -15,6 +15,7 @@
 行×列数值矩阵 ──────────────→ heatmap（要聚类重排 → cluster_heatmap）
 多变量样本分类展示 ─────────→ pca
 效应值+SE 汇总 ─────────────→ forest（Meta；发表偏移加 --egger）
+两时点前后比较 ──────────────→ slope（斜率图；多次测量用 line）
 两次测量一致性 ─────────────→ bland_altman
 流程/构成步骤 ──────────────→ diagram / stacked_bar / prisma（系统综述）
 多面板 A+B+C ───────────────→ composite
@@ -35,7 +36,7 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
 ## 三、上手四步
 
 1. **环境准备**：`python3 scripts/setup_env.py`（装依赖/检测中文字体/清理字体缓存/自检）。
-2. **用模板先跑通**：`templates/` 覆盖 22 种图型，每个 JSON 头部带可复制的 `_command`；
+2. **用模板先跑通**：`templates/` 覆盖 23 种图型，每个 JSON 头部带可复制的 `_command`；
    先用示例数据渲染一张确认环境无问题。
 3. **换成自己的数据**：数据格式对照 `references/data-formats.md`；先小尺寸
    （如 `--dpi 150`）快速出一张核对内容，再出 600dpi 成品。

@@ -1,6 +1,6 @@
 # 模板库（v2.6 全图型覆盖）
 
-22 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 22 种图型**。用法：
+23 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 23 种图型**（v4.2 起 24-slope）。用法：
 
 ```bash
 cp templates/01-meta-forest.json my_data.json
@@ -36,8 +36,9 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | bland_altman.json | bland_altman 一致性 | pca.json | pca 得分图 |
 | cluster_heatmap.json | cluster_heatmap 聚类热图 | paired.json | paired 配对变化 |
 | funnel.json | funnel 漏斗图 | venn.json | venn 韦恩/欧拉图 |
+| slope.json | slope 斜率图（两时点） | — | — |
 
-> v2.6 起模板与 22 种图型一一对应；不确定用哪个图型可对数据跑
+> v2.6 起模板与图型一一对应（v4.2 增 slope）；不确定用哪个图型可对数据跑
 > `python3 scripts/gen_figure.py --suggest -d 你的数据.json`。
 
 每个 JSON 顶部有 `_scene/_chart_type/_command/_caption_template` 元字段，渲染时会被忽略。

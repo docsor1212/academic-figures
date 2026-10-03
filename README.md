@@ -7,9 +7,9 @@
 [![Site](https://img.shields.io/badge/Site-docsor.cn-teal)](https://docsor.cn)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Tests](https://img.shields.io/badge/tests-288%20pass-brightgreen)
+![Tests](https://img.shields.io/badge/tests-297%20pass-brightgreen)
 
-**22 chart types** (bar/box/violin/scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/
+**23 chart types** (bar/slope/box/violin/scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/
 venn 4-set ellipse/Bland-Altman/PCA/funnel/paired/dual-axis/stacked/composite/diagram/
 PRISMA 2020 …) · **9 journal presets** (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE/CMA/
 中文核心) · **9 color themes** incl. colorblind-safe Okabe-Ito · **600dpi TIFF/PDF/SVG/EPS** ·
@@ -51,8 +51,8 @@ python3 scripts/gen_figure.py -t km -d survival.json -o km.png --cjk
 - Full docs: `SKILL.md` (EN) · 中文文档见 SkillHub 页面
 - Getting started: `references/quickstart.md` · One-page cheatsheet:
   `references/cheatsheet.md` · Limits & flag interactions: `references/limits.md`
-- Scenario templates: `templates/` (22, each with a ready-to-run command)
-- Regression suite: `tests/run_tests.py` (288 tests)
+- Scenario templates: `templates/` (23, each with a ready-to-run command)
+- Regression suite: `tests/run_tests.py` (297 tests)
 
 ## Install
 

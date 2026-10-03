@@ -346,6 +346,8 @@ DEMO_DATA = {
     "violin": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0],
                             "组C": [3.0, 3.2, 3.8, 4.5, 4.8, 5.2]}},
     "box": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0]}},
+    "slope": {"left_label": "基线", "right_label": "12 周",
+              "items": {"药物A": [72, 85], "药物B": [65, 61], "对照": [70, 71]}},
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"],
                   "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]},
                   "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
@@ -1530,6 +1532,18 @@ def validate_data(data, chart_type):
             if _len(labels) != n_first:
                 fatal.append(f"dual_axis: labels 有 {_len(labels)} 项但 left/right 系列有 {n_first} 个 — 长度必须一致")
 
+    # ── slope: items 两时点 ──
+    elif chart_type == "slope":
+        items = data.get("items")
+        if not isinstance(items, dict) or len(items) < 2:
+            fatal.append("slope: 需要 'items'（至少 2 项，每项 [左值, 右值]）")
+        else:
+            for n, v in items.items():
+                if not (isinstance(v, (list, tuple)) and len(v) == 2
+                        and all(isinstance(x, (int, float)) and not isinstance(x, bool)
+                                for x in v)):
+                    fatal.append(f"slope: items['{n}'] 必须是恰好 2 个数值 [左值, 右值]")
+
     # ── composite: panels ──
     elif chart_type == "composite":
         panels = data.get("panels", [])
@@ -2207,6 +2221,9 @@ def main():
     parser.add_argument("--pub-ready", action="store_true",
                         help="一键投稿包：自动加 --verify + --multi-format pdf,png + 色盲安全主题"
                              "（--pub-ready theme,NAME 可指定主题；v3.8）")
+    parser.add_argument("--peak-label", action="store_true",
+                        help="自动峰值注记（v4.2）：最大值点标注\"峰值 X（类目）\"——"
+                             "纯数据事实（bar/hbar/line 系）")
     parser.add_argument("--summary", action="store_true",
                         help="自动数据摘要副标题（v4.1）：纯计数事实（样本量/组数/"
                              "事件数等，零推断）；--subtitle 显式给出时以其为准")
@@ -2702,6 +2719,7 @@ def main():
     kwargs = {
         "show_values": args.show_values,
         "trend": args.trend and not args.no_trend,
+        "peak_label": getattr(args, "peak_label", False),
         "cmap": args.cmap,
         "vmin": args.vmin,
         "vmax": args.vmax,

@@ -1,8 +1,8 @@
 ---
 name: academic-figures
-version: 4.1.0
+version: 4.2.0
 description: >-
-  Publication-ready scientific figures from one command — 22 chart types (bar,
+  Publication-ready scientific figures from one command — 23 chart types (bar,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
   violin, box, composite panels, PRISMA 2020 flow, funnel, Bland-Altman, PCA,
   venn 2-4 sets, clustered heatmap, dual-axis, Cox multi-variable regression
@@ -29,7 +29,7 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 4.1.0
+  version: 4.2.0
   date: 2026-10-03
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -129,6 +129,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Paired | Before-after | `-t paired` | per-subject pairing lines + paired test (annotated at n≥6) |
 | Trend | Scatter | `-t scatter` | Trend line, r value, color grouping, mean points, point labels |
 | Trend | Line | `-t line` | Multiple series, error bands, markers |
+| Pre/Post | Slope | `-t slope` | two-time-point comparison; direct name+value labels at both ends, biggest mover accented (v4.2) |
 | Trend | Dual Y-axis | `-t dual_axis` | **left bars + right dashed lines** (swappable via `left_type`/`right_type`); frameless legend in reserved top band, never occludes data |
 | Matrix | Heatmap | `-t heatmap` | Cell annotations, custom colormap, colorbar |
 | Matrix | Clustered Heatmap | `-t cluster_heatmap` | Hierarchical reordering, `--downsample` exit for big matrices |
@@ -247,7 +248,7 @@ raw per-subject data. Deep-dive usage: `references/advanced.md`.
 `--alt` writes an accessibility description `<output>.alt.txt` next to the figure — derived from
 the data itself. Springer Nature, NSF and most major publishers require alt text.
 
-## Scenario Templates (v2.6: all 22 chart types)
+## Scenario Templates (v2.6; covering the 23 chart types incl. slope)
 
 `templates/` ships 22 end-to-end templates (data JSON + ready-to-run command + caption template):
 16 clinical-scenario templates (01–16) plus 6 chart-type quick templates (bland_altman,
@@ -402,7 +403,7 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
 academic-figures/
 ├── SKILL.md / SKILL_ZH.md   ← English / Chinese documentation
 ├── scripts/
-│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 22 chart types)
+│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 23 chart types)
 │   ├── gen_legend.py        ← Supplementary legend generator (journal format)
 │   ├── audit_pdf.py         ← Font-size auditor (--min-size gate)
 │   ├── detect_cjk_font.py   ← CJK font auto-detector
