@@ -1,9 +1,9 @@
 ---
 name: academic-figures
-version: 4.2.0
+version: 4.3.0
 description: >-
-  Publication-ready scientific figures from one command — 23 chart types (bar,
-  grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier), ROC,
+  Publication-ready scientific figures from one command — 23 chart types (bar, slope,
+  grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier, ROC,
   violin, box, composite panels, PRISMA 2020 flow, funnel, Bland-Altman, PCA,
   venn 2-4 sets, clustered heatmap, dual-axis, Cox multi-variable regression
   forest), 9 themes incl. colorblind-safe Okabe-Ito and NEJM/Lancet/Science
@@ -29,8 +29,8 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 4.2.0
-  date: 2026-10-03
+  version: 4.3.0
+  date: 2026-10-05
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -140,7 +140,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Diagnosis | ROC | `-t roc` | AUC, 95% CI, optimal cutoff, DeLong multi-model comparison |
 | Agreement | Bland-Altman | `-t bland_altman` | bias line + limits of agreement (LoA); two equal-length groups |
 | Sets | Venn | `-t venn` | 2-4 sets (4 sets = ellipse layout, v2.8); `--area` proportional Euler |
-| Composite | **Composite** | `-t composite` | Multi-panel A+B+C, any chart per panel (⚠ no nested composite); `panel_labels:true` auto bold corner letters (journal style, v4.1) |
+| Composite | **Composite** | `-t composite` | Multi-panel A+B+C (⚠ no nested); `panel_labels:true` corner letters (v4.1); `span:[rows,cols]` multi-cell panels with overlap detection (v4.3) |
 | Flow | **Diagram** | `-t diagram` | Architecture/flow blocks, arrows, groupings, annotations |
 | Review | **PRISMA Flow** | `-t prisma` | PRISMA 2020 review flow; counts auto-validated (must add up), EN/ZH wording via `lang` |
 
@@ -336,6 +336,7 @@ High-frequency flags (full cheatsheet: `references/cheatsheet.md`):
 | `--doctor` | Pre-render parameter/environment check report (omit -o for check-only, exit 1 = findings) |
 | `--subtitle "Sub"` / `--source "Note"` | Subtitle line under the title / bottom-right source note (v4.0) |
 | `--summary` | Auto data-summary subtitle (pure counts: n/groups/events, no inference; v4.1) |
+| `--profile preset.json` | Layered config file: presentation presets, CLI flags win (v4.3) |
 | `--cjk` | CJK font auto-detection |
 | `--verify` | Pixel-level overlap verification on PDF output; exit 2 on overlaps |
 | `--multi-format tiff,png,pdf` | One-run multi-format export (v2.6) |
@@ -422,9 +423,9 @@ academic-figures/
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v4.1.0** composite auto panel letters (panel_labels) + --summary data-summary
-subtitle; **v4.0.0** engine modularization + structured title block; **v3.10.0** dual_axis
-bars+lines; earlier versions in changelog.
+Full bilingual history: `references/changelog.md`. Recent: **v4.3.0** --profile layered config file + composite span multi-cell panels;
+**v4.2.0** slope chart + --peak-label; **v4.1.0** panel letters/--summary; earlier
+versions in changelog.
 
 ## 🚀 Pro Edition
 

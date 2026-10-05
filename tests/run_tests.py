@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.2.0", self.zh)
-        self.assertIn("version: 4.2.0", self.en)
+        self.assertIn("version: 4.3.0", self.zh)
+        self.assertIn("version: 4.3.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.2.0", self.zh)
-        self.assertIn("version: 4.2.0", self.en)
+        self.assertIn("version: 4.3.0", self.zh)
+        self.assertIn("version: 4.3.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.2.0", self.zh)
-        self.assertIn("version: 4.2.0", self.en)
+        self.assertIn("version: 4.3.0", self.zh)
+        self.assertIn("version: 4.3.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.2.0", zh)
+        self.assertIn("version: 4.3.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.2.0", t, name)
+            self.assertIn("version: 4.3.0", t, name)
 
 
 
@@ -2928,7 +2928,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.2.0", t, name)
+            self.assertIn("version: 4.3.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3047,7 +3047,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.2.0", t, name)
+            self.assertIn("version: 4.3.0", t, name)
 
 
 
@@ -3114,7 +3114,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.2.0", t, name)
+            self.assertIn("version: 4.3.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3588,6 +3588,78 @@ class TestV42000(unittest.TestCase):
                     capture_output=True, text=True, timeout=240)
                 self.assertEqual(r.returncode, 0, r.stderr[-250:])
                 self.assertIn("峰值 40（W2）", r.stderr)
+
+
+class TestV43000(unittest.TestCase):
+    """v4.3.0：--profile 分层配置文件 + composite span 跨行跨列。"""
+
+    def test_profile_applies_cli_wins(self):
+        with tempfile.TemporaryDirectory() as td:
+            prof = os.path.join(td, "p.json")
+            io.open(prof, "w", encoding="utf-8").write(json.dumps(
+                {"theme": "okabe-ito", "dpi": 150, "verify": True, "unknown_key": 1}))
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B"], "series": {"s": [1, 2]}}))
+            out = os.path.join(td, "s.pdf")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "-o", out,
+                 "--profile", prof],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("[profile] 已应用 3 项默认", r.stderr)  # unknown_key 单独警告
+            self.assertIn("unknown_key", r.stderr)
+            self.assertTrue(os.path.exists(out))  # verify=True 走 PDF 校验并成功
+
+    def test_profile_bad_file_fatal(self):
+        with tempfile.TemporaryDirectory() as td:
+            prof = os.path.join(td, "p.json")
+            io.open(prof, "w", encoding="utf-8").write("[1, 2]")
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A"], "series": {"s": [1]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "-o", os.path.join(td, "s.png"),
+                 "--profile", prof],
+                capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("JSON 对象", r.stderr)
+
+    def test_composite_span_render(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "c.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"layout": [2, 2], "panels": [
+                    {"pos": [0, 0], "span": [2, 1], "type": "bar",
+                     "data": {"labels": ["a"], "series": {"s": [1]}}},
+                    {"pos": [0, 1], "type": "box",
+                     "data": {"labels": ["g"], "series": {"g": [1, 2, 3]}}},
+                    {"pos": [1, 1], "type": "line",
+                     "data": {"labels": ["x", "y"], "series": {"s": [1, 2]}}}]},
+                ensure_ascii=False))
+            out = os.path.join(td, "c.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "composite", "-d", f, "-o", out, "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+
+    def test_composite_span_overlap_fatal(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "c.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"layout": [1, 2], "panels": [
+                    {"pos": [0, 0], "span": [1, 2], "type": "bar",
+                     "data": {"labels": ["a"], "series": {"s": [1]}}},
+                    {"pos": [0, 1], "type": "bar",
+                     "data": {"labels": ["a"], "series": {"s": [1]}}}]},
+                ensure_ascii=False))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "composite", "-d", f,
+                 "-o", os.path.join(td, "c.png")],
+                capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 1)
+            self.assertIn("占位重叠", r.stderr)
 
 
 if __name__ == "__main__":
