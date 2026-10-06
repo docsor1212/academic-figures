@@ -6,6 +6,18 @@
 
 ## Version History
 
+## 4.4.0 — 2026-10-06
+
+  - **New chart type: `volcano` (type #24)** — omics differential expression
+    standard form: x=log2FC, y=-log10(p-value); up/down/ns coloring (colorblind
+    safe), threshold dashed lines, factual count box, auto top-N gene name
+    labels with deterministic offsets. Schema: `log2fc`+`pvalue` arrays,
+    optional `names`/`fc_cut`/`p_cut`/`top`.
+  - Chart-type count 23 → 24 (docs counter-lock enforces update).
+  - README: China mirror (ModelScope) link added to Install section.
+  - SH description: "Trigger on" routing words appended (desc tail; routing
+    optimization per search audit).
+
 ## 4.0.0 — 2026-10-02
 
   - **Engine modularization (4th cut, named in three consecutive reviews)**:
@@ -454,6 +466,16 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v4.4.0（2026-10-06）
+
+- **新图型：`volcano` 火山图（第 24 种）**——组学差异表达标准形态：x=log2FC、
+  y=-log10(p)；上调暖橙/下调蓝/非显著灰（色盲安全），阈值虚线+计数事实框+
+  显著性 Top-N 基因名自动标注（确定性偏移避让）。schema：`log2fc`+`pvalue`
+  等长数组，可选 `names`/`fc_cut`/`p_cut`/`top`。
+- 图型计数 23 → 24（文档计数锁强制同步）。
+- README：Install 段新增 China mirror（ModelScope 魔搭）链接。
+- SH description：尾部追加 "Trigger on" 路由词（搜索审计优化）。
 
 ### v4.0.0（2026-10-02）
 

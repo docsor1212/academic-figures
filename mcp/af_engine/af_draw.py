@@ -1399,6 +1399,92 @@ def gen_slope(data, ax, theme, cjk_fp, **kwargs):
     ax.set_yticks([])
 
 
+def gen_volcano(data, ax, theme, cjk_fp, **kwargs):
+    """Volcano plot（v4.4，第 24 种图型）：组学差异表达标准形态——
+    x=log2(倍数变化)，y=-log10(p 值)；上调暖橙/下调蓝/非显著灰；
+    阈值虚线（|log2FC| 与 p）+ 显著性 Top-N 自动名称标注（确定性偏移避让）。
+
+    JSON: {"log2fc": [2.1, -1.3, ...], "pvalue": [1e-6, 0.03, ...],
+           "names": ["GeneA", ...](可选), "fc_cut": 1.0, "p_cut": 0.05, "top": 10}
+    """
+    import math
+    l2 = data.get("log2fc")
+    pv = data.get("pvalue")
+    if not (isinstance(l2, list) and isinstance(pv, list)) or not l2 or len(l2) != len(pv):
+        raise ValueError("volcano: 需要 'log2fc' 与 'pvalue' 两个等长数值数组")
+    names = data.get("names")
+    if names is not None and (not isinstance(names, list) or len(names) != len(l2)):
+        raise ValueError("volcano: 'names' 长度必须与 log2fc 一致")
+    try:
+        l2v = [float(v) for v in l2]
+        pvv = [float(v) for v in pv]
+    except (TypeError, ValueError):
+        raise ValueError("volcano: log2fc/pvalue 必须全为数值")
+    if any(p <= 0 or p > 1 for p in pvv):
+        raise ValueError("volcano: pvalue 必须在 (0, 1] 区间（p=0 无法取对数，请用最小可表示值如 1e-300）")
+    fc_cut = float(data.get("fc_cut", 1.0))
+    p_cut = float(data.get("p_cut", 0.05))
+    top_n = int(data.get("top", 10))
+    if fc_cut <= 0 or not (0 < p_cut < 1) or top_n < 0:
+        raise ValueError("volcano: fc_cut>0、0<p_cut<1、top≥0")
+
+    yv = [-math.log10(p) for p in pvv]
+    sig_cut = -math.log10(p_cut)
+    cls = []
+    for x, y in zip(l2v, yv):
+        if x >= fc_cut and y >= sig_cut:
+            cls.append("up")
+        elif x <= -fc_cut and y >= sig_cut:
+            cls.append("down")
+        else:
+            cls.append("ns")
+    colors = {"up": "#D55E00", "down": "#0072B2", "ns": "#B8B8B8"}
+    sizes = {"up": 16, "down": 16, "ns": 9}
+    for c in ("ns", "down", "up"):  # 显著点后画（置顶）
+        xs = [x for x, k in zip(l2v, cls) if k == c]
+        ys = [y for y, k in zip(yv, cls) if k == c]
+        ax.scatter(xs, ys, s=sizes[c], c=colors[c], alpha=0.85 if c != "ns" else 0.7,
+                   linewidths=0, zorder=3 if c != "ns" else 2)
+
+    # 阈值参考线
+    ax.axvline(fc_cut, color="#999999", ls="--", lw=0.9, zorder=1)
+    ax.axvline(-fc_cut, color="#999999", ls="--", lw=0.9, zorder=1)
+    ax.axhline(sig_cut, color="#999999", ls="--", lw=0.9, zorder=1)
+
+    # 显著性 Top-N 名称标注（按 p 升序 = y 降序，确定性交错偏移）
+    import matplotlib.pyplot as plt  # noqa: F401
+    idx_sig = [i for i, k in enumerate(cls) if k in ("up", "down")]
+    idx_sig.sort(key=lambda i: yv[i], reverse=True)
+    n_up = sum(1 for k in cls if k == "up")
+    n_down = sum(1 for k in cls if k == "down")
+    for rank, i in enumerate(idx_sig[:top_n]):
+        if names is None:
+            break
+        dx = 5 if l2v[i] >= 0 else -5
+        ax.annotate(str(names[i]), xy=(l2v[i], yv[i]),
+                    xytext=(dx, 4 + (rank % 3) * 5), textcoords="offset points",
+                    ha="left" if dx > 0 else "right",
+                    fontsize=max(5.5, theme["font_size"] - 1),
+                    color=colors[cls[i]],
+                    fontproperties=cjk_fp if cjk_fp and has_cjk(str(names[i])) else None)
+
+    # 计数事实框（纯计数，零推断）
+    ax.text(0.02, 0.98, f"↑{n_up}  ↓{n_down}  ns {len(cls) - n_up - n_down}",
+            transform=ax.transAxes, va="top", ha="left",
+            fontsize=theme["font_size"], color="#555555",
+            fontproperties=cjk_fp if cjk_fp and has_cjk("上调") else None)
+
+    # 坐标轴语义（类型专属默认；CLI --xlabel/--ylabel 可覆盖）
+    xl = str(data.get("x_label", "") or "log2 fold change")
+    yl = str(data.get("y_label", "") or "-log10(p-value)")
+    ax.set_xlabel(xl, fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
+    ax.set_ylabel(yl, fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(yl) else None)
+    ax.set_xlim(min(l2v) - 0.3, max(l2v) + 0.3)
+    apply_base_style(ax, theme)
+
+
 def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
     """Dual Y-axis chart, canonical 左柱右线 form (v3.10): left-axis series draw
     as BARS, right-axis series as dashed LINES — override per side with data keys
@@ -2251,4 +2337,5 @@ GENERATORS = {
     "diagram": gen_diagram,
     "prisma": gen_prisma,
     "slope": gen_slope,
+    "volcano": gen_volcano,
 }

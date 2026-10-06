@@ -1065,7 +1065,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 23, f"expected 23 templates (v2.6 + v4.2 slope), got {len(jsons)}")
+        self.assertEqual(len(jsons), 24, f"expected 24 templates (v2.6 + slope + volcano), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.3.0", self.zh)
-        self.assertIn("version: 4.3.0", self.en)
+        self.assertIn("version: 4.4.0", self.zh)
+        self.assertIn("version: 4.4.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.3.0", self.zh)
-        self.assertIn("version: 4.3.0", self.en)
+        self.assertIn("version: 4.4.0", self.zh)
+        self.assertIn("version: 4.4.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.3.0", self.zh)
-        self.assertIn("version: 4.3.0", self.en)
+        self.assertIn("version: 4.4.0", self.zh)
+        self.assertIn("version: 4.4.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.3.0", zh)
+        self.assertIn("version: 4.4.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2808,7 +2808,7 @@ class TestV3300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "23 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "24 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.3.0", t, name)
+            self.assertIn("version: 4.4.0", t, name)
 
 
 
@@ -2928,7 +2928,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.3.0", t, name)
+            self.assertIn("version: 4.4.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3047,7 +3047,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.3.0", t, name)
+            self.assertIn("version: 4.4.0", t, name)
 
 
 
@@ -3114,7 +3114,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.3.0", t, name)
+            self.assertIn("version: 4.4.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3660,6 +3660,61 @@ class TestV43000(unittest.TestCase):
                 capture_output=True, text=True, timeout=120)
             self.assertEqual(r.returncode, 1)
             self.assertIn("占位重叠", r.stderr)
+
+
+class TestV44000(unittest.TestCase):
+    """v4.4.0：volcano 火山图（第 24 种图型，组学差异表达）。"""
+
+    def test_volcano_e2e_renders(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "v.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"log2fc": [-2.3, -1.4, -1.1, -0.4, 0.2, 0.6, 1.2, 1.6, 2.4],
+                 "pvalue": [3e-4, 0.012, 0.04, 0.5, 0.8, 0.3, 0.02, 3e-5, 8e-7],
+                 "names": ["SLC6A4", "MAOA", "FKBP5", "NR3C1", "CRH", "AVP",
+                           "BDNF", "COMT", "HTR1A"]}, ensure_ascii=False))
+            out = os.path.join(td, "v.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "volcano", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+
+    def test_volcano_validate_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ({"log2fc": [1], "pvalue": [0.1, 0.2]}, "等长"),
+                ({"log2fc": [1], "pvalue": [0]}, "(0, 1]"),
+                ({"log2fc": [1], "pvalue": [0.1], "names": ["A", "B"]}, "names"),
+            ]
+            for i, (data, want) in enumerate(cases):
+                f = os.path.join(td, f"b{i}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "volcano", "-d", f,
+                     "-o", os.path.join(td, f"x{i}.png")],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, r.stderr[-200:])
+                self.assertIn(want, r.stderr)
+
+    def test_volcano_registry_count_24(self):
+        import gen_figure
+        n = len(gen_figure.GENERATORS) - 3
+        self.assertGreaterEqual(n, 24, f"注册表图型数: {n}")
+
+    def test_volcano_demo_data_valid(self):
+        """DEMO_DATA 的 volcano 条目可直接渲染（--demo 交互流的非交互等价验证）。"""
+        import gen_figure
+        demo = gen_figure.DEMO_DATA["volcano"]
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(demo, ensure_ascii=False))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "volcano", "-d", f,
+                 "-o", os.path.join(td, "v.png"), "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
 
 
 if __name__ == "__main__":

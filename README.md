@@ -1,5 +1,7 @@
 # Academic Figures
 
+[![GitHub Stars](https://img.shields.io/github/stars/docsor1212/academic-figures?style=social&label=Star)](https://github.com/docsor1212/academic-figures)
+
 > **Publication-ready scientific figures from data — one command, verified output.**
 > 从数据一键生成投稿级论文图表：期刊合规、统计正确、中文零配置、纯本地运行。
 
@@ -7,9 +9,9 @@
 [![Site](https://img.shields.io/badge/Site-docsor.cn-teal)](https://docsor.cn)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Tests](https://img.shields.io/badge/tests-297%20pass-brightgreen)
+![Tests](https://img.shields.io/badge/tests-301%20pass-brightgreen)
 
-**23 chart types** (bar/slope/box/violin/scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/
+**24 chart types** (bar/slope/volcano/box/violin/scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/
 venn 4-set ellipse/Bland-Altman/PCA/funnel/paired/dual-axis/stacked/composite/diagram/
 PRISMA 2020 …) · **9 journal presets** (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE/CMA/
 中文核心) · **9 color themes** incl. colorblind-safe Okabe-Ito · **600dpi TIFF/PDF/SVG/EPS** ·
@@ -64,6 +66,8 @@ python3 scripts/setup_env.py    # optional: install deps + self-check
 
 Or install as an agent skill from [SkillHub](https://skillhub.cn/skill/academic-figures)
 (中文) — search `academic-figures`.
+
+**China mirror (ModelScope 魔搭)**: <https://modelscope.cn/skills/Docsor/academic-figures> — if you find this skill useful, a like there helps others find it.
 
 ## Related tools · 相关工具
 

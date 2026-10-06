@@ -1,6 +1,6 @@
 # 模板库（v2.6 全图型覆盖）
 
-23 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 23 种图型**（v4.2 起 24-slope）。用法：
+24 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 24 种图型**（v4.2 起 24-slope，v4.4 增 volcano）。用法：
 
 ```bash
 cp templates/01-meta-forest.json my_data.json
@@ -29,7 +29,7 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | 15-lab-trend-dual-axis | 双轴指标趋势 | dual_axis | 左右轴各一系列 |
 | 16-study-design-diagram | 研究设计/CONSORT | diagram | blocks+arrows 定位 |
 
-## 图型速查模板（按图型命名，覆盖其余 6 种）
+## 图型速查模板（按图型命名，覆盖其余 8 种）
 
 | 模板 | 图型 | 模板 | 图型 |
 |---|---|---|---|
@@ -37,6 +37,7 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | cluster_heatmap.json | cluster_heatmap 聚类热图 | paired.json | paired 配对变化 |
 | funnel.json | funnel 漏斗图 | venn.json | venn 韦恩/欧拉图 |
 | slope.json | slope 斜率图（两时点） | — | — |
+| volcano.json | volcano 火山图 | — | — |
 
 > v2.6 起模板与图型一一对应（v4.2 增 slope）；不确定用哪个图型可对数据跑
 > `python3 scripts/gen_figure.py --suggest -d 你的数据.json`。

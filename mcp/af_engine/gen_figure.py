@@ -348,6 +348,10 @@ DEMO_DATA = {
     "box": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0]}},
     "slope": {"left_label": "基线", "right_label": "12 周",
               "items": {"药物A": [72, 85], "药物B": [65, 61], "对照": [70, 71]}},
+    "volcano": {"log2fc": [-2.3, -1.4, -1.1, -0.4, 0.2, 0.6, 1.2, 1.6, 2.4],
+                "pvalue": [3e-4, 0.012, 0.04, 0.5, 0.8, 0.3, 0.02, 3e-5, 8e-7],
+                "names": ["SLC6A4", "MAOA", "FKBP5", "NR3C1", "CRH", "AVP",
+                          "BDNF", "COMT", "HTR1A"]},
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"],
                   "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]},
                   "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
@@ -1543,6 +1547,24 @@ def validate_data(data, chart_type):
                         and all(isinstance(x, (int, float)) and not isinstance(x, bool)
                                 for x in v)):
                     fatal.append(f"slope: items['{n}'] 必须是恰好 2 个数值 [左值, 右值]")
+
+    # ── volcano: 组学差异表达 ──
+    elif chart_type == "volcano":
+        l2 = data.get("log2fc")
+        pv = data.get("pvalue")
+        if not (isinstance(l2, list) and isinstance(pv, list)) or not l2 or len(l2) != len(pv):
+            fatal.append("volcano: 需要 'log2fc' 与 'pvalue' 两个等长数值数组")
+        else:
+            if not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in l2 + pv):
+                fatal.append("volcano: log2fc/pvalue 必须全为数值")
+            else:
+                bad_p = [p for p in pv if not (0 < p <= 1)]
+                if bad_p:
+                    fatal.append(f"volcano: pvalue 必须在 (0, 1]（发现 {len(bad_p)} 个越界值，"
+                                 "p=0 请用最小可表示值如 1e-300）")
+        names = data.get("names")
+        if names is not None and (not isinstance(names, list) or len(names) != len(l2 or [])):
+            fatal.append("volcano: 'names' 长度必须与 log2fc 一致")
 
     # ── composite: panels ──
     elif chart_type == "composite":

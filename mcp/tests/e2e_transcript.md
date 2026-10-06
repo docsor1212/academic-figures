@@ -27,7 +27,7 @@
 
 ## resources/read capability://matrix
 ```json
-{"count": 23, "journals": ["cell", "cma", "cn-core", "ieee", "jama", "lancet", "nature", "nejm", "science"]}
+{"count": 24, "journals": ["cell", "cma", "cn-core", "ieee", "jama", "lancet", "nature", "nejm", "science"]}
 ```
 
 ## resources/read capability://changelog

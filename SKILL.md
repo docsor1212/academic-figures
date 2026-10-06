@@ -1,8 +1,8 @@
 ---
 name: academic-figures
-version: 4.3.0
+version: 4.4.0
 description: >-
-  Publication-ready scientific figures from one command — 23 chart types (bar, slope,
+  Publication-ready scientific figures from one command — 24 chart types (bar, slope, volcano,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier, ROC,
   violin, box, composite panels, PRISMA 2020 flow, funnel, Bland-Altman, PCA,
   venn 2-4 sets, clustered heatmap, dual-axis, Cox multi-variable regression
@@ -29,8 +29,8 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 4.3.0
-  date: 2026-10-05
+  version: 4.4.0
+  date: 2026-10-06
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -137,7 +137,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Inference | Forest | `-t forest` | CI whiskers, weight bubbles, overall diamond, I², events/total; `--stats cox` multi-variable HR |
 | Meta-analysis | Funnel | `-t funnel` | publication bias, DL pooled line; `--egger` test (≥3 studies) |
 | Survival | Kaplan-Meier | `-t km` | Step function, censor marks, log-rank test, risk table, median survival; **v3.7 competing risks** (event codes ≥2 auto-switch to Aalen-Johansen cumulative incidence) |
-| Diagnosis | ROC | `-t roc` | AUC, 95% CI, optimal cutoff, DeLong multi-model comparison |
+| Omics | Volcano | `-t volcano` | differential expression log2FC × -log10(p); threshold lines + auto top-gene labels (v4.4) |
 | Agreement | Bland-Altman | `-t bland_altman` | bias line + limits of agreement (LoA); two equal-length groups |
 | Sets | Venn | `-t venn` | 2-4 sets (4 sets = ellipse layout, v2.8); `--area` proportional Euler |
 | Composite | **Composite** | `-t composite` | Multi-panel A+B+C (⚠ no nested); `panel_labels:true` corner letters (v4.1); `span:[rows,cols]` multi-cell panels with overlap detection (v4.3) |
@@ -152,7 +152,7 @@ Scan the Category column at a glance; getting-started path in `references/quicks
 Group comparison → bar/box/violin (pre-post → paired) | Mean±error bars → bar (JSON errors)
 Two-column correlation → scatter | Time-to-event → km / forest --stats cox | Diagnosis → roc (--compare)
 Set membership → venn (--area) | Numeric matrix → heatmap / cluster_heatmap | Sample classes → pca
-Meta summary → forest (--egger) | Agreement → bland_altman | Flow → diagram/prisma
+Omics differential expression → volcano |
 Multi-panel → composite
 ```
 
@@ -248,7 +248,7 @@ raw per-subject data. Deep-dive usage: `references/advanced.md`.
 `--alt` writes an accessibility description `<output>.alt.txt` next to the figure — derived from
 the data itself. Springer Nature, NSF and most major publishers require alt text.
 
-## Scenario Templates (v2.6; covering the 23 chart types incl. slope)
+## Scenario Templates (v2.6; covering the 24 chart types incl. slope/volcano)
 
 `templates/` ships 22 end-to-end templates (data JSON + ready-to-run command + caption template):
 16 clinical-scenario templates (01–16) plus 6 chart-type quick templates (bland_altman,
@@ -404,7 +404,7 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
 academic-figures/
 ├── SKILL.md / SKILL_ZH.md   ← English / Chinese documentation
 ├── scripts/
-│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 23 chart types)
+│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 24 chart types)
 │   ├── gen_legend.py        ← Supplementary legend generator (journal format)
 │   ├── audit_pdf.py         ← Font-size auditor (--min-size gate)
 │   ├── detect_cjk_font.py   ← CJK font auto-detector
@@ -423,9 +423,8 @@ academic-figures/
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v4.3.0** --profile layered config file + composite span multi-cell panels;
-**v4.2.0** slope chart + --peak-label; **v4.1.0** panel letters/--summary; earlier
-versions in changelog.
+Full bilingual history: `references/changelog.md`. Recent: **v4.4.0** volcano plot (type #24) + --peak-label; **v4.3.0** --profile layered
+config + composite span; **v4.2.0** slope chart; earlier versions in changelog.
 
 ## 🚀 Pro Edition
 

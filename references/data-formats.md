@@ -328,6 +328,27 @@ EGPA,5,45,30,10,10
 
 ---
 
+## Volcano Plot (`--type volcano`, v4.4)
+
+```json
+{
+  "log2fc": [2.1, -1.3, 0.1],
+  "pvalue": [1e-6, 0.03, 0.7],
+  "names": ["GeneA", "GeneB", "GeneC"],
+  "fc_cut": 1.0,
+  "p_cut": 0.05,
+  "top": 10
+}
+```
+
+- `log2fc` / `pvalue`: 两个**等长**数值数组；p ∈ (0, 1]（p=0 请用最小可表示值如 1e-300）。
+- `names`（可选）：与 log2fc 等长的名称数组；显著性 Top-N 自动标注。
+- `fc_cut`（默认 1.0）/ `p_cut`（默认 0.05）/ `top`（默认 10）：阈值与标注数量。
+- 形态：x=log2FC，y=-log10(p)；上调暖橙/下调蓝/非显著灰；阈值虚线 + 计数事实框。
+- 组学差异表达（基因/蛋白/代谢物）；多组比较请改用 line/bar 系列。
+
+---
+
 ## Slope Chart (`--type slope`, v4.2)
 
 ```json
