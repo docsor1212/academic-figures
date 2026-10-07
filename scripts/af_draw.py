@@ -600,6 +600,17 @@ def gen_box(data, ax, theme, cjk_fp, **kwargs):
     series = data.get("series", data.get("datasets", {}))
 
     positions = list(range(len(series)))
+    # v4.5 P2-5/R2-9：null/None 跳过并计数（兑现"非数值项画图时会跳过"的警告承诺）
+    _clean = {}
+    _dropped = 0
+    for _n, _vals in series.items():
+        _c = [v for v in _vals if v is not None]
+        if len(_c) != len(_vals):
+            _dropped += len(_vals) - len(_c)
+            print(f"WARNING: box: 系列 '{_n}' 跳过 {len(_vals) - len(_c)} 个 null 值",
+                  file=sys.stderr)
+        _clean[_n] = _c
+    series = _clean
     bp = ax.boxplot(list(series.values()), positions=positions, widths=0.5,
                     patch_artist=True, showfliers=False)
 
@@ -1018,6 +1029,9 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
                 med = None
             if med is None:
                 median_notes.append(f"{gname}: 未到达")
+            elif len(t_g) < 2:
+                # v4.5 R2-6：单例组不存在 95%CI（n=1 时 KM 中位=唯一时间），只报中位
+                median_notes.append(f"{gname}: {med:g}（n=1，无CI）")
             else:
                 if clo is not None and chi_ is not None:
                     median_notes.append(f"{gname}: {med:g}（{clo:g}~{chi_:g}）")

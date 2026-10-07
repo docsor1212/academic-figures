@@ -108,6 +108,7 @@ _KNOWN_DATA_FIELDS = [
     "time", "event", "group", "fpr", "tpr", "scores", "name",
     "sets", "counts", "areas", "studies", "effect", "se", "lower", "upper",
     "panels", "layout", "values", "data", "x", "y", "category", "value",
+  "log2fc", "pvalue", "names", "fc_cut", "p_cut", "top", "items", "left", "right", "left_ylabel", "right_ylabel", "left_errors", "right_errors", "left_type", "right_type", "left_label", "right_label", "x_label", "y_label", "sets", "methods", "before", "after", "curves", "groups", "matrix", "ref_line", "median_survival", "overall", "studies_included", "duplicates_removed", "records_screened", "reports_sought", "reports_not_retrieved", "reports_assessed", "exclusion_reasons", "arrows"
 ]
 
 

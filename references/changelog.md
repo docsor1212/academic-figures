@@ -6,6 +6,31 @@
 
 ## Version History
 
+## 4.5.0 — 2026-10-07
+
+  - **Fixes from two rounds of independent third-party testing (~180 cases,
+    24/24 chart types, textbook datasets)**:
+    - P0: missing `BboxBase` import crashed KM+ylabel / dual_axis / composite
+      (now import-fixed; internal crashes exit 3, separated from --verify's 2).
+    - P1: validator field-table synced to data-formats.md (estimates /
+      studies_included / arrows / left* / pvalue / names no longer produce
+      false "did you mean" warnings); `significance` keys now split on ":"
+      before series lookup (false warnings eliminated).
+    - P1: `tests/run_tests.py` now ships in the package (vendor promise kept).
+    - R2-1: --suggest recognizes 5 statistical schemas (curves[]-roc /
+      studies[]-funnel / sets{}-venn / log2fc+pvalue-volcano / methods{}-BA)
+      — 10/10 standard forms hit.
+    - R2-2: journal presets save WITHOUT tight-crop — physical width now
+      matches declared mm exactly (was 2.5-2.6mm narrow).
+    - R2-5: PDF byte-deterministic (CreationDate removed).
+    - R2-6: KM single-subject group no longer prints a fake 95% CI.
+    - P2/R2-9 unified numeric policy: bool → reject; inf → reject;
+      numeric strings → auto-convert with warning; null → skipped (box family
+      included, counted warning).
+    - P2-6: GBK files report encoding (not "JSON syntax"); no phantom
+      "--width None" message.
+    - P3: CJK font detection prefers SC variant.
+
 ## 4.4.0 — 2026-10-06
 
   - **New chart type: `volcano` (type #24)** — omics differential expression
@@ -466,6 +491,25 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v4.5.0（2026-10-07）
+
+- **两轮独立第三方严格测试（约 180 用例、24/24 图型、教科书数据集）的 12 项修复**：
+  - P0：af_shared 缺 `BboxBase` 导入致 KM-ylabel/双轴/组合图开箱崩溃（已修；
+    内部崩溃退出码改 3，与 --verify 的 2 语义分离）。
+  - P1：校验器字段表与 data-formats.md 同源（estimates/studies_included/arrows/
+    left*/pvalue/names 不再假警告）；`significance` 键先按 ":" 拆分再查系列
+    （假警告消除）。
+  - P1：包内自带 `tests/run_tests.py`（厂商回归承诺兑现）。
+  - R2-1：--suggest 识别 5 种统计 schema（10/10 标准形态命中）。
+  - R2-2：期刊预设保存不再 tight 裁边——实际图宽=宣称毫米（原系统性窄 2.5-2.6mm）。
+  - R2-5：PDF 字节级确定（去除 CreationDate）。
+  - R2-6：KM 单例组不再输出伪 95% CI。
+  - P2/R2-9 数值策略统一：bool 拒绝、inf 拒绝、字符串数字自动转换+警告、
+    null 跳过（box 家族兑现承诺，计数警告）。
+  - P2-6：GBK 文件报编码问题（不再误报"JSON 语法错误"）；幻影
+    "--width None" 消息消除。
+  - P3：中文字体探测优先 SC 变体。
 
 ### v4.4.0（2026-10-06）
 

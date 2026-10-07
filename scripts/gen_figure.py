@@ -437,6 +437,37 @@ def suggest_chart_type(data):
     x, y = data.get("x"), data.get("y")
     if isinstance(x, list) and isinstance(y, list) and x and len(x) == len(y):
         recs.append((80, "scatter", "paired x/y arrays"))
+    # v4.5 R2-1：统计专用 schema 特征识别（此前 5 种形态全部误推荐为 bar）
+    if {"log2fc", "pvalue"} <= keys:
+        recs.append((91, "volcano", "log2fc + pvalue arrays — volcano plot"))
+    studies = data.get("studies")
+    if isinstance(studies, list) and studies and isinstance(studies[0], dict) \
+            and "se" in studies[0]:
+        recs.append((90, "funnel", "studies[] with se — funnel plot"))
+    sets_ = data.get("sets")
+    if isinstance(sets_, dict) and 2 <= len(sets_) <= 4 and \
+            all(isinstance(v, list) for v in sets_.values()):
+        recs.append((89, "venn", "sets{} element lists — venn/euler"))
+    methods = data.get("methods")
+    if isinstance(methods, dict) and len(methods) == 2 and \
+            all(isinstance(v, list) for v in methods.values()):
+        recs.append((88, "bland_altman", "two method arrays — bland-altman agreement"))
+    if isinstance(data.get("fpr"), list) and isinstance(data.get("tpr"), list):
+        recs.append((87, "roc", "flat fpr/tpr arrays — single-curve ROC"))
+    studies = data.get("studies")
+    if isinstance(studies, list) and studies and isinstance(studies[0], dict) \
+            and "se" in studies[0]:
+        recs.append((90, "funnel", "studies[] with se — funnel plot"))
+    sets_ = data.get("sets")
+    if isinstance(sets_, dict) and 2 <= len(sets_) <= 4 and \
+            all(isinstance(v, list) for v in sets_.values()):
+        recs.append((89, "venn", "sets{} element lists — venn/euler"))
+    methods = data.get("methods")
+    if isinstance(methods, dict) and len(methods) == 2 and \
+            all(isinstance(v, list) for v in methods.values()):
+        recs.append((88, "bland_altman", "two method arrays — bland-altman"))
+    if isinstance(data.get("fpr"), list) and isinstance(data.get("tpr"), list):
+        recs.append((87, "roc", "flat fpr/tpr arrays — single-curve ROC"))
     series = data.get("series")
     if isinstance(series, dict) and series:
         lists = [v for v in series.values() if isinstance(v, list)]
@@ -444,7 +475,14 @@ def suggest_chart_type(data):
             recs.append((68, "bar", "single-value series"))
         else:
             recs.append((76, "bar", "labels + named series"))
-    return sorted(recs, key=lambda r: (-r[0], r[1]))
+    seen = set()
+    dedup = []
+    for r in sorted(recs, key=lambda r: (-r[0], r[1])):
+        if r[1] in seen:
+            continue
+        seen.add(r[1])
+        dedup.append(r)
+    return dedup
 
 
 def cmd_suggest(data_path):
@@ -850,6 +888,26 @@ def _is_number(s):
         return False
 
 
+def _classify_num_policy(vals):
+    """v4.5 R2-7/R2-8 数值策略硬化：对数值数组分类
+    返回 (bools, nonnum_strs, strnum_ok, infs) 计数——bool/inf=fatal，字符串数字=自动转换+警告。"""
+    import math as _m
+    bools = strnum = infs = 0
+    for v in vals:
+        if isinstance(v, bool):
+            bools += 1
+        elif isinstance(v, (int, float)):
+            if isinstance(v, float) and not _m.isfinite(v):
+                infs += 1
+        elif isinstance(v, str):
+            try:
+                float(v)
+                strnum += 1
+            except ValueError:
+                pass
+    return bools, strnum, infs
+
+
 def _read_excel(path, sheet=None):
     """Read an Excel sheet into (headers, rows-of-str) — the same shape the
     CSV branch of load_data() consumes. First non-empty row is the header."""
@@ -893,8 +951,12 @@ def load_data(path, chart_type=None, sheet=None):
     """
     ext = os.path.splitext(path)[1].lower()
     if ext == '.json':
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except UnicodeDecodeError:
+            raise ValueError("文件不是 UTF-8 编码（疑似 GBK/Excel 另存）——请用文本编辑器"
+                             "另存为 UTF-8 后重试，或 iconv -f GBK -t UTF-8 转换")
     elif ext in ('.csv', '.tsv', '.xlsx', '.xls'):
         if ext in ('.csv', '.tsv'):
             delimiter = '\t' if ext == '.tsv' else ','
@@ -1325,7 +1387,31 @@ def validate_data(data, chart_type):
                 f"请确认这是数据本意，而不是取错了列")
 
     def _warn_non_numeric(name, vals):
-        n_bad = sum(1 for v in vals if not _is_number(v))
+        # v4.5 R2-7/R2-8/P2-5 数值策略硬化：
+        #   bool / inf → fatal（语义错误/轴无意义）；字符串数字 → 自动转换+警告；
+        #   None → 跳过（gen 层已实现，计数警告保持）
+        n_bool = sum(1 for v in vals if isinstance(v, bool))
+        if n_bool:
+            fatal.append(f"系列 '{name}' 里有 {n_bool} 个布尔值（true/false 不是数值）— "
+                         "请把布尔列转成 0/1 或删除")
+        n_inf = sum(1 for v in vals
+                    if isinstance(v, float) and (v == float("inf") or v == float("-inf")))
+        if n_inf:
+            fatal.append(f"系列 '{name}' 里有 {n_inf} 个 inf（通常由 1/0 或溢出产生）— "
+                         "请清洗源数据后再画图")
+        n_strnum = sum(1 for v in vals
+                       if isinstance(v, str) and _is_number(v))
+        if n_strnum:
+            warns.append(f"系列 '{name}' 里有 {n_strnum} 个字符串数字已自动转换为数值"
+                         "（建议源数据直接存数值）")
+            for j, v in enumerate(vals):
+                if isinstance(v, str) and _is_number(v):
+                    try:
+                        vals[j] = float(v) if "." in v or "e" in v.lower() else int(float(v))
+                    except (ValueError, OverflowError):
+                        pass
+        n_bad = sum(1 for v in vals
+                    if not isinstance(v, (int, float)) and not _is_number(v))
         if n_bad:
             warns.append(
                 f"系列 '{name}' 里有 {n_bad} 个非数值项，画图时会跳过 — "
@@ -1386,7 +1472,12 @@ def validate_data(data, chart_type):
         # significance keys must reference existing series
         sig = data.get("significance", {})
         if isinstance(sig, dict) and sig:
-            unknown = [k for k in sig if k not in series]
+            # v4.5 P1-2：键格式为 "系列名:列索引"，须拆分后查系列名（整串比对必然误报）
+            unknown = []
+            for k in sig:
+                head = k.rsplit(":", 1)[0] if ":" in str(k) else str(k)
+                if head not in series:
+                    unknown.append(k)
             if unknown:
                 warns.append(f"significance 引用了数据里不存在的系列: {unknown[:3]}")
 
@@ -1581,6 +1672,12 @@ def validate_data(data, chart_type):
             occ = {}
             for i, p in enumerate(panels):
                 if not isinstance(p, dict):
+                    continue
+                # v4.5 R2-4：未知面板类型前置拒绝（原静默画 "Unknown type" 文本框）
+                _pt = p.get("type")
+                if _pt not in GENERATORS or _pt in ("composite", "diagram"):
+                    fatal.append(f"composite: 面板 {i} type '{_pt}' 无效"
+                                 "（可用：除 composite/diagram 外的全部图型）")
                     continue
                 if "pos" not in p:
                     continue  # v4.3 兼容：未显式写 pos 的面板保持旧宽容行为（不参与占位检查）
@@ -2602,6 +2699,7 @@ def main():
             and str(args.data).lower().endswith(".csv")):
         print("[hint] CSV 不支持误差棒——需要误差棒/显著性标记请改用 JSON 格式"
               "（errors/significance 字段，见 --explain bar）", file=sys.stderr)
+    if args.journal and getattr(args, "width", None):
         print("[auto] --journal 锁定图宽，--width "
               f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
     if getattr(args, "verify", False):
@@ -2632,10 +2730,13 @@ def main():
               f"（宽度不变，高度按比例）", file=sys.stderr)
     if args.stats == "cox":
         if args.type != "forest":
-            print("ERROR: --stats cox 仅支持 forest 图型（原始生存数据→多因素 Cox→HR 森林图）。"
-                  "其他图型的 --stats 请用 auto/multi。", file=sys.stderr)
-            sys.exit(1)
-        data = _run_cox_forest(args)
+            # v4.5 R2-3：互斥策略统一——参数不适用=[ignored] 显式告知继续（与 auto/multi 同口径）
+            print("[ignored] --stats cox（仅 forest 生效）对 "
+                  f"{args.type} 不适用，本次渲染已忽略", file=sys.stderr)
+            args.stats = None
+            data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
+        else:
+            data = _run_cox_forest(args)
     else:
         data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
 
@@ -2991,10 +3092,17 @@ def main():
         # For heatmaps or photo-heavy content, user can specify --dpi 300
         save_kwargs = {
             "dpi": dpi,
-            "bbox_inches": 'tight',
             "facecolor": 'white',
             "edgecolor": 'none',
         }
+        # v4.5 R2-2：期刊预设激活时不用 tight 裁边——tight 会把实际图宽裁掉
+        # 2.5-2.6mm（85→82.4），期刊按毫米核图有退稿风险；精确画布=宣称宽度。
+        # 非 journal 保持 tight（吸收超界文本，日常美学不变）。
+        if not getattr(args, "journal", None):
+            save_kwargs["bbox_inches"] = 'tight'
+        if out_format == 'pdf':
+            # v4.5 R2-5：PDF 去 CreationDate → 同输入同字节（PNG 已成立）
+            save_kwargs["metadata"] = {"CreationDate": None}
         if out_format == 'tiff':
             save_kwargs["pil_kwargs"] = {"compression": "tiff_lzw"}
         for _attempt in (1, 2):

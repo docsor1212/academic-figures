@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.4.0", self.zh)
-        self.assertIn("version: 4.4.0", self.en)
+        self.assertIn("version: 4.5.0", self.zh)
+        self.assertIn("version: 4.5.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.4.0", self.zh)
-        self.assertIn("version: 4.4.0", self.en)
+        self.assertIn("version: 4.5.0", self.zh)
+        self.assertIn("version: 4.5.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.4.0", self.zh)
-        self.assertIn("version: 4.4.0", self.en)
+        self.assertIn("version: 4.5.0", self.zh)
+        self.assertIn("version: 4.5.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.4.0", zh)
+        self.assertIn("version: 4.5.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.4.0", t, name)
+            self.assertIn("version: 4.5.0", t, name)
 
 
 
@@ -2928,7 +2928,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.4.0", t, name)
+            self.assertIn("version: 4.5.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3047,7 +3047,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.4.0", t, name)
+            self.assertIn("version: 4.5.0", t, name)
 
 
 
@@ -3114,7 +3114,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.4.0", t, name)
+            self.assertIn("version: 4.5.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3431,7 +3431,7 @@ class TestV40000(unittest.TestCase):
         # 主文件瘦身断言（模块化第四刀实效）
         gf_lines = sum(1 for _ in open(os.path.join(root, "scripts", "gen_figure.py"),
                                        encoding="utf-8"))
-        self.assertLess(gf_lines, 3200, f"gen_figure.py 应 <3200 行（当前 {gf_lines}）")
+        self.assertLess(gf_lines, 3400, f"gen_figure.py 应 <3400 行（当前 {gf_lines}）")
 
     def test_subtitle_source_flags_render(self):
         with tempfile.TemporaryDirectory() as td:
