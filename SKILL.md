@@ -1,12 +1,12 @@
 ---
 name: academic-figures
-version: 4.6.0
+version: 4.7.0
 description: >-
-  Publication-ready scientific figures from one command — 24 chart types (bar, slope, volcano,
+  Publication-ready scientific figures from one command — 25 chart types (bar, slope, volcano,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier, ROC,
   violin, box, composite panels, PRISMA 2020 flow, funnel, Bland-Altman, PCA,
-  venn 2-4 sets, clustered heatmap, dual-axis, Cox multi-variable regression
-  forest), 9 themes incl. colorblind-safe Okabe-Ito and NEJM/Lancet/Science
+  venn 2-4 sets, upset set intersections (5+ sets), clustered heatmap, dual-axis,
+  Cox multi-variable regression forest), 9 themes incl. colorblind-safe Okabe-Ito and NEJM/Lancet/Science
   journal palettes, 9 journal submission presets, YAML figure pipeline (a whole
   paper in one command), multi-format export (TIFF/PNG/PDF in one run), Python
   API, --wizard chart picker, render watchdog with auto-degrade retry,
@@ -29,8 +29,8 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 4.6.0
-  date: 2026-10-08
+  version: 4.7.0
+  date: 2026-10-09
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -140,7 +140,8 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Omics | Volcano | `-t volcano` | differential expression log2FC × -log10(p); threshold lines + auto top-gene labels (v4.4) |
 | Agreement | Bland-Altman | `-t bland_altman` | bias line + limits of agreement (LoA); two equal-length groups |
 | Sets | Venn | `-t venn` | 2-4 sets (4 sets = ellipse layout, v2.8); `--area` proportional Euler |
-| Composite | **Composite** | `-t composite` | Multi-panel A+B+C (⚠ no nested); `panel_labels:true` corner letters (v4.1); `span:[rows,cols]` multi-cell panels with overlap detection (v4.3) |
+| Sets | UpSet | `-t upset` | 5+ set intersections (venn successor, v4.7); size-sorted bars + dot matrix, `sort`/`top_n`/`min_size` |
+| Composite | **Composite** | `-t composite` | Multi-panel A+B+C (⚠ no nested composite/diagram/upset panels); `panel_labels:true` corner letters (v4.1); `span:[rows,cols]` multi-cell panels with overlap detection (v4.3) |
 | Flow | **Diagram** | `-t diagram` | Architecture/flow blocks, arrows, groupings, annotations |
 | Review | **PRISMA Flow** | `-t prisma` | PRISMA 2020 review flow; counts auto-validated (must add up), EN/ZH wording via `lang` |
 
@@ -151,7 +152,7 @@ Scan the Category column at a glance; getting-started path in `references/quicks
 ```text
 Group comparison → bar/box/violin (pre-post → paired) | Mean±error bars → bar (JSON errors)
 Two-column correlation → scatter | Time-to-event → km / forest --stats cox | Diagnosis → roc (--compare)
-Set membership → venn (--area) | Numeric matrix → heatmap / cluster_heatmap | Sample classes → pca
+Set membership → venn (--area; 5+ sets → upset) | Numeric matrix → heatmap / cluster_heatmap | Sample classes → pca
 Omics differential expression → volcano |
 Multi-panel → composite
 ```
@@ -248,7 +249,7 @@ raw per-subject data. Deep-dive usage: `references/advanced.md`.
 `--alt` writes an accessibility description `<output>.alt.txt` next to the figure — derived from
 the data itself. Springer Nature, NSF and most major publishers require alt text.
 
-## Scenario Templates (v2.6; covering the 24 chart types incl. slope/volcano)
+## Scenario Templates (v2.6; covering the 25 chart types incl. slope/volcano/upset)
 
 `templates/` ships 22 end-to-end templates (data JSON + ready-to-run command + caption template):
 16 clinical-scenario templates (01–16) plus 6 chart-type quick templates (bland_altman,
@@ -404,26 +405,26 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
 academic-figures/
 ├── SKILL.md / SKILL_ZH.md   ← English / Chinese documentation
 ├── scripts/
-│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 24 chart types)
+│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 25 chart types)
 │   ├── gen_legend.py        ← Supplementary legend generator (journal format)
 │   ├── audit_pdf.py         ← Font-size auditor (--min-size gate)
 │   ├── detect_cjk_font.py   ← CJK font auto-detector
 │   ├── verify_overlap_pixel.py ← Pixel-level overlap verifier (run on every PDF)
 │   ├── setup_env.py         ← One-command env setup
 │   └── journal/*.json       ← Journal presets, single source (v2.7)
-├── templates/               ← 22 scenario templates (each with a _command one-liner)
-├── examples/                ← example_*.json, run-ready
+├── templates/               ← 25 scenario templates (each with a _command one-liner)
+├── examples/                ← example_*.json + realworld/ scenarios, run-ready
 ├── tests/run_tests.py       ← Full regression suite
 └── references/              ← data-formats / python-api / limits / faq /
                                cheatsheet / quickstart / pitfalls / advanced /
-                               clinical-lab-trends / composite-layouts /
-                               reverse-engineering-colors / changelog
+                               color-guide / combo-guide / clinical-lab-trends /
+                               composite-layouts / reverse-engineering-colors / changelog
                                （v1.5-upgrade-analysis 为历史升级分析档案）
 ```
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v4.6.0** ROC default semantic axis titles + venn title disambiguation + adaptive
+Full bilingual history: `references/changelog.md`. Recent: **v4.7.0** upset set-intersection plot (chart #25) + color/combo scenario guides + real-world examples + limits quick table; **v4.6.0** ROC default semantic axis titles + venn title disambiguation + adaptive
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** audit-round fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 

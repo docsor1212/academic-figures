@@ -51,7 +51,8 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      annotate_auto_stats, annotate_multi_stats,
                      gen_bar, gen_heatmap, gen_scatter, gen_line, gen_box,
                      gen_forest, gen_violin, gen_km, gen_roc, gen_stacked_bar,
-                     gen_dual_axis, gen_composite, gen_diagram, gen_prisma)
+                     gen_dual_axis, gen_composite, gen_diagram, gen_prisma,
+                     gen_slope, gen_volcano, gen_upset)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
@@ -273,6 +274,10 @@ CHART_NOTES = {
             "3 集合最优拟合）。",
     "cluster_heatmap": "cluster_heatmap: 聚类热图；数据格式同 heatmap（matrix），行列按 Ward 层次"
                        "聚类重排（顺序写入 stderr/alt）；行数上限 3000；v2.3 暂不含树状图面板。",
+    "upset": "upset: UpSet 交集图（≥5 集合推荐，venn 2~4 集合的标准后继；组学多基因集/"
+             "多标签共现）；JSON sets 为元素列表（自动求交并）；top_n 展示前 N 个交集"
+             "（默认 12，取 1~50）、sort=size|degree、min_size 过滤小交集；标题放 JSON "
+             "title 字段；未展示交集只计入 stderr 事实行。",
 }
 
 
@@ -352,6 +357,12 @@ DEMO_DATA = {
                 "pvalue": [3e-4, 0.012, 0.04, 0.5, 0.8, 0.3, 0.02, 3e-5, 8e-7],
                 "names": ["SLC6A4", "MAOA", "FKBP5", "NR3C1", "CRH", "AVP",
                           "BDNF", "COMT", "HTR1A"]},
+    "upset": {"title": "五组学平台差异基因交集",
+              "sets": {"转录组": ["TP53", "KRAS", "EGFR", "BRCA1", "MYC", "PTEN", "NRAS", "PIK3CA", "ALK"],
+                       "蛋白组": ["TP53", "EGFR", "MYC", "AKT1", "KRAS", "ERBB2", "PTEN"],
+                       "甲基化": ["TP53", "BRCA1", "CDKN2A", "MGMT", "PTEN", "RB1"],
+                       "eQTL": ["KRAS", "PIK3CA", "PTEN", "AKT1", "MAP2K1", "EGFR"],
+                       "GWAS": ["TP53", "BRCA1", "ERBB2", "ATM", "CHEK2", "PALB2"]}},
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"],
                   "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]},
                   "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
@@ -437,6 +448,43 @@ def suggest_chart_type(data):
     x, y = data.get("x"), data.get("y")
     if isinstance(x, list) and isinstance(y, list) and x and len(x) == len(y):
         recs.append((80, "scatter", "paired x/y arrays"))
+    # v4.5 R2-1：统计专用 schema 特征识别（此前 5 种形态全部误推荐为 bar）
+    if {"log2fc", "pvalue"} <= keys:
+        recs.append((91, "volcano", "log2fc + pvalue arrays — volcano plot"))
+    studies = data.get("studies")
+    if isinstance(studies, list) and studies and isinstance(studies[0], dict) \
+            and "se" in studies[0]:
+        recs.append((90, "funnel", "studies[] with se — funnel plot"))
+    sets_ = data.get("sets")
+    if isinstance(sets_, dict) and 2 <= len(sets_) <= 4 and \
+            all(isinstance(v, list) for v in sets_.values()):
+        recs.append((89, "venn", "sets{} element lists — venn/euler"))
+    if isinstance(sets_, dict) and len(sets_) >= 5 and \
+            all(isinstance(v, list) for v in sets_.values()):
+        recs.append((92, "upset", "sets{} with ≥5 sets — UpSet intersection plot"))
+    methods = data.get("methods")
+    if isinstance(methods, dict) and len(methods) == 2 and \
+            all(isinstance(v, list) for v in methods.values()):
+        recs.append((88, "bland_altman", "two method arrays — bland-altman agreement"))
+    if isinstance(data.get("fpr"), list) and isinstance(data.get("tpr"), list):
+        recs.append((87, "roc", "flat fpr/tpr arrays — single-curve ROC"))
+    studies = data.get("studies")
+    if isinstance(studies, list) and studies and isinstance(studies[0], dict) \
+            and "se" in studies[0]:
+        recs.append((90, "funnel", "studies[] with se — funnel plot"))
+    sets_ = data.get("sets")
+    if isinstance(sets_, dict) and 2 <= len(sets_) <= 4 and \
+            all(isinstance(v, list) for v in sets_.values()):
+        recs.append((89, "venn", "sets{} element lists — venn/euler"))
+    if isinstance(sets_, dict) and len(sets_) >= 5 and \
+            all(isinstance(v, list) for v in sets_.values()):
+        recs.append((92, "upset", "sets{} with ≥5 sets — UpSet intersection plot"))
+    methods = data.get("methods")
+    if isinstance(methods, dict) and len(methods) == 2 and \
+            all(isinstance(v, list) for v in methods.values()):
+        recs.append((88, "bland_altman", "two method arrays — bland-altman"))
+    if isinstance(data.get("fpr"), list) and isinstance(data.get("tpr"), list):
+        recs.append((87, "roc", "flat fpr/tpr arrays — single-curve ROC"))
     series = data.get("series")
     if isinstance(series, dict) and series:
         lists = [v for v in series.values() if isinstance(v, list)]
@@ -444,7 +492,14 @@ def suggest_chart_type(data):
             recs.append((68, "bar", "single-value series"))
         else:
             recs.append((76, "bar", "labels + named series"))
-    return sorted(recs, key=lambda r: (-r[0], r[1]))
+    seen = set()
+    dedup = []
+    for r in sorted(recs, key=lambda r: (-r[0], r[1])):
+        if r[1] in seen:
+            continue
+        seen.add(r[1])
+        dedup.append(r)
+    return dedup
 
 
 def cmd_suggest(data_path):
@@ -627,6 +682,32 @@ def generate_alt_text(chart_type, data, title=""):
         return f"双 Y 轴折线图。{t}"
     if chart_type == "diagram":
         return f"流程图。{t}"
+    if chart_type == "volcano":
+        l2 = data.get("log2fc") or []
+        n_up = n_dn = 0
+        try:
+            fc_cut = float(data.get("fc_cut", 1.0))
+            p_cut = float(data.get("p_cut", 0.05))
+            import math as _m
+            sig = -_m.log10(p_cut)
+            for x, p in zip(l2, data.get("pvalue") or []):
+                if -_m.log10(p) >= sig and x >= fc_cut:
+                    n_up += 1
+                elif -_m.log10(p) >= sig and x <= -fc_cut:
+                    n_dn += 1
+        except Exception:
+            pass
+        return (f"火山图（组学差异表达），共 {len(l2)} 个特征，"
+                f"阈值内上调 {n_up} 个、下调 {n_dn} 个。{t}")
+    if chart_type == "slope":
+        items = data.get("items") or {}
+        return f"斜率图（两时点比较），共 {len(items)} 条线。{t}"
+    if chart_type == "upset":
+        s = data.get("sets") or {}
+        top_n = data.get("top_n", 12)
+        return (f"UpSet 集合交集图，共 {len(s)} 个集合"
+                f"（{'、'.join(list(map(str, s.keys()))[:6])}{'等' if len(s) > 6 else ''}），"
+                f"展示元素数最多的前 {top_n} 个交集；行=集合，柱=交集大小。{t}")
     return f"{chart_type} 图。{t}"
 
 # ── Font helpers ───────────────────────────────────────────────────────
@@ -850,6 +931,26 @@ def _is_number(s):
         return False
 
 
+def _classify_num_policy(vals):
+    """v4.5 R2-7/R2-8 数值策略硬化：对数值数组分类
+    返回 (bools, nonnum_strs, strnum_ok, infs) 计数——bool/inf=fatal，字符串数字=自动转换+警告。"""
+    import math as _m
+    bools = strnum = infs = 0
+    for v in vals:
+        if isinstance(v, bool):
+            bools += 1
+        elif isinstance(v, (int, float)):
+            if isinstance(v, float) and not _m.isfinite(v):
+                infs += 1
+        elif isinstance(v, str):
+            try:
+                float(v)
+                strnum += 1
+            except ValueError:
+                pass
+    return bools, strnum, infs
+
+
 def _read_excel(path, sheet=None):
     """Read an Excel sheet into (headers, rows-of-str) — the same shape the
     CSV branch of load_data() consumes. First non-empty row is the header."""
@@ -893,8 +994,12 @@ def load_data(path, chart_type=None, sheet=None):
     """
     ext = os.path.splitext(path)[1].lower()
     if ext == '.json':
-        with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except UnicodeDecodeError:
+            raise ValueError("文件不是 UTF-8 编码（疑似 GBK/Excel 另存）——请用文本编辑器"
+                             "另存为 UTF-8 后重试，或 iconv -f GBK -t UTF-8 转换")
     elif ext in ('.csv', '.tsv', '.xlsx', '.xls'):
         if ext in ('.csv', '.tsv'):
             delimiter = '\t' if ext == '.tsv' else ','
@@ -1325,7 +1430,31 @@ def validate_data(data, chart_type):
                 f"请确认这是数据本意，而不是取错了列")
 
     def _warn_non_numeric(name, vals):
-        n_bad = sum(1 for v in vals if not _is_number(v))
+        # v4.5 R2-7/R2-8/P2-5 数值策略硬化：
+        #   bool / inf → fatal（语义错误/轴无意义）；字符串数字 → 自动转换+警告；
+        #   None → 跳过（gen 层已实现，计数警告保持）
+        n_bool = sum(1 for v in vals if isinstance(v, bool))
+        if n_bool:
+            fatal.append(f"系列 '{name}' 里有 {n_bool} 个布尔值（true/false 不是数值）— "
+                         "请把布尔列转成 0/1 或删除")
+        n_inf = sum(1 for v in vals
+                    if isinstance(v, float) and (v == float("inf") or v == float("-inf")))
+        if n_inf:
+            fatal.append(f"系列 '{name}' 里有 {n_inf} 个 inf（通常由 1/0 或溢出产生）— "
+                         "请清洗源数据后再画图")
+        n_strnum = sum(1 for v in vals
+                       if isinstance(v, str) and _is_number(v))
+        if n_strnum:
+            warns.append(f"系列 '{name}' 里有 {n_strnum} 个字符串数字已自动转换为数值"
+                         "（建议源数据直接存数值）")
+            for j, v in enumerate(vals):
+                if isinstance(v, str) and _is_number(v):
+                    try:
+                        vals[j] = float(v) if "." in v or "e" in v.lower() else int(float(v))
+                    except (ValueError, OverflowError):
+                        pass
+        n_bad = sum(1 for v in vals
+                    if not isinstance(v, (int, float)) and not _is_number(v))
         if n_bad:
             warns.append(
                 f"系列 '{name}' 里有 {n_bad} 个非数值项，画图时会跳过 — "
@@ -1386,7 +1515,12 @@ def validate_data(data, chart_type):
         # significance keys must reference existing series
         sig = data.get("significance", {})
         if isinstance(sig, dict) and sig:
-            unknown = [k for k in sig if k not in series]
+            # v4.5 P1-2：键格式为 "系列名:列索引"，须拆分后查系列名（整串比对必然误报）
+            unknown = []
+            for k in sig:
+                head = k.rsplit(":", 1)[0] if ":" in str(k) else str(k)
+                if head not in series:
+                    unknown.append(k)
             if unknown:
                 warns.append(f"significance 引用了数据里不存在的系列: {unknown[:3]}")
 
@@ -1566,6 +1700,36 @@ def validate_data(data, chart_type):
         if names is not None and (not isinstance(names, list) or len(names) != len(l2 or [])):
             fatal.append("volcano: 'names' 长度必须与 log2fc 一致")
 
+    # ── upset: 多集合交集（≥5 集合推荐；venn 2~4 的标准后继）──
+    elif chart_type == "upset":
+        s = data.get("sets")
+        if not isinstance(s, dict) or len(s) < 2:
+            fatal.append("upset: 需要 'sets'（≥2 个集合，值为元素列表；≥5 集合时最见长，"
+                         "2~4 集合建议 venn）")
+        else:
+            if len(s) > 30:
+                fatal.append(f"upset: 集合数 {len(s)} 超上限 30"
+                             "（点阵行数过多不可读，请按意义分组或拆分）")
+            for nm, els in s.items():
+                if not isinstance(els, (list, tuple)) or not els:
+                    fatal.append(f"upset: sets['{nm}'] 必须是非空元素列表")
+                else:
+                    bad = [e for e in els
+                           if isinstance(e, bool) or not isinstance(e, (str, int, float))]
+                    if bad:
+                        fatal.append(f"upset: sets['{nm}'] 含不支持的元素类型 "
+                                     f"（仅字符串/数值标量，发现 {len(bad)} 个）")
+        tn = data.get("top_n")
+        if tn is not None and (isinstance(tn, bool) or not isinstance(tn, int)
+                               or not 1 <= tn <= 50):
+            fatal.append("upset: top_n 取值 1~50")
+        ms = data.get("min_size")
+        if ms is not None and (isinstance(ms, bool) or not isinstance(ms, int) or ms < 1):
+            fatal.append("upset: min_size ≥ 1")
+        sm = data.get("sort")
+        if sm is not None and str(sm).strip().lower() not in ("size", "degree"):
+            fatal.append("upset: sort 只支持 'size' 或 'degree'")
+
     # ── composite: panels ──
     elif chart_type == "composite":
         panels = data.get("panels", [])
@@ -1581,6 +1745,13 @@ def validate_data(data, chart_type):
             occ = {}
             for i, p in enumerate(panels):
                 if not isinstance(p, dict):
+                    continue
+                # v4.5 R2-4：未知面板类型前置拒绝（原静默画 "Unknown type" 文本框）
+                # v4.7：upset 为自管类型（内部 GridSpec 拆轴），不可作面板
+                _pt = p.get("type")
+                if _pt not in GENERATORS or _pt in ("composite", "diagram", "upset"):
+                    fatal.append(f"composite: 面板 {i} type '{_pt}' 无效"
+                                 "（可用：除 composite/diagram/upset 外的全部图型）")
                     continue
                 if "pos" not in p:
                     continue  # v4.3 兼容：未显式写 pos 的面板保持旧宽容行为（不参与占位检查）
@@ -1966,10 +2137,23 @@ def _run_batch_items(items, manifest_path):
                           ("timeout", "--timeout"), ("downsample", "--downsample")):
             if item.get(key):
                 argv.extend([flag, str(item[key])])
-        if item.get("multi_format"):
-            argv.extend(["--multi-format", str(item["multi_format"])])
-        elif item.get("format"):
-            argv.extend(["--format", str(item["format"])])
+        # v4.7 D-03：format/multi_format 接受列表（YAML 自然写法）——
+        # 多元素列表→ --multi-format a,b；单元素列表/标量→ --format 单值
+        _mf_raw = item.get("multi_format")
+        _fv_raw = item.get("format")
+        if isinstance(_mf_raw, (list, tuple)) or isinstance(_fv_raw, (list, tuple)):
+            _lst = list(_mf_raw) if isinstance(_mf_raw, (list, tuple)) \
+                else list(_fv_raw)
+            _lst = [str(x).strip() for x in _lst if str(x).strip()]
+            if len(_lst) > 1:
+                argv.extend(["--multi-format", ",".join(_lst)])
+            elif _lst:
+                argv.extend(["--format", _lst[0]])
+        else:
+            if _mf_raw:
+                argv.extend(["--multi-format", str(_mf_raw)])
+            elif _fv_raw:
+                argv.extend(["--format", str(_fv_raw)])
         try:
             proc = subprocess.run(argv, capture_output=True, text=True, timeout=300)
             out_path = str(item["out"])
@@ -1978,6 +2162,12 @@ def _run_batch_items(items, manifest_path):
                 _f = _f.strip().lower()
                 if _f:
                     _cands.append(out_path + "." + _f)
+            # v4.7 D-03：列表形式的多格式产物计入成功判定
+            for _k in ("multi_format", "format"):
+                _v = item.get(_k)
+                if isinstance(_v, (list, tuple)):
+                    _cands.extend(out_path + "." + str(x).strip().lower()
+                                  for x in _v if str(x).strip())
             ok = proc.returncode == 0 and any(os.path.exists(c) for c in _cands)
             tail = proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else ""
         except subprocess.TimeoutExpired:
@@ -2602,6 +2792,7 @@ def main():
             and str(args.data).lower().endswith(".csv")):
         print("[hint] CSV 不支持误差棒——需要误差棒/显著性标记请改用 JSON 格式"
               "（errors/significance 字段，见 --explain bar）", file=sys.stderr)
+    if args.journal and getattr(args, "width", None):
         print("[auto] --journal 锁定图宽，--width "
               f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
     if getattr(args, "verify", False):
@@ -2632,10 +2823,13 @@ def main():
               f"（宽度不变，高度按比例）", file=sys.stderr)
     if args.stats == "cox":
         if args.type != "forest":
-            print("ERROR: --stats cox 仅支持 forest 图型（原始生存数据→多因素 Cox→HR 森林图）。"
-                  "其他图型的 --stats 请用 auto/multi。", file=sys.stderr)
-            sys.exit(1)
-        data = _run_cox_forest(args)
+            # v4.5 R2-3：互斥策略统一——参数不适用=[ignored] 显式告知继续（与 auto/multi 同口径）
+            print("[ignored] --stats cox（仅 forest 生效）对 "
+                  f"{args.type} 不适用，本次渲染已忽略", file=sys.stderr)
+            args.stats = None
+            data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
+        else:
+            data = _run_cox_forest(args)
     else:
         data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
 
@@ -2780,6 +2974,11 @@ def main():
     if args.type == "cluster_heatmap" and isinstance(data, dict):
         _ch_rows = len(data.get("matrix", data.get("data", data.get("values"))) or [])
         height = max(height, min(_ch_rows * 0.16 + 1.0, 24.0))
+    if args.type == "upset" and isinstance(data, dict):
+        _us_n = len(data.get("sets") or {})
+        if _us_n:
+            height = max(height, min(_us_n * 0.42 + 2.8, 18.0))
+            width = max(width, 9.0)
     if args.type == "pca" and isinstance(data, dict):
         _pca_n = len(data.get("matrix") or [])
         _has_groups = bool(data.get("groups"))
@@ -2844,8 +3043,13 @@ def main():
             print("WARNING: 渲染内存不足——已自动降级重试（图幅 ×0.85，输出 DPI 减半）",
                   file=sys.stderr)
 
-    # composite/diagram manage their own axes and styling
-    is_self_managed = extra in ("composite", "diagram")
+    # composite/diagram/upset manage their own axes and styling
+    is_self_managed = extra in ("composite", "diagram", "upset")
+
+    # v4.7 D-12：--title 对自管图型不生效——按 [ignored] 透明告知承诺显式提示
+    if is_self_managed and getattr(args, "title", None):
+        print(f"[ignored] --title 对 {args.type} 不生效（自管图型；标题放 JSON 的 "
+              "title 字段）", file=sys.stderr)
 
     # Style (skip for self-managed types and dual_axis)
     if args.type not in ('dual_axis',) and not is_self_managed:
@@ -2991,10 +3195,17 @@ def main():
         # For heatmaps or photo-heavy content, user can specify --dpi 300
         save_kwargs = {
             "dpi": dpi,
-            "bbox_inches": 'tight',
             "facecolor": 'white',
             "edgecolor": 'none',
         }
+        # v4.5 R2-2：期刊预设激活时不用 tight 裁边——tight 会把实际图宽裁掉
+        # 2.5-2.6mm（85→82.4），期刊按毫米核图有退稿风险；精确画布=宣称宽度。
+        # 非 journal 保持 tight（吸收超界文本，日常美学不变）。
+        if not getattr(args, "journal", None):
+            save_kwargs["bbox_inches"] = 'tight'
+        if out_format == 'pdf':
+            # v4.5 R2-5：PDF 去 CreationDate → 同输入同字节（PNG 已成立）
+            save_kwargs["metadata"] = {"CreationDate": None}
         if out_format == 'tiff':
             save_kwargs["pil_kwargs"] = {"compression": "tiff_lzw"}
         for _attempt in (1, 2):

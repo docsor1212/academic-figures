@@ -9,11 +9,11 @@
 [![Site](https://img.shields.io/badge/Site-docsor.cn-teal)](https://docsor.cn)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Tests](https://img.shields.io/badge/tests-301%20pass-brightgreen)
+![Tests](https://img.shields.io/badge/tests-318%20pass-brightgreen)
 
-**24 chart types** (bar/slope/volcano/box/violin/scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/
-venn 4-set ellipse/Bland-Altman/PCA/funnel/paired/dual-axis/stacked/composite/diagram/
-PRISMA 2020 …) · **9 journal presets** (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE/CMA/
+**25 chart types** (bar/slope/volcano/upset set-intersections/box/violin/scatter/line/heatmap/
+clustered-heatmap/forest/KM/ROC/venn 4-set ellipse/Bland-Altman/PCA/funnel/paired/dual-axis/
+stacked/composite/diagram/PRISMA 2020 …) · **9 journal presets** (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE/CMA/
 中文核心) · **9 color themes** incl. colorblind-safe Okabe-Ito · **600dpi TIFF/PDF/SVG/EPS** ·
 **fully local, zero telemetry**.
 

@@ -349,6 +349,34 @@ EGPA,5,45,30,10,10
 
 ---
 
+## UpSet Plot (`--type upset`, v4.7)
+
+```json
+{
+  "title": "五组学平台差异基因交集",
+  "sets": {
+    "转录组": ["TP53", "KRAS", "EGFR", "BRCA1"],
+    "蛋白组": ["TP53", "EGFR", "MYC", "BRCA1"],
+    "甲基化": ["TP53", "BRCA1", "CDKN2A"],
+    "eQTL": ["KRAS", "EGFR", "PTEN"],
+    "GWAS": ["TP53", "BRCA1", "ERBB2"]
+  },
+  "top_n": 12,
+  "min_size": 1,
+  "sort": "size"
+}
+```
+
+- `sets`：**≥2 个**集合（推荐 ≥5；2~4 集合用 venn 更直观），值为元素列表，自动求交集并集；
+  元素为字符串/数值标量，集合数上限 30。
+- `top_n`（默认 12，取 1~50）：按排序展示前 N 个交集；未展示交集只计入 stderr 事实行。
+- `min_size`（默认 1）：过滤元素数小于该值的交集。
+- `sort`：`size`（默认，交集大小降序）或 `degree`（交集度数优先）；同数据同图（确定性三键 tie-break）。
+- 形态：顶部=交集大小柱（计数直标）；中部=点阵（行=集合、列=交集，实心点+竖连线）；
+  左下=集合总大小横条。标题放 JSON `title` 字段（CLI `--title` 对自管图型不生效）。
+
+---
+
 ## Slope Chart (`--type slope`, v4.2)
 
 ```json

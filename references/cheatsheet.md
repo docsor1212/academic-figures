@@ -1,6 +1,6 @@
 # 速查卡（Cheat Sheet）
 
-> 一页速查：24 种图型命令骨架、全量参数、退出码、边界 Top 5。
+> 一页速查：25 种图型命令骨架、全量参数、退出码、边界 Top 5。
 > 细节：`--explain <类型>`；数据格式 `references/data-formats.md`；参数交互 `references/limits.md`。
 
 ## 一、图型命令骨架（通用格式）
@@ -23,10 +23,11 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | km | 原始 [时间,事件] 格式才有风险表/log-rank |
 | roc | `--compare`（多模型 DeLong） |
 | venn | `--area`（面积比例 Euler，2~4 集合） |
+| upset | `sets{}` 元素列表（≥5 集合）；`top_n`/`sort`/`min_size` 控制交集展示（v4.7） |
 | bland_altman | 两组等长 |
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |
-| composite | panels 内除 composite/diagram 外任意图型；不可嵌套 |
+| composite | panels 内除 composite/diagram/upset 外任意图型；不可嵌套 |
 | volcano | log2fc+pvalue 数组；fc_cut/p_cut/top 数据键；阈值线+Top 标注 |
 | slope | 两时点 [左值, 右值]；`panel_labels`/`left_floor` 等 + `--peak-label` 峰值注记（v4.2） |
 | diagram | blocks/arrows 字段 |
@@ -86,6 +87,6 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 
 1. cluster_heatmap：>1500 行建议 `--downsample`（硬上限 3000 行）。
 2. pca：≤200 特征列。
-3. venn：2~4 集合。
+3. venn：2~4 集合；upset：2~30 集合。
 4. `--journal` 锁定图宽（`--width` 被覆盖）；投稿 PDF 加 `--verify`。
-5. composite 面板内不可嵌套 composite。
+5. composite 面板内不可嵌套 composite/diagram/upset（自管图型）。

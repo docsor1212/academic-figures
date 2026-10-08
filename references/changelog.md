@@ -6,6 +6,53 @@
 
 ## Version History
 
+## 4.7.0 — 2026-10-09
+
+  - **New chart type #25: `upset` — UpSet set-intersection plot** (the standard
+    successor to venn for 5+ sets): intersection-size bars (descending, labeled)
+    + membership dot matrix + set-size bars; `sets{}` element lists (2~30 sets,
+    ≥5 recommended), `top_n` (1~50, default 12), `min_size`, `sort`
+    ("size"|"degree") with deterministic three-key tie-break; truncated
+    intersections reported on stderr (never guessed). `--suggest` now routes
+    ≥5-set data to upset (2~4 still venn); `--wizard` and `--explain upset`
+    wired.
+  - **Scenario guides** (reviewer-facing): new `references/color-guide.md`
+    (data-semantics → color order → theme → grayscale self-check, colorblind
+    rules, cross-figure semantic-color consistency) and
+    `references/combo-guide.md` (composite vs pipeline decision, span/panel
+    labels, multi-figure consistency disciplines, journal figure recipes).
+  - **FAQ systematically indexed** (data / parameters / submission / environment
+    categories with a top lookup table); new answers: color choice, multi-figure
+    style consistency, venn-vs-upset selection. `pitfalls.md` adds two
+    science-practice anti-pattern sections: rejection-prone color misuse and
+    statistical-method misuse (SD-vs-SE, bar-hides-distribution, untested
+    significance stars, paired-vs-independent, multi-comparison correction,
+    censoring marks).
+  - **Real-world research examples**: `examples/realworld/` (RCT 3-arm 48-week
+    responses n=240; RNA-seq interferon-pathway DE; IgA nephropathy 3-arm KM,
+    36.5-month follow-up) — realistic magnitudes and naming conventions, run-ready.
+  - **limits.md quick-reference table** at top (hardest boundaries in 30
+    seconds: cluster_heatmap/pca/venn/upset/km/paired/watchdog).
+  - **Hardening from an independent read-only expert review (19 findings,
+    all actionable ones fixed)**: composite panels reject the self-managed
+    `upset` type up front (exit 1, Chinese guidance); intersection bars now
+    share the dot-matrix column (classic UpSet alignment — bars sit exactly
+    above their membership columns); set-name label band sized to the longest
+    name (left margin + gap); short-set size labels fall back to dark
+    out-of-bar text; set-name axis exempted from tick-label thinning;
+    `title`/`top_n`/`min_size`/`sort`/`panel_labels` added to the known-field
+    whitelist (no more false "invalid field" warnings); pipeline
+    `format`/`multi_format` accept lists (YAML natural syntax); `--title` on
+    self-managed types now prints an explicit [ignored] notice; `--alt` gains
+    informative volcano/slope/upset descriptions; wizard routes upset to
+    templates/upset.json; venn ≥5-set error points to `-t upset`; venn/comboguide
+    recipes and realworld `_command`s verified runnable;
+    `gen_slope`/`gen_volcano`/`gen_upset` re-exported from gen_figure.
+  - Tests: +TestV47000 (upset E2E render, validate fatals, registry count 25,
+    demo-data render, suggest routing, composite-panel rejection, new reference
+    docs present); template count lock 24→25; suite at 318 green.
+
+
 ## 4.6.0 — 2026-10-08
 
   - P3 polish pack (from the same independent-testing rounds):
@@ -592,6 +639,27 @@
   带 `-o` 只报告不拦截；省略 `-o` 纯体检模式（exit 1=有发现）。
 
 ## 版本历史
+
+- **v4.7.0**（2026-10-09）—— 新图型 #25 upset 集合交集图 + 场景化指导包：
+  - **`upset`**：≥5 集合交集可视化（韦恩图 2~4 集合的标准后继）。交集大小柱（降序直标）+
+    隶属点阵+集合大小横条；`sets{}` 元素列表（2~30 集合）、`top_n`(1~50)/`min_size`/
+    `sort`(size|degree) 确定性三键 tie-break；未展示交集计入 stderr 事实行。--suggest
+    ≥5 集合改推 upset、--wizard/--explain 已接线；模板 upset.json+计数锁 24→25。
+  - **场景化指导**：新建 references/color-guide.md（配色选择策略：语义→色序→主题→灰度
+    自检）与 combo-guide.md（多图组合应用：composite/pipeline 选型+一致性纪律）。
+  - **FAQ 系统化**：顶部分类索引（数据/参数/投稿/环境）+三新增问；pitfalls 新增两节
+    科研反模式（易退稿配色、统计方法误用）。
+  - **真实科研场景示例** examples/realworld/ 三例（RCT 应答/组学火山图/三臂 KM）。
+  - **独立只读专家审查加固（19 项发现，可动手项全修）**：composite 面板前置拒绝
+    自管图型 upset（exit 1 中文指引）；交集柱与点阵同列对齐（经典 UpSet 版式，
+    柱正好在其隶属点列上方）；集合名标签带按最长名字自适应（左边距+间隙）；
+    短集合数值标签回落柱外深色；集合名轴豁免刻度抽稀；title/top_n/min_size/sort/
+    panel_labels 入字段白名单（消除「无效字段」假警告）；pipeline 的
+    format/multi_format 支持列表（YAML 自然写法）；--title 用于自管图型时显式
+    [ignored] 提示；--alt 新增 volcano/slope/upset 有信息量描述；向导 upset 指向
+    templates/upset.json；venn ≥5 集合报错指路 -t upset；组合配方与 realworld
+    _command 逐字验证可执行；gen_slope/gen_volcano/gen_upset 经 gen_figure 再导出。
+  - **limits.md 速查表**前置。测试 +TestV47000 共 318 绿。
 
 - **v2.8.0**（2026-09-17）— 看门狗与上手零门槛（对标 v2.7.0 评测最低项：稳定性 4.3、文档偏长、异常覆盖）：
   - **渲染看门狗**：按图型与数据量自适应预算（30~1800s，`--timeout N` 覆盖、`0` 禁用）；超时输出中文三段式诊断并强制中断（退出码 5）——不再无限挂起。

@@ -957,8 +957,10 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
                             _inter -= ss[keys[_i]]
                     regions["".join(keys[_i] for _i in _combo)] = len(_inter)
     elif isinstance(sets, dict):
-        raise ValueError("venn: 'sets' 需为 2~4 个集合、值为元素列表的字典；"
-                         "区域计数请改用 'regions' 键")
+        _nsets = len(sets) if isinstance(sets, dict) else 0
+        _hint = ("；≥5 集合请改用 -t upset（v4.7 UpSet 交集图）" if _nsets > 4 else "")
+        raise ValueError("venn: 'sets' 需为 2~4 个集合、值为元素列表的字典"
+                         + _hint + "；区域计数请改用 'regions' 键")
     elif isinstance(regs, dict):
         all_keys = [str(k) for k in regs.keys()]
         for k in all_keys:
@@ -1269,9 +1271,11 @@ def validate_extra(chart_type, data):
                    and all(isinstance(v, (list, tuple, set)) for v in s.values()))
         ok_regs = isinstance(rg, dict) and len(rg) in (3, 7, 15) and not s  # v2.8：15 键
         if not (ok_sets or ok_regs):
+            _nsets = len(s) if isinstance(s, dict) else 0
+            _hint = ("；≥5 集合请改用 -t upset（v4.7 UpSet 交集图）" if _nsets > 4 else "")
             fatal.append("venn: 需要 'sets'（2~4 个集合，值为元素列表）或 'regions'"
                          "（区域计数：2 集合恰 {A,B,A+B} 三键 / 3 集合恰 7 键 /"
-                         " 4 集合恰 15 键）")
+                         " 4 集合恰 15 键）" + _hint)
     elif chart_type == "cluster_heatmap":
         m = data.get("matrix", data.get("data", data.get("values")))
         if m is None:

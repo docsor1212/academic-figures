@@ -1065,7 +1065,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 24, f"expected 24 templates (v2.6 + slope + volcano), got {len(jsons)}")
+        self.assertEqual(len(jsons), 25, f"expected 25 templates (v2.6 base + slope/volcano/upset), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.6.0", self.zh)
-        self.assertIn("version: 4.6.0", self.en)
+        self.assertIn("version: 4.7.0", self.zh)
+        self.assertIn("version: 4.7.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.6.0", self.zh)
-        self.assertIn("version: 4.6.0", self.en)
+        self.assertIn("version: 4.7.0", self.zh)
+        self.assertIn("version: 4.7.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.6.0", self.zh)
-        self.assertIn("version: 4.6.0", self.en)
+        self.assertIn("version: 4.7.0", self.zh)
+        self.assertIn("version: 4.7.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.6.0", zh)
+        self.assertIn("version: 4.7.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2808,7 +2808,7 @@ class TestV3300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "24 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "25 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.6.0", t, name)
+            self.assertIn("version: 4.7.0", t, name)
 
 
 
@@ -2928,7 +2928,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.6.0", t, name)
+            self.assertIn("version: 4.7.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3047,7 +3047,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.6.0", t, name)
+            self.assertIn("version: 4.7.0", t, name)
 
 
 
@@ -3114,7 +3114,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.6.0", t, name)
+            self.assertIn("version: 4.7.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3766,6 +3766,183 @@ class TestV46000(unittest.TestCase):
         fs = labels[0].get_fontsize()
         self.assertLessEqual(fs, 6.5, f"80 行时标签字号应缩小：{fs}")
         plt.close(fig)
+
+
+class TestV47000(unittest.TestCase):
+    """v4.7.0：upset 集合交集图（第 25 种图型）+ 场景化指导文档 + 真实科研场景示例。"""
+
+    def test_upset_e2e_renders(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "u.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"title": "五平台基因集交集",
+                 "sets": {"转录组": ["TP53", "KRAS", "EGFR", "BRCA1", "MYC", "PTEN"],
+                          "蛋白组": ["TP53", "EGFR", "MYC", "AKT1"],
+                          "甲基化": ["TP53", "BRCA1", "CDKN2A"],
+                          "eQTL": ["KRAS", "EGFR", "PTEN", "AKT1"],
+                          "GWAS": ["TP53", "BRCA1", "ERBB2", "ATM"]}}, ensure_ascii=False))
+            out = os.path.join(td, "u.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "upset", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("upset:", r.stderr)
+
+    def test_upset_validate_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ({"sets": {"A": [1, 2]}}, "≥2 个集合"),
+                ({"sets": {"A": [1, 2], "B": []}}, "非空元素列表"),
+                ({"sets": {"A": [1, 2], "B": [True, 3]}}, "不支持的元素类型"),
+                ({"sets": {"A": [1, 2], "B": [2, 3]}, "top_n": 99}, "top_n"),
+                ({"sets": {"A": [1, 2], "B": [2, 3]}, "sort": "big"}, "sort"),
+                ({"sets": {"A%d" % i: [1, 2] for i in range(31)}}, "超上限 30"),
+            ]
+            for i, (data, want) in enumerate(cases):
+                f = os.path.join(td, f"b{i}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "upset", "-d", f,
+                     "-o", os.path.join(td, f"x{i}.png")],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (i, r.stderr[-200:]))
+                self.assertIn(want, r.stderr)
+
+    def test_upset_registry_count_25(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3
+        self.assertGreaterEqual(n, 25, f"注册表图型数: {n}")
+
+    def test_upset_demo_data_valid(self):
+        """DEMO_DATA 的 upset 条目可直接渲染（--demo 交互流的非交互等价验证）。"""
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        demo = gen_figure.DEMO_DATA["upset"]
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(demo, ensure_ascii=False))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "upset", "-d", f,
+                 "-o", os.path.join(td, "u.png"), "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+
+    def test_upset_suggest_routing(self):
+        """--suggest：≥5 集合数据推 upset，2 集合仍推 venn。"""
+        with tempfile.TemporaryDirectory() as td:
+            f5 = os.path.join(td, "s5.json")
+            io.open(f5, "w", encoding="utf-8").write(json.dumps(
+                {"sets": {"S%d" % i: [1, 2, 3, 4, 5] for i in range(5)}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "--suggest", "-d", f5],
+                capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stderr[-200:])
+            self.assertIn("upset", r.stdout)
+            f2 = os.path.join(td, "s2.json")
+            io.open(f2, "w", encoding="utf-8").write(json.dumps(
+                {"sets": {"A": [1, 2, 3], "B": [2, 3, 4]}}))
+            r2 = subprocess.run(
+                [sys.executable, GEN, "--suggest", "-d", f2],
+                capture_output=True, text=True, timeout=120)
+            self.assertEqual(r2.returncode, 0, r2.stderr[-200:])
+            self.assertIn("venn", r2.stdout)
+
+    def test_upset_composite_panel_rejected(self):
+        """composite 面板 type=upset 前置拒绝（自管类型不可作面板，exit 1 中文报错）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "c.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"layout": [1, 2], "panels": [
+                    {"type": "bar", "data": {"labels": ["A", "B"], "series": {"s": [1, 2]}},
+                     "title": "Panel A", "pos": [0, 0]},
+                    {"type": "upset", "data": {"sets": {"X": [1, 2], "Y": [2, 3]}},
+                     "title": "Panel B", "pos": [0, 1]}]}, ensure_ascii=False))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "composite", "-d", f,
+                 "-o", os.path.join(td, "c.png")],
+                capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 1, r.stderr[-200:])
+            self.assertIn("upset", r.stderr)
+            self.assertIn("无效", r.stderr)
+
+
+    def test_upset_variant_paths(self):
+        """degree 排序/min_size 过滤/截断事实行/过滤后无交集报错（审查 D-18①②③）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "v.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"sets": {"A": [1, 2, 3, 4], "B": [2, 3, 4], "C": [3, 4, 5],
+                          "D": [5, 6], "E": [6, 7, 8]},
+                 "sort": "degree", "top_n": 3, "min_size": 1}))
+            out = os.path.join(td, "v.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "upset", "-d", f, "-o", out, "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("sort=degree", r.stderr)
+            self.assertIn("另有", r.stderr)  # 截断事实行
+            self.assertTrue(os.path.exists(out))
+            # min_size 过滤到空 → 报错并给出当前最大交集
+            f2 = os.path.join(td, "m.json")
+            io.open(f2, "w", encoding="utf-8").write(json.dumps(
+                {"sets": {"A": [1, 2], "B": [2, 3]}, "min_size": 10}))
+            r2 = subprocess.run(
+                [sys.executable, GEN, "-t", "upset", "-d", f2,
+                 "-o", os.path.join(td, "m.png")],
+                capture_output=True, text=True, timeout=120)
+            # ValueError 属数据/格式错 → 退出码 3（v4.5.0 语义：与参数校验 1 分离）
+            self.assertEqual(r2.returncode, 3, r2.stderr[-200:])
+            self.assertIn("过滤后无交集", r2.stderr)
+            self.assertIn("当前最大交集为 1", r2.stderr)
+
+    def test_upset_bar_matrix_alignment(self):
+        """几何断言：交集柱轴与点阵轴同列同宽（审查 D-18④，防 D-04 回潮）。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_draw
+        d = {"sets": {"A": [1, 2, 3], "B": [2, 3, 4], "C": [3, 4, 5],
+                      "D": [4, 5, 6], "E": [1, 5, 6]}}
+        fig, ax = plt.subplots(figsize=(10, 6))
+        af_draw.gen_upset(d, ax, {"colors": ["#2E5E8F"], "font_size": 9}, None)
+        fig.canvas.draw()
+        isz, mat = fig.axes[0].get_position(), fig.axes[1].get_position()
+        plt.close(fig)
+        self.assertLess(abs(isz.x0 - mat.x0), 1e-6,
+                        f"交集柱轴 x0 {isz.x0} 与点阵轴 x0 {mat.x0} 错位（D-04 回潮）")
+        self.assertLess(abs(isz.width - mat.width), 1e-6, "交集柱轴与点阵轴宽度不一致")
+
+    def test_upset_realworld_commands_run(self):
+        """examples/realworld 三条 _command 逐字可执行（审查 D-18⑤，防 --top 类回归）。"""
+        base = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+        for name in ("realworld_rct_response.json", "realworld_omics_volcano.json",
+                     "realworld_survival_km.json"):
+            fp = os.path.join(base, "examples", "realworld", name)
+            d = json.load(io.open(fp, encoding="utf-8"))
+            cmd = d["_command"]
+            # 相对路径以仓库根为工作目录执行；-o 落到临时目录
+            with tempfile.TemporaryDirectory() as td:
+                cmd = cmd.rsplit("-o ", 1)[0] + "-o " + os.path.join(td, "out.png")
+                r = subprocess.run(cmd, shell=True, cwd=base,
+                                   capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0, f"{name}: {r.stderr[-250:]}")
+                self.assertTrue(os.path.exists(os.path.join(td, "out.png")), name)
+
+
+    def test_v470_scenario_docs_and_realworld(self):
+        """场景化指导文档（color-guide/combo-guide）与真实科研场景示例在包内。"""
+        base = os.path.join(SCRIPT_DIR, "..")
+        for rel in ("references/color-guide.md", "references/combo-guide.md"):
+            self.assertTrue(os.path.isfile(os.path.join(base, rel)), f"{rel} 缺失")
+        rw = os.path.join(base, "examples", "realworld")
+        self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
+        rws = sorted(os.listdir(rw))
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 3,
+                         f"realworld 示例应 3 个: {rws}")
 
 
 if __name__ == "__main__":

@@ -6,6 +6,79 @@
 
 ## Version History
 
+## 4.7.0 — 2026-10-09
+
+  - **New chart type #25: `upset` — UpSet set-intersection plot** (the standard
+    successor to venn for 5+ sets): intersection-size bars (descending, labeled)
+    + membership dot matrix + set-size bars; `sets{}` element lists (2~30 sets,
+    ≥5 recommended), `top_n` (1~50, default 12), `min_size`, `sort`
+    ("size"|"degree") with deterministic three-key tie-break; truncated
+    intersections reported on stderr (never guessed). `--suggest` now routes
+    ≥5-set data to upset (2~4 still venn); `--wizard` and `--explain upset`
+    wired.
+  - **Scenario guides** (reviewer-facing): new `references/color-guide.md`
+    (data-semantics → color order → theme → grayscale self-check, colorblind
+    rules, cross-figure semantic-color consistency) and
+    `references/combo-guide.md` (composite vs pipeline decision, span/panel
+    labels, multi-figure consistency disciplines, journal figure recipes).
+  - **FAQ systematically indexed** (data / parameters / submission / environment
+    categories with a top lookup table); new answers: color choice, multi-figure
+    style consistency, venn-vs-upset selection. `pitfalls.md` adds two
+    science-practice anti-pattern sections: rejection-prone color misuse and
+    statistical-method misuse (SD-vs-SE, bar-hides-distribution, untested
+    significance stars, paired-vs-independent, multi-comparison correction,
+    censoring marks).
+  - **Real-world research examples**: `examples/realworld/` (RCT 3-arm 48-week
+    responses n=240; RNA-seq interferon-pathway DE; IgA nephropathy 3-arm KM,
+    36.5-month follow-up) — realistic magnitudes and naming conventions, run-ready.
+  - **limits.md quick-reference table** at top (hardest boundaries in 30
+    seconds: cluster_heatmap/pca/venn/upset/km/paired/watchdog).
+  - **Hardening found by our own battery**: composite panels reject the
+    self-managed `upset` type up front (exit 1, Chinese guidance) instead of a
+    broken render; `gen_slope`/`gen_volcano`/`gen_upset` now re-exported from
+    gen_figure (restores the "import gen_figure, unchanged usage" contract).
+  - Tests: +TestV47000 (upset E2E render, validate fatals, registry count 25,
+    demo-data render, suggest routing, composite-panel rejection, new reference
+    docs present); template count lock 24→25; suite at 318 green.
+
+
+## 4.6.0 — 2026-10-08
+
+  - P3 polish pack (from the same independent-testing rounds):
+    - **ROC default semantic axis titles** ("False Positive Rate" / "True
+      Positive Rate") — explicit --xlabel/--ylabel still win.
+    - **venn title disambiguation**: the bare "n = 3" title (easily misread as
+      a sample size) now reads "共 N 项（并集元素数）" in CJK context /
+      "n = N (union of set elements)" otherwise.
+    - **cluster_heatmap row-label font adapts to row count** (>60 rows shrink
+      one step, >120 two steps; CJK font properties carry the size).
+  - No chart-type or schema changes.
+
+## 4.5.0 — 2026-10-07
+
+  - **Fixes from two rounds of independent third-party testing (~180 cases,
+    24/24 chart types, textbook datasets)**:
+    - P0: missing `BboxBase` import crashed KM+ylabel / dual_axis / composite
+      (now import-fixed; internal crashes exit 3, separated from --verify's 2).
+    - P1: validator field-table synced to data-formats.md (estimates /
+      studies_included / arrows / left* / pvalue / names no longer produce
+      false "did you mean" warnings); `significance` keys now split on ":"
+      before series lookup (false warnings eliminated).
+    - P1: `tests/run_tests.py` now ships in the package (vendor promise kept).
+    - R2-1: --suggest recognizes 5 statistical schemas (curves[]-roc /
+      studies[]-funnel / sets{}-venn / log2fc+pvalue-volcano / methods{}-BA)
+      — 10/10 standard forms hit.
+    - R2-2: journal presets save WITHOUT tight-crop — physical width now
+      matches declared mm exactly (was 2.5-2.6mm narrow).
+    - R2-5: PDF byte-deterministic (CreationDate removed).
+    - R2-6: KM single-subject group no longer prints a fake 95% CI.
+    - P2/R2-9 unified numeric policy: bool → reject; inf → reject;
+      numeric strings → auto-convert with warning; null → skipped (box family
+      included, counted warning).
+    - P2-6: GBK files report encoding (not "JSON syntax"); no phantom
+      "--width None" message.
+    - P3: CJK font detection prefers SC variant.
+
 ## 4.4.0 — 2026-10-06
 
   - **New chart type: `volcano` (type #24)** — omics differential expression
@@ -467,6 +540,36 @@
 
 ## 中文
 
+### v4.6.0（2026-10-08）
+
+- P3 视觉打磨包（同源独立测试发现项）：
+  - **ROC 默认语义轴标题**（"False Positive Rate"/"True Positive Rate"；
+    显式 --xlabel/--ylabel 仍优先）。
+  - **venn 标题消歧**：裸数字 "n = 3"（易误读为样本量）改为 CJK 语境
+    "共 N 项（并集元素数）"、非 CJK "n = N (union of set elements)"。
+  - **cluster_heatmap 行标签字号随行数自适应**（>60 行缩 1 号、>120 行缩 2 号；
+    CJK 字体属性携带字号）。
+- 图型数与 schema 无变化。
+
+### v4.5.0（2026-10-07）
+
+- **两轮独立第三方严格测试（约 180 用例、24/24 图型、教科书数据集）的 12 项修复**：
+  - P0：af_shared 缺 `BboxBase` 导入致 KM-ylabel/双轴/组合图开箱崩溃（已修；
+    内部崩溃退出码改 3，与 --verify 的 2 语义分离）。
+  - P1：校验器字段表与 data-formats.md 同源（estimates/studies_included/arrows/
+    left*/pvalue/names 不再假警告）；`significance` 键先按 ":" 拆分再查系列
+    （假警告消除）。
+  - P1：包内自带 `tests/run_tests.py`（厂商回归承诺兑现）。
+  - R2-1：--suggest 识别 5 种统计 schema（10/10 标准形态命中）。
+  - R2-2：期刊预设保存不再 tight 裁边——实际图宽=宣称毫米（原系统性窄 2.5-2.6mm）。
+  - R2-5：PDF 字节级确定（去除 CreationDate）。
+  - R2-6：KM 单例组不再输出伪 95% CI。
+  - P2/R2-9 数值策略统一：bool 拒绝、inf 拒绝、字符串数字自动转换+警告、
+    null 跳过（box 家族兑现承诺，计数警告）。
+  - P2-6：GBK 文件报编码问题（不再误报"JSON 语法错误"）；幻影
+    "--width None" 消息消除。
+  - P3：中文字体探测优先 SC 变体。
+
 ### v4.4.0（2026-10-06）
 
 - **新图型：`volcano` 火山图（第 24 种）**——组学差异表达标准形态：x=log2FC、
@@ -525,6 +628,21 @@
   带 `-o` 只报告不拦截；省略 `-o` 纯体检模式（exit 1=有发现）。
 
 ## 版本历史
+
+- **v4.7.0**（2026-10-09）—— 新图型 #25 upset 集合交集图 + 场景化指导包：
+  - **`upset`**：≥5 集合交集可视化（韦恩图 2~4 集合的标准后继）。交集大小柱（降序直标）+
+    隶属点阵+集合大小横条；`sets{}` 元素列表（2~30 集合）、`top_n`(1~50)/`min_size`/
+    `sort`(size|degree) 确定性三键 tie-break；未展示交集计入 stderr 事实行。--suggest
+    ≥5 集合改推 upset、--wizard/--explain 已接线；模板 upset.json+计数锁 24→25。
+  - **场景化指导**：新建 references/color-guide.md（配色选择策略：语义→色序→主题→灰度
+    自检）与 combo-guide.md（多图组合应用：composite/pipeline 选型+一致性纪律）。
+  - **FAQ 系统化**：顶部分类索引（数据/参数/投稿/环境）+三新增问；pitfalls 新增两节
+    科研反模式（易退稿配色、统计方法误用）。
+  - **真实科研场景示例** examples/realworld/ 三例（RCT 应答/组学火山图/三臂 KM）。
+  - **自测电池加固**：composite 面板前置拒绝自管图型 upset（exit 1 中文指引，
+    替代坏布局渲染）；gen_slope/gen_volcano/gen_upset 经 gen_figure 再导出
+    （恢复「import gen_figure 用法不变」契约）。
+  - **limits.md 速查表**前置。测试 +TestV47000 共 318 绿。
 
 - **v2.8.0**（2026-09-17）— 看门狗与上手零门槛（对标 v2.7.0 评测最低项：稳定性 4.3、文档偏长、异常覆盖）：
   - **渲染看门狗**：按图型与数据量自适应预算（30~1800s，`--timeout N` 覆盖、`0` 禁用）；超时输出中文三段式诊断并强制中断（退出码 5）——不再无限挂起。

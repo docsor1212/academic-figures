@@ -600,6 +600,17 @@ def gen_box(data, ax, theme, cjk_fp, **kwargs):
     series = data.get("series", data.get("datasets", {}))
 
     positions = list(range(len(series)))
+    # v4.5 P2-5/R2-9：null/None 跳过并计数（兑现"非数值项画图时会跳过"的警告承诺）
+    _clean = {}
+    _dropped = 0
+    for _n, _vals in series.items():
+        _c = [v for v in _vals if v is not None]
+        if len(_c) != len(_vals):
+            _dropped += len(_vals) - len(_c)
+            print(f"WARNING: box: 系列 '{_n}' 跳过 {len(_vals) - len(_c)} 个 null 值",
+                  file=sys.stderr)
+        _clean[_n] = _c
+    series = _clean
     bp = ax.boxplot(list(series.values()), positions=positions, widths=0.5,
                     patch_artist=True, showfliers=False)
 
@@ -1018,6 +1029,9 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
                 med = None
             if med is None:
                 median_notes.append(f"{gname}: 未到达")
+            elif len(t_g) < 2:
+                # v4.5 R2-6：单例组不存在 95%CI（n=1 时 KM 中位=唯一时间），只报中位
+                median_notes.append(f"{gname}: {med:g}（n=1，无CI）")
             else:
                 if clo is not None and chi_ is not None:
                     median_notes.append(f"{gname}: {med:g}（{clo:g}~{chi_:g}）")
@@ -1243,6 +1257,14 @@ def gen_roc(data, ax, theme, cjk_fp, **kwargs):
     ax.set_xlim(-0.02, 1.02)
     ax.set_ylim(-0.02, 1.02)
     ax.set_aspect('equal')
+
+    # v4.6：默认语义轴标题（期刊级；用户显式 --xlabel/--ylabel 时主流程会再覆盖）
+    _roc_xl = "False Positive Rate"
+    _roc_yl = "True Positive Rate"
+    ax.set_xlabel(_roc_xl, fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(_roc_xl) else None)
+    ax.set_ylabel(_roc_yl, fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(_roc_yl) else None)
     ax.xaxis.grid(True, alpha=theme["grid_alpha"], linestyle='--')
 
 
@@ -1485,6 +1507,192 @@ def gen_volcano(data, ax, theme, cjk_fp, **kwargs):
     apply_base_style(ax, theme)
 
 
+def _upset_name_band(names, theme, fig):
+    """v4.7 D-07：按最长集合名动态求 (左边距, wspace)——名字带=左边距+面板间隙，
+    固定值时长名会压进 set-size 条。est_in 为名字显示宽度的保守估计（CJK≈1em/字）。"""
+    fs = theme.get("font_size", 9)
+    try:
+        max_chars = max(len(str(nm)) for nm in names)
+    except ValueError:
+        max_chars = 8
+    est_in = max_chars * fs * 0.016
+    left = min(0.45, max(0.24, 0.03 + est_in / max(fig.get_figwidth(), 1e-6)))
+    usable_w = (0.97 - left) * max(fig.get_figwidth(), 1e-6)
+    needed_in = est_in + 0.15
+    wspace = min(0.9, 2.0 * needed_in / max(usable_w - needed_in, 0.5))
+    return left, wspace
+
+
+def gen_upset(data, ax, theme, cjk_fp, **kwargs):
+    """UpSet 交集图（v4.7，第 25 种图型）：多集合交集可视化——韦恩图（2~4 集合）
+    的标准后继；≥5 集合场景（组学多基因集/多标签共现/多中心入排标准重叠）远优于 venn。
+
+    经典三区布局：顶部=交集大小柱（降序，计数直标）；中部=点阵（行=集合、
+    列=交集，实心点+竖连线标隶属关系）；左下=集合总大小横条（与点阵共 y 轴、
+    自右向左生长）。排序确定性三键 tie-break（大小→度数→名称序），同数据同图；
+    未展示交集只计入 stderr 事实行，不出图（零猜测）。
+
+    JSON: {"sets": {"集合名": [元素...], ...}, "title": "..."(可选),
+           "top_n": 12, "min_size": 1, "sort": "size"|"degree"}
+    """
+    from matplotlib import gridspec as _gridspec
+    from matplotlib.ticker import MaxNLocator
+
+    sets_raw = data.get("sets")
+    if not isinstance(sets_raw, dict) or len(sets_raw) < 2:
+        raise ValueError("upset: 需要 'sets'（≥2 个集合，值为元素列表；≥5 集合时最见长，"
+                         "2~4 集合建议 venn）")
+    if len(sets_raw) > 30:
+        raise ValueError(f"upset: 集合数 {len(sets_raw)} 超上限 30"
+                         "（点阵行数过多不可读，请按意义分组或拆分）")
+    names = [str(k) for k in sets_raw.keys()]
+    if len(set(names)) != len(names):
+        raise ValueError("upset: 集合名转字符串后重复，请改名")
+    member = {}
+    for k, els in sets_raw.items():
+        nm = str(k)
+        if not isinstance(els, (list, tuple)) or not els:
+            raise ValueError(f"upset: sets['{nm}'] 必须是非空元素列表")
+        seen = set()
+        for e in els:
+            if isinstance(e, bool) or not isinstance(e, (str, int, float)):
+                raise ValueError(f"upset: sets['{nm}'] 含不支持的元素类型 "
+                                 f"{type(e).__name__}（仅字符串/数值标量）")
+            seen.add(e)
+        member[nm] = seen
+    top_n = data.get("top_n", 12)
+    min_size = data.get("min_size", 1)
+    sort_mode = str(data.get("sort", "size")).strip().lower()
+    # v4.7 D-11：与 validate 同口径的严格整数校验（Python API 直调不再静默截断 12.5→12）
+    for _nm, _v in (("top_n", top_n), ("min_size", min_size)):
+        if isinstance(_v, bool) or not isinstance(_v, int):
+            raise ValueError(f"upset: {_nm} 必须是整数")
+    if not 1 <= top_n <= 50:
+        raise ValueError("upset: top_n 取值 1~50")
+    if min_size < 1:
+        raise ValueError("upset: min_size ≥ 1")
+    if sort_mode not in ("size", "degree"):
+        raise ValueError("upset: sort 只支持 'size' 或 'degree'")
+
+    # 交集模式计数：元素 → 隶属集合 pattern → 计数
+    elem_pat = {}
+    for nm, s in member.items():
+        for e in s:
+            elem_pat.setdefault(e, set()).add(nm)
+    pat_count = {}
+    for pats in elem_pat.values():
+        fk = frozenset(pats)
+        pat_count[fk] = pat_count.get(fk, 0) + 1
+
+    pats = [(p, c) for p, c in pat_count.items() if c >= min_size]
+    if not pats:
+        raise ValueError(f"upset: min_size={min_size} 过滤后无交集可展示"
+                         f"（当前最大交集为 {max(pat_count.values())}）")
+    if sort_mode == "size":
+        pats.sort(key=lambda pc: (-pc[1], -len(pc[0]), sorted(pc[0])))
+    else:
+        pats.sort(key=lambda pc: (-len(pc[0]), -pc[1], sorted(pc[0])))
+    shown = pats[:top_n]
+    n_hidden = len(pats) - len(shown)
+    hidden_elems = sum(c for _, c in pats[top_n:])
+
+    n = len(names)
+    row_of = {nm: n - 1 - i for i, nm in enumerate(names)}  # 首个集合=顶行
+    fig = ax.figure
+    ax.remove()
+    # v4.7 D-04：交集柱必须与点阵同列（gs[0,1]），否则柱与隶属点阵错位 1/4 图宽，
+    # 破坏 UpSet 的定义性读图关系（经典 UpSet 左上留空：suptitle 居中覆盖）。
+    _lft, _wsp = _upset_name_band(names, theme, fig)
+    gs = _gridspec.GridSpec(2, 2, figure=fig, height_ratios=[2.7, 1.5],
+                            width_ratios=[0.95, 3.05], hspace=0.06,
+                            wspace=_wsp, left=_lft,
+                            right=0.97, top=0.88, bottom=0.07)
+    ax_isz = fig.add_subplot(gs[0, 1])
+    ax_mat = fig.add_subplot(gs[1, 1])
+    ax_set = fig.add_subplot(gs[1, 0])  # 不 sharey（共享组会让 tick_params 相互传播）
+    c0 = theme["colors"][0]
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    _cjk_all = cjk_fp if cjk_fp and has_cjk("".join(names) + "交集集合") else None
+
+    # 顶部：交集大小柱（计数直标；整数刻度）
+    counts = [c for _, c in shown]
+    xs = np.arange(len(shown))
+    ax_isz.bar(xs, counts, width=0.62, color=c0, edgecolor="none", zorder=3)
+    for x, c in zip(xs, counts):
+        ax_isz.text(x, c + max(counts) * 0.02, str(c), ha="center", va="bottom",
+                    fontsize=fs_s, color="#333333")
+    ax_isz.set_xlim(-0.7, len(shown) - 0.3)
+    ax_isz.set_ylim(0, max(counts) * 1.18)
+    ax_isz.set_xticks([])
+    ax_isz.set_ylabel("Intersection size", fontsize=fs)
+    ax_isz.yaxis.set_major_locator(MaxNLocator(integer=True, nbins=5))
+    ax_isz.spines["top"].set_visible(False)
+    ax_isz.spines["right"].set_visible(False)
+    if n_hidden:
+        _hid = (f"另有 {n_hidden} 个交集（共 {hidden_elems} 个元素）未展示"
+                if _cjk_all else
+                f"+{n_hidden} more intersections ({hidden_elems} elements) not shown")
+        ax_isz.text(0.995, 0.97, _hid, transform=ax_isz.transAxes, ha="right",
+                    va="top", fontsize=fs_s, color="#777777",
+                    fontproperties=_cjk_all)
+
+    # 中部：点阵（实心点+竖连线）
+    for j, (pat, _c) in enumerate(shown):
+        rows = sorted(row_of[s] for s in pat)
+        if len(rows) > 1:
+            ax_mat.plot([j, j], [rows[0], rows[-1]], color="#4A4A4A", lw=1.0,
+                        zorder=2, solid_capstyle="butt")
+        for r in rows:
+            ax_mat.plot(j, r, "o", ms=5.2, color="#2E2E2E", zorder=3,
+                        markeredgecolor="none")
+    ax_mat.set_xlim(-0.7, len(shown) - 0.3)
+    ax_mat.set_ylim(-0.7, n - 0.3)
+    ax_mat.set_yticks(range(n))
+    ax_mat.set_yticklabels(list(reversed(names)), fontsize=fs_s,
+                           fontproperties=_cjk_all)
+    ax_mat._af_category_axis = True  # 集合名是数据：豁免 fix_tick_overlaps 静默抽稀（D-06）
+    ax_mat.set_xticks([])
+    for sp in ("top", "right", "bottom", "left"):
+        ax_mat.spines[sp].set_visible(False)
+    ax_mat.tick_params(left=False, bottom=False)
+
+    # 左下：集合总大小横条（自右向左生长，与点阵同 y 界；数值白字居柱内右端）
+    set_sizes = [len(member[nm]) for nm in names]
+    ys = [row_of[nm] for nm in names]
+    _smax = max(set_sizes)
+    ax_set.barh(ys, set_sizes, height=0.52, color=c0, alpha=0.55,
+                edgecolor="none", zorder=3)
+    for y, v in zip(ys, set_sizes):
+        if v >= _smax * 0.12:
+            # 数值白字居柱内右端（柱足够长时）
+            ax_set.text(_smax * 0.04, y, str(v), va="center", ha="right",
+                        fontsize=fs_s, color="#FFFFFF", zorder=4)
+        else:
+            # D-05：短柱时白字会落到柱外白底上不可见——改深色置于柱尖外侧
+            ax_set.text(v + _smax * 0.05, y, str(v), va="center", ha="right",
+                        fontsize=fs_s, color="#333333", zorder=4)
+    ax_set.set_xlim(_smax * 1.45, 0)
+    ax_set.set_ylim(-0.7, n - 0.3)
+    ax_set.set_yticks([])
+    ax_set.set_xticks([])
+    for sp in ("top", "right", "bottom", "left"):
+        ax_set.spines[sp].set_visible(False)
+    ax_set.tick_params(labelleft=False, left=False, bottom=False)
+    ax_set.set_ylabel("Set size", fontsize=fs)
+
+    ttl = data.get("title")
+    if ttl:
+        fig.suptitle(str(ttl), fontsize=fs + 1, fontweight="bold",
+                     fontproperties=cjk_fp if cjk_fp and has_cjk(str(ttl)) else None)
+
+    print(f"upset: {n} 集合 / {len(pat_count)} 个非空交集模式 / 展示 top {len(shown)}"
+          f"（sort={sort_mode}，min_size={min_size}）"
+          + (f"；另有 {n_hidden} 个交集（{hidden_elems} 元素）未展示" if n_hidden else ""),
+          file=sys.stderr)
+    return "upset"  # main() 据此跳过 tight_layout/基础样式（自管类型，同 composite）
+
+
 def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
     """Dual Y-axis chart, canonical 左柱右线 form (v3.10): left-axis series draw
     as BARS, right-axis series as dashed LINES — override per side with data keys
@@ -1707,6 +1915,12 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
         if gen_func is None:
             sub_ax.text(0.5, 0.5, f"Unknown type: {panel_type}",
                         ha='center', va='center', transform=sub_ax.transAxes)
+            continue
+        # v4.7：自管类型不可作面板（validate 已前置拦截；此处兜底 Python API 直调路径）
+        if panel_type in ("composite", "diagram", "upset"):
+            sub_ax.text(0.5, 0.5, f"'{panel_type}' 不能作为面板（自管图型）",
+                        ha='center', va='center', transform=sub_ax.transAxes,
+                        fontproperties=cjk_fp if cjk_fp else None)
             continue
 
         # Pass through relevant kwargs
@@ -2338,4 +2552,5 @@ GENERATORS = {
     "prisma": gen_prisma,
     "slope": gen_slope,
     "volcano": gen_volcano,
+    "upset": gen_upset,
 }

@@ -25,6 +25,17 @@ python3 scripts/gen_figure.py --list-themes
 | example_line.json | `python3 scripts/gen_figure.py -t line -d examples/example_line.json -o fig.png --cjk` | 多组折线图（临床评分） |
 | example_stacked.json | `python3 scripts/gen_figure.py -t stacked_bar -d examples/example_stacked.json -o fig.png --cjk` | 构成比堆叠柱状图 |
 
+## 真实科研场景示例（realworld/）
+
+`examples/realworld/`：贴近论文真实形态的场景数据（含样本量、真实基因名/终点命名惯例），
+可直接作为你论文图 1/2/3 的起点：
+
+| 文件 | 命令要点 | 场景 |
+|------|------|------|
+| realworld_rct_response.json | `-t grouped_bar --cjk` | RCT 三臂 48 周应答率（n=240） |
+| realworld_omics_volcano.json | `-t volcano` | RNA-seq 差异表达（干扰素通路） |
+| realworld_survival_km.json | `-t km --cjk` | IgA 肾病三臂生存曲线（36.5 月随访） |
+
 ## GLM 黄蓝斜线风格（招牌风格）
 
 ```bash

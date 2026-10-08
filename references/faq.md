@@ -2,6 +2,15 @@
 
 > 按场景分组。没找到答案时：`--explain <图型>` 看单图型说明，或翻 `pitfalls.md`（深度避坑）。
 
+## 分类索引（先定位，再查答案）
+
+| 问题类别 | 覆盖内容 | 本页章节 | 深度文档 |
+|---|---|---|---|
+| **数据类** | 格式选择、报错解读、长表转换、数据量上限 | 数据与格式 · 报错信息速查 | data-formats.md · limits.md |
+| **参数类** | 图型选择、参数冲突、统计标注、批量命令 | 参数与图型选择 · 参数冲突与边界 | cheatsheet.md · --explain |
+| **投稿类** | 格式/DPI、重叠检查、图注、配色合规、多图统一 | 输出与投稿 | color-guide.md · combo-guide.md · audit_pdf.py |
+| **环境类** | 安装、中文字体、离线运行、依赖 | 安装与环境 | setup_env.py |
+
 ## 安装与环境
 
 **Q：需要装什么？**
@@ -55,7 +64,7 @@ auto=各组对第一组（两组就能用）；multi=全两两（需 ≥3 组，
 `--compare` 配对 DeLong 检验。需要 `labels`（0/1）+ 每条曲线的原始 `scores`；只有 fpr/tpr 曲线无法做 DeLong（会提示）。
 
 **Q：组合图（composite）里能嵌组合图吗？**
-不能。面板支持除 composite/diagram 外的所有图型，布局参考 `references/composite-layouts.md`。
+不能。面板支持除 composite/diagram/upset 外的所有图型（composite/diagram/upset 为自管图型，内部自建坐标轴），布局参考 `references/composite-layouts.md`。
 
 **Q：能在自己的 Python 代码里调用吗？**
 能。subprocess 调 CLI（功能全）或 import 引擎函数级嵌入（load_data/validate_data/gen_*），示例代码见 `references/python-api.md`。
@@ -70,6 +79,15 @@ auto=各组对第一组（两组就能用）；multi=全两两（需 ≥3 组，
 
 **Q：图注/无障碍描述能自动生成吗？**
 `--caption` 生成中英双语期刊式图注；`--alt` 生成无障碍描述，均为旁车文件，不覆盖图片。
+
+**Q：配色怎么选？期刊对色盲安全有要求怎么办？**
+投稿通用 `--theme okabe-ito`（Nature Methods 金标准色盲安全）；跟期刊色板用 `--theme nature/lancet/nejm/science`；黑白打印加 `--hatch` 斜纹冗余编码。系统化的「数据语义→色序→主题→灰度自检」流程见 `color-guide.md`。
+
+**Q：多张图（Figure 1/2/3）怎么保持风格统一？**
+两个层级：单张多面板用 `composite`（A/B/C 角标+跨行跨列拼版）；多文件批产用 `--pipeline`（`defaults` 锁主题/DPI/格式，产出 `.batch-report.json` 核对）。选择口诀与一致性纪律见 `combo-guide.md`。
+
+**Q：集合关系画 venn 还是 upset？**
+2~4 集合用 `venn`（4 集合椭圆布局）；≥5 集合用 `upset`（交集按大小降序点阵展示，venn 画不了）——`--suggest` 也会按集合数自动推荐。
 
 ## 报错信息速查
 

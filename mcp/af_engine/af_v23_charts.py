@@ -957,8 +957,10 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
                             _inter -= ss[keys[_i]]
                     regions["".join(keys[_i] for _i in _combo)] = len(_inter)
     elif isinstance(sets, dict):
-        raise ValueError("venn: 'sets' 需为 2~4 个集合、值为元素列表的字典；"
-                         "区域计数请改用 'regions' 键")
+        _nsets = len(sets) if isinstance(sets, dict) else 0
+        _hint = ("；≥5 集合请改用 -t upset（v4.7 UpSet 交集图）" if _nsets > 4 else "")
+        raise ValueError("venn: 'sets' 需为 2~4 个集合、值为元素列表的字典"
+                         + _hint + "；区域计数请改用 'regions' 键")
     elif isinstance(regs, dict):
         all_keys = [str(k) for k in regs.keys()]
         for k in all_keys:
@@ -1116,7 +1118,11 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
                         ha="center", va="center", fontweight="bold", color="#333333",
                         zorder=6)
     total = sum(regions.values())
-    ax.set_title(f"n = {total}") if not data.get("title") else None
+    # v4.6：n 消歧义——单写数字易误读为样本量，明示"并集元素总数"
+    if not data.get("title"):
+        _has_cjk_txt = any(any("\u4e00" <= ch <= "\u9fff" for ch in str(s)) for s in (sets or {}).keys())
+        _vn = f"共 {total} 项（并集元素数）" if _has_cjk_txt else f"n = {total} (union of set elements)"
+        ax.set_title(_vn)
     return None
 
 
@@ -1165,8 +1171,19 @@ def gen_cluster_heatmap(data, ax, theme, cjk_fp, **kwargs):
                        fontsize=max(6, theme["font_size"] - 2),
                        fontproperties=_fp(cjk_fp, " ".join(map(str, cl2))))
     ax.set_yticks(range(len(rl2)))
-    ax.set_yticklabels(rl2, fontsize=max(6, theme["font_size"] - 2),
-                       fontproperties=_fp(cjk_fp, " ".join(map(str, rl2))))
+    # v4.6 P3：行数多时行标签字号自适应缩小（>60 行缩 1 号、>120 行缩 2 号——可读性）
+    _yfs = max(5, theme["font_size"] - 2)
+    if len(rl2) > 60:
+        _yfs = max(5, theme["font_size"] - 3)
+    if len(rl2) > 120:
+        _yfs = max(4.5, theme["font_size"] - 4)
+    # 无 CJK 时用 fontsize kwarg；有 CJK 时复制 cjk_fp 并设字号（None 不能 set_size）
+    if cjk_fp is not None:
+        _fp_row = cjk_fp.copy()
+        _fp_row.set_size(_yfs)
+        ax.set_yticklabels(rl2, fontproperties=_fp_row)
+    else:
+        ax.set_yticklabels(rl2, fontsize=_yfs)
     for spine in ax.spines.values():
         spine.set_visible(False)
     if kwargs.get("show_values"):
@@ -1254,9 +1271,11 @@ def validate_extra(chart_type, data):
                    and all(isinstance(v, (list, tuple, set)) for v in s.values()))
         ok_regs = isinstance(rg, dict) and len(rg) in (3, 7, 15) and not s  # v2.8：15 键
         if not (ok_sets or ok_regs):
+            _nsets = len(s) if isinstance(s, dict) else 0
+            _hint = ("；≥5 集合请改用 -t upset（v4.7 UpSet 交集图）" if _nsets > 4 else "")
             fatal.append("venn: 需要 'sets'（2~4 个集合，值为元素列表）或 'regions'"
                          "（区域计数：2 集合恰 {A,B,A+B} 三键 / 3 集合恰 7 键 /"
-                         " 4 集合恰 15 键）")
+                         " 4 集合恰 15 键）" + _hint)
     elif chart_type == "cluster_heatmap":
         m = data.get("matrix", data.get("data", data.get("values")))
         if m is None:

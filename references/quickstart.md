@@ -36,7 +36,7 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
 ## 三、上手四步
 
 1. **环境准备**：`python3 scripts/setup_env.py`（装依赖/检测中文字体/清理字体缓存/自检）。
-2. **用模板先跑通**：`templates/` 覆盖 24 种图型，每个 JSON 头部带可复制的 `_command`；
+2. **用模板先跑通**：`templates/` 覆盖 25 种图型，每个 JSON 头部带可复制的 `_command`；
    先用示例数据渲染一张确认环境无问题。
 3. **换成自己的数据**：数据格式对照 `references/data-formats.md`；先小尺寸
    （如 `--dpi 150`）快速出一张核对内容，再出 600dpi 成品。
@@ -61,7 +61,7 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
    尺寸就别加 `--journal`。
 4. **cluster_heatmap 行数偏大**：>1500 行即建议 `--downsample N` 等距采样（硬上限
    3000 行，层次聚类内存随行数平方增长）。
-5. **组合图面板内不能再嵌 composite**；面板支持除 composite/diagram 外的所有图型。
+5. **组合图面板内不能再嵌 composite/diagram/upset**；面板支持其余全部图型。
 6. **投稿 PDF 忘加 `--verify`**：重叠检测只在显式加 `--verify` 时执行（重叠→退出码 2）。
 7. **参数组合拿不准**：`--doctor` 渲染前体检一次（省略 `-o` 只体检；组合冲突/数据/依赖/
    输出目录一次说清，exit 1=有发现）。

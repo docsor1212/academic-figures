@@ -11,7 +11,7 @@ _WIZARD_SHAPES = [
     ("两列连续值（相关/散点）", ["scatter"], "templates/12-dose-response-scatter.json"),
     ("生存数据（时间+事件，分组）", ["km"], "templates/03-survival-km.json"),
     ("诊断试验（标志物+金标准）", ["roc"], "templates/04-diagnostic-roc.json"),
-    ("基因/元素集合（交并关系）", ["venn"], "templates/venn.json"),
+    ("基因/元素集合（交并关系；≥5 集合选 upset）", ["venn", "upset"], "templates/venn.json"),
     ("二维数值矩阵（行×列）", ["heatmap", "cluster_heatmap"], "templates/cluster_heatmap.json"),
     ("逐例生存+协变量（多因素 Cox 回归）", ["forest"], None),
     ("效应值+标准误（Meta 分析）", ["forest"], "templates/01-meta-forest.json"),
@@ -87,6 +87,12 @@ def _run_wizard():
     except EOFError:
         data_path = ""
     if not data_path:
+        # v4.7 D-14：图型同名模板优先（如 upset → templates/upset.json），
+        # 向导推荐命令不再指向异图型模板
+        _same = f"templates/{chart}.json"
+        if os.path.exists(os.path.join(os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))), _same)):
+            tmpl = _same
         if tmpl:
             data_path = tmpl
             print(f"   → 先复制模板改数据：cp {tmpl} mydata.json")
