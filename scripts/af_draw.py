@@ -1257,6 +1257,14 @@ def gen_roc(data, ax, theme, cjk_fp, **kwargs):
     ax.set_xlim(-0.02, 1.02)
     ax.set_ylim(-0.02, 1.02)
     ax.set_aspect('equal')
+
+    # v4.6：默认语义轴标题（期刊级；用户显式 --xlabel/--ylabel 时主流程会再覆盖）
+    _roc_xl = "False Positive Rate"
+    _roc_yl = "True Positive Rate"
+    ax.set_xlabel(_roc_xl, fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(_roc_xl) else None)
+    ax.set_ylabel(_roc_yl, fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(_roc_yl) else None)
     ax.xaxis.grid(True, alpha=theme["grid_alpha"], linestyle='--')
 
 

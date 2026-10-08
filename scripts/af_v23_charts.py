@@ -1116,7 +1116,11 @@ def gen_venn(data, ax, theme, cjk_fp, **kwargs):
                         ha="center", va="center", fontweight="bold", color="#333333",
                         zorder=6)
     total = sum(regions.values())
-    ax.set_title(f"n = {total}") if not data.get("title") else None
+    # v4.6：n 消歧义——单写数字易误读为样本量，明示"并集元素总数"
+    if not data.get("title"):
+        _has_cjk_txt = any(any("\u4e00" <= ch <= "\u9fff" for ch in str(s)) for s in (sets or {}).keys())
+        _vn = f"共 {total} 项（并集元素数）" if _has_cjk_txt else f"n = {total} (union of set elements)"
+        ax.set_title(_vn)
     return None
 
 
@@ -1165,8 +1169,19 @@ def gen_cluster_heatmap(data, ax, theme, cjk_fp, **kwargs):
                        fontsize=max(6, theme["font_size"] - 2),
                        fontproperties=_fp(cjk_fp, " ".join(map(str, cl2))))
     ax.set_yticks(range(len(rl2)))
-    ax.set_yticklabels(rl2, fontsize=max(6, theme["font_size"] - 2),
-                       fontproperties=_fp(cjk_fp, " ".join(map(str, rl2))))
+    # v4.6 P3：行数多时行标签字号自适应缩小（>60 行缩 1 号、>120 行缩 2 号——可读性）
+    _yfs = max(5, theme["font_size"] - 2)
+    if len(rl2) > 60:
+        _yfs = max(5, theme["font_size"] - 3)
+    if len(rl2) > 120:
+        _yfs = max(4.5, theme["font_size"] - 4)
+    # 无 CJK 时用 fontsize kwarg；有 CJK 时复制 cjk_fp 并设字号（None 不能 set_size）
+    if cjk_fp is not None:
+        _fp_row = cjk_fp.copy()
+        _fp_row.set_size(_yfs)
+        ax.set_yticklabels(rl2, fontproperties=_fp_row)
+    else:
+        ax.set_yticklabels(rl2, fontsize=_yfs)
     for spine in ax.spines.values():
         spine.set_visible(False)
     if kwargs.get("show_values"):

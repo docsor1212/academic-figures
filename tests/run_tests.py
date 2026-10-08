@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.5.0", self.zh)
-        self.assertIn("version: 4.5.0", self.en)
+        self.assertIn("version: 4.6.0", self.zh)
+        self.assertIn("version: 4.6.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.5.0", self.zh)
-        self.assertIn("version: 4.5.0", self.en)
+        self.assertIn("version: 4.6.0", self.zh)
+        self.assertIn("version: 4.6.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.5.0", self.zh)
-        self.assertIn("version: 4.5.0", self.en)
+        self.assertIn("version: 4.6.0", self.zh)
+        self.assertIn("version: 4.6.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.5.0", zh)
+        self.assertIn("version: 4.6.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.5.0", t, name)
+            self.assertIn("version: 4.6.0", t, name)
 
 
 
@@ -2928,7 +2928,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.5.0", t, name)
+            self.assertIn("version: 4.6.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3047,7 +3047,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.5.0", t, name)
+            self.assertIn("version: 4.6.0", t, name)
 
 
 
@@ -3114,7 +3114,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.5.0", t, name)
+            self.assertIn("version: 4.6.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3717,5 +3717,57 @@ class TestV44000(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-250:])
 
 
+class TestV46000(unittest.TestCase):
+    """v4.6.0：ROC 默认语义轴标题 + venn n 消歧 + 聚类热图行标签自适应字号（P3 打磨包）。"""
+
+    def test_roc_default_axis_titles(self):
+        """ROC 未显式给轴标题时默认 FPR/TPR 语义轴标题（期刊级）。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        sys.path.insert(0, SCRIPT_DIR)
+        g = __import__("gen_figure")
+        d = {"curves": [{"name": "M", "fpr": [0, 0.5, 1], "tpr": [0, 0.8, 1]}]}
+        fig, ax = plt.subplots(figsize=(5, 5))
+        g.gen_roc(d, ax, {"colors": ["#3B6FA0"], "font_size": 9, "spines": ["top", "right"],
+                          "grid_alpha": 0.3, "colorblind_safe": False}, None)
+        self.assertIn("False Positive Rate", ax.get_xlabel())
+        self.assertIn("True Positive Rate", ax.get_ylabel())
+        plt.close(fig)
+
+    def test_venn_title_disambiguation(self):
+        """venn 无 title 时标题明示"并集元素数"（不再裸数字 n=3 易误读为例数）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "v.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"sets": {"A": [1, 2, 3], "B": [2, 3, 4]}}))
+            out = os.path.join(td, "v.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "venn", "-d", f, "-o", out, "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+
+    def test_cluster_heatmap_label_font_adaptive(self):
+        """聚类热图行标签字号随行数自适应缩小（>60 行缩 1 号）。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_v23_charts as ac
+        d = {"matrix": [[i % 7 + j * 0.1 for j in range(6)] for i in range(80)],
+             "row_labels": [f"基因{i}" for i in range(80)]}
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ac.gen_cluster_heatmap(d, ax, {"colors": ["#3B6FA0"], "font_size": 9,
+                                       "spines": ["top", "right"], "grid_alpha": 0.3,
+                                       "colorblind_safe": False}, None)
+        labels = ax.get_yticklabels()
+        self.assertTrue(labels)
+        fs = labels[0].get_fontsize()
+        self.assertLessEqual(fs, 6.5, f"80 行时标签字号应缩小：{fs}")
+        plt.close(fig)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+

@@ -6,6 +6,18 @@
 
 ## Version History
 
+## 4.6.0 — 2026-10-08
+
+  - P3 polish pack (from the same independent-testing rounds):
+    - **ROC default semantic axis titles** ("False Positive Rate" / "True
+      Positive Rate") — explicit --xlabel/--ylabel still win.
+    - **venn title disambiguation**: the bare "n = 3" title (easily misread as
+      a sample size) now reads "共 N 项（并集元素数）" in CJK context /
+      "n = N (union of set elements)" otherwise.
+    - **cluster_heatmap row-label font adapts to row count** (>60 rows shrink
+      one step, >120 two steps; CJK font properties carry the size).
+  - No chart-type or schema changes.
+
 ## 4.5.0 — 2026-10-07
 
   - **Fixes from two rounds of independent third-party testing (~180 cases,
@@ -491,6 +503,17 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v4.6.0（2026-10-08）
+
+- P3 视觉打磨包（同源独立测试发现项）：
+  - **ROC 默认语义轴标题**（"False Positive Rate"/"True Positive Rate"；
+    显式 --xlabel/--ylabel 仍优先）。
+  - **venn 标题消歧**：裸数字 "n = 3"（易误读为样本量）改为 CJK 语境
+    "共 N 项（并集元素数）"、非 CJK "n = N (union of set elements)"。
+  - **cluster_heatmap 行标签字号随行数自适应**（>60 行缩 1 号、>120 行缩 2 号；
+    CJK 字体属性携带字号）。
+- 图型数与 schema 无变化。
 
 ### v4.5.0（2026-10-07）
 
