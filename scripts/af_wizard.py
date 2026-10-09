@@ -12,6 +12,7 @@ _WIZARD_SHAPES = [
     ("生存数据（时间+事件，分组）", ["km"], "templates/03-survival-km.json"),
     ("诊断试验（标志物+金标准）", ["roc"], "templates/04-diagnostic-roc.json"),
     ("基因/元素集合（交并关系；≥5 集合选 upset）", ["venn", "upset"], "templates/venn.json"),
+    ("每例最佳缓解百分比（肿瘤瀑布图）", ["waterfall"], "templates/waterfall.json"),
     ("二维数值矩阵（行×列）", ["heatmap", "cluster_heatmap"], "templates/cluster_heatmap.json"),
     ("逐例生存+协变量（多因素 Cox 回归）", ["forest"], None),
     ("效应值+标准误（Meta 分析）", ["forest"], "templates/01-meta-forest.json"),

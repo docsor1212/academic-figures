@@ -1,6 +1,6 @@
 # 速查卡（Cheat Sheet）
 
-> 一页速查：25 种图型命令骨架、全量参数、退出码、边界 Top 5。
+> 一页速查：26 种图型命令骨架、全量参数、退出码、边界 Top 5。
 > 细节：`--explain <类型>`；数据格式 `references/data-formats.md`；参数交互 `references/limits.md`。
 
 ## 一、图型命令骨架（通用格式）
@@ -24,6 +24,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | roc | `--compare`（多模型 DeLong） |
 | venn | `--area`（面积比例 Euler，2~4 集合） |
 | upset | `sets{}` 元素列表（≥5 集合）；`top_n`/`sort`/`min_size` 控制交集展示（v4.7） |
+| waterfall | `change[]` 每例最佳缓解%；`group` RECIST 着色、`pr_cut/pd_cut` 阈值线（v4.8） |
 | bland_altman | 两组等长 |
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |

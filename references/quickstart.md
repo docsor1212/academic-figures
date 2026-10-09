@@ -36,7 +36,7 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
 ## 三、上手四步
 
 1. **环境准备**：`python3 scripts/setup_env.py`（装依赖/检测中文字体/清理字体缓存/自检）。
-2. **用模板先跑通**：`templates/` 覆盖 25 种图型，每个 JSON 头部带可复制的 `_command`；
+2. **用模板先跑通**：`templates/` 覆盖 26 种图型，每个 JSON 头部带可复制的 `_command`；
    先用示例数据渲染一张确认环境无问题。
 3. **换成自己的数据**：数据格式对照 `references/data-formats.md`；先小尺寸
    （如 `--dpi 150`）快速出一张核对内容，再出 600dpi 成品。

@@ -1065,7 +1065,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 25, f"expected 25 templates (v2.6 base + slope/volcano/upset), got {len(jsons)}")
+        self.assertEqual(len(jsons), 26, f"expected 26 templates (v2.6 base + slope/volcano/upset/waterfall), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.7.0", self.zh)
-        self.assertIn("version: 4.7.0", self.en)
+        self.assertIn("version: 4.8.0", self.zh)
+        self.assertIn("version: 4.8.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.7.0", self.zh)
-        self.assertIn("version: 4.7.0", self.en)
+        self.assertIn("version: 4.8.0", self.zh)
+        self.assertIn("version: 4.8.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2604,8 +2604,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.7.0", self.zh)
-        self.assertIn("version: 4.7.0", self.en)
+        self.assertIn("version: 4.8.0", self.zh)
+        self.assertIn("version: 4.8.0", self.en)
 
 
 
@@ -2670,7 +2670,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.7.0", zh)
+        self.assertIn("version: 4.8.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2808,7 +2808,7 @@ class TestV3300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "25 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "26 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2839,7 +2839,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.7.0", t, name)
+            self.assertIn("version: 4.8.0", t, name)
 
 
 
@@ -2928,7 +2928,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.7.0", t, name)
+            self.assertIn("version: 4.8.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3047,7 +3047,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.7.0", t, name)
+            self.assertIn("version: 4.8.0", t, name)
 
 
 
@@ -3114,7 +3114,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.7.0", t, name)
+            self.assertIn("version: 4.8.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3920,7 +3920,7 @@ class TestV47000(unittest.TestCase):
         """examples/realworld 三条 _command 逐字可执行（审查 D-18⑤，防 --top 类回归）。"""
         base = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         for name in ("realworld_rct_response.json", "realworld_omics_volcano.json",
-                     "realworld_survival_km.json"):
+                     "realworld_survival_km.json", "realworld_oncology_waterfall.json"):
             fp = os.path.join(base, "examples", "realworld", name)
             d = json.load(io.open(fp, encoding="utf-8"))
             cmd = d["_command"]
@@ -3941,8 +3941,196 @@ class TestV47000(unittest.TestCase):
         rw = os.path.join(base, "examples", "realworld")
         self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
         rws = sorted(os.listdir(rw))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 3,
-                         f"realworld 示例应 3 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 4,
+                         f"realworld 示例应 4 个: {rws}")
+
+
+class TestV48000(unittest.TestCase):
+    """v4.8.0：waterfall 肿瘤缓解瀑布图（第 26 种图型，RECIST 着色+阈值线）。"""
+
+    def test_waterfall_e2e_group(self):
+        """分组（RECIST）模式 E2E：渲染+stderr 事实行。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "w.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"change": [-72.4, -65.1, -58.9, -52.0, -47.3, -41.8, -35.6, -32.1,
+                            -28.7, -24.5, -19.8, -15.2, -8.9, -3.4, 0.8, 12.6, 25.3, 41.7],
+                 "names": [f"P{i:03d}" for i in range(1, 19)],
+                 "group": ["PR", "CR", "PR", "PR", "PR", "PR", "PR", "PR",
+                           "PR", "PR", "SD", "SD", "SD", "SD", "SD", "PD", "PD", "PD"]},
+                ensure_ascii=False))
+            out = os.path.join(td, "w.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "waterfall", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("waterfall: 18 例", r.stderr)
+            self.assertIn("PD 3", r.stderr)
+
+    def test_waterfall_bucket_and_show_values(self):
+        """阈值分桶模式（无 group）+ --show-values 渲染成功。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "b.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"change": [-72.4, -58.9, -52.0, -41.8, -32.1, -28.7,
+                            -19.8, -8.9, -3.4, 0.8, 12.6, 41.7]}))
+            out = os.path.join(td, "b.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "waterfall", "-d", f, "-o", out,
+                 "--dpi", "80", "--show-values"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+
+    def test_waterfall_validate_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ({}, "需要 'change'"),
+                ({"change": []}, "非空数值数组"),
+                ({"change": [1, "x"]}, "必须全为数值"),
+                ({"change": [-1, 2], "names": ["a"]}, "names"),
+                ({"change": [-1, 2], "group": ["PR"]}, "group"),
+                ({"change": [-1, 2], "pr_cut": 30}, "pr_cut 必须为负数"),
+                ({"change": [-1, 2], "pd_cut": -20}, "pd_cut 必须为正数"),
+                ({"change": [-1, 2], "sort": "asc"}, "sort"),
+            ]
+            for i, (data, want) in enumerate(cases):
+                f = os.path.join(td, f"b{i}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "waterfall", "-d", f,
+                     "-o", os.path.join(td, f"x{i}.png")],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (i, r.stderr[-200:]))
+                self.assertIn(want, r.stderr)
+
+    def test_waterfall_registry_count_26(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3
+        self.assertGreaterEqual(n, 26, f"注册表图型数: {n}")
+
+    def test_waterfall_demo_data_valid(self):
+        """DEMO_DATA 的 waterfall 条目可直接渲染。"""
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        demo = gen_figure.DEMO_DATA["waterfall"]
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(demo, ensure_ascii=False))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "waterfall", "-d", f,
+                 "-o", os.path.join(td, "w.png"), "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+
+    def test_waterfall_sort_input(self):
+        """sort=input 保持给定顺序（不重排）；stderr 标明 sort=input。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "s.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"change": [10.0, -50.0, 5.0, -20.0], "names": ["甲", "乙", "丙", "丁"],
+                 "sort": "input"}))
+            out = os.path.join(td, "s.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "waterfall", "-d", f, "-o", out,
+                 "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("sort=input", r.stderr)
+            self.assertTrue(os.path.exists(out))
+
+    def test_waterfall_long_labels_vertical(self):
+        """>14 例时 x 标签竖排（旋转 90°，不丢标签）。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_draw
+        n = 20
+        d = {"change": [(-1) ** i * (5 + i % 9) * 3.0 for i in range(n)],
+             "names": [f"PT-{i:02d}" for i in range(1, n + 1)]}
+        fig, ax = plt.subplots(figsize=(10, 6))
+        af_draw.gen_waterfall(d, ax, {"colors": ["#2E5E8F"], "font_size": 9,
+                                      "spines": ["top", "right"], "grid_alpha": 0.3}, None)
+        labels = ax.get_xticklabels()
+        plt.close(fig)
+        self.assertEqual(len(labels), n, "标签数量=例数（竖排不丢标签）")
+        self.assertAlmostEqual(labels[0].get_rotation(), 90.0, msg=">14 例应竖排")
+
+    def test_waterfall_no_false_field_warnings(self):
+        """官方字段 change/pr_cut/pd_cut 不触发「无效字段」假警告（审查 P1-1 回潮锁）。"""
+        with tempfile.TemporaryDirectory() as td:
+            src = os.path.join(SCRIPT_DIR, "..", "templates", "waterfall.json")
+            out = os.path.join(td, "w.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "waterfall", "-d", src, "-o", out,
+                 "--dpi", "70", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertNotIn("不是有效字段", r.stderr, "官方字段不得触发假警告")
+
+    def test_waterfall_alt_text_informative(self):
+        """--alt 含例数与类别计数（审查 P1-2 回潮锁；26 种图型不允许零信息 alt）。"""
+        with tempfile.TemporaryDirectory() as td:
+            src = os.path.join(SCRIPT_DIR, "..", "examples", "realworld",
+                               "realworld_oncology_waterfall.json")
+            out = os.path.join(td, "w.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "waterfall", "-d", src, "-o", out,
+                 "--alt", "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            alt = io.open(out.rsplit(".", 1)[0] + ".alt.txt",
+                          encoding="utf-8").read()
+            self.assertIn("26 例", alt)
+            self.assertIn("PR", alt)
+
+    def test_waterfall_threshold_equality_and_nan(self):
+        """阈值等值归类（-30=缓解、20=进展）+ NaN/Inf 拒绝（审查 P2-3/P3-6）。"""
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        d = {"change": [-30.0, 20.0, -29.9999, 19.9999]}
+        fig, ax = plt.subplots(figsize=(8, 5)) if False else (None, None)
+        fatals = gen_figure.validate_waterfall(d)
+        self.assertEqual(fatals, [])
+        fatals2 = gen_figure.validate_waterfall(
+            {"change": [float("nan"), -40, float("inf"), -35]})
+        self.assertTrue(any("非有限值" in f for f in fatals2))
+        # 等值归类走生成器内部语义（≤ / ≥）——直接渲染断言 stderr 桶计数
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "e.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"change": [-30.0, 20.0, -29.9999, 19.9999]}))
+            out = os.path.join(td, "e.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "waterfall", "-d", f, "-o", out,
+                 "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("≤-30: 1", r.stderr)
+            self.assertIn("(-30, 20): 2", r.stderr)
+            self.assertIn("≥20: 1", r.stderr)
+
+    def test_waterfall_many_patients_labels_survive(self):
+        """26 例竖排标签全保留（不丢、rotation=90）；realworld 示例可渲染。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_draw
+        n = 26
+        d = {"change": [(-1) ** i * (5 + i % 9) * 3.0 for i in range(n)],
+             "names": [f"PT-{i:02d}" for i in range(1, n + 1)]}
+        fig, ax = plt.subplots(figsize=(10, 6))
+        af_draw.gen_waterfall(d, ax, {"colors": ["#2E5E8F"], "font_size": 9,
+                                      "spines": ["top", "right"], "grid_alpha": 0.3}, None)
+        labels = ax.get_xticklabels()
+        plt.close(fig)
+        self.assertEqual(len(labels), n)
+        self.assertTrue(all(lb.get_text() for lb in labels), "26 例不抽稀")
 
 
 if __name__ == "__main__":

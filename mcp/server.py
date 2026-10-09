@@ -199,7 +199,7 @@ def doctor_impl(chart: str, data: str, options: dict = None) -> dict:
 
 
 def capability_matrix_impl() -> dict:
-    """23 图型注册表 × 期刊预设 × 关键边界（读引擎注册表，非手抄）。"""
+    """全图型注册表 × 期刊预设 × 关键边界（读引擎注册表，非手抄）。"""
     script = (
         "import json, glob, sys, os;"
         f"sys.path.insert(0, {str(_ENGINE_DIR)!r});"
@@ -260,7 +260,7 @@ if _MCP_OK:
 
     @mcp.resource("capability://matrix")
     def capability_matrix() -> dict:
-        """23 图型注册表 × 期刊预设（引擎注册表实读）。"""
+        """全图型注册表 × 期刊预设（引擎注册表实读）。"""
         return capability_matrix_impl()
 
     @mcp.resource("capability://changelog")

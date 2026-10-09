@@ -377,6 +377,30 @@ EGPA,5,45,30,10,10
 
 ---
 
+## Waterfall Plot (`--type waterfall`, v4.8)
+
+```json
+{
+  "change": [-45.2, -62.0, -28.7, 12.6, 41.7],
+  "names": ["P001", "P002", "P003", "P004", "P005"],
+  "group": ["PR", "PR", "SD", "PD", "PD"],
+  "pr_cut": -30.0,
+  "pd_cut": 20.0,
+  "sort": "desc"
+}
+```
+
+- `change`：必填，每例（患者/样本）自基线最佳变化百分比（肿瘤缩小为负、增大为正）。
+- `names`（可选）：x 轴标识（如患者编号）；缺省 P01…Pnn。
+- `group`（可选）：缓解类别（如 RECIST CR/PR/SD/PD）——按类别着色+图例+计数事实框；
+  全为 CR/PR/SD/PD（大小写不敏感，图例与计数归一为大写规范形）时用规范语义色，其余类别用主题色。
+  未给 group 时按阈值分桶着色（≤pr_cut 缓解蓝/中间稳定灰/≥pd_cut 进展橙）。
+- `pr_cut`（默认 -30）/ `pd_cut`（默认 20）：阈值虚线（须 pr_cut<0<pd_cut）。
+- `sort`：`desc`（默认，变化降序=经典瀑布形态，并列按输入序）或 `input`（保持给定顺序）。
+- `--show-values`：柱端数值标注；`y_label` 自定义 y 轴标题。
+
+---
+
 ## Slope Chart (`--type slope`, v4.2)
 
 ```json

@@ -1693,6 +1693,206 @@ def gen_upset(data, ax, theme, cjk_fp, **kwargs):
     return "upset"  # main() 据此跳过 tight_layout/基础样式（自管类型，同 composite）
 
 
+def waterfall_alt(data, t=""):
+    """v4.8：waterfall 的 --alt 文本（放本模块守 gen_figure <3400 行纪律）。"""
+    from collections import Counter as _C
+    chg = data.get("change") or []
+    grp = data.get("group")
+    if isinstance(grp, list) and grp:
+        cnt = _C(str(g).upper() for g in grp)
+        fact = "  ".join(f"{k} {v}" for k, v in cnt.most_common())
+    else:
+        pr = float(data.get("pr_cut", -30.0))
+        pd = float(data.get("pd_cut", 20.0))
+        try:
+            vals = [float(v) for v in chg]
+            n_r = sum(1 for v in vals if v <= pr)
+            n_p = sum(1 for v in vals if v >= pd)
+            fact = f"缓解 {n_r}、稳定 {len(vals) - n_r - n_p}、进展 {n_p}"
+        except (TypeError, ValueError):
+            fact = ""
+    return (f"肿瘤缓解瀑布图，共 {len(chg)} 例（每例自基线最佳变化%，降序）"
+            + (f"；{fact}" if fact else "") + f"。{t}")
+
+
+def validate_waterfall(data):
+    """v4.8：waterfall 数据校验（返回 fatal 列表）；逻辑与 gen_waterfall 内部
+    校验同口径。放本模块使 gen_figure 行数守住模块化纪律（<3400）。"""
+    fatal = []
+    chg = data.get("change")
+    if not (isinstance(chg, list) and chg):
+        fatal.append("waterfall: 需要 'change'（非空数值数组，单位 %；肿瘤缩小为负）")
+        return fatal
+    if not all(isinstance(x, (int, float)) and not isinstance(x, bool) for x in chg):
+        fatal.append("waterfall: change 必须全为数值")
+        return fatal
+    import math as _m
+    if not all(_m.isfinite(x) for x in chg):
+        fatal.append("waterfall: change 含非有限值（NaN/±Infinity）——请清洗源数据")
+        return fatal
+    nchg = len(chg)
+    names = data.get("names")
+    if names is not None and (not isinstance(names, list) or len(names) != nchg):
+        fatal.append("waterfall: 'names' 长度必须与 change 一致")
+    grp = data.get("group")
+    if grp is not None:
+        if not isinstance(grp, list) or len(grp) != nchg:
+            fatal.append("waterfall: 'group' 长度必须与 change 一致")
+        elif not all(isinstance(g, (str, int, float)) and not isinstance(g, bool)
+                     for g in grp):
+            fatal.append("waterfall: 'group' 必须全为字符串或数值标量")
+    pc = data.get("pr_cut")
+    dc = data.get("pd_cut")
+    if pc is not None and (isinstance(pc, bool) or not isinstance(pc, (int, float))
+                           or pc >= 0):
+        fatal.append("waterfall: pr_cut 必须为负数（如 -30）")
+    if dc is not None and (isinstance(dc, bool) or not isinstance(dc, (int, float))
+                           or dc <= 0):
+        fatal.append("waterfall: pd_cut 必须为正数（如 20）")
+    sm = data.get("sort")
+    if sm is not None and str(sm).strip().lower() not in ("desc", "input"):
+        fatal.append("waterfall: sort 只支持 'desc' 或 'input'")
+    return fatal
+
+
+def gen_waterfall(data, ax, theme, cjk_fp, **kwargs):
+    """Waterfall plot（v4.8，第 26 种图型）：肿瘤学最佳缓解瀑布图——每例患者
+    自基线最佳肿瘤直径变化百分比，按变化降序（经典形态）排列；
+    阈值虚线（PR/PD）+ 类别着色 + 计数事实框（纯计数，零推断）。
+
+    着色语义：给 group（如 RECIST CR/PR/SD/PD）时按类别着色（主题色按首现顺序）；
+    未给 group 时按阈值分桶：≤pr_cut 缓解蓝 / ≥pd_cut 进展橙 / 中间稳定灰
+    （与 volcano 同款色盲安全语义色）。
+
+    JSON: {"change": [-45.2, ...], "names": ["P001", ...](可选),
+           "group": ["PR", ...](可选), "pr_cut": -30.0, "pd_cut": 20.0,
+           "sort": "desc"(默认)|"input", "y_label": "..."(可选)}
+    """
+    chg = data.get("change")
+    if not (isinstance(chg, list) and chg):
+        raise ValueError("waterfall: 需要 'change'（非空数值数组，单位 %；"
+                         "肿瘤缩小为负、增大为正）")
+    try:
+        vals = [float(v) for v in chg]
+    except (TypeError, ValueError):
+        raise ValueError("waterfall: change 必须全为数值")
+    import math as _m
+    if not all(_m.isfinite(v) for v in vals):
+        raise ValueError("waterfall: change 含非有限值（NaN/±Infinity）——"
+                         "请清洗源数据（v4.5 数值政策：非有限值一律拒绝，不静默跳过）")
+    n = len(vals)
+    names = data.get("names")
+    if names is not None and (not isinstance(names, list) or len(names) != n):
+        raise ValueError("waterfall: 'names' 长度必须与 change 一致")
+    group = data.get("group")
+    if group is not None:
+        if not isinstance(group, list) or len(group) != n:
+            raise ValueError("waterfall: 'group' 长度必须与 change 一致")
+        if not all(isinstance(g, (str, int, float)) and not isinstance(g, bool)
+                   for g in group):
+            raise ValueError("waterfall: 'group' 必须全为字符串或数值标量")
+    pr_cut = float(data.get("pr_cut", -30.0))
+    pd_cut = float(data.get("pd_cut", 20.0))
+    sort_mode = str(data.get("sort", "desc")).strip().lower()
+    if pr_cut >= 0 or pd_cut <= 0:
+        raise ValueError("waterfall: pr_cut 必须为负数（如 -30）、pd_cut 必须为正数（如 20）")
+    if sort_mode not in ("desc", "input"):
+        raise ValueError("waterfall: sort 只支持 'desc' 或 'input'")
+
+    order = sorted(range(n), key=lambda i: (-vals[i], i)) if sort_mode == "desc" \
+        else list(range(n))
+    svals = [vals[i] for i in order]
+    snames = [str(names[i]) if names else f"P{i+1:02d}" for i in order]
+    sgroup = [str(group[i]) if group else None for i in order]
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    x = np.arange(n)
+    if sgroup and group is not None:
+        # 类别着色：全为 RECIST 标准类别时用规范语义色（CR/PR 蓝系、SD 灰、PD 橙，
+        # 与阈值分桶模式同语义），否则主题色按首现顺序（确定性）
+        _recist = {"CR": "#2C5F8A", "PR": "#5FA4D0", "SD": "#B8B8B8", "PD": "#D55E00"}
+        cats, cmap = [], {}
+        _upper = [str(g).upper() for g in sgroup]
+        if set(_upper) <= set(_recist):
+            # v4.8 审查 P3-3：大小写不敏感归一到规范大写形（PR/pr 不再拆成两条图例）
+            sgroup = _upper
+            for gu in _upper:
+                if gu not in cmap:
+                    cmap[gu] = _recist[gu]
+                    cats.append(gu)
+        else:
+            for g in sgroup:
+                if g not in cmap:
+                    cmap[g] = theme["colors"][len(cmap) % len(theme["colors"])]
+                    cats.append(g)
+        bar_colors = [cmap[g] for g in sgroup]
+        handles = [plt.Rectangle((0, 0), 1, 1, color=cmap[c]) for c in cats]
+        ax.legend(handles, cats, loc="upper right", frameon=False,
+                  fontsize=fs_s, prop=cjk_fp if cjk_fp and has_cjk("".join(cats)) else None)
+        cnt = {c: sgroup.count(c) for c in cats}
+        fact = "  ".join(f"{c} {cnt[c]}" for c in cats)
+    else:
+        # 阈值分桶（与 volcano 同语义色）
+        r_col, s_col, p_col = "#0072B2", "#B8B8B8", "#D55E00"
+        bar_colors = [r_col if v <= pr_cut else (p_col if v >= pd_cut else s_col)
+                      for v in svals]
+        handles = [plt.Rectangle((0, 0), 1, 1, color=c)
+                   for c in (r_col, s_col, p_col)]
+        n_r = sum(1 for v in svals if v <= pr_cut)
+        n_p = sum(1 for v in svals if v >= pd_cut)
+        labels = ["缓解" if cjk_fp else "Response",
+                  "稳定" if cjk_fp else "Stable",
+                  "进展" if cjk_fp else "Progression"]
+        ax.legend(handles, labels, loc="upper right", frameon=False, fontsize=fs_s,
+                  prop=cjk_fp if cjk_fp else None)
+        fact = (f"≤{pr_cut:g}: {n_r}   ({pr_cut:g}, {pd_cut:g}): {n - n_r - n_p}   "
+                f"≥{pd_cut:g}: {n_p}")
+
+    ax.bar(x, svals, width=0.72, color=bar_colors, edgecolor="none", zorder=3)
+    if kwargs.get("show_values"):
+        for xi, v in zip(x, svals):
+            ax.text(xi, v + (1.2 if v >= 0 else -1.2), f"{v:g}",
+                    ha="center", va="bottom" if v >= 0 else "top",
+                    fontsize=fs_s, color="#333333")
+
+    # 零基线 + PR/PD 阈值虚线（右端小标注）
+    ax.axhline(0, color="#4A4A4A", lw=1.0, zorder=2)
+    for cut, txt in ((pr_cut, f"{pr_cut:g}%"), (pd_cut, f"{pd_cut:g}%")):
+        ax.axhline(cut, color="#999999", ls="--", lw=0.9, zorder=1)
+        ax.text(n - 0.35, cut, txt, ha="left", va="center", fontsize=fs_s,
+                color="#777777")
+
+    ax.set_xticks(x)
+    # 标签自适应：>14 例竖排（发表惯例）；>60 例按 stride 抽稀+字号收缩
+    #（竖排 100 例会糊死——审查 P2-2；抽稀写入 stderr，数据完整性靠 --show-values/
+    # 完整表格承担，图面保可读）
+    _rot = 90 if n > 14 else 0
+    _fs_x = max(4.5, fs_s * (14.0 / n if n > 14 else 1.0))
+    _stride = max(1, -(-n // 50))
+    _show_names = snames if _stride == 1 else         [nm if i % _stride == 0 else "" for i, nm in enumerate(snames)]
+    ax.set_xticklabels(_show_names, fontsize=_fs_x, rotation=_rot, ha="center",
+                       fontproperties=cjk_fp if cjk_fp and has_cjk("".join(snames)) else None)
+    ax._af_category_axis = True  # 患者标识是数据：豁免刻度抽稀（同热图/forest）
+    yl = str(data.get("y_label", "") or
+             ("自基线最佳变化（%）" if cjk_fp else "Best change from baseline (%)"))
+    ax.set_ylabel(yl, fontsize=fs,
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(yl) else None)
+    ax.set_xlim(-0.7, n + (1.6 if n else 0))  # 右侧留阈值标注位
+    # 计数事实框左下 + 白底托底（v4.8 审查 P2-1：n=1/sort=input 下柱体会穿字，
+    # 全正数据时 -30% 虚线也会划过——白底 alpha 0.85 保证任何数据形态下可读）
+    ax.text(0.02, 0.05, fact, transform=ax.transAxes, va="bottom", ha="left",
+            fontsize=fs_s, color="#555555",
+            bbox=dict(facecolor="white", edgecolor="none", alpha=0.85,
+                      boxstyle="round,pad=0.25"),
+            zorder=5,
+            fontproperties=cjk_fp if cjk_fp and has_cjk("缓解") else None)
+    print(f"waterfall: {n} 例（sort={sort_mode}，缓解≤{pr_cut:g}%，进展≥{pd_cut:g}%）"
+          + (f"；x 标签每 {_stride} 例显示 1 个" if _stride > 1 else "")
+          + f"；{fact}", file=sys.stderr)
+    apply_base_style(ax, theme)
+
+
 def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
     """Dual Y-axis chart, canonical 左柱右线 form (v3.10): left-axis series draw
     as BARS, right-axis series as dashed LINES — override per side with data keys
@@ -2553,4 +2753,5 @@ GENERATORS = {
     "slope": gen_slope,
     "volcano": gen_volcano,
     "upset": gen_upset,
+    "waterfall": gen_waterfall,
 }

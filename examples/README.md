@@ -35,6 +35,7 @@ python3 scripts/gen_figure.py --list-themes
 | realworld_rct_response.json | `-t grouped_bar --cjk` | RCT 三臂 48 周应答率（n=240） |
 | realworld_omics_volcano.json | `-t volcano` | RNA-seq 差异表达（干扰素通路） |
 | realworld_survival_km.json | `-t km --cjk` | IgA 肾病三臂生存曲线（36.5 月随访） |
+| realworld_oncology_waterfall.json | `-t waterfall --cjk --show-values` | NSCLC II 期最佳缓解瀑布（RECIST n=26） |
 
 ## GLM 黄蓝斜线风格（招牌风格）
 

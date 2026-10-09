@@ -6,6 +6,47 @@
 
 ## Version History
 
+## 4.8.0 — 2026-10-10
+
+  - **New chart type #26: `waterfall` — oncology best-response waterfall**: one
+    bar per patient (best % change from baseline, shrinkage negative), classic
+    descending form (deterministic ties by input order; `sort="input"` keeps
+    given order). RECIST-aware coloring: `group` (CR/PR/SD/PD, case-insensitive)
+    uses canonical semantic colors; otherwise threshold bucketing (≤pr_cut blue
+    response / ≥pd_cut orange progression / stable gray — volcano's semantic
+    family). Dashed PR/PD threshold lines with right-edge labels (defaults
+    -30/+20), count fact box in the always-empty lower-left region, zero
+    baseline, `--show-values` per-bar labels, `y_label` override. Patient IDs
+    rotate vertical above 14 bars (labels are data — exempt from tick thinning).
+  - **suggest_chart_type dedup**: a whole recommendation block (funnel/venn/
+    upset/bland_altman/roc) had been duplicated verbatim since v4.5 (masked by
+    tail dedup) — second copy removed.
+  - **Hardening from an independent read-only expert review (14 findings,
+    all actionable ones fixed)**: waterfall fields (change/pr_cut/pd_cut)
+    added to the known-field whitelist (kills false "invalid field" warnings);
+    `--alt` now reports patient count and RECIST/fact-box categories; count
+    fact box drawn on a white backing plate (readable over bars/threshold
+    lines in any data shape); >60 patients thin x labels by stride with
+    stderr disclosure (vertical 100-label smear fixed); NaN/±Infinity in
+    `change` rejected as fatal (v4.5 numeric policy); sample data
+    (DEMO/template/realworld) made RECIST-self-consistent — PR only at
+    ≤-30% (reviewer caught -28.7%/-24.5%/-26.8% mislabeled PR); case
+    variants of RECIST categories merge into canonical uppercase legend;
+    stderr symbols ≤/≥ aligned with bucketing; SKILL_ZH stale "22 chart
+    types" tree counts fixed; mcp af_engine synced (waterfall) and MCP docs
+    de-hardcoded from "23".
+  - Wizard gains a "per-patient best response" shape routing to waterfall.
+  - `templates/waterfall.json` (26 templates), `examples/realworld/
+    realworld_oncology_waterfall.json` (NSCLC II期 n=26 RECIST-consistent),
+    docs updated to 26 chart types across SKILL bilingual/README/quickstart/
+    cheatsheet/data-formats.
+  - Tests: +TestV48000 (E2E group mode, bucket mode + show-values, validate
+    fatals, registry count 26, demo render, sort=input path, stderr fact
+    line, no-false-warning lock, --alt content lock, threshold-equality +
+    NaN lock, 26-patient label-survival lock); realworld lock 3→4; suite at
+    329 green.
+
+
 ## 4.7.0 — 2026-10-09
 
   - **New chart type #25: `upset` — UpSet set-intersection plot** (the standard
@@ -639,6 +680,30 @@
   带 `-o` 只报告不拦截；省略 `-o` 纯体检模式（exit 1=有发现）。
 
 ## 版本历史
+
+- **v4.8.0**（2026-10-10）—— 新图型 #26 `waterfall` 肿瘤缓解瀑布图：
+  - **`waterfall`**：每例（患者）自基线最佳变化%一柱，经典降序形态（并列按输入序，
+    `sort=input` 保持给定序）；RECIST 感知着色——`group`（CR/PR/SD/PD 大小写不敏感）
+    用规范语义色，未给 group 按阈值分桶（≤pr_cut 缓解蓝/≥pd_cut 进展橙/中间稳定灰，
+    与 volcano 同语义族）；PR/PD 阈值虚线（默认 -30/+20）右端标注；计数事实框落
+    恒空左下区；`--show-values` 柱端数值；患者标识 >14 例自动竖排（标签是数据，
+    豁免抽稀）。
+  - **suggest_chart_type 去重**：funnel/venn/upset/bland_altman/roc 推荐段自 v4.5
+    起逐字重复两份（尾去重掩盖）——删第二份。
+  - **独立只读专家审查加固（14 项发现，可动手项全修）**：waterfall 三字段
+    （change/pr_cut/pd_cut）入字段白名单（消除假「无效字段」警告）；`--alt`
+    报告例数与 RECIST/分桶计数；计数事实框加白底托板（任意数据形态下压柱/
+    压阈值线都可读）；>60 例 x 标签按 stride 抽稀并 stderr 披露（修 100 例
+    竖排糊死）；change 的 NaN/±Infinity 一律 fatal（v4.5 数值政策）；示例
+    数据（DEMO/模板/realworld）RECIST 自洽——PR 只出现在 ≤-30%（审查逮住
+    -28.7%/-24.5%/-26.8% 违标）；RECIST 类别大小写归一（PR/pr 不拆图例）；
+    stderr 符号 ≤/≥ 与分桶口径对齐；SKILL_ZH 目录树残留「22 图型」修正；
+    mcp af_engine 同步（waterfall）+MCP 文档去掉硬编码「23」。
+  - 向导新增「每例最佳缓解百分比」形状。模板 waterfall.json（26 模板）+
+    realworld NSCLC II 期 n=26（RECIST 自洽）示例；全文档 26 种图型计数同步。
+  - 测试：+TestV48000 11 项（分组 E2E/分桶+show-values/fatal/注册表 26/demo
+    直渲/sort=input/stderr 事实行/假警告锁/--alt 内容锁/阈值等值+NaN 锁/
+    26 例标签存活锁）；realworld 锁 3→4；全量 329 绿。
 
 - **v4.7.0**（2026-10-09）—— 新图型 #25 upset 集合交集图 + 场景化指导包：
   - **`upset`**：≥5 集合交集可视化（韦恩图 2~4 集合的标准后继）。交集大小柱（降序直标）+

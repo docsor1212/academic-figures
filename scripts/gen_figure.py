@@ -52,7 +52,9 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      gen_bar, gen_heatmap, gen_scatter, gen_line, gen_box,
                      gen_forest, gen_violin, gen_km, gen_roc, gen_stacked_bar,
                      gen_dual_axis, gen_composite, gen_diagram, gen_prisma,
-                     gen_slope, gen_volcano, gen_upset)
+                     gen_slope, gen_volcano, gen_upset, gen_waterfall,
+                     waterfall_alt,
+                     validate_waterfall)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
@@ -278,6 +280,10 @@ CHART_NOTES = {
              "多标签共现）；JSON sets 为元素列表（自动求交并）；top_n 展示前 N 个交集"
              "（默认 12，取 1~50）、sort=size|degree、min_size 过滤小交集；标题放 JSON "
              "title 字段；未展示交集只计入 stderr 事实行。",
+    "waterfall": "waterfall: 肿瘤缓解瀑布图（v4.8，第 26 种图型；每例自基线最佳变化%）；"
+                 "JSON change 必填（缩小为负）、names/group 可选（RECIST 类别着色+图例）、"
+                 "pr_cut=-30/pd_cut=20 阈值虚线、sort=desc|input；--show-values 柱端数值；"
+                 "着色未给 group 时按阈值分桶（缓解蓝/稳定灰/进展橙）。",
 }
 
 
@@ -363,6 +369,11 @@ DEMO_DATA = {
                        "甲基化": ["TP53", "BRCA1", "CDKN2A", "MGMT", "PTEN", "RB1"],
                        "eQTL": ["KRAS", "PIK3CA", "PTEN", "AKT1", "MAP2K1", "EGFR"],
                        "GWAS": ["TP53", "BRCA1", "ERBB2", "ATM", "CHEK2", "PALB2"]}},
+    "waterfall": {"change": [-72.4, -65.1, -58.9, -52.0, -47.3, -41.8, -35.6, -32.1,
+                             -28.7, -24.5, -19.8, -15.2, -8.9, -3.4, 0.8, 12.6, 25.3, 41.7],
+                   "names": [f"P{i:03d}" for i in range(1, 19)],
+                   "group": ["PR", "CR", "PR", "PR", "PR", "PR", "PR", "PR", "SD",
+                             "SD", "SD", "SD", "SD", "SD", "SD", "SD", "PD", "PD"]},
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"],
                   "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]},
                   "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
@@ -466,23 +477,6 @@ def suggest_chart_type(data):
     if isinstance(methods, dict) and len(methods) == 2 and \
             all(isinstance(v, list) for v in methods.values()):
         recs.append((88, "bland_altman", "two method arrays — bland-altman agreement"))
-    if isinstance(data.get("fpr"), list) and isinstance(data.get("tpr"), list):
-        recs.append((87, "roc", "flat fpr/tpr arrays — single-curve ROC"))
-    studies = data.get("studies")
-    if isinstance(studies, list) and studies and isinstance(studies[0], dict) \
-            and "se" in studies[0]:
-        recs.append((90, "funnel", "studies[] with se — funnel plot"))
-    sets_ = data.get("sets")
-    if isinstance(sets_, dict) and 2 <= len(sets_) <= 4 and \
-            all(isinstance(v, list) for v in sets_.values()):
-        recs.append((89, "venn", "sets{} element lists — venn/euler"))
-    if isinstance(sets_, dict) and len(sets_) >= 5 and \
-            all(isinstance(v, list) for v in sets_.values()):
-        recs.append((92, "upset", "sets{} with ≥5 sets — UpSet intersection plot"))
-    methods = data.get("methods")
-    if isinstance(methods, dict) and len(methods) == 2 and \
-            all(isinstance(v, list) for v in methods.values()):
-        recs.append((88, "bland_altman", "two method arrays — bland-altman"))
     if isinstance(data.get("fpr"), list) and isinstance(data.get("tpr"), list):
         recs.append((87, "roc", "flat fpr/tpr arrays — single-curve ROC"))
     series = data.get("series")
@@ -702,6 +696,8 @@ def generate_alt_text(chart_type, data, title=""):
     if chart_type == "slope":
         items = data.get("items") or {}
         return f"斜率图（两时点比较），共 {len(items)} 条线。{t}"
+    if chart_type == "waterfall":
+        return waterfall_alt(data, t)  # v4.8：实现在 af_draw（模块化纪律 <3400 行）
     if chart_type == "upset":
         s = data.get("sets") or {}
         top_n = data.get("top_n", 12)
@@ -1729,6 +1725,10 @@ def validate_data(data, chart_type):
         sm = data.get("sort")
         if sm is not None and str(sm).strip().lower() not in ("size", "degree"):
             fatal.append("upset: sort 只支持 'size' 或 'degree'")
+
+    # ── waterfall: 肿瘤缓解瀑布（校验逻辑在 af_draw.validate_waterfall，v4.8）──
+    elif chart_type == "waterfall":
+        fatal.extend(validate_waterfall(data))
 
     # ── composite: panels ──
     elif chart_type == "composite":
