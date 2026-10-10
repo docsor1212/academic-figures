@@ -1523,6 +1523,144 @@ def _upset_name_band(names, theme, fig):
     return left, wspace
 
 
+
+
+def raincloud_alt(data, t=""):
+    """v4.9：raincloud 的 --alt 文本。"""
+    series = data.get("series") or data.get("datasets") or {}
+    meds = []
+    for n, v in series.items():
+        try:
+            import numpy as _np
+            meds.append(f"{n} 中位数 {_np.median([float(x) for x in v]):g}")
+        except Exception:
+            pass
+    seg = "；".join(meds[:6]) + ("等" if len(meds) > 6 else "")
+    n_pts = sum(len(v) for v in series.values())
+    return (f"雨云图（分布三合一：密度云+箱线+原始点），共 {len(series)} 组 {n_pts} 个数据点"
+            + (f"；{seg}" if seg else "") + f"。{t}")
+
+
+def validate_raincloud(data):
+    """v4.9：raincloud 数据校验（返回 fatal 列表；放本模块守 gen_figure 行数纪律）。"""
+    fatal = []
+    series = data.get("series", data.get("datasets"))
+    labels = data.get("labels", data.get("x", []))
+    if not isinstance(series, dict) or not series:
+        fatal.append("raincloud: 需要 'datasets'（{组名: [数值数组]}），schema 同 violin")
+        return fatal
+    if labels and len(labels) != len(series):
+        fatal.append(f"raincloud: labels 有 {len(labels)} 项但 datasets 有 {len(series)} 组——须一一对应")
+    for n, vals in series.items():
+        if not isinstance(vals, (list, tuple)) or not vals:
+            fatal.append(f"raincloud: datasets['{n}'] 必须是非空数值数组")
+            continue
+        bad = [v for v in vals if isinstance(v, bool) or not isinstance(v, (int, float))]
+        if bad:
+            fatal.append(f"raincloud: datasets['{n}'] 含 {len(bad)} 个非数值项")
+            continue
+        import math as _m
+        if not all(_m.isfinite(float(v)) for v in vals):
+            fatal.append(f"raincloud: datasets['{n}'] 含非有限数值（NaN/±Infinity）——请清洗源数据")
+    j = data.get("jitter")
+    if j is not None and (isinstance(j, bool) or not isinstance(j, (int, float)) or not 0 <= j <= 0.3):
+        fatal.append("raincloud: jitter 取值 0~0.3")
+    cs = data.get("cloud_scale")
+    if cs is not None and (isinstance(cs, bool) or not isinstance(cs, (int, float)) or not 0 <= cs <= 2.0):
+        fatal.append("raincloud: cloud_scale 取值 0~2.0")
+    return fatal
+
+
+
+
+def gen_raincloud(data, ax, theme, cjk_fp, **kwargs):
+    """Raincloud plot（v4.9，第 27 种图型）：半小提琴（KDE 密度云）+ 箱线（五数概括）
+    + 抖动原始点（雨滴）三合一——分布可视化现代标准形态（Allen et al. 2021），
+    box 只给摘要、violin 藏样本、raincloud 全部给出且互不遮挡。
+
+    左云右雨：半小提琴在组位左侧、窄箱居中、确定性抖动雨滴在右侧。
+    JSON 与 violin 同 schema：{"labels": [...], "datasets": {"组名": [值...]}}
+    可选 "jitter": 0.08（雨滴横向抖动幅度）、"cloud_scale": 1.0（云宽缩放）。
+    """
+    import random as _random
+    labels = data.get("labels", data.get("x", []))
+    series = data.get("series", data.get("datasets", {}))
+    if not isinstance(series, dict) or not series:
+        raise ValueError("raincloud: 需要 'datasets'（{{组名: [数值数组]}}），schema 同 violin")
+    names = list(series.keys())
+    if labels and len(labels) != len(names):
+        raise ValueError(f"raincloud: labels 有 {len(labels)} 项但 datasets 有 {len(names)} 组——须一一对应")
+    for n, vals in series.items():
+        if not isinstance(vals, (list, tuple)) or not vals:
+            raise ValueError(f"raincloud: datasets['{n}'] 必须是非空数值数组")
+        bad = [v for v in vals if isinstance(v, bool) or not isinstance(v, (int, float))
+               or not np.isfinite(float(v))]
+        if bad:
+            raise ValueError(f"raincloud: datasets['{n}'] 含 {len(bad)} 个非有限数值（NaN/±Infinity/非数值）")
+    jitter_w = float(data.get("jitter", 0.08))
+    cloud_scale = float(data.get("cloud_scale", 1.0))
+    if not (0 <= jitter_w <= 0.3) or cloud_scale < 0 or cloud_scale > 2.0:
+        raise ValueError("raincloud: jitter 取值 0~0.3、cloud_scale 取值 0~2.0（0=藏云；>2.0 会跨组叠压，已按代数界收紧）")
+
+    from scipy.stats import gaussian_kde
+    positions = list(range(len(names)))
+    rng = _random.Random(4900)  # 确定性雨滴（同数据同图）
+    fs = theme["font_size"]
+
+    for i, (name, vals) in enumerate(series.items()):
+        v = np.asarray([float(x) for x in vals], dtype=float)
+        color = theme["colors"][i % len(theme["colors"])]
+        # ── 云（半小提琴，KDE）──
+        if cloud_scale > 0:
+            try:
+                kde = gaussian_kde(v)
+                grid = np.linspace(v.min() - 0.5 * v.std() - 1e-9, v.max() + 0.5 * v.std() + 1e-9, 80)
+                dens = kde(grid)
+                dens = dens / dens.max() * 0.28 * cloud_scale  # cs≤2.0：半宽≤0.56，与箱/邻组雨带不叠
+                ax.fill_betweenx(grid, i - dens, i, facecolor=color, alpha=0.45,
+                                 edgecolor=color, linewidth=1.0, zorder=2)
+            except (np.linalg.LinAlgError, ValueError):  # 全同值/单点组：KDE 退化 → 竖线示意（n=1 抛 ValueError）
+                ax.plot([i, i], [v.min(), v.max()], color=color, lw=2, alpha=0.5, zorder=2)
+                ax.plot(i, float(v.mean()), "o", color=color, ms=5, zorder=3)
+                print(f"raincloud: 组「{name}」方差为 0 或单点，云退化为标记线", file=sys.stderr)
+        else:
+            print("raincloud: cloud_scale=0，云已隐藏（仅箱+雨）", file=sys.stderr)
+
+        # ── 箱（窄箱线：五数概括）──
+        q1, med, q3 = np.percentile(v, [25, 50, 75])
+        iqr = q3 - q1
+        whisker_lo = max(v.min(), q1 - 1.5 * iqr)
+        whisker_hi = min(v.max(), q3 + 1.5 * iqr)
+        bw = 0.055
+        ax.plot([i - bw, i + bw], [med, med], color="#2D3746", lw=2.2, zorder=4)
+        ax.add_patch(plt.Rectangle((i - bw, q1), 2 * bw, q3 - q1, fill=True,
+                                   facecolor="white", edgecolor="#2D3746", lw=1.2, zorder=3))
+        ax.plot([i, i], [whisker_lo, q1], color="#2D3746", lw=1.1, zorder=3)
+        ax.plot([i, i], [q3, whisker_hi], color="#2D3746", lw=1.1, zorder=3)
+        ax.plot([i - bw * 0.7, i + bw * 0.7], [whisker_lo, whisker_lo], color="#2D3746", lw=1.1, zorder=3)
+        ax.plot([i - bw * 0.7, i + bw * 0.7], [whisker_hi, whisker_hi], color="#2D3746", lw=1.1, zorder=3)
+        # ── 雨（确定性抖动原始点）──
+        xs = [i + 0.10 + rng.uniform(0, jitter_w) for _ in v]
+        ax.scatter(xs, v, s=11, color=color, alpha=0.65, linewidths=0, zorder=3)
+
+    if kwargs.get("stats_multi"):
+        annotate_multi_stats(ax, series, positions, theme, "raincloud")
+    elif kwargs.get("stats_auto"):
+        annotate_auto_stats(ax, series, positions, theme, "raincloud")
+    elif kwargs.get("stats_bootstrap"):
+        annotate_bootstrap_stats(ax, series, positions, theme, "raincloud")
+
+    ax.set_xticks(positions)
+    show_labels = labels if labels else names
+    ax.set_xticklabels(list(show_labels), fontsize=fs - 1,
+                       fontproperties=cjk_fp if cjk_fp and has_cjk("".join(map(str, show_labels))) else None)
+    ax._af_category_axis = True  # 组名是数据：豁免刻度抽稀（同 waterfall）
+    ax.set_xlim(-0.7, len(names) - 0.3 + 0.1 + jitter_w)
+    apply_base_style(ax, theme)
+    print(f"raincloud: {len(names)} 组 / 共 {sum(len(v) for v in series.values())} 个原始点"
+          f"（云=KDE 密度，箱=五数概括，雨=原始点）", file=sys.stderr)
+
+
 def gen_upset(data, ax, theme, cjk_fp, **kwargs):
     """UpSet 交集图（v4.7，第 25 种图型）：多集合交集可视化——韦恩图（2~4 集合）
     的标准后继；≥5 集合场景（组学多基因集/多标签共现/多中心入排标准重叠）远优于 venn。
@@ -2754,4 +2892,5 @@ GENERATORS = {
     "volcano": gen_volcano,
     "upset": gen_upset,
     "waterfall": gen_waterfall,
+    "raincloud": gen_raincloud,
 }

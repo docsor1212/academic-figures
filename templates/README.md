@@ -1,6 +1,6 @@
 # 模板库（v2.6 全图型覆盖）
 
-26 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 26 种图型**（v4.7 增 upset，v4.8 增 waterfall）。用法：
+27 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 27 种图型**（v4.8 增 waterfall，v4.9 增 raincloud）。用法：
 
 ```bash
 cp templates/01-meta-forest.json my_data.json
@@ -37,10 +37,10 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | cluster_heatmap.json | cluster_heatmap 聚类热图 | paired.json | paired 配对变化 |
 | funnel.json | funnel 漏斗图 | venn.json | venn 韦恩/欧拉图 |
 | slope.json | slope 斜率图（两时点） | upset.json | upset 集合交集图（v4.7） |
-| waterfall.json | waterfall 肿瘤缓解瀑布图（v4.8） | — | — |
+| waterfall.json | waterfall 肿瘤缓解瀑布图（v4.8） | raincloud.json | raincloud 雨云图（v4.9） |
 | volcano.json | volcano 火山图 | — | — |
 
-> v2.6 起模板与图型一一对应（v4.8 增 waterfall）；不确定用哪个图型可对数据跑
+> v2.6 起模板与图型一一对应（v4.9 增 raincloud）；不确定用哪个图型可对数据跑
 > `python3 scripts/gen_figure.py --suggest -d 你的数据.json`。
 
 每个 JSON 顶部有 `_scene/_chart_type/_command/_caption_template` 元字段，渲染时会被忽略。

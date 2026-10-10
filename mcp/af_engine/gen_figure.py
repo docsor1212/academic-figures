@@ -53,7 +53,7 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      gen_forest, gen_violin, gen_km, gen_roc, gen_stacked_bar,
                      gen_dual_axis, gen_composite, gen_diagram, gen_prisma,
                      gen_slope, gen_volcano, gen_upset, gen_waterfall,
-                     waterfall_alt,
+                     waterfall_alt, validate_raincloud, raincloud_alt,
                      validate_waterfall)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -280,6 +280,8 @@ CHART_NOTES = {
              "多标签共现）；JSON sets 为元素列表（自动求交并）；top_n 展示前 N 个交集"
              "（默认 12，取 1~50）、sort=size|degree、min_size 过滤小交集；标题放 JSON "
              "title 字段；未展示交集只计入 stderr 事实行。",
+    "raincloud": "raincloud: 雨云图（v4.9，第 27 种图型；分布三合一：KDE 半小提琴云+箱线五数概括+"
+                 "抖动原始点雨）；schema 同 violin；--stats 通用；jitter(0~0.3)/cloud_scale(0~2.0，0=藏云)；零方差/单点组云退化并告知。",
     "waterfall": "waterfall: 肿瘤缓解瀑布图（v4.8，第 26 种图型；每例自基线最佳变化%）；"
                  "JSON change 必填（缩小为负）、names/group 可选（RECIST 类别着色+图例）、"
                  "pr_cut=-30/pd_cut=20 阈值虚线、sort=desc|input；--show-values 柱端数值；"
@@ -341,39 +343,32 @@ DEMO_DATA = {
                 "groups": ["应答者", "应答者", "应答者", "应答者",
                            "非应答者", "非应答者", "非应答者", "非应答者"]},
     "forest": {"labels": ["Smith 2023", "Tanaka 2023", "Brown 2022", "王明 2024"],
-               "estimates": [0.72, 0.80, 0.75, 0.65],
-               "ci_low": [0.55, 0.62, 0.56, 0.48],
-               "ci_high": [0.94, 1.03, 1.00, 0.84],
-               "overall": {"estimate": 0.73, "ci_low": 0.60, "ci_high": 0.88}},
-    "km": {"groups": {"治疗组": [[0, 1.0], [6, 0.8], [12, 0.7], [18, 0.6], [24, 0.55]],
-                      "对照组": [[0, 1.0], [6, 0.9], [12, 0.75], [18, 0.6], [24, 0.45]]},
-           "log_rank": {"p": 0.03}},
-    "roc": {"curves": [{"fpr": [0.0, 0.1, 0.2, 0.4, 0.6, 1.0],
-                        "tpr": [0.0, 0.6, 0.8, 0.9, 0.95, 1.0],
+               "estimates": [0.72, 0.80, 0.75, 0.65], "ci_low": [0.55, 0.62, 0.56, 0.48],
+               "ci_high": [0.94, 1.03, 1.00, 0.84], "overall": {"estimate": 0.73, "ci_low": 0.6, "ci_high": 0.88}},
+    "km": {"groups": {"治疗组": [[0, 1], [6, 0.8], [12, 0.7], [18, 0.6], [24, 0.55]],
+                      "对照组": [[0, 1], [6, 0.9], [12, 0.75], [18, 0.6], [24, 0.45]]}, "log_rank": {"p": 0.03}},
+    "roc": {"curves": [{"fpr": [0.0, 0.1, 0.2, 0.4, 0.6, 1.0], "tpr": [0.0, 0.6, 0.8, 0.9, 0.95, 1.0],
                         "label": "模型A", "auc": 0.92},
-                       {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0],
-                        "tpr": [0.0, 0.4, 0.6, 0.75, 0.85, 1.0],
+                       {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], "tpr": [0.0, 0.4, 0.6, 0.75, 0.85, 1.0],
                         "label": "模型B", "auc": 0.85}]},
-    "violin": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0],
-                            "组C": [3.0, 3.2, 3.8, 4.5, 4.8, 5.2]}},
+    "violin": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0], "组C": [3.0, 3.2, 3.8, 4.5, 4.8, 5.2]}},
     "box": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0]}},
     "slope": {"left_label": "基线", "right_label": "12 周",
               "items": {"药物A": [72, 85], "药物B": [65, 61], "对照": [70, 71]}},
     "volcano": {"log2fc": [-2.3, -1.4, -1.1, -0.4, 0.2, 0.6, 1.2, 1.6, 2.4],
                 "pvalue": [3e-4, 0.012, 0.04, 0.5, 0.8, 0.3, 0.02, 3e-5, 8e-7],
-                "names": ["SLC6A4", "MAOA", "FKBP5", "NR3C1", "CRH", "AVP",
-                          "BDNF", "COMT", "HTR1A"]},
-    "upset": {"title": "五组学平台差异基因交集",
-              "sets": {"转录组": ["TP53", "KRAS", "EGFR", "BRCA1", "MYC", "PTEN", "NRAS", "PIK3CA", "ALK"],
-                       "蛋白组": ["TP53", "EGFR", "MYC", "AKT1", "KRAS", "ERBB2", "PTEN"],
-                       "甲基化": ["TP53", "BRCA1", "CDKN2A", "MGMT", "PTEN", "RB1"],
-                       "eQTL": ["KRAS", "PIK3CA", "PTEN", "AKT1", "MAP2K1", "EGFR"],
-                       "GWAS": ["TP53", "BRCA1", "ERBB2", "ATM", "CHEK2", "PALB2"]}},
-    "waterfall": {"change": [-72.4, -65.1, -58.9, -52.0, -47.3, -41.8, -35.6, -32.1,
-                             -28.7, -24.5, -19.8, -15.2, -8.9, -3.4, 0.8, 12.6, 25.3, 41.7],
-                   "names": [f"P{i:03d}" for i in range(1, 19)],
-                   "group": ["PR", "CR", "PR", "PR", "PR", "PR", "PR", "PR", "SD",
-                             "SD", "SD", "SD", "SD", "SD", "SD", "SD", "PD", "PD"]},
+                "names": ["SLC6A4", "MAOA", "FKBP5", "NR3C1", "CRH", "AVP", "BDNF", "COMT", "HTR1A"]},
+    "raincloud": {"labels": ["活动期", "低活动", "对照"], "datasets": {
+        "活动期": [12.1, 14.2, 15.8, 13.4, 16.1, 12.9, 14.8, 13.9], "低活动": [6.2, 7.1, 5.8, 6.9, 7.5, 6.4, 5.5, 7.0], "对照": [3.1, 2.8, 3.5, 3.0, 2.6, 3.3, 3.2, 2.9]}},
+    "upset": {"title": "五组学平台差异基因交集", "sets": {
+        "转录组": ["TP53", "KRAS", "EGFR", "BRCA1", "MYC", "PTEN", "NRAS", "PIK3CA", "ALK"], "蛋白组": ["TP53", "EGFR", "MYC", "AKT1", "KRAS", "ERBB2", "PTEN"],
+        "甲基化": ["TP53", "BRCA1", "CDKN2A", "MGMT", "PTEN", "RB1"], "eQTL": ["KRAS", "PIK3CA", "PTEN", "AKT1", "MAP2K1", "EGFR"],
+        "GWAS": ["TP53", "BRCA1", "ERBB2", "ATM", "CHEK2", "PALB2"]}},
+    "waterfall": {"change": [-72.4, -65.1, -58.9, -52.0, -41.8, -32.1, -24.5, -15.2,
+                             -8.9, -3.4, 0.8, 12.6, 25.3, 41.7, 52.0],
+                   "names": [f"P{i:03d}" for i in range(1, 16)],
+                   "group": ["PR", "CR", "PR", "PR", "PR", "PR", "SD", "SD",
+                             "SD", "SD", "SD", "SD", "PD", "PD", "PD"]},
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"],
                   "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]},
                   "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
@@ -456,6 +451,7 @@ def suggest_chart_type(data):
     if isinstance(data.get("datasets"), dict) and data["datasets"]:
         recs.append((72, "violin", "raw per-group 'datasets' — distribution view"))
         recs.append((70, "box", "raw per-group 'datasets' — boxplot view"))
+        recs.append((71, "raincloud", "raw per-group 'datasets' — cloud+box+jitter trio"))
     x, y = data.get("x"), data.get("y")
     if isinstance(x, list) and isinstance(y, list) and x and len(x) == len(y):
         recs.append((80, "scatter", "paired x/y arrays"))
@@ -698,6 +694,8 @@ def generate_alt_text(chart_type, data, title=""):
         return f"斜率图（两时点比较），共 {len(items)} 条线。{t}"
     if chart_type == "waterfall":
         return waterfall_alt(data, t)  # v4.8：实现在 af_draw（模块化纪律 <3400 行）
+    if chart_type == "raincloud":
+        return raincloud_alt(data, t)
     if chart_type == "upset":
         s = data.get("sets") or {}
         top_n = data.get("top_n", 12)
@@ -1327,8 +1325,8 @@ def _doctor_report(args, data):
     issues = 0
     print("── doctor 参数/环境体检（v3.9）──", file=sys.stderr)
     combos = [
-        (args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin"),
-         f"--stats {args.stats} 仅 box/violin 生效"),
+        (args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin", "raincloud"),
+         f"--stats {args.stats} 仅 box/violin/raincloud 生效"),
         (args.stats == "cox" and args.type != "forest", "--stats cox 仅 forest 生效"),
         (bool(args.compare) and args.type != "roc", "--compare 仅 roc 生效"),
         (bool(args.egger) and args.type != "funnel", "--egger 仅 funnel 生效"),
@@ -1729,6 +1727,10 @@ def validate_data(data, chart_type):
     # ── waterfall: 肿瘤缓解瀑布（校验逻辑在 af_draw.validate_waterfall，v4.8）──
     elif chart_type == "waterfall":
         fatal.extend(validate_waterfall(data))
+
+    # ── raincloud: 分布三合一（schema 同 violin；校验在 af_draw）──
+    elif chart_type == "raincloud":
+        fatal.extend(validate_raincloud(data))
 
     # ── composite: panels ──
     elif chart_type == "composite":
@@ -2863,8 +2865,8 @@ def main():
 
     # ── v3.6：参数不适用显式告知（消除"静默忽略"——accuracy/usability 靶点）──
     _ignored = []
-    if args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin"):
-        _ignored.append(f"--stats {args.stats}（仅 box/violin 生效）")
+    if args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin", "raincloud"):
+        _ignored.append(f"--stats {args.stats}（仅 box/violin/raincloud 生效）")
     if args.compare and args.type != "roc":
         _ignored.append("--compare（仅 roc 生效）")
     if args.egger and args.type != "funnel":

@@ -5,7 +5,7 @@ import os
 import sys
 
 _WIZARD_SHAPES = [
-    ("各组一组数值（分组比较）", ["bar", "grouped_bar", "box", "violin", "line"],
+    ("各组一组数值（分组比较；看完整分布选 raincloud）", ["bar", "grouped_bar", "box", "violin", "raincloud", "line"],
      "templates/02-rct-baseline-bar.json"),
     ("均值 ± 误差棒（SD/SE）", ["bar"], "templates/02-rct-baseline-bar.json"),
     ("两列连续值（相关/散点）", ["scatter"], "templates/12-dose-response-scatter.json"),

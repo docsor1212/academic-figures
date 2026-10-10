@@ -123,7 +123,8 @@ def legend_for(data, chart_type, title="", error_type="s.e.m."):
         chart_word = {"bar": "Grouped bar chart", "grouped_bar": "Grouped bar chart",
                       "hbar": "Horizontal bar chart", "horizontal_bar": "Horizontal bar chart",
                       "stacked_bar": "Stacked bar chart", "line": "Line chart",
-                      "box": "Box plot", "boxplot": "Box plot", "violin": "Violin plot"}.get(chart_type, "Chart")
+                      "box": "Box plot", "boxplot": "Box plot", "violin": "Violin plot",
+        "raincloud": "雨云图（密度云+箱线+原始点）"}.get(chart_type, "Chart")
         names = _names(list(series.keys()))
         return (f"Figure: {title + '. ' if title else ''}{chart_word} of {names or 'series'} "
                 f"({n_series} series){_fmt_n(series)}{err_note}")

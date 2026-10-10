@@ -84,6 +84,9 @@ gf.gen_bar(data, ax, theme, cjk_fp)
 | gen_line / gen_scatter | line / scatter | line: {labels, series}；scatter: {x, y, groups?} |
 | gen_heatmap | heatmap | {matrix, rows?, cols?} |
 | gen_box / gen_violin | box / violin | {labels(组名), series: {组: [原始值]}} |
+| gen_raincloud | raincloud 雨云图 | {labels?, datasets: {组: [原始值]}, jitter?, cloud_scale?} |
+| gen_slope / gen_volcano | slope / volcano | {items} / {log2fc, pvalue, names?} |
+| gen_upset / gen_waterfall | upset / waterfall | {sets} / {change, names?, group?} |
 | gen_forest | forest | {labels, estimates, ci_low, ci_high, weights?} |
 | gen_km | km | {groups: {组名: [[时间, 事件(1/0)], ...]}} |
 | gen_roc | roc | {curves: [{name, fpr, tpr, auc?}]} |

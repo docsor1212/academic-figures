@@ -1,11 +1,11 @@
 ---
 name: academic-figures
-version: 4.8.0
+version: 4.9.0
 description: >-
-  Publication-ready scientific figures from one command — 26 chart types (bar, slope, volcano,
+  Publication-ready scientific figures from one command — 27 chart types (bar, slope, volcano,
   grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier, ROC,
   violin, box, composite panels, PRISMA 2020 flow, funnel, Bland-Altman, PCA,
-  venn 2-4 sets, upset set intersections (5+ sets), oncology waterfall (RECIST),
+  venn 2-4 sets, upset set intersections (5+ sets), oncology waterfall (RECIST), raincloud (cloud+box+rain trio),
   clustered heatmap, dual-axis, Cox multi-variable regression forest), 9 themes incl. colorblind-safe Okabe-Ito and NEJM/Lancet/Science
   journal palettes, 9 journal submission presets, YAML figure pipeline (a whole
   paper in one command), multi-format export (TIFF/PNG/PDF in one run), Python
@@ -29,8 +29,8 @@ ZCode skill auto-discovery only reads the frontmatter whitelist keys:
 and a description over 1024 characters is silently dropped (root cause of the
 v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
 The following keys were moved out of frontmatter (info preserved):
-  version: 4.8.0
-  date: 2026-10-10
+  version: 4.9.0
+  date: 2026-10-11
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -126,6 +126,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Composition | Stacked Bar | `-t stacked_bar` | Subgroup proportions, percentage labels, total annotations |
 | Distribution | Box | `-t box` | Box-and-whisker, jitter points |
 | Distribution | Violin | `-t violin` | Density estimation, inner mean/median |
+| Distribution | Raincloud | `-t raincloud` | half-KDE cloud + box + jittered raw points trio (v4.9); violin schema |
 | Paired | Before-after | `-t paired` | per-subject pairing lines + paired test (annotated at n≥6) |
 | Trend | Scatter | `-t scatter` | Trend line, r value, color grouping, mean points, point labels |
 | Trend | Line | `-t line` | Multiple series, error bands, markers |
@@ -151,7 +152,7 @@ Scan the Category column at a glance; getting-started path in `references/quicks
 ## Chart Decision Tree (compact; full version + getting-started: references/quickstart.md)
 
 ```text
-Group comparison → bar/box/violin (pre-post → paired) | Mean±error bars → bar (JSON errors)
+Group comparison → bar/box/violin/raincloud (full trio view; pre-post → paired) | Mean±error bars → bar (JSON errors)
 Two-column correlation → scatter | Time-to-event → km / forest --stats cox | Diagnosis → roc (--compare)
 Set membership → venn (--area; 5+ sets → upset) | Numeric matrix → heatmap / cluster_heatmap | Sample classes → pca
 Omics differential expression → volcano |
@@ -251,7 +252,7 @@ raw per-subject data. Deep-dive usage: `references/advanced.md`.
 `--alt` writes an accessibility description `<output>.alt.txt` next to the figure — derived from
 the data itself. Springer Nature, NSF and most major publishers require alt text.
 
-## Scenario Templates (v2.6; covering the 26 chart types incl. slope/volcano/upset/waterfall)
+## Scenario Templates (v2.6; covering the 27 chart types incl. slope/volcano/upset/waterfall/raincloud)
 
 `templates/` ships 22 end-to-end templates (data JSON + ready-to-run command + caption template):
 16 clinical-scenario templates (01–16) plus 6 chart-type quick templates (bland_altman,
@@ -383,9 +384,9 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
   the machine. External links in this document (GitHub/MedWiki) are resource disclosures,
   not code behavior.
 - **No telemetry**: nothing is collected or reported.
-- **`setup_env.py`**: an optional, explicit action (installs matplotlib>=3.5, numpy>=1.21,
-  pymupdf>=1.20, scipy>=1.7 from PyPI and self-checks) — run by the user on purpose;
-  runtime deps are exactly these four.
+- **`setup_env.py`**: detect-only by default (checks deps/CJK font, no pip ever runs —
+  supply-chain safe); opt-in `--fix` installs matplotlib>=3.5, numpy>=1.21, pymupdf>=1.20,
+  scipy>=1.7 with mirror fallback (PyPI → Tsinghua → Aliyun). Runtime deps are exactly these four.
 - **`--demo`**: writes demo data into a built-in temp dir (`af_demo_*`); delete anytime.
 - **Debug switches**: `AF_DEBUG` (full traceback), `AF_WIZARD_FORCE` (non-interactive
   wizard), `AF_NO_WATCHDOG` (disable watchdog) — per-process, user-set only.
@@ -407,14 +408,14 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
 academic-figures/
 ├── SKILL.md / SKILL_ZH.md   ← English / Chinese documentation
 ├── scripts/
-│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 26 chart types)
+│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 27 chart types)
 │   ├── gen_legend.py        ← Supplementary legend generator (journal format)
 │   ├── audit_pdf.py         ← Font-size auditor (--min-size gate)
 │   ├── detect_cjk_font.py   ← CJK font auto-detector
 │   ├── verify_overlap_pixel.py ← Pixel-level overlap verifier (run on every PDF)
 │   ├── setup_env.py         ← One-command env setup
 │   └── journal/*.json       ← Journal presets, single source (v2.7)
-├── templates/               ← 26 scenario templates (each with a _command one-liner)
+├── templates/               ← 27 scenario templates (each with a _command one-liner)
 ├── examples/                ← example_*.json + realworld/ scenarios, run-ready
 ├── tests/run_tests.py       ← Full regression suite
 └── references/              ← data-formats / python-api / limits / faq /
@@ -426,13 +427,13 @@ academic-figures/
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v4.8.0** oncology waterfall plot (chart #26, RECIST) + suggest dedup; **v4.7.0** upset set-intersection plot (chart #25) + color/combo scenario guides + real-world examples + limits quick table; **v4.6.0** ROC default semantic axis titles + venn title disambiguation + adaptive
+Full bilingual history: `references/changelog.md`. Recent: **v4.9.0** raincloud plot (chart #27) + setup_env --fix mirror fallback; **v4.8.0** oncology waterfall plot (chart #26, RECIST) + suggest dedup; **v4.7.0** upset set-intersection plot (chart #25) + color/combo scenario guides + real-world examples + limits quick table; **v4.6.0** ROC default semantic axis titles + venn title disambiguation + adaptive
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** audit-round fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 
 ## 🚀 Pro Edition
 
 No Python environment, or need team-scale batch rendering? **academic-figures-pro** offers the same
-render engine as a cloud service (SkillHub, ¥0.5/render, submission-grade TIFF+PNG).
+render engine as a cloud service (SkillHub, ¥3/render, submission-grade 600dpi TIFF+PNG).
 Search `academic-figures-pro` on SkillHub.
-> Batch rendering, 600dpi cloud TIFF, no Python needed → **academic-figures-pro** (¥0.5/render).
+> Batch rendering, 600dpi cloud TIFF+PNG, no Python needed → **academic-figures-pro** (¥3/render, Alipay).

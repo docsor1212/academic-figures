@@ -1065,7 +1065,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 26, f"expected 26 templates (v2.6 base + slope/volcano/upset/waterfall), got {len(jsons)}")
+        self.assertEqual(len(jsons), 27, f"expected 27 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.8.0", self.zh)
-        self.assertIn("version: 4.8.0", self.en)
+        self.assertIn("version: 4.9.0", self.zh)
+        self.assertIn("version: 4.9.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.8.0", self.zh)
-        self.assertIn("version: 4.8.0", self.en)
+        self.assertIn("version: 4.9.0", self.zh)
+        self.assertIn("version: 4.9.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2599,13 +2599,22 @@ class TestV300Docs(unittest.TestCase):
             self.assertNotIn(banned, self.zh)
         for banned in ("Paper-workflow toolkit", "Entire family", "same author"):
             self.assertNotIn(banned, self.en)
+        # v4.9 Pro 导流信息校准（用户 10-10 令）：价格/分辨率以服务端事实为准，
+        # 旧值与内部推广话术禁回潮；¥3 与 600dpi 必须在双语 Pro 段可见
+        for banned in ("¥0.5", "0.5/次", "转推入口", "300dpi"):
+            self.assertNotIn(banned, self.zh)
+            self.assertNotIn(banned, self.en)
+        self.assertIn("¥3", self.zh)
+        self.assertIn("600dpi", self.zh)
+        self.assertIn("¥3", self.en)
+        self.assertIn("600dpi", self.en)
         self.assertNotIn("paper-polisher", self.zh.replace("paper-polisher-pro", ""))
 
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.8.0", self.zh)
-        self.assertIn("version: 4.8.0", self.en)
+        self.assertIn("version: 4.9.0", self.zh)
+        self.assertIn("version: 4.9.0", self.en)
 
 
 
@@ -2670,7 +2679,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.8.0", zh)
+        self.assertIn("version: 4.9.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2808,7 +2817,7 @@ class TestV3300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "26 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "27 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2839,7 +2848,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.8.0", t, name)
+            self.assertIn("version: 4.9.0", t, name)
 
 
 
@@ -2928,7 +2937,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.8.0", t, name)
+            self.assertIn("version: 4.9.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3047,7 +3056,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.8.0", t, name)
+            self.assertIn("version: 4.9.0", t, name)
 
 
 
@@ -3114,7 +3123,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.8.0", t, name)
+            self.assertIn("version: 4.9.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4131,6 +4140,117 @@ class TestV48000(unittest.TestCase):
         plt.close(fig)
         self.assertEqual(len(labels), n)
         self.assertTrue(all(lb.get_text() for lb in labels), "26 例不抽稀")
+
+
+class TestV49000(unittest.TestCase):
+    """v4.9.0：raincloud 雨云图（第 27 种图型，分布三合一）+ setup_env --fix。"""
+
+    def test_raincloud_e2e_renders(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "r.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["活动期", "低活动期", "健康对照"],
+                 "datasets": {"活动期": [12.1, 14.2, 15.8, 13.4, 16.1, 12.9, 14.8, 13.9, 15.2, 14.0],
+                              "低活动期": [6.2, 7.1, 5.8, 6.9, 7.5, 6.4, 5.5, 7.0, 6.8, 6.0],
+                              "健康对照": [3.1, 2.8, 3.5, 3.0, 2.6, 3.3, 3.2, 2.9, 3.4, 3.0]}},
+                ensure_ascii=False))
+            out = os.path.join(td, "r.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "raincloud", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"], capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("raincloud: 3 组", r.stderr)
+            self.assertIn("原始点", r.stderr)
+
+    def test_raincloud_validate_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ({}, "需要 'datasets'"),
+                ({"datasets": {}}, "需要 'datasets'"),
+                ({"datasets": {"A": []}}, "非空数值数组"),
+                ({"datasets": {"A": [1, "x"]}}, "非数值"),
+                ({"datasets": {"A": [1, float("nan")]}}, "非有限"),
+                ({"labels": ["a"], "datasets": {"A": [1, 2], "B": [3, 4]}}, "一一对应"),
+                ({"datasets": {"A": [1, 2]}, "jitter": 9}, "jitter"),
+                ({"datasets": {"A": [1, 2]}, "cloud_scale": 9}, "cloud_scale"),
+            ]
+            for i, (data, want) in enumerate(cases):
+                f = os.path.join(td, f"b{i}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "raincloud", "-d", f,
+                     "-o", os.path.join(td, f"x{i}.png")],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (i, r.stderr[-200:]))
+                self.assertIn(want, r.stderr, (i, want))
+
+    def test_raincloud_registry_count_27(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3
+        self.assertGreaterEqual(n, 27, f"注册表图型数: {n}")
+
+    def test_raincloud_demo_data_valid(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        demo = gen_figure.DEMO_DATA["raincloud"]
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(demo, ensure_ascii=False))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "raincloud", "-d", f,
+                 "-o", os.path.join(td, "d.png"), "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+
+    def test_raincloud_suggest_and_zero_variance(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "s.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"datasets": {"A": [1, 2, 3], "B": [2, 3, 4]}}))
+            r = subprocess.run([sys.executable, GEN, "--suggest", "-d", f],
+                               capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stderr[-200:])
+            self.assertIn("raincloud", r.stdout)
+            f2 = os.path.join(td, "z.json")
+            io.open(f2, "w", encoding="utf-8").write(json.dumps(
+                {"datasets": {"恒定组": [5.0, 5.0, 5.0], "正常组": [1, 2, 3, 4]}}, ensure_ascii=False))
+            out = os.path.join(td, "z.png")
+            r2 = subprocess.run(
+                [sys.executable, GEN, "-t", "raincloud", "-d", f2, "-o", out, "--dpi", "70"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r2.returncode, 0, r2.stderr[-250:])
+            self.assertIn("方差为 0", r2.stderr)
+            self.assertTrue(os.path.exists(out))
+
+    def test_raincloud_n1_and_hidden_cloud_and_stats(self):
+        """n=1 单点组不崩（云退化标记线）+ cloud_scale=0 藏云 + --stats auto 透传（审查 P1-1/P2-1/P1-2 回归锁）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "p.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps({"datasets": {"one": [7.5]}}))
+            out = os.path.join(td, "p.png")
+            r = subprocess.run([sys.executable, GEN, "-t", "raincloud", "-d", f, "-o", out,
+                                "--dpi", "70"], capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("退化", r.stderr)
+            f2 = os.path.join(td, "h.json")
+            io.open(f2, "w", encoding="utf-8").write(json.dumps(
+                {"datasets": {"A": [1, 2, 3, 4, 5], "B": [2, 3, 4, 5, 6]}, "cloud_scale": 0}))
+            r2 = subprocess.run([sys.executable, GEN, "-t", "raincloud", "-d", f2,
+                                 "-o", os.path.join(td, "h.png"), "--dpi", "70", "--stats", "auto"],
+                                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r2.returncode, 0, r2.stderr[-250:])
+            self.assertIn("云已隐藏", r2.stderr)
+            self.assertIn("stats (raincloud)", r2.stderr)  # stats 真透传（非 [ignored]）
+            self.assertNotIn("[ignored] --stats", r2.stderr)
+
+    def test_setup_env_fix_flag(self):
+        # 密闭：不真跑 --fix（缺依赖机器会触发真实 pip）——源码静态断言
+        src = io.open(os.path.join(SCRIPT_DIR, "setup_env.py"), encoding="utf-8").read()
+        self.assertIn("--fix", src)
+        self.assertIn("tuna.tsinghua", src)
+        self.assertIn("aliyun", src)
 
 
 if __name__ == "__main__":

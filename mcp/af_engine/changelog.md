@@ -6,6 +6,29 @@
 
 ## Version History
 
+## 4.9.0 — 2026-10-11
+
+  - **New chart type #27: `raincloud` — the distribution trio** (Allen et al.
+    2021 modern form): half-KDE cloud (density shape) + box (five-number
+    summary: IQR box, bold median, 1.5×IQR whiskers) + deterministic jittered
+    raw points ("rain") — every sample visible, nothing hidden. Same schema as
+    violin (`labels` + `datasets`); `--stats auto/multi` apply; `jitter`
+    (0–0.3, default 0.08) and `cloud_scale` (0–3, default 1.0) tunables;
+    zero-variance groups degrade the cloud to a marker line with an explicit
+    stderr notice (never silent). `--suggest` lists raincloud alongside
+    violin/box for raw per-group data.
+  - **setup_env.py `--fix`**: opt-in auto-install with mirror fallback
+    (default PyPI → Tsinghua → Aliyun) — the #1 usability blocker (Python
+    environment setup friction) now has a one-command path in China; default
+    behavior unchanged (detect-only, no silent pip, supply-chain safe).
+    quickstart step 1 now also points non-Python users to the cloud edition.
+  - `templates/raincloud.json` (27 templates); docs updated to 27 chart types
+    across SKILL bilingual/README/quickstart/cheatsheet/data-formats.
+  - Tests: +TestV49000 (E2E render, validate fatals, registry count 27, demo
+    render, suggest routing, zero-variance degradation); template lock 26→27;
+    suite at 335 green.
+
+
 ## 4.8.0 — 2026-10-10
 
   - **New chart type #26: `waterfall` — oncology best-response waterfall**: one
@@ -681,6 +704,17 @@
 
 ## 版本历史
 
+- **v4.9.0**（2026-10-11）—— 新图型 #27 raincloud 雨云图 + 环境门槛一键化：
+  - **`raincloud`**：分布三合一（KDE 半小提琴云+箱线五数概括+确定性抖动原始点雨）
+    ——摘要（箱）、形状（云）、每个样本（雨）同屏呈现且互不遮挡（Allen et al. 2021
+    现代形态）。schema 同 violin；`--stats auto/multi` 通用；`jitter`/`cloud_scale`
+    可调；方差为 0 的组云退化为标记线并 stderr 告知（零静默）。
+  - **setup_env.py --fix**：显式自动安装+镜像回退（默认源→清华→阿里）——国内用户
+    环境门槛一键路径；默认行为不变（仅检测不装，供应链安全）。quickstart 第一步
+    补零 Python 用户云端版引导。
+  - 模板 raincloud.json（27 模板）；全文档 27 种图型同步。
+  - 测试：+TestV49000（E2E/fatal/注册表 27/demo/suggest/零方差退化）；模板锁 26→27；
+    全量 335 绿。
 - **v4.8.0**（2026-10-10）—— 新图型 #26 `waterfall` 肿瘤缓解瀑布图：
   - **`waterfall`**：每例（患者）自基线最佳变化%一柱，经典降序形态（并列按输入序，
     `sort=input` 保持给定序）；RECIST 感知着色——`group`（CR/PR/SD/PD 大小写不敏感）

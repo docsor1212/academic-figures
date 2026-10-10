@@ -111,7 +111,7 @@ auto=各组对第一组（两组就能用）；multi=全两两（需 ≥3 组，
 ## 付费版
 
 **Q：免费版和 Pro 什么关系？**
-同一渲染引擎。Pro 是云端服务（无需 Python，上传数据即出图，¥0.5/次），见 SkillHub `academic-figures-pro`。本地能用免费版就够，团队/无环境场景选 Pro。
+同一渲染引擎。Pro 是云端服务（无需 Python，上传数据即出图，¥3/次，金额以支付账单为准），见 SkillHub `academic-figures-pro`。本地能用免费版就够，团队/无环境场景选 Pro。
 
 ## 参数冲突与边界 FAQ（v3.2 扩充）
 

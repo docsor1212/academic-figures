@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""academic-figures 一键环境准备：依赖检测/安装、中文字体检测、字体缓存清理、自检报告。"""
+"""academic-figures 一键环境准备：依赖检测/安装、中文字体检测、字体缓存清理、自检报告。
+v4.9：--fix 显式开启自动安装（默认源→清华→阿里镜像回退）；默认仍只检测不装（供应链安全）。"""
 import os
 import shutil
 import subprocess
 import sys
 
-# v3.7：版本下限精确化（boundary 评测靶点：多库依赖具体版本要求）
+# v3.7：版本下限精确化（多库依赖的具体版本要求明确化）
 REQUIRED = {
     "matplotlib": "matplotlib>=3.5",
     "numpy": "numpy>=1.21",
@@ -32,7 +33,29 @@ def check_python():
     return ok
 
 
-def check_import(pkg_name, import_name=None):
+MIRRORS = [
+    None,  # 默认源（官方 PyPI）
+    "https://pypi.tuna.tsinghua.edu.cn/simple",   # v4.9：国内镜像 fallback
+    "https://mirrors.aliyun.com/pypi/simple/",
+]
+
+
+def pip_install(spec):
+    """v4.9 --fix 模式：按 默认源→清华→阿里 顺序安装，全败返回 False。"""
+    for idx, mirror in enumerate(MIRRORS):
+        cmd = [sys.executable, "-m", "pip", "install", spec]
+        src = "默认源"
+        if mirror:
+            cmd += ["-i", mirror]
+            src = mirror.split("//")[1].split("/")[0]
+        print(f"        … 安装 {spec}（{src}）")
+        if run(cmd, timeout=600):
+            return True
+        print(f"        {spec} 经 {src} 失败" + ("，切换镜像重试…" if idx < len(MIRRORS) - 1 else ""))
+    return False
+
+
+def check_import(pkg_name, import_name=None, fix=False):
     import_name = import_name or pkg_name
     try:
         __import__(import_name)
@@ -40,8 +63,17 @@ def check_import(pkg_name, import_name=None):
         return True
     except ImportError:
         print(f"[{FAIL_EMOJI}] {pkg_name} 未安装")
-        print(f"        请手动安装（不自动执行 pip，避免供应链风险）:")
-        print(f"        {sys.executable} -m pip install {pkg_name}")
+        if not fix:
+            print(f"        请手动安装（默认不自动执行 pip，避免供应链风险）:")
+            print(f"        {sys.executable} -m pip install {pkg_name}")
+            print(f"        或使用自动安装+国内镜像回退: python3 scripts/setup_env.py --fix")
+            return False
+        spec = REQUIRED.get(pkg_name, pkg_name)
+        if pip_install(spec):
+            print(f"[OK] {pkg_name} 安装成功")
+            return True
+        print(f"[{FAIL_EMOJI}] {pkg_name} 自动安装失败——请检查网络/权限后手动安装:")
+        print(f"        {sys.executable} -m pip install {spec} -i https://pypi.tuna.tsinghua.edu.cn/simple")
         return False
 
 
@@ -83,11 +115,12 @@ def clear_font_cache():
 
 
 def main():
-    print("=== academic-figures 环境自检 ===")
+    fix = "--fix" in sys.argv[1:]
+    print("=== academic-figures 环境自检 ===" + ("（--fix：缺依赖自动安装，镜像回退）" if fix else ""))
     ok_all = []
     ok_all.append(check_python())
     for pkg, imp in REQUIRED.items():
-        ok_all.append(check_import(pkg))
+        ok_all.append(check_import(pkg, fix=fix))
     clear_font_cache()
     ok_all.append(check_cjk_font())
     print()

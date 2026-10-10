@@ -377,6 +377,30 @@ EGPA,5,45,30,10,10
 
 ---
 
+## Raincloud Plot (`--type raincloud`, v4.9)
+
+```json
+{
+  "labels": ["活动期", "低活动期", "健康对照"],
+  "datasets": {
+    "活动期": [12.1, 14.2, 15.8, 13.4, 16.1],
+    "低活动期": [6.2, 7.1, 5.8, 6.9],
+    "健康对照": [3.1, 2.8, 3.5, 3.0]
+  },
+  "jitter": 0.08,
+  "cloud_scale": 1.0
+}
+```
+
+- 分布三合一（Allen et al. 2021 现代形态）：左=KDE 半小提琴「云」（密度形状）+中=箱线「五数概括」
+  （IQR 箱+中位粗线+1.5×IQR 须）+右=抖动原始点「雨」（确定性抖动，同数据同图）。
+- schema 与 violin 完全相同（labels 可省略，省略时用 datasets 键名）。
+- `jitter`（默认 0.08，取 0~0.3）：雨滴横向散布幅度；`cloud_scale`（默认 1.0，取 0~2.0）：云的宽度缩放，0=隐藏云（仅箱+雨，stderr 告知）。
+- `--stats auto/multi/bootstrap` 与 box/violin 同样适用（显著性括号自动标注）。
+- 方差为 0 的组（全同值）KDE 退化 → 云自动退化为标记线并在 stderr 告知（零静默）。
+
+---
+
 ## Waterfall Plot (`--type waterfall`, v4.8)
 
 ```json
