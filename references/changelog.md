@@ -6,6 +6,37 @@
 
 ## Version History
 
+## 4.10.0 — 2026-10-13
+
+  - **New chart type #28: `swimmer` — the clinical swimmer plot**: one
+    horizontal bar per subject (treatment/follow-up duration), sorted by
+    duration (classic form). `end` required (positive, unit-agnostic);
+    optional `start` (bar offset, must be < end), `names` (per-subject
+    labels), `group` (RECIST-aware coloring CR/PR/SD/PD sharing the
+    waterfall semantic palette, case-normalized; other categories use theme
+    colors in first-appearance order), `milestones` (per-subject marker
+    times, e.g. first response; may exceed bar end — response persisting
+    after treatment discontinuation), `ongoing` (arrowhead at bar end =
+    still on treatment/in response at data cutoff), `ref_lines` (dashed
+    landmark guides, e.g. month 12/24), `sort=duration|input`, `x_label`.
+    Symbol legend (milestone dot / ongoing arrow) added automatically;
+    stderr fact line reports n, ongoing count, milestone count and category
+    counts; y labels never thinned (each bar = one subject, font adapts).
+    `--alt` text, `--suggest` routing (per-subject `end` durations), demo
+    data, template and real-world example included.
+  - **--doctor submission-format hint**: when output is a
+    submission format (PDF/TIFF/EPS) and `--verify` is off, doctor prints an
+    actionable info line (use `--verify` or `--pub-ready`) — closing the
+    "hidden rule" gap where reviewers expected verification on submission
+    outputs.
+  - `templates/swimmer.json` (28 templates) +
+    `examples/realworld_csle_swimmer.json` (pediatric cSLE cohort,
+    self-consistency-asserted); docs updated to 28 chart types across
+    SKILL bilingual/README/quickstart/cheatsheet/templates-README.
+  - Tests: +TestV41000 (E2E render group/no-group, validate fatals, alt
+    text, suggest routing, template _command, real-world self-consistency);
+    suite at 346 green (v4.1.0 regression class un-shadowed by rename).
+
 ## 4.9.0 — 2026-10-11
 
   - **New chart type #27: `raincloud` — the distribution trio** (Allen et al.
@@ -614,6 +645,25 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v4.10.0（2026-10-13）
+
+- **新图型 #28：`swimmer` 游泳图（临床试验逐例时长）**：每例一条横条
+  （治疗/随访持续时长），按时长降序经典形态；`end` 必填（正数，单位自定）；
+  可选 `start`（起条偏移，须小于 end）、`names`、`group`（RECIST 着色，
+  与瀑布图同族语义色、大小写归一）、`milestones`（每例里程碑时点，如首次
+  应答，可晚于条端=停药后应答持续形态）、`ongoing`（条端箭头=数据截止仍在
+  治疗/缓解）、`ref_lines`（地标虚线）、`sort=duration|input`、`x_label`。
+  符号图例自动添加；stderr 事实行含例数/持续中/里程碑/类别计数；y 标签
+  不抽稀（每条=一名受试者，字号自适应）。--alt 无障碍摘要、--suggest 路由、
+  demo、模板与真实场景示例齐备。
+- **--doctor 投稿格式提示**：输出为投稿格式（PDF/TIFF/EPS）且未开 --verify
+  时给出行动建议行（--verify 或 --pub-ready）。
+- 模板 swimmer.json（28 模板）+ examples/realworld/realworld_csle_swimmer.json
+  （儿童狼疮肾炎 cSLE 队列，程序化自洽断言）；双语文档 28 种图型同步。
+- 测试：+TestV410000（E2E 分组/无分组渲染、校验致命项、alt 文本、suggest
+  路由、模板与示例 _command 逐字执行、示例自洽断言、doctor 提示）。
+
 
 ### v4.6.0（2026-10-08）
 

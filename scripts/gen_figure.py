@@ -54,7 +54,8 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      gen_dual_axis, gen_composite, gen_diagram, gen_prisma,
                      gen_slope, gen_volcano, gen_upset, gen_waterfall,
                      waterfall_alt, validate_raincloud, raincloud_alt,
-                     validate_waterfall)
+                     validate_waterfall, gen_swimmer, swimmer_alt,
+                     validate_swimmer, alt_text_core)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
@@ -282,6 +283,9 @@ CHART_NOTES = {
              "title 字段；未展示交集只计入 stderr 事实行。",
     "raincloud": "raincloud: 雨云图（v4.9，第 27 种图型；分布三合一：KDE 半小提琴云+箱线五数概括+"
                  "抖动原始点雨）；schema 同 violin；--stats 通用；jitter(0~0.3)/cloud_scale(0~2.0，0=藏云)；零方差/单点组云退化并告知。",
+    "swimmer": "swimmer: 游泳图（v4.10，第 28 种图型；临床试验逐例时长）；JSON end 必填（>0，单位自定）、"
+               "start/names/group 可选（RECIST 类别着色同 waterfall）、milestones 里程碑圆点（可晚于条端）、"
+               "ongoing 端部箭头（持续中）、ref_lines 地标虚线；sort=duration|input。",
     "waterfall": "waterfall: 肿瘤缓解瀑布图（v4.8，第 26 种图型；每例自基线最佳变化%）；"
                  "JSON change 必填（缩小为负）、names/group 可选（RECIST 类别着色+图例）、"
                  "pr_cut=-30/pd_cut=20 阈值虚线、sort=desc|input；--show-values 柱端数值；"
@@ -369,6 +373,12 @@ DEMO_DATA = {
                    "names": [f"P{i:03d}" for i in range(1, 16)],
                    "group": ["PR", "CR", "PR", "PR", "PR", "PR", "SD", "SD",
                              "SD", "SD", "SD", "SD", "PD", "PD", "PD"]},
+    "swimmer": {"end": [38.9, 34.2, 30.5, 26.1, 22.4, 18.7, 15.9, 12.3, 9.8, 6.4, 4.1, 2.2],
+                "names": [f"P{i:03d}" for i in range(1, 13)],
+                "group": ["CR", "CR", "PR", "PR", "PR", "PR", "SD", "SD", "SD", "PD", "PD", "PD"],
+                "milestones": [[8.2], [9.5], [6.1], [7.0], [10.2], [], [5.5], [], [], [], [], []],
+                "ongoing": [True, True, True, False, True, False, False, False, False, False, False, False],
+                "ref_lines": [12, 24]},
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"],
                   "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]},
                   "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
@@ -446,6 +456,10 @@ def suggest_chart_type(data):
         recs.append((93, "forest", "effect estimates with CI bounds"))
     if isinstance(data.get("matrix"), list):
         recs.append((88, "heatmap", "2D 'matrix'"))
+    _sw_end = data.get("end")
+    if isinstance(_sw_end, list) and _sw_end and \
+            all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in _sw_end):
+        recs.append((87, "swimmer", "per-subject 'end' durations — swimmer plot"))
     if {"left", "right"} <= keys:
         recs.append((86, "dual_axis", "left + right series for dual Y-axis"))
     if isinstance(data.get("datasets"), dict) and data["datasets"]:
@@ -597,112 +611,13 @@ JOURNAL_THEME = {"nature": "nature", "lancet": "lancet",
 # ALL series get hatching when --hatch is enabled (including the first).
 # Each series cycles through a different pattern so they're distinguishable
 # even in black-and-white print. Hatch line color = black (edgecolor='black').
-def _alt_num(x):
-    try:
-        return float(x)
-    except (TypeError, ValueError):
-        return None
-
-
 def generate_alt_text(chart_type, data, title=""):
     """One-paragraph accessibility description derived from the data dict.
-    Written to <output>.alt.txt with --alt."""
+    Written to <output>.alt.txt with --alt. EXTRA 图型（af_v23_charts）在此分流，
+    核心分支=af_draw.alt_text_core（v4.10 移居，守 gen_figure <3400 行纪律）。"""
     if _afcharts is not None and chart_type in _afcharts.EXTRA_GENERATORS:
         return _afcharts.alt_extra(chart_type, data, title)
-    t = f"{title}。" if title else ""
-
-    def _max_txt(vals):
-        fv = [_alt_num(v) for v in vals if isinstance(vals, list)]
-        fv = [v for v in fv if v is not None]
-        return f"{max(fv):g}" if fv else "?"
-
-    if chart_type in ("bar", "grouped_bar", "hbar", "horizontal_bar"):
-        series = data.get("series", {})
-        labels = data.get("labels", [])
-        parts = []
-        for name, vals in series.items():
-            fv = [v for v in (_alt_num(x) for x in vals) if v is not None]
-            if fv:
-                parts.append(f"{name} 最大值 {max(fv):g}")
-        return (f"柱状图。{t}共 {len(labels)} 组：{'、'.join(map(str, labels))}。"
-                f"{'；'.join(parts)}。")
-    if chart_type in ("box", "boxplot", "violin"):
-        series = data.get("series", {})
-        segs = []
-        for name, vals in series.items():
-            fv = sorted(v for v in (_alt_num(x) for x in vals) if v is not None)
-            if fv:
-                segs.append(f"{name}：中位数 {fv[len(fv)//2]:g}（n={len(fv)}）")
-        kind = "箱线图" if chart_type in ("box", "boxplot") else "小提琴图"
-        return f"{kind}。{t}{'；'.join(segs)}。"
-    if chart_type in ("km", "survival"):
-        groups = data.get("groups", {})
-        lr = data.get("log_rank") or {}
-        tail = f"Log-rank p = {lr.get('p')}。" if lr.get("p") is not None else ""
-        return (f"Kaplan-Meier 生存曲线。{t}分组：{'、'.join(groups.keys())}。{tail}")
-    if chart_type == "roc":
-        curves = data.get("curves", [])
-        names = "；".join(f"{c.get('name', 'curve')} AUC {c.get('auc', '?')}"
-                          for c in curves)
-        return f"ROC 曲线。{t}{names}。"
-    if chart_type == "forest":
-        o = data.get("overall") or {}
-        o_txt = (f"合并效应 {o.get('estimate')}（95%CI {o.get('ci_low')}–{o.get('ci_high')}）。"
-                 if o else "")
-        return f"森林图，{len(data.get('labels', []))} 项研究。{t}{o_txt}"
-    if chart_type == "heatmap":
-        m = data.get("matrix", [])
-        cols = len(m[0]) if m else 0
-        return f"热图，{len(m)} 行 × {cols} 列。{t}"
-    if chart_type == "prisma":
-        return (f"PRISMA 2020 系统综述流程图：最初识别 "
-                f"{data.get('records_identified')} 条记录，最终纳入 "
-                f"{data.get('studies_included')} 项研究。{t}")
-    if chart_type == "composite":
-        panels = data.get("panels", [])
-        names = "、".join(str(p.get("title", "")) for p in panels)
-        return f"多面板组合图，{len(panels)} 个面板：{names}。{t}"
-    if chart_type == "line":
-        series = data.get("series", {})
-        n_pts = len(next(iter(series.values()), []))
-        return f"折线图，{len(series)} 条系列 × {n_pts} 个数据点。{t}"
-    if chart_type == "scatter":
-        return f"散点图，共 {len(data.get('x', []))} 个数据点。{t}"
-    if chart_type == "dual_axis":
-        return f"双 Y 轴折线图。{t}"
-    if chart_type == "diagram":
-        return f"流程图。{t}"
-    if chart_type == "volcano":
-        l2 = data.get("log2fc") or []
-        n_up = n_dn = 0
-        try:
-            fc_cut = float(data.get("fc_cut", 1.0))
-            p_cut = float(data.get("p_cut", 0.05))
-            import math as _m
-            sig = -_m.log10(p_cut)
-            for x, p in zip(l2, data.get("pvalue") or []):
-                if -_m.log10(p) >= sig and x >= fc_cut:
-                    n_up += 1
-                elif -_m.log10(p) >= sig and x <= -fc_cut:
-                    n_dn += 1
-        except Exception:
-            pass
-        return (f"火山图（组学差异表达），共 {len(l2)} 个特征，"
-                f"阈值内上调 {n_up} 个、下调 {n_dn} 个。{t}")
-    if chart_type == "slope":
-        items = data.get("items") or {}
-        return f"斜率图（两时点比较），共 {len(items)} 条线。{t}"
-    if chart_type == "waterfall":
-        return waterfall_alt(data, t)  # v4.8：实现在 af_draw（模块化纪律 <3400 行）
-    if chart_type == "raincloud":
-        return raincloud_alt(data, t)
-    if chart_type == "upset":
-        s = data.get("sets") or {}
-        top_n = data.get("top_n", 12)
-        return (f"UpSet 集合交集图，共 {len(s)} 个集合"
-                f"（{'、'.join(list(map(str, s.keys()))[:6])}{'等' if len(s) > 6 else ''}），"
-                f"展示元素数最多的前 {top_n} 个交集；行=集合，柱=交集大小。{t}")
-    return f"{chart_type} 图。{t}"
+    return alt_text_core(chart_type, data, title)
 
 # ── Font helpers ───────────────────────────────────────────────────────
 
@@ -1388,6 +1303,10 @@ def _doctor_report(args, data):
 
     if any(has_cjk(t) for t in (args.title, args.xlabel, args.ylabel) if t) or _scan(data):
         print("  [i] 检测到中文文本——将自动加载 CJK 字体（--cjk 可显式指定）", file=sys.stderr)
+    if str(args.out or "").lower().endswith((".pdf", ".tiff", ".tif", ".eps")) \
+            and not getattr(args, "verify", False):
+        print("  [i] 投稿格式输出建议加 --verify（重叠/元数据门禁；一键投稿包用 --pub-ready）",
+              file=sys.stderr)
     print(f"── doctor 完成：{'✅ 未发现问题' if issues == 0 else f'⚠️ {issues} 项需注意'} ──",
           file=sys.stderr)
     return issues
@@ -1727,6 +1646,10 @@ def validate_data(data, chart_type):
     # ── waterfall: 肿瘤缓解瀑布（校验逻辑在 af_draw.validate_waterfall，v4.8）──
     elif chart_type == "waterfall":
         fatal.extend(validate_waterfall(data))
+
+    # ── swimmer: 临床试验游泳图（校验逻辑在 af_draw.validate_swimmer，v4.10）──
+    elif chart_type == "swimmer":
+        fatal.extend(validate_swimmer(data))
 
     # ── raincloud: 分布三合一（schema 同 violin；校验在 af_draw）──
     elif chart_type == "raincloud":

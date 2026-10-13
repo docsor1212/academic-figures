@@ -2019,7 +2019,7 @@ def gen_waterfall(data, ax, theme, cjk_fp, **kwargs):
     ax.set_xlim(-0.7, n + (1.6 if n else 0))  # 右侧留阈值标注位
     # 计数事实框左下 + 白底托底（v4.8 审查 P2-1：n=1/sort=input 下柱体会穿字，
     # 全正数据时 -30% 虚线也会划过——白底 alpha 0.85 保证任何数据形态下可读）
-    ax.text(0.02, 0.05, fact, transform=ax.transAxes, va="bottom", ha="left",
+    ax.text(0.02, 0.02, fact, transform=ax.transAxes, va="bottom", ha="left",
             fontsize=fs_s, color="#555555",
             bbox=dict(facecolor="white", edgecolor="none", alpha=0.85,
                       boxstyle="round,pad=0.25"),
@@ -2029,6 +2029,278 @@ def gen_waterfall(data, ax, theme, cjk_fp, **kwargs):
           + (f"；x 标签每 {_stride} 例显示 1 个" if _stride > 1 else "")
           + f"；{fact}", file=sys.stderr)
     apply_base_style(ax, theme)
+
+
+# v4.10：RECIST 规范语义色（与 gen_waterfall 阈值分桶/类别着色同族， swimmer 复用）
+_RECIST_SEMANTIC = {"CR": "#2C5F8A", "PR": "#5FA4D0", "SD": "#B8B8B8", "PD": "#D55E00"}
+
+
+def gen_swimmer(data, ax, theme, cjk_fp, **kwargs):
+    """Swimmer plot（v4.10，第 28 种图型）：临床试验游泳图——每例受试者一条横条，
+    条长=治疗/随访持续时长，按持续时长降序（经典形态，PharmaSUG/IASLC 惯例）；
+    端部箭头=数据截止时仍在治疗/缓解（ongoing），条上空心圆点=里程碑事件时间
+    （如首次应答）；类别着色与瀑布图同族（RECIST 规范语义色），地标参考线=竖直
+    虚线。里程碑允许晚于条端（停药后应答持续的经典形态）。
+
+    JSON: {"end": [12.3, ...](必填，>0，单位自定), "start": [0, ...](可选，默认 0，
+           须 <end), "names": [...](可选), "group": [...](可选，RECIST/类别着色),
+           "milestones": [[6.1], ...](可选，每例里程碑时间点列表，可为 null),
+           "ongoing": [true, ...](可选，端部箭头), "ref_lines": [12, 24](可选，地标),
+           "sort": "duration"(默认)|"input", "x_label": "..."(可选)}
+    """
+    import math as _m
+    end_raw = data.get("end")
+    if not (isinstance(end_raw, list) and end_raw):
+        raise ValueError("swimmer: 需要 'end'（非空数值数组：每例治疗/随访持续时长，单位自定）")
+    try:
+        end = [float(v) for v in end_raw]
+    except (TypeError, ValueError):
+        raise ValueError("swimmer: end 必须全为数值")
+    if not all(_m.isfinite(v) for v in end):
+        raise ValueError("swimmer: end 含非有限值（NaN/±Infinity）——请清洗源数据"
+                         "（数值政策：非有限值一律拒绝，不静默跳过）")
+    if any(v <= 0 for v in end):
+        raise ValueError("swimmer: end 必须全为正数（时长 ≤0 无意义）")
+    n = len(end)
+    start_raw = data.get("start")
+    if start_raw is not None:
+        if not isinstance(start_raw, list) or len(start_raw) != n:
+            raise ValueError("swimmer: 'start' 长度必须与 end 一致")
+        try:
+            start = [float(v) for v in start_raw]
+        except (TypeError, ValueError):
+            raise ValueError("swimmer: start 必须全为数值")
+        if not all(_m.isfinite(v) for v in start):
+            raise ValueError("swimmer: start 含非有限值")
+        bad = [i + 1 for i in range(n) if start[i] >= end[i]]
+        if bad:
+            raise ValueError("swimmer: start 必须小于 end（第 "
+                             + ", ".join(str(b) for b in bad[:5]) + " 例违反）")
+    else:
+        start = [0.0] * n
+    names = data.get("names")
+    if names is not None and (not isinstance(names, list) or len(names) != n):
+        raise ValueError("swimmer: 'names' 长度必须与 end 一致")
+    group = data.get("group")
+    if group is not None:
+        if not isinstance(group, list) or len(group) != n:
+            raise ValueError("swimmer: 'group' 长度必须与 end 一致")
+        if not all(isinstance(g, (str, int, float)) and not isinstance(g, bool)
+                   for g in group):
+            raise ValueError("swimmer: 'group' 必须全为字符串或数值标量")
+    ms_raw = data.get("milestones")
+    if ms_raw is not None:
+        if not isinstance(ms_raw, list) or len(ms_raw) != n:
+            raise ValueError("swimmer: 'milestones' 长度必须与 end 一致（每例一个时间点数组）")
+        ms = []
+        for i, row in enumerate(ms_raw):
+            if row is None:
+                ms.append([])
+                continue
+            if not isinstance(row, list):
+                raise ValueError(f"swimmer: milestones[{i}] 必须是时间点数组（或 null）")
+            try:
+                row_f = [float(v) for v in row]
+            except (TypeError, ValueError):
+                raise ValueError(f"swimmer: milestones[{i}] 必须全为数值")
+            if not all(_m.isfinite(v) for v in row_f):
+                raise ValueError(f"swimmer: milestones[{i}] 含非有限值")
+            if any(v < start[i] for v in row_f):
+                raise ValueError(f"swimmer: milestones[{i}] 早于该例 start（里程碑不能早于起条）")
+            ms.append(row_f)
+    else:
+        ms = [[] for _ in range(n)]
+    on_raw = data.get("ongoing")
+    if on_raw is not None:
+        if not isinstance(on_raw, list) or len(on_raw) != n or \
+                not all(isinstance(v, bool) for v in on_raw):
+            raise ValueError("swimmer: 'ongoing' 必须是与 end 等长的布尔数组"
+                             "（true=数据截止时仍在治疗/缓解）")
+        on = on_raw
+    else:
+        on = [False] * n
+    ref = data.get("ref_lines")
+    if ref is not None:
+        if not isinstance(ref, list) or \
+                not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in ref):
+            raise ValueError("swimmer: 'ref_lines' 必须是数值数组（地标时间，如 [12, 24]）")
+        ref = [float(v) for v in ref]
+    else:
+        ref = []
+    sort_mode = str(data.get("sort", "duration")).strip().lower()
+    if sort_mode not in ("duration", "input"):
+        raise ValueError("swimmer: sort 只支持 'duration' 或 'input'")
+
+    order = sorted(range(n), key=lambda i: (-(end[i] - start[i]), i)) \
+        if sort_mode == "duration" else list(range(n))
+    s_end = [end[i] for i in order]
+    s_start = [start[i] for i in order]
+    s_ms = [ms[i] for i in order]
+    s_on = [on[i] for i in order]
+    snames = [str(names[i]) if names else f"P{i+1:03d}" for i in order]
+    sgroup = [str(group[i]) if group is not None else None for i in order]
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    y = np.arange(n)
+
+    legend_handles, legend_labels = [], []
+    if sgroup and group is not None:
+        # 类别着色：全为 RECIST 标准类别时用规范语义色（大小写归一，同 waterfall），
+        # 否则主题色按首现顺序（确定性）
+        cats, cmap = [], {}
+        _upper = [str(g).upper() for g in sgroup]
+        if set(_upper) <= set(_RECIST_SEMANTIC):
+            sgroup = _upper
+            for gu in _upper:
+                if gu not in cmap:
+                    cmap[gu] = _RECIST_SEMANTIC[gu]
+                    cats.append(gu)
+        else:
+            for g in sgroup:
+                if g not in cmap:
+                    cmap[g] = theme["colors"][len(cmap) % len(theme["colors"])]
+                    cats.append(g)
+        bar_colors = [cmap[g] for g in sgroup]
+        legend_handles = [plt.Rectangle((0, 0), 1, 1, color=cmap[c]) for c in cats]
+        legend_labels = cats
+        fact = "  ".join(f"{c} {sgroup.count(c)}" for c in cats)
+    else:
+        bar_colors = [theme["colors"][0]] * n
+        fact = f"n={n}"
+    if any(s_ms):
+        legend_handles.append(plt.Line2D([], [], marker="o", ls="none", mfc="white",
+                                         mec="#4A4A4A", mew=1.1, ms=4.6))
+        legend_labels.append("里程碑" if cjk_fp else "Milestone")
+    if any(s_on):
+        legend_handles.append(plt.Line2D([], [], marker=">", ls="none",
+                                         color="#4A4A4A", ms=5))
+        legend_labels.append("持续中" if cjk_fp else "Ongoing")
+    if legend_handles:
+        # 白衬底（framealpha 0.95）：ref_lines 地标虚线可能从图例下穿过，
+        # 衬底保证任何数据形态下图例内部不被切割（验收 P1 修复）
+        ax.legend(legend_handles, legend_labels, loc="lower right",
+                  frameon=True, framealpha=0.95, edgecolor="none",
+                  fontsize=fs_s,
+                  prop=cjk_fp if cjk_fp and has_cjk("".join(legend_labels)) else None)
+
+    ax.barh(y, [e - s for e, s in zip(s_end, s_start)], left=s_start, height=0.62,
+            color=bar_colors, edgecolor="none", zorder=3)
+    n_ms = 0
+    for i in range(n):
+        for v in s_ms[i]:
+            ax.plot(v, y[i], "o", mfc="white", mec="#4A4A4A", mew=1.1, ms=4.6, zorder=4)
+            n_ms += 1
+    n_on = sum(1 for v in s_on if v)
+    for i in range(n):
+        if s_on[i]:
+            ax.plot(s_end[i], y[i], ">", color="#4A4A4A", ms=5, zorder=4, clip_on=False)
+    for v in ref:
+        ax.axvline(v, color="#999999", ls="--", lw=0.9, zorder=1)
+        ax.text(v, -0.55, f"{v:g}", ha="center", va="bottom", fontsize=fs_s,
+                color="#777777")
+
+    ax.set_yticks(y)
+    # 标签自适应：>24 例字号收缩（游泳图逐例条形不可抽稀——每条=一名受试者）
+    _fs_y = max(4.5, fs_s * (24.0 / n if n > 24 else 1.0))
+    ax.set_yticklabels(snames, fontsize=_fs_y,
+                       fontproperties=cjk_fp if cjk_fp and has_cjk("".join(snames)) else None)
+    ax._af_category_axis = True  # 受试者编号是数据：豁免刻度抽稀（同 waterfall）
+    xl = str(data.get("x_label", "") or
+             ("自基线时间（周）" if cjk_fp else "Time from baseline (weeks)"))
+    ax.set_xlabel(xl, fontsize=fs,
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
+    ax.set_ylim(n + 1.1, -0.8)  # 首例（最长条）在顶部；上边留 ref_lines 标注位，
+    # 底部预留 ~1.6 行空带给左下事实框（sorted-desc 时底部条最短，箱体不再咬条——验收 P1）
+    _x_max = max(s_end + [v for row in s_ms for v in row])
+    ax.set_xlim(0, _x_max * 1.07)  # 右侧留端部箭头位
+    ax.text(0.02, 0.05, fact, transform=ax.transAxes, va="bottom", ha="left",
+            fontsize=fs_s, color="#555555",
+            bbox=dict(facecolor="white", edgecolor="none", alpha=0.85,
+                      boxstyle="round,pad=0.25"), zorder=5,
+            fontproperties=cjk_fp if cjk_fp and has_cjk(fact) else None)
+    print(f"swimmer: {n} 例（sort={sort_mode}，持续中 {n_on} 例，里程碑 {n_ms} 个）"
+          + (f"；{fact}" if sgroup and group is not None else ""), file=sys.stderr)
+    apply_base_style(ax, theme)
+
+
+def swimmer_alt(data, t=""):
+    """v4.10：swimmer 的 --alt 文本（放本模块守 gen_figure <3400 行纪律）。"""
+    end = data.get("end") or []
+    n = len(end)
+    start = data.get("start") or [0.0] * n
+    durs = [float(e) - float(s) for e, s in zip(end, start)]
+    on = data.get("ongoing") or []
+    n_on = sum(1 for v in on if v)
+    ms = data.get("milestones") or []
+    n_ms = sum(len(r) for r in ms if isinstance(r, list))
+    group = data.get("group")
+    if isinstance(group, list) and group:
+        import collections as _c
+        cnt = _c.Counter(str(g).upper() for g in group)
+        gs = "，".join(f"{k} {v}例" for k, v in cnt.items())
+    else:
+        gs = "未分组"
+    rng = f"{min(durs):g}–{max(durs):g}" if durs else "0"
+    return (f"游泳图（临床试验逐例时长），共 {n} 例，时长 {rng}（单位自定），"
+            f"持续中 {n_on} 例，里程碑 {n_ms} 个，{gs}。{t}")
+
+
+def validate_swimmer(data):
+    """v4.10：swimmer 数据校验（返回 fatal 列表）；与 gen_swimmer 内部校验同口径，
+    供 --doctor 与渲染前统一走（同 validate_waterfall 模式）。"""
+    fatal = []
+    end = data.get("end")
+    if not (isinstance(end, list) and end):
+        fatal.append("swimmer: 需要 'end'（非空数值数组：每例治疗/随访持续时长，单位自定）")
+        return fatal
+    if not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in end):
+        fatal.append("swimmer: end 必须全为数值")
+        return fatal
+    import math as _m
+    if not all(_m.isfinite(float(v)) for v in end):
+        fatal.append("swimmer: end 含非有限值（NaN/±Infinity）——请清洗源数据")
+    elif any(float(v) <= 0 for v in end):
+        fatal.append("swimmer: end 必须全为正数（时长 ≤0 无意义）")
+    n = len(end)
+    start = data.get("start")
+    if start is not None:
+        if not isinstance(start, list) or len(start) != n or \
+                not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in start):
+            fatal.append("swimmer: 'start' 必须是与 end 等长的数值数组")
+        elif any(float(s) >= float(e) for s, e in zip(start, end)):
+            fatal.append("swimmer: start 必须小于 end")
+    names = data.get("names")
+    if names is not None and (not isinstance(names, list) or len(names) != n):
+        fatal.append("swimmer: 'names' 长度必须与 end 一致")
+    group = data.get("group")
+    if group is not None and (not isinstance(group, list) or len(group) != n):
+        fatal.append("swimmer: 'group' 长度必须与 end 一致")
+    ms = data.get("milestones")
+    if ms is not None:
+        if not isinstance(ms, list) or len(ms) != n:
+            fatal.append("swimmer: 'milestones' 长度必须与 end 一致（每例一个时间点数组）")
+        else:
+            for i, row in enumerate(ms):
+                if row is None:
+                    continue
+                if not isinstance(row, list) or \
+                        not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in row):
+                    fatal.append(f"swimmer: milestones[{i}] 必须是数值数组（或 null）")
+                elif isinstance(start, list) and any(float(v) < float(start[i]) for v in row):
+                    fatal.append(f"swimmer: milestones[{i}] 早于该例 start")
+    on = data.get("ongoing")
+    if on is not None and (not isinstance(on, list) or len(on) != n or
+                           not all(isinstance(v, bool) for v in on)):
+        fatal.append("swimmer: 'ongoing' 必须是与 end 等长的布尔数组")
+    ref = data.get("ref_lines")
+    if ref is not None and (not isinstance(ref, list) or
+                            not all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in ref)):
+        fatal.append("swimmer: 'ref_lines' 必须是数值数组")
+    sm = data.get("sort")
+    if sm is not None and str(sm).strip().lower() not in ("duration", "input"):
+        fatal.append("swimmer: sort 只支持 'duration' 或 'input'")
+    return fatal
 
 
 def gen_dual_axis(data, ax, theme, cjk_fp, **kwargs):
@@ -2868,6 +3140,116 @@ def gen_prisma(data, ax, theme, cjk_fp, **kwargs):
 
 
 
+
+# ── v4.10.0：--alt 无障碍文本核心（自 gen_figure 移居，模块化纪律 <3400 行）──
+# EXTRA 图型（af_v23_charts）仍由 gen_figure.generate_alt_text 先行分流到此
+def _alt_num(x):
+    try:
+        return float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def alt_text_core(chart_type, data, title=""):
+    """One-paragraph accessibility description derived from the data dict.
+    Written to <output>.alt.txt with --alt."""
+    t = f"{title}。" if title else ""
+
+    def _max_txt(vals):
+        fv = [_alt_num(v) for v in vals if isinstance(vals, list)]
+        fv = [v for v in fv if v is not None]
+        return f"{max(fv):g}" if fv else "?"
+
+    if chart_type in ("bar", "grouped_bar", "hbar", "horizontal_bar"):
+        series = data.get("series", {})
+        labels = data.get("labels", [])
+        parts = []
+        for name, vals in series.items():
+            fv = [v for v in (_alt_num(x) for x in vals) if v is not None]
+            if fv:
+                parts.append(f"{name} 最大值 {max(fv):g}")
+        return (f"柱状图。{t}共 {len(labels)} 组：{'、'.join(map(str, labels))}。"
+                f"{'；'.join(parts)}。")
+    if chart_type in ("box", "boxplot", "violin"):
+        series = data.get("series", {})
+        segs = []
+        for name, vals in series.items():
+            fv = sorted(v for v in (_alt_num(x) for x in vals) if v is not None)
+            if fv:
+                segs.append(f"{name}：中位数 {fv[len(fv)//2]:g}（n={len(fv)}）")
+        kind = "箱线图" if chart_type in ("box", "boxplot") else "小提琴图"
+        return f"{kind}。{t}{'；'.join(segs)}。"
+    if chart_type in ("km", "survival"):
+        groups = data.get("groups", {})
+        lr = data.get("log_rank") or {}
+        tail = f"Log-rank p = {lr.get('p')}。" if lr.get("p") is not None else ""
+        return (f"Kaplan-Meier 生存曲线。{t}分组：{'、'.join(groups.keys())}。{tail}")
+    if chart_type == "roc":
+        curves = data.get("curves", [])
+        names = "；".join(f"{c.get('name', 'curve')} AUC {c.get('auc', '?')}"
+                          for c in curves)
+        return f"ROC 曲线。{t}{names}。"
+    if chart_type == "forest":
+        o = data.get("overall") or {}
+        o_txt = (f"合并效应 {o.get('estimate')}（95%CI {o.get('ci_low')}–{o.get('ci_high')}）。"
+                 if o else "")
+        return f"森林图，{len(data.get('labels', []))} 项研究。{t}{o_txt}"
+    if chart_type == "heatmap":
+        m = data.get("matrix", [])
+        cols = len(m[0]) if m else 0
+        return f"热图，{len(m)} 行 × {cols} 列。{t}"
+    if chart_type == "prisma":
+        return (f"PRISMA 2020 系统综述流程图：最初识别 "
+                f"{data.get('records_identified')} 条记录，最终纳入 "
+                f"{data.get('studies_included')} 项研究。{t}")
+    if chart_type == "composite":
+        panels = data.get("panels", [])
+        names = "、".join(str(p.get("title", "")) for p in panels)
+        return f"多面板组合图，{len(panels)} 个面板：{names}。{t}"
+    if chart_type == "line":
+        series = data.get("series", {})
+        n_pts = len(next(iter(series.values()), []))
+        return f"折线图，{len(series)} 条系列 × {n_pts} 个数据点。{t}"
+    if chart_type == "scatter":
+        return f"散点图，共 {len(data.get('x', []))} 个数据点。{t}"
+    if chart_type == "dual_axis":
+        return f"双 Y 轴折线图。{t}"
+    if chart_type == "diagram":
+        return f"流程图。{t}"
+    if chart_type == "volcano":
+        l2 = data.get("log2fc") or []
+        n_up = n_dn = 0
+        try:
+            fc_cut = float(data.get("fc_cut", 1.0))
+            p_cut = float(data.get("p_cut", 0.05))
+            import math as _m
+            sig = -_m.log10(p_cut)
+            for x, p in zip(l2, data.get("pvalue") or []):
+                if -_m.log10(p) >= sig and x >= fc_cut:
+                    n_up += 1
+                elif -_m.log10(p) >= sig and x <= -fc_cut:
+                    n_dn += 1
+        except Exception:
+            pass
+        return (f"火山图（组学差异表达），共 {len(l2)} 个特征，"
+                f"阈值内上调 {n_up} 个、下调 {n_dn} 个。{t}")
+    if chart_type == "slope":
+        items = data.get("items") or {}
+        return f"斜率图（两时点比较），共 {len(items)} 条线。{t}"
+    if chart_type == "waterfall":
+        return waterfall_alt(data, t)  # v4.8：实现在 af_draw（模块化纪律 <3400 行）
+    if chart_type == "swimmer":
+        return swimmer_alt(data, t)  # v4.10：实现在 af_draw（模块化纪律 <3400 行）
+    if chart_type == "raincloud":
+        return raincloud_alt(data, t)
+    if chart_type == "upset":
+        s = data.get("sets") or {}
+        top_n = data.get("top_n", 12)
+        return (f"UpSet 集合交集图，共 {len(s)} 个集合"
+                f"（{'、'.join(list(map(str, s.keys()))[:6])}{'等' if len(s) > 6 else ''}），"
+                f"展示元素数最多的前 {top_n} 个交集；行=集合，柱=交集大小。{t}")
+    return f"{chart_type} 图。{t}"
+
 GENERATORS = {
     "bar": gen_bar,
     "grouped_bar": gen_bar,
@@ -2892,5 +3274,6 @@ GENERATORS = {
     "volcano": gen_volcano,
     "upset": gen_upset,
     "waterfall": gen_waterfall,
+    "swimmer": gen_swimmer,
     "raincloud": gen_raincloud,
 }

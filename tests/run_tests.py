@@ -1065,7 +1065,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 27, f"expected 27 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud), got {len(jsons)}")
+        self.assertEqual(len(jsons), 28, f"expected 28 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2483,8 +2483,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.9.0", self.zh)
-        self.assertIn("version: 4.9.0", self.en)
+        self.assertIn("version: 4.10.0", self.zh)
+        self.assertIn("version: 4.10.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2579,8 +2579,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.9.0", self.zh)
-        self.assertIn("version: 4.9.0", self.en)
+        self.assertIn("version: 4.10.0", self.zh)
+        self.assertIn("version: 4.10.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2613,8 +2613,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.9.0", self.zh)
-        self.assertIn("version: 4.9.0", self.en)
+        self.assertIn("version: 4.10.0", self.zh)
+        self.assertIn("version: 4.10.0", self.en)
 
 
 
@@ -2679,7 +2679,7 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.9.0", zh)
+        self.assertIn("version: 4.10.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("自动等距采样到 2000 行", zh)
         self.assertIn("性能参考表", lim)
@@ -2817,7 +2817,7 @@ class TestV3300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "27 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "28 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2848,7 +2848,7 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.9.0", t, name)
+            self.assertIn("version: 4.10.0", t, name)
 
 
 
@@ -2937,7 +2937,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.9.0", t, name)
+            self.assertIn("version: 4.10.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3056,7 +3056,7 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.9.0", t, name)
+            self.assertIn("version: 4.10.0", t, name)
 
 
 
@@ -3123,7 +3123,7 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.9.0", t, name)
+            self.assertIn("version: 4.10.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3241,7 +3241,7 @@ class TestV3900(unittest.TestCase):
 
 
 class TestV3910(unittest.TestCase):
-    """v3.9.1 文档准确性热修（发布后 TRACE 评测反馈）回归锁。"""
+    """v3.9.1 文档准确性热修回归锁。"""
 
     @classmethod
     def setUpClass(cls):
@@ -3950,8 +3950,8 @@ class TestV47000(unittest.TestCase):
         rw = os.path.join(base, "examples", "realworld")
         self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
         rws = sorted(os.listdir(rw))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 4,
-                         f"realworld 示例应 4 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 5,
+                         f"realworld 示例应 5 个: {rws}")
 
 
 class TestV48000(unittest.TestCase):
@@ -4251,6 +4251,195 @@ class TestV49000(unittest.TestCase):
         self.assertIn("--fix", src)
         self.assertIn("tuna.tsinghua", src)
         self.assertIn("aliyun", src)
+
+
+class TestV410000(unittest.TestCase):
+    """v4.10.0：swimmer 临床试验游泳图（第 28 种图型，逐例时长+持续箭头+里程碑）。"""
+
+    def test_swimmer_e2e_group(self):
+        """分组（RECIST）模式 E2E：渲染+stderr 事实行。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "s.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"end": [56.0, 51.5, 47.0, 43.5, 40.0, 38.5, 35.0, 31.0,
+                         28.5, 25.0, 21.5, 17.0, 13.5, 9.0],
+                 "names": [f"C{i:02d}" for i in range(1, 15)],
+                 "group": ["CR", "CR", "PR", "PR", "PR", "PR", "SD", "SD",
+                           "SD", "SD", "PD", "PR", "CR", "PD"],
+                 "milestones": [[11.0], [15.5], [9.0], [13.0], [8.5], [17.5],
+                                [], [], [], [], [], [19.0], [12.0], []],
+                 "ongoing": [True, True, False, True, False, False, False,
+                             True, False, False, False, False, False, False],
+                 "ref_lines": [26, 52]}, ensure_ascii=False))
+            out = os.path.join(td, "s.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "swimmer", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("swimmer: 14 例", r.stderr)
+            self.assertIn("持续中 4 例", r.stderr)
+            self.assertIn("里程碑 8 个", r.stderr)
+            self.assertIn("PD 2", r.stderr)
+
+    def test_swimmer_no_group_start_sort_input(self):
+        """无分组+start 偏移+sort=input 渲染成功（单色+符号图例路径）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "n.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"end": [12.0, 30.5, 22.0, 8.0],
+                 "start": [2.0, 0, 4.0, 1.0],
+                 "ongoing": [False, True, True, False],
+                 "milestones": [[6.0], [10.0, 24.0], [], []],
+                 "sort": "input"}))
+            out = os.path.join(td, "n.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "swimmer", "-d", f, "-o", out,
+                 "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("swimmer: 4 例", r.stderr)
+
+    def test_swimmer_milestone_beyond_end(self):
+        """里程碑晚于条端（停药后应答持续）合法渲染。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "m.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"end": [20.0, 14.0], "milestones": [[30.0], [18.0]],
+                 "group": ["CR", "PR"]}))
+            out = os.path.join(td, "m.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "swimmer", "-d", f, "-o", out,
+                 "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+
+    def test_swimmer_validate_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ({}, "需要 'end'"),
+                ({"end": []}, "非空数值数组"),
+                ({"end": [1, "x"]}, "必须全为数值"),
+                ({"end": [1, None]}, "必须全为数值"),
+                ({"end": [5, -2]}, "必须全为正数"),
+                ({"end": [5, 0]}, "必须全为正数"),
+                ({"end": [5, 2], "start": [1, 3]}, "start 必须小于 end"),
+                ({"end": [5, 2], "start": [1]}, "start"),
+                ({"end": [5, 2], "names": ["a"]}, "names"),
+                ({"end": [5, 2], "group": ["CR"]}, "group"),
+                ({"end": [5, 2], "milestones": [[1]]}, "milestones"),
+                ({"end": [5, 2], "milestones": [[1], ["x"]]}, "必须是数值数组"),
+                ({"end": [5, 2], "milestones": [[9], []],
+                  "start": [10, 0]}, "早于该例 start"),
+                ({"end": [5, 2], "ongoing": [True]}, "ongoing"),
+                ({"end": [5, 2], "ongoing": [True, 1]}, "ongoing"),
+                ({"end": [5, 2], "ref_lines": ["a"]}, "ref_lines"),
+                ({"end": [5, 2], "sort": "asc"}, "sort"),
+            ]
+            for i, (data, want) in enumerate(cases):
+                f = os.path.join(td, f"b{i}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                out = os.path.join(td, f"b{i}.png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "swimmer", "-d", f, "-o", out],
+                    capture_output=True, text=True, timeout=120)
+                self.assertNotEqual(r.returncode, 0, f"case{i} 应失败: {data}")
+                self.assertIn(want, r.stderr, f"case{i} 缺少提示 {want!r}")
+
+    def test_swimmer_alt_and_suggest(self):
+        """--alt 文本与 --suggest 路由。"""
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        d = {"end": [12, 6], "ongoing": [True, False],
+             "milestones": [[3], []], "group": ["CR", "PD"]}
+        alt = gen_figure.generate_alt_text("swimmer", d, "队列")
+        self.assertIn("游泳图", alt)
+        self.assertIn("2 例", alt)
+        self.assertIn("持续中 1 例", alt)
+        recs = gen_figure.suggest_chart_type(
+            {"end": [12, 6, 9], "names": ["a", "b", "c"]})
+        self.assertTrue(any(t == "swimmer" for _, t, _ in recs), recs)
+
+    def test_swimmer_demo_data_valid(self):
+        """DEMO_DATA 的 swimmer 条目可直接渲染（--demo 流的非交互等价验证）。"""
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        demo = gen_figure.DEMO_DATA["swimmer"]
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(
+                json.dumps(demo, ensure_ascii=False))
+            out = os.path.join(td, "d.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "swimmer", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+
+    def test_swimmer_template_and_realworld_commands_run(self):
+        """模板与 realworld 示例的 _command 逐字可执行（防字段/路径回归）。"""
+        base = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        for name in (os.path.join("templates", "swimmer.json"),
+                     os.path.join("examples", "realworld",
+                                  "realworld_csle_swimmer.json")):
+            with io.open(os.path.join(base, name), encoding="utf-8") as fh:
+                cmd = json.load(fh)["_command"]
+            r = subprocess.run(cmd, shell=True, cwd=base,
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, f"{name}: {r.stderr[-250:]}")
+            self.assertNotIn("未知字段", r.stderr, name)
+
+    def test_swimmer_realworld_self_consistency(self):
+        """realworld 数据程序化自洽断言（v4.8 RECIST 断言器同纪律）。"""
+        base = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        with io.open(os.path.join(base, "examples", "realworld",
+                                  "realworld_csle_swimmer.json"),
+                     encoding="utf-8") as fh:
+            d = json.load(fh)
+        n = len(d["end"])
+        self.assertEqual(n, 14)
+        for k in ("names", "group", "milestones", "ongoing"):
+            self.assertEqual(len(d[k]), n, k)
+        for i in range(n):
+            e, s = float(d["end"][i]), float(d.get("start", [0] * n)[i])
+            self.assertGreater(e, 0)
+            self.assertLess(s, e, f"例{i+1} start>=end")
+            for ms in d["milestones"][i]:
+                self.assertGreaterEqual(float(ms), s, f"例{i+1} 里程碑早于入组")
+            g = str(d["group"][i]).upper()
+            has_ms = bool(d["milestones"][i])
+            if g in ("CR", "PR"):
+                self.assertTrue(has_ms, f"{d['names'][i]} {g} 应有首次应答里程碑")
+            else:
+                self.assertFalse(has_ms, f"{d['names'][i]} {g} 不应有应答里程碑")
+            self.assertIsInstance(d["ongoing"][i], bool)
+        # 持续中例数与事实行口径一致
+        self.assertEqual(sum(d["ongoing"]), 4)
+
+    def test_swimmer_registry_count_28(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3
+        self.assertGreaterEqual(n, 28, f"注册表图型数: {n}")
+
+    def test_doctor_submission_hint(self):
+        """--doctor 对投稿格式输出且未开 --verify 给出行动建议（v4.10 消潜规则）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "h.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B"], "series": {"组1": [1.0, 2.0]}}))
+            out = os.path.join(td, "h.pdf")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "-o", out,
+                 "--doctor"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("--verify", r.stderr)
+            self.assertIn("--pub-ready", r.stderr)
 
 
 if __name__ == "__main__":
