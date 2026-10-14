@@ -1,1 +1,0 @@
-多面板组合图，3 个面板：A  Response rate、B  Biomarker、C  Correlation。
