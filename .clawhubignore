@@ -1,0 +1,4 @@
+# Exclude backup and cache directories from publication
+backup-*/
+__pycache__/
+*.pyc
