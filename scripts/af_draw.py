@@ -3316,7 +3316,7 @@ def gen_ridgeline(data, ax, theme, cjk_fp, **kwargs):
     for k in reversed(names):
         color = theme["colors"][names.index(k) % len(theme["colors"])]
         base = bases[k]
-        z = 2.0 + names.index(k)  # 上排 zorder 更大，整层覆盖下排
+        z = 2.0 + (n - 1 - names.index(k))  # names 自上而下：顶排 z 最大，整层覆盖下排
         if dens[k] is None:
             v0 = float(np.asarray([float(x) for x in series[k]], dtype=float)[0])
             ax.plot([v0, v0], [base, base + 0.45], color=color, lw=3.5,
