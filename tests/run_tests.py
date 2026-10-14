@@ -2518,7 +2518,7 @@ class TestV280Help(unittest.TestCase):
 
 
 
-class TestV290DocsAndAdvisories(unittest.TestCase):
+class TestV20900DocsAndAdvisories(unittest.TestCase):
     """v2.9.0：边界收拢（limits §六/§七）、独立快速入门、预判 advisory、KeyError 纠错。"""
 
     @classmethod
@@ -2596,7 +2596,7 @@ class TestV290FieldNearMiss(unittest.TestCase):
 
 
 
-class TestV300Docs(unittest.TestCase):
+class TestV30000Docs(unittest.TestCase):
     """v3.0.0：类别列、速查卡、行内警示、模块拆分。"""
 
     @classmethod
@@ -2700,7 +2700,7 @@ class TestV300Docs(unittest.TestCase):
 
 
 
-class TestV3100(unittest.TestCase):
+class TestV30100(unittest.TestCase):
     """v3.1.0：--quick 一键出图 + 自动降采样 + 文档口径。"""
 
     def test_quick_renders(self):
@@ -2854,7 +2854,7 @@ class TestV3700(unittest.TestCase):
 
 
 
-class TestV3300(unittest.TestCase):
+class TestV30300(unittest.TestCase):
     """v3.3.0：frontmatter 冒号炸弹防御 + README 官方化。"""
 
     @classmethod
@@ -2916,7 +2916,7 @@ class TestV3300(unittest.TestCase):
 
 
 
-class TestV3400(unittest.TestCase):
+class TestV30400(unittest.TestCase):
     """v3.4.0：直接标注 + 标题层级 + Pro 透传。"""
 
     def test_direct_label_renders(self):
@@ -3068,7 +3068,7 @@ class TestV3500(unittest.TestCase):
 
 
 
-class TestV3600(unittest.TestCase):
+class TestV30600(unittest.TestCase):
     """v3.6.0：静默忽略显式化 + CSV 误差棒前置 + 历史披露。"""
 
     def test_stats_ignored_announced(self):
@@ -3124,7 +3124,7 @@ class TestV3600(unittest.TestCase):
 
 
 
-class TestV3800(unittest.TestCase):
+class TestV30800(unittest.TestCase):
     """v3.8.0：--pub-ready 一键投稿包 + 中位数 bootstrap CI。"""
 
     def test_pub_ready_e2e(self):
@@ -3191,7 +3191,7 @@ class TestV3800(unittest.TestCase):
 
 
 
-class TestV3900(unittest.TestCase):
+class TestV30900(unittest.TestCase):
     """v3.9.0：--order 类别顺序 + --normalize 归一化 + --doctor 体检。"""
 
     def test_order_function_bar(self):
@@ -3303,7 +3303,7 @@ class TestV3900(unittest.TestCase):
             self.assertIn("doctor 参数/环境体检", r.stderr)
 
 
-class TestV3910(unittest.TestCase):
+class TestV30910(unittest.TestCase):
     """v3.9.1 文档准确性热修回归锁。"""
 
     @classmethod
@@ -3532,7 +3532,7 @@ class TestV40000(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
 
 
-class TestV41000(unittest.TestCase):
+class TestV40100(unittest.TestCase):
     """v4.1.0：composite 自动面板标签（panel_labels）+ --summary 自动数据摘要副标题。"""
 
     @classmethod
@@ -4316,7 +4316,7 @@ class TestV49000(unittest.TestCase):
         self.assertIn("aliyun", src)
 
 
-class TestV410000(unittest.TestCase):
+class TestV41000(unittest.TestCase):
     """v4.10.0：swimmer 临床试验游泳图（第 28 种图型，逐例时长+持续箭头+里程碑）。"""
 
     def test_swimmer_e2e_group(self):
