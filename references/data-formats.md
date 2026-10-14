@@ -666,3 +666,10 @@ PRISMA 2020 系统综述流程图。必需字段：`records_identified`、`studi
 | Excel 直读 | — | `--sheet` 需 `.xlsx` |
 
 > 原则：需要误差棒、统计标注或复杂结构时用 JSON；简单数值用 CSV 即可。
+
+## ridgeline（v5.0）
+
+schema 同 violin：`labels`（组名，自上而下）+ `datasets`（{组名: [数值...]}）。
+可选 `overlap`（0~0.95，山脊纵向重叠比例，默认 0.55）、`sort`（"input"|"median"）、
+`x_label`。单值组（仅 1 个不同值）退化为基线标记线并 stderr 告知。
+

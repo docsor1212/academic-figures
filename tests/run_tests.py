@@ -1128,7 +1128,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 28, f"expected 28 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer), got {len(jsons)}")
+        self.assertEqual(len(jsons), 29, f"expected 29 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2880,7 +2880,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "28 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "29 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -4503,6 +4503,113 @@ class TestV41000(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-250:])
             self.assertIn("--verify", r.stderr)
             self.assertIn("--pub-ready", r.stderr)
+
+
+
+class TestV50000(unittest.TestCase):
+    """v5.0.0：ridgeline 山脊图（第 29 种图型）+ --audit 数字对账侧车。"""
+
+    def test_ridgeline_e2e(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "r.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["基线", "4周", "8周", "12周"],
+                 "datasets": {"基线": [42, 48, 52, 55, 58, 60, 63, 65, 68, 72, 78, 85, 42, 50, 56, 61, 66, 70, 74, 80],
+                              "4周": [28, 33, 38, 41, 45, 48, 52, 55, 58, 62, 68, 30, 36, 43, 49, 54, 60, 65],
+                              "8周": [18, 22, 26, 30, 33, 37, 41, 45, 49, 54, 20, 25, 31, 39, 47, 52],
+                              "12周": [12, 15, 19, 23, 27, 31, 36, 41, 46, 14, 18, 24, 33, 43]},
+                 "overlap": 0.55}, ensure_ascii=False))
+            out = os.path.join(td, "r.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "ridgeline", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("ridgeline: 4 组（overlap=0.55，sort=input）", r.stderr)
+
+    def test_ridgeline_degenerate_and_median_sort(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B", "C"],
+                 "datasets": {"A": [5, 6, 5, 7, 6], "B": [9], "C": [1, 2, 3, 4, 5, 6]},
+                 "sort": "median"}))
+            out = os.path.join(td, "d.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "ridgeline", "-d", f, "-o", out, "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("单值退化 1 组: B", r.stderr)
+            self.assertIn("sort=median", r.stderr)
+
+    def test_ridgeline_validate_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ({}, "datasets"),
+                ({"datasets": {}}, "datasets"),
+                ({"datasets": {"A": [1]}, "labels": ["A", "B"]}, "labels"),
+                ({"datasets": {"A": [1, "x", 3]}}, "非数值项"),
+                ({"datasets": {"A": [1, 2]}, "overlap": 1.2}, "overlap"),
+                ({"datasets": {"A": [1, 2]}, "sort": "asc"}, "sort"),
+            ]
+            for i, (data, want) in enumerate(cases):
+                f = os.path.join(td, f"b{i}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                out = os.path.join(td, f"b{i}.png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "ridgeline", "-d", f, "-o", out],
+                    capture_output=True, text=True, timeout=120)
+                self.assertNotEqual(r.returncode, 0, f"case{i} 应失败: {data}")
+                self.assertIn(want, r.stderr, f"case{i} 缺提示 {want!r}")
+
+    def test_ridgeline_alt_and_suggest(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        d = {"labels": ["A", "B"], "datasets": {"A": [1, 2, 3], "B": [4, 5, 6]}}
+        alt = gen_figure.generate_alt_text("ridgeline", d, "队列")
+        self.assertIn("山脊图", alt)
+        self.assertIn("2 组", alt)
+        recs = gen_figure.suggest_chart_type({"datasets": {"A": [1, 2], "B": [3, 4]}})
+        self.assertTrue(any(t == "ridgeline" for _, t, _ in recs), recs)
+
+    def test_ridgeline_template_command(self):
+        base = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        with io.open(os.path.join(base, "templates", "ridgeline.json"), encoding="utf-8") as fh:
+            cmd = json.load(fh)["_command"]
+        r = subprocess.run(cmd, shell=True, cwd=base, capture_output=True, text=True, timeout=240)
+        self.assertEqual(r.returncode, 0, r.stderr[-250:])
+
+    def test_audit_sidecar_deterministic(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "a.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B", "C"], "series": {"组1": [10, 20, 30], "组2": [5, 15, 25]}}))
+            outs = []
+            for i in range(2):
+                out = os.path.join(td, f"a{i}.png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "bar", "-d", f, "-o", out,
+                     "--audit", "--dpi", "80"],
+                    capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0, r.stderr[-250:])
+                ap = out + ".audit.json"
+                self.assertTrue(os.path.exists(ap), r.stderr[-250:])
+                outs.append(io.open(ap, encoding="utf-8").read())
+            self.assertEqual(outs[0], outs[1], "audit 侧车须同输入同字节")
+            d = json.loads(outs[0])
+            s1 = d["stats"]["series.组1"]
+            self.assertEqual(s1["n"], 3)
+            self.assertAlmostEqual(s1["mean"], 20.0)
+            self.assertAlmostEqual(s1["median"], 20.0)
+            self.assertIn("input_sha256_12", d)
+
+    def test_registry_count_29(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3
+        self.assertGreaterEqual(n, 29, f"注册表图型数: {n}")
 
 
 if __name__ == "__main__":

@@ -11,7 +11,7 @@
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![Tests](https://img.shields.io/badge/tests-346%20pass-brightgreen)
 
-**28 chart types** (bar/slope/volcano/upset set-intersections/oncology waterfall/raincloud/clinical swimmer/box/violin/
+**29 chart types** (bar/slope/volcano/upset set-intersections/oncology waterfall/raincloud/clinical swimmer/ridgeline joyplot/box/violin/
 scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/venn 4-set ellipse/Bland-Altman/PCA/
 funnel/paired/dual-axis/stacked/composite/diagram/PRISMA 2020 …) · **9 journal presets** (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE/CMA/
 中文核心) · **9 color themes** incl. colorblind-safe Okabe-Ito · **600dpi TIFF/PDF/SVG/EPS** ·

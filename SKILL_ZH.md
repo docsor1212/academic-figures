@@ -2,8 +2,8 @@
 name: academic-figures
 description: >-
   论文配图一键生成：一条命令从 JSON/CSV/Excel 生成顶刊级学术图表，科研绘图
-  与期刊配图全场景覆盖。28 种图表（森林图/KM 生存曲线（自动风险表）/ROC/火山图/
-  雨云图/游泳图（逐例时长+里程碑）/肿瘤缓解瀑布图/UpSet 交集/PRISMA 流程图/
+  与期刊配图全场景覆盖。29 种图表（森林图/KM 生存曲线（自动风险表）/ROC/火山图/
+  雨云图/山脊图/游泳图（逐例时长+里程碑）/肿瘤缓解瀑布图/UpSet 交集/PRISMA 流程图/
   漏斗/BA 一致性/PCA/热图/箱线/小提琴/组合图/Cox 多因素回归森林图等），9 套配色
   （含色盲安全 Okabe-Ito 与期刊色板），9 种期刊投稿预设，YAML 流水线一条命令出
   全套论文图，一次渲染多格式导出（TIFF/PNG/PDF），PDF 重叠门禁，600dpi。
@@ -28,7 +28,7 @@ requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy]}
 
 # Academic Figures — 论文配图一键生成工具
 
-> 📊 **28种图表 · 9套配色（含色盲安全+期刊色板） · 零配置中文 · 600dpi出版级输出 · PDF/TIFF/SVG全支持 · 渲染看门狗+中文诊断**
+> 📊 **29种图表 · 9套配色（含色盲安全+期刊色板） · 零配置中文 · 600dpi出版级输出 · PDF/TIFF/SVG全支持 · 渲染看门狗+中文诊断**
 > 纯本地运行 · 数据不出本机 · Python一条命令搞定 · 内置校验+验证门禁
 
 > ⚡ **三条最常用边界**：投稿 PDF 加 `--verify`（仅 PDF 生效）；`--journal` 会锁定图宽（`--width` 被忽略）；cluster_heatmap >3000 行自动降采样到 2000 行。
@@ -45,7 +45,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 
 | 特性 | 说明 |
 |------|------|
-| 📊 **28种图表** | 见下方「图表类型」全表；v4.8 加 waterfall 肿瘤缓解瀑布图，v4.9 加 raincloud 雨云图（分布三合一），v4.10 加 swimmer 游泳图（临床试验逐例时长） |
+| 📊 **29种图表** | 见下方「图表类型」全表；v4.9 加 raincloud 雨云图（分布三合一），v4.10 加 swimmer 游泳图，v5.0 加 ridgeline 山脊图（多组分布堆叠全景）+ `--audit` 数字对账侧车 |
 | 🎨 **9套配色** | **Okabe-Ito色盲安全**（Nature Methods 金标准）、GLM 素雅莫兰迪、NEJM/Lancet/Science 期刊色板等 |
 | 📐 **期刊预设** | `--journal nature/lancet/nejm/science/cma/cn-core`：官方栏宽、字号、字体族、600dpi 一键应用 |
 | 🧭 **上手向导** | `--wizard` 四问生成完整命令（非交互环境自动打印选图决策树） |
@@ -67,6 +67,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 | 构成 | 堆叠柱状图 | `-t stacked_bar` | 构成比、百分比标签、总计标注 |
 | 分布 | 箱线图 | `-t box` | 箱线图+抖动散点 |
 | 分布 | 雨云图 | `-t raincloud` | KDE 半小提琴云+箱线五数+抖动原始点三合一（v4.9）；schema 同 violin |
+| 分布 | 山脊图 | `-t ridgeline` | 多组 KDE 密度纵向堆叠部分重叠（joyplot），`overlap` 0~0.95、`sort=median`；一屏看分布逐组移动/变形（v5.0） |
 | 分布 | 小提琴图 | `-t violin` | 密度估计、内置均值/中位线 |
 | 配对 | 前后配对图 | `-t paired` | 个体前后连线+配对检验（n≥6 才标注，效力提示） |
 | 趋势 | 散点图 | `-t scatter` | 趋势线、相关系数、分组着色、点标签 |
@@ -95,7 +96,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 ## 选图决策树（精简版；完整版+上手四步见 references/quickstart.md）
 
 ```text
-分组比较 → bar/box/violin/raincloud（分布三合一；配对→paired）｜均值±误差棒 → bar（JSON errors）
+分组比较 → bar/box/violin/raincloud（分布三合一；配对→paired；分布逐组移动全景 → ridgeline）｜均值±误差棒 → bar（JSON errors）
 两列相关 → scatter｜时间-事件 → km / forest --stats cox｜诊断 → roc（--compare）
 集合交并 → venn（--area；≥5 集合 → upset）｜数值矩阵 → heatmap / cluster_heatmap｜多变量分类 → pca
 组学差异表达 → volcano（火山图）｜肿瘤最佳缓解 → waterfall（RECIST 瀑布图）｜逐例时长 → swimmer（游泳图）｜Meta 汇总 → forest（--egger）｜一致性 → bland_altman｜流程 → diagram/prisma
@@ -161,7 +162,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 
 | 能力 | 做到什么 | 做不到/边界 | 详见 |
 |------|---------|-------------|------|
-| 图表引擎 | 28 种图型一条命令 600dpi；同输入同字节确定性输出 | 无交互式探索（只出静态文件）；无 3D 图 | 「图表类型」表 ↑ |
+| 图表引擎 | 29 种图型一条命令 600dpi；同输入同字节确定性输出 | 无交互式探索（只出静态文件）；无 3D 图 | 「图表类型」表 ↑ |
 | 选图 | `--suggest` 自动推荐 / `--wizard` 问答 / `--quick` 自动选型渲染 / `--explain 类型` | 推荐是结构启发式——统计含义请自行确认 | quickstart.md |
 | 统计 | KM 风险表/log-rank/中位生存 CI；Cox（Efron+PH）；ROC DeLong；bootstrap CI；Egger | 无贝叶斯方法；无样本量/把握度计算 | advanced.md |
 | 期刊预设 | 9 预设，官方栏宽/字号/DPI | `--journal` 锁宽度（`--width` 被忽略，`--height` 有效） | limits.md §六 |
@@ -255,6 +256,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | `--profile 预设.json` | 分层配置文件：呈现参数一次定义处处复用（CLI 显式参数优先；v4.3） |
 | `--cjk` | 中文字体自动检测 |
 | `--verify` | PDF 像素级重叠验证（exit 2） |
+| `--audit` | 渲染后写数字对账侧车 `<输出>.audit.json`（描述统计从输入独立重算，图上的数可逐项核对；v5.0） |
 | `--multi-format tiff,png,pdf` | 一次导出多格式 |
 | `--timeout N` / `--downsample N` | 看门狗预算（秒，0=禁用）/ 聚类热图降采样 |
 
@@ -312,7 +314,7 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 | 你的任务（30 秒到对的文档） | 读 |
 |------------------------------|-----|
 | 第一次用 / 不知道选哪种图 | `references/quickstart.md` |
-| 28 种图型一页命令骨架 | `references/cheatsheet.md` |
+| 29 种图型一页命令骨架 | `references/cheatsheet.md` |
 | 某图型的 JSON/CSV/Excel schema | `references/data-formats.md` |
 | "为什么报错 / exit 3 什么意思" | `references/faq.md` |
 | 参数冲突/数据量上限/环境问题 | `references/limits.md` |
@@ -323,16 +325,16 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 | Python 里调用 | `references/python-api.md` |
 | 版本历史 | `references/changelog.md` |
 
-代码布局：`scripts/gen_figure.py`（主生成器，28 图型）+ `gen_legend.py`（期刊图例）+
+代码布局：`scripts/gen_figure.py`（主生成器，29 图型）+ `gen_legend.py`（期刊图例）+
 `audit_pdf.py`（字号门禁）+ `verify_overlap_pixel.py`（重叠验证）+ `setup_env.py` +
-`journal/*.json`（预设）；`templates/`（28 个，各带 `_command`）、`examples/`（含
+`journal/*.json`（预设）；`templates/`（29 个，各带 `_command`）、`examples/`（含
 `realworld/` 真实场景）、`tests/run_tests.py`（全量回归）。其余 references：
 `clinical-lab-trends.md`（临床检验趋势图）、`reverse-engineering-colors.md`（参考图取色）、
 `v1.5-upgrade-analysis.md`（历史升级档案）。
 
 ## 版本历史
 
-完整双语版本历史见 `references/changelog.md`。近期：**v4.10.0** swimmer 游泳图（第 28 图型：逐例时长条+持续中箭头+里程碑圆点+RECIST 着色）+doctor 投稿格式提示；**v4.9.0** raincloud 雨云图（第 27 图型，分布三合一）+setup_env --fix 镜像回退；**v4.8.0** waterfall 肿瘤缓解瀑布图（第 26 图型，RECIST 着色+阈值线）+suggest 去重；**v4.7.0** upset 集合交集图（第 25 图型）+配色/组合场景指南+真实科研场景示例+limits 速查表；**v4.6.0** ROC 默认语义轴标题 + venn 标题消歧 + 聚类热图行标签自适应字号（P3 视觉打磨包）；**v4.5.0** 独立测试 12 项修复；**v4.4.0** volcano 火山图；更早版本见 changelog。
+完整双语版本历史见 `references/changelog.md`。近期：**v5.0.0** ridgeline 山脊图（第 29 图型：多组 KDE 堆叠、overlap 可调、单值组退化告知）+ `--audit` 数字对账侧车；**v4.10.0** swimmer 游泳图（第 28 图型：逐例时长条+持续中箭头+里程碑圆点+RECIST 着色）+doctor 投稿格式提示；**v4.9.0** raincloud 雨云图（第 27 图型，分布三合一）+setup_env --fix 镜像回退；**v4.8.0** waterfall 肿瘤缓解瀑布图（第 26 图型，RECIST 着色+阈值线）+suggest 去重；**v4.7.0** upset 集合交集图（第 25 图型）+配色/组合场景指南+真实科研场景示例+limits 速查表；**v4.6.0** ROC 默认语义轴标题 + venn 标题消歧 + 聚类热图行标签自适应字号（P3 视觉打磨包）；**v4.5.0** 独立测试 12 项修复；**v4.4.0** volcano 火山图；更早版本见 changelog。
 
 ## 🚀 进阶版：论文配图一键生成 Pro
 

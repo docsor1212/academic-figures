@@ -1,6 +1,6 @@
 # 模板库（v2.6 全图型覆盖）
 
-28 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 28 种图型**（v4.8 增 waterfall，v4.9 增 raincloud，v4.10 增 swimmer）。用法：
+29 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注模板，**覆盖全部 29 种图型**（v4.9 增 raincloud，v4.10 增 swimmer，v5.0 增 ridgeline）。用法：
 
 ```bash
 cp templates/01-meta-forest.json my_data.json

@@ -55,7 +55,9 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      gen_slope, gen_volcano, gen_upset, gen_waterfall,
                      waterfall_alt, validate_raincloud, raincloud_alt,
                      validate_waterfall, gen_swimmer, swimmer_alt,
-                     validate_swimmer, alt_text_core)
+                     validate_swimmer, alt_text_core,
+                     gen_ridgeline, ridgeline_alt, validate_ridgeline,
+                     write_audit_sidecar)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
@@ -283,6 +285,9 @@ CHART_NOTES = {
              "title 字段；未展示交集只计入 stderr 事实行。",
     "raincloud": "raincloud: 雨云图（v4.9，第 27 种图型；分布三合一：KDE 半小提琴云+箱线五数概括+"
                  "抖动原始点雨）；schema 同 violin；--stats 通用；jitter(0~0.3)/cloud_scale(0~2.0，0=藏云)；零方差/单点组云退化并告知。",
+    "ridgeline": "ridgeline: 山脊图/joyplot（v5.0，第 29 种图型；多组 KDE 密度纵向堆叠部分重叠，"
+                 "一屏看分布逐组移动/变形）；schema 同 violin（labels+datasets）；overlap(0~0.95) "
+                 "调重叠、sort=median 按中位数排；单值组退化为标记线并告知。",
     "swimmer": "swimmer: 游泳图（v4.10，第 28 种图型；临床试验逐例时长）；JSON end 必填（>0，单位自定）、"
                "start/names/group 可选（RECIST 类别着色同 waterfall）、milestones 里程碑圆点（可晚于条端）、"
                "ongoing 端部箭头（持续中）、ref_lines 地标虚线；sort=duration|input。",
@@ -368,6 +373,12 @@ DEMO_DATA = {
         "转录组": ["TP53", "KRAS", "EGFR", "BRCA1", "MYC", "PTEN", "NRAS", "PIK3CA", "ALK"], "蛋白组": ["TP53", "EGFR", "MYC", "AKT1", "KRAS", "ERBB2", "PTEN"],
         "甲基化": ["TP53", "BRCA1", "CDKN2A", "MGMT", "PTEN", "RB1"], "eQTL": ["KRAS", "PIK3CA", "PTEN", "AKT1", "MAP2K1", "EGFR"],
         "GWAS": ["TP53", "BRCA1", "ERBB2", "ATM", "CHEK2", "PALB2"]}},
+    "ridgeline": {"labels": ["基线", "4周", "8周", "12周"],
+                  "datasets": {"基线": [42, 48, 52, 55, 58, 60, 63, 65, 68, 72, 78, 85, 42, 50, 56, 61, 66, 70, 74, 80],
+                               "4周": [28, 33, 38, 41, 45, 48, 52, 55, 58, 62, 68, 30, 36, 43, 49, 54, 60, 65],
+                               "8周": [18, 22, 26, 30, 33, 37, 41, 45, 49, 54, 20, 25, 31, 39, 47, 52],
+                               "12周": [12, 15, 19, 23, 27, 31, 36, 41, 46, 14, 18, 24, 33, 43]},
+                  "overlap": 0.55},
     "waterfall": {"change": [-72.4, -65.1, -58.9, -52.0, -41.8, -32.1, -24.5, -15.2,
                              -8.9, -3.4, 0.8, 12.6, 25.3, 41.7, 52.0],
                    "names": [f"P{i:03d}" for i in range(1, 16)],
@@ -466,6 +477,7 @@ def suggest_chart_type(data):
         recs.append((72, "violin", "raw per-group 'datasets' — distribution view"))
         recs.append((70, "box", "raw per-group 'datasets' — boxplot view"))
         recs.append((71, "raincloud", "raw per-group 'datasets' — cloud+box+jitter trio"))
+        recs.append((69, "ridgeline", "per-group 'datasets' — stacked-density ridgeline overview"))
     x, y = data.get("x"), data.get("y")
     if isinstance(x, list) and isinstance(y, list) and x and len(x) == len(y):
         recs.append((80, "scatter", "paired x/y arrays"))
@@ -1651,6 +1663,10 @@ def validate_data(data, chart_type):
     elif chart_type == "swimmer":
         fatal.extend(validate_swimmer(data))
 
+    # ── ridgeline: 山脊图（校验逻辑在 af_draw.validate_ridgeline，v5.0）──
+    elif chart_type == "ridgeline":
+        fatal.extend(validate_ridgeline(data))
+
     # ── raincloud: 分布三合一（schema 同 violin；校验在 af_draw）──
     elif chart_type == "raincloud":
         fatal.extend(validate_raincloud(data))
@@ -2507,6 +2523,8 @@ def main():
                              "defaults 全局默认 + figures 逐图条目（type/data/out 必填，可覆盖默认），"
                              "一条命令批量渲染并写 .batch-report.json；相对路径相对流水线文件解析；"
                              "YAML 需先 pip install pyyaml（JSON 无额外依赖）")
+    parser.add_argument("--audit", action="store_true",
+                        help="渲染成功后写数字对账侧车 <output>.audit.json（描述统计独立重算，可逐项核对图上的数）")
     parser.add_argument("--verify", action="store_true",
                         help="对 PDF 输出做像素级文字重叠检查；发现重叠则退出码 2")
     parser.add_argument("--journal", default=None, choices=sorted(JOURNAL_PRESETS.keys()),
@@ -3182,6 +3200,8 @@ def main():
         sz = os.path.getsize(final_out)
         fmt_info = f"{out_format.upper()} @ {dpi}DPI" if not is_vector else f"{out_format.upper()} 矢量"
         print(f"已保存: {final_out}（{sz:,} 字节，{fmt_info}{cjk_info}）", file=sys.stderr)
+        if getattr(args, "audit", False):
+            write_audit_sidecar(data, args.type, args.out)
     else:
         for _fmt, _path, _isvec in saved_files:
             sz = os.path.getsize(_path)
