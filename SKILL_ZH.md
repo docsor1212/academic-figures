@@ -21,7 +21,7 @@ when_to_use: >-
 ═══ 元数据归档（2026-09-13 frontmatter 规范化；2026-10-14 压缩）═══
 ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_to_use/
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
-移出键：version: 4.10.0 · date: 2026-10-13 · author: docsor1212 · lang: zh ·
+移出键：version: 5.0.0 · date: 2026-10-13 · author: docsor1212 · lang: zh ·
 metadata: {clawdbot: {emoji: "📊", category: visualization}} ·
 requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy]}
 -->
