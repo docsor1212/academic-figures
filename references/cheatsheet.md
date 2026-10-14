@@ -4,7 +4,7 @@
 > **最短路径**：Ctrl-F 图型名 → 复制命令行 → 换数据文件。
 > **回 INDEX**：SKILL.md「文件索引与 30 秒路由」。
 
-> 一页速查：29 种图型命令骨架、全量参数、退出码、边界 Top 5。
+> 一页速查：30 种图型命令骨架、全量参数、退出码、边界 Top 5。
 > 细节：`--explain <类型>`；数据格式 `references/data-formats.md`；参数交互 `references/limits.md`。
 
 ## 一、图型命令骨架（通用格式）
@@ -32,6 +32,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | raincloud | schema 同 violin（labels+datasets）；`jitter`/`cloud_scale` 可调（v4.9） |
 | swimmer | `end[]` 每例时长必填(>0)；`start/names/group/milestones/ongoing/ref_lines` 可选；`sort=duration|input`（v4.10） |
 | ridgeline | schema 同 violin（labels+datasets）；`overlap` 0~0.95、`sort=median`；单值组退化告知（v5.0） |
+| dumbbell | `from[]`+`to[]` 等长必填；`labels/from_label/to_label` 可选；`sort=gap|input|to`、`show_values/show_gap`（v5.1） |
 | bland_altman | 两组等长 |
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |

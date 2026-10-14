@@ -673,3 +673,10 @@ schema 同 violin：`labels`（组名，自上而下）+ `datasets`（{组名: [
 可选 `overlap`（0~0.95，山脊纵向重叠比例，默认 0.55）、`sort`（"input"|"median"）、
 `x_label`。单值组（仅 1 个不同值）退化为基线标记线并 stderr 告知。
 
+## dumbbell（v5.1）
+
+`{"labels": [...], "from": [...], "to": [...]}`：labels 条目名（可选），
+from/to 等长数值数组必填。可选 `from_label`/`to_label`（图例名）、
+`sort`（"gap"|"input"|"to"，默认 gap 降序）、`show_values`（点端数值）、
+`show_gap`（连接线中点 Δ 标注）、`x_label`。严格两时点：每行仅 from/to 两值。
+

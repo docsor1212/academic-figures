@@ -10,6 +10,30 @@
 
 ## Version History
 
+## 5.1.0 — 2026-10-15
+
+  - **New chart type #30: `dumbbell` — two points per row, gap-first**: one
+    horizontal connector + two dots per row (`from` open circle → `to` filled
+    circle), sorted by gap size so the largest change sits on top
+    (`sort=gap|input|to`). Strictly two time points/groups per row (baseline vs
+    follow-up, male vs female, control vs treatment) — for >2 use slope/line,
+    for paired testing use `paired`. Optional `show_values` (per-dot values)
+    and `show_gap` (Δ label at the connector midpoint, Pew-style); legend via
+    `from_label`/`to_label`; bottom band reserved so the legend never collides
+    with the last row. `--suggest` routes `from`/`to` pairs; `--alt` text
+    included.
+  - **`--repro` reproduce bundle**: after a successful render,
+    `<output>.repro/` assembles everything needed to reproduce the figure
+    byte-for-byte — the exact command, a copy of the input data, a copy of the
+    rendered figure, the number-checking `audit.json`, and a bilingual
+    README. Deterministic engine guarantee: same input + same command = same
+    bytes, so the bundle is a complete provenance record for reviewers and
+    co-authors. Idempotent (rerun rebuilds the folder).
+  - `templates/dumbbell.json` (30 templates); docs updated to 30 chart types
+    across SKILL bilingual/README/quickstart/cheatsheet/templates-README.
+  - Tests: +TestV50100 (E2E render, Δ-pairing correctness, validate fatals,
+    alt/suggest, template _command, repro bundle determinism); suite green.
+
 ## 5.0.0 — 2026-10-14
 
   - **New chart type #29: `ridgeline` — stacked per-group densities (joyplot
@@ -671,6 +695,21 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v5.1.0（2026-10-15）
+
+- **新图型 #30：`dumbbell` 哑铃图（差距优先）**：每行两点（`from` 空心圆 →
+  `to` 实心圆）+连接线，默认按差距降序（最大改善居顶）；严格限两时点/两组
+  （>2 用 slope/line，配对检验用 paired）；可选 `show_values` 点端数值与
+  `show_gap` 中点 Δ 标注（Pew 式）；`from_label`/`to_label` 自定图例；底部
+  预留带保证图例永不与末行碰撞；`--suggest` 自动路由、`--alt` 摘要齐备。
+- **`--repro` 复跑交付包**：渲染成功后组装 `<输出>.repro/`——精确命令、输入
+  数据副本、成图副本、数字对账 audit.json、双语 README，拿到包即可逐字节
+  复现该图（确定性引擎：同输入+同命令=同字节）；幂等重建。
+- 模板 dumbbell.json（30 模板）；双语文档 30 种图型同步。
+- 测试：+TestV50100（E2E 渲染、Δ 配对正确性、校验致命项、alt/suggest、
+  模板 _command、repro 包确定性）。
+
 
 ### v5.0.0（2026-10-14）
 

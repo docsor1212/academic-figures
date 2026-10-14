@@ -112,7 +112,8 @@ _KNOWN_DATA_FIELDS = [
   "title", "top_n", "min_size", "sort", "panel_labels", "span", "pos", "xlabel", "ylabel", "type",
   "change", "pr_cut", "pd_cut",
   "datasets", "jitter", "cloud_scale",
-  "start", "end", "milestones", "ongoing", "ref_lines"
+  "start", "end", "milestones", "ongoing", "ref_lines",
+  "from", "to", "from_label", "to_label", "show_values", "show_gap"
 ]
 
 
