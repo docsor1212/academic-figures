@@ -3290,8 +3290,8 @@ def gen_ridgeline(data, ax, theme, cjk_fp, **kwargs):
 
     allv = np.concatenate([np.asarray([float(x) for x in series[k]], dtype=float) for k in names])
     gmin, gmax = float(allv.min()), float(allv.max())
-    pad = 0.08 * (gmax - gmin if gmax > gmin else max(1.0, abs(gmin)))
-    grid = np.linspace(gmin - pad, gmax + pad, 240)
+    pad = 0.15 * (gmax - gmin if gmax > gmin else max(1.0, abs(gmin)))
+    grid = np.linspace(gmin - 1.5 * pad, gmax + 1.5 * pad, 260)
     dens = {}
     for k in names:
         v = np.asarray([float(x) for x in series[k]], dtype=float)
@@ -3310,22 +3310,25 @@ def gen_ridgeline(data, ax, theme, cjk_fp, **kwargs):
     step = 1.0 - overlap
     bases = {k: (n - 1 - i) * step for i, k in enumerate(names)}  # i=0 在顶
     degenerate = []
-    # 画家算法：自底向上画，上排山脊覆盖下排填充
+    # 画家算法：自底向上画，且每条山脊 fill/outline 同层 zorder 按位次递增——
+    # 上排山脊整体（含轮廓）覆盖下排重叠区（验收 P1：分层 zorder 会让下排轮廓
+    # 骑压上排填充，视觉上"下排覆盖上排"）
     for k in reversed(names):
         color = theme["colors"][names.index(k) % len(theme["colors"])]
         base = bases[k]
+        z = 2.0 + names.index(k)  # 上排 zorder 更大，整层覆盖下排
         if dens[k] is None:
             v0 = float(np.asarray([float(x) for x in series[k]], dtype=float)[0])
             ax.plot([v0, v0], [base, base + 0.45], color=color, lw=3.5,
-                    solid_capstyle="butt", alpha=0.85, zorder=3)
+                    solid_capstyle="butt", alpha=0.85, zorder=z)
             degenerate.append(k)
             continue
         d = dens[k] / hmax
         ax.fill_between(grid, base, base + d, facecolor=color, alpha=0.85,
-                        edgecolor="none", zorder=2)
-        ax.plot(grid, base + d, color=color, lw=1.3, zorder=3)
+                        edgecolor="none", zorder=z)
+        ax.plot(grid, base + d, color=color, lw=1.3, zorder=z + 0.01)
         ax.plot([grid[0], grid[-1]], [base, base], color="#4A4A4A", lw=0.7,
-                alpha=0.65, zorder=3)
+                alpha=0.65, zorder=z + 0.01)
     ax.set_yticks([bases[k] for k in names])
     ax.set_yticklabels(names, fontsize=fs_s,
                        fontproperties=cjk_fp if cjk_fp and has_cjk("".join(names)) else None)
