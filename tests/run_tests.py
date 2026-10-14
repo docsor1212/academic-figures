@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.0.0", self.zh)
-        self.assertIn("version: 5.0.0", self.en)
+        self.assertIn("version: 5.1.0", self.zh)
+        self.assertIn("version: 5.1.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.0.0", self.zh)
-        self.assertIn("version: 5.0.0", self.en)
+        self.assertIn("version: 5.1.0", self.zh)
+        self.assertIn("version: 5.1.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.0.0", self.zh)
-        self.assertIn("version: 5.0.0", self.en)
+        self.assertIn("version: 5.1.0", self.zh)
+        self.assertIn("version: 5.1.0", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.0.0", zh)
+        self.assertIn("version: 5.1.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.0.0", t, name)
+            self.assertIn("version: 5.1.0", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.0.0", t, name)
+            self.assertIn("version: 5.1.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.0.0", t, name)
+            self.assertIn("version: 5.1.0", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.0.0", t, name)
+            self.assertIn("version: 5.1.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4717,6 +4717,31 @@ class TestV50100(unittest.TestCase):
                 capture_output=True, text=True, timeout=240)
             self.assertEqual(r2.returncode, 0, r2.stderr[-250:])
             self.assertTrue(os.path.exists(os.path.join(bundle, "command.txt")))
+
+    def test_cli_flags_change_output(self):
+        """机制锁：CLI 旗标必须真实改变输出字节（防旗标静默无效类——v5.1
+        dumbbell --show-values 曾只读数据字典导致 CLI 无效）。"""
+        import hashlib as _hb
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ("dumbbell", {"labels": ["A", "B", "C"], "from": [10, 20, 30],
+                              "to": [25, 35, 45]}, ["--show-values"]),
+                ("waterfall", {"change": [-40, -20, -5, 10, 30]}, ["--show-values"]),
+            ]
+            for ctype, data, flags in cases:
+                f = os.path.join(td, f"{ctype}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                digest = []
+                for with_flag in (False, True):
+                    out = os.path.join(td, f"{ctype}_{with_flag}.png")
+                    cmd = [sys.executable, GEN, "-t", ctype, "-d", f, "-o", out,
+                           "--dpi", "70"] + (flags if with_flag else [])
+                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=240)
+                    self.assertEqual(r.returncode, 0, r.stderr[-200:])
+                    digest.append(_hb.md5(open(out, "rb").read()).hexdigest())
+                self.assertNotEqual(digest[0], digest[1],
+                                    f"{ctype} {' '.join(flags)} 输出与无旗标完全相同——旗标静默无效")
+
 
     def test_registry_count_30(self):
         import gen_figure

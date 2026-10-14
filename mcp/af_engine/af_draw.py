@@ -3503,7 +3503,8 @@ def gen_dumbbell(data, ax, theme, cjk_fp, **kwargs):
             ax.text(tv[i], row + 0.22, f"{tv[i]:g}", ha="center", va="bottom",
                     fontsize=fs_s, color=c_to)
         if show_gap and hi - lo > 0:
-            ax.text((lo + hi) / 2, row - 0.26, f"Δ{abs(tv[i] - fv[i]):g}",
+            # 倒轴语义：数据 y 越大越靠下，row+0.26 = 连接线视觉下方
+            ax.text((lo + hi) / 2, row + 0.26, f"Δ{abs(tv[i] - fv[i]):g}",
                     ha="center", va="top", fontsize=fs_s, color="#555555")
 
     ax.set_yticks(y)
@@ -3514,7 +3515,11 @@ def gen_dumbbell(data, ax, theme, cjk_fp, **kwargs):
     ax.set_ylim(n + 0.4, -0.8)
     ax.set_yticks([y[i] for i in range(n)])
     allv = fv + tv
-    ax.set_xlim(min(allv), max(allv))  # 引擎自动留边距（margins）
+    # 机制（类级铁律，见 pitfalls「端点标记必留 pad」）：显式 set_xlim 禁用
+    # matplotlib 边距，数据极值处的标记（本图 from/to 圆点）必被裁半——自留 4% pad
+    lo_all, hi_all = min(allv), max(allv)
+    _pad = (hi_all - lo_all) * 0.04 or (max(1.0, abs(hi_all) * 0.02))
+    ax.set_xlim(lo_all - _pad, hi_all + _pad)
     fl = str(data.get("from_label", "") or ("起点" if cjk_fp else "From"))
     tl = str(data.get("to_label", "") or ("终点" if cjk_fp else "To"))
     handles = [plt.Line2D([], [], marker="o", mfc="white", mec=c_from, mew=1.7,
