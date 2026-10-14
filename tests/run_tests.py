@@ -1062,10 +1062,73 @@ class TestV220Features(unittest.TestCase):
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertIn("stats (violin)", proc.stderr)
 
+    def test_desc_card_conversion(self):
+        """模块2.1 卡片转化锁：desc 首行=需求词逐字覆盖、品牌词不进首 60 字符。"""
+        import re as _re
+        root = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        for fname, demand_words in (
+                ("SKILL_ZH.md", ["论文配图", "学术图表", "科研绘图", "期刊配图"]),
+                ("SKILL.md", ["scientific figures", "chart types", "Publication"])):
+            with open(os.path.join(root, fname), encoding="utf-8") as f:
+                txt = f.read()
+            m = _re.search(r"description: >-\n((?:  .*\n)+?)(?=\w)", txt)
+            self.assertIsNotNone(m, f"{fname} description 块未找到")
+            d = " ".join(l.strip() for l in m.group(1).splitlines())
+            self.assertLessEqual(len(d), 1024, f"{fname} desc 超 1024 字符（SH 静默丢弃红线）")
+            first_line = d.split("：")[0] if fname.endswith("ZH.md") else d.split(" — ")[0]
+            self.assertTrue(d.startswith(first_line[:12]))
+            for w in demand_words:
+                self.assertIn(w, d[:120], f"{fname} 需求词 {w!r} 不在前 120 字符")
+            for brand in ("docsor", "github.com"):
+                self.assertNotIn(brand, d[:60], f"{fname} 品牌词 {brand!r} 混进首 60 字符")
+
+    def test_negative_triggers_in_desc(self):
+        """模块3.4 正负触发器：负触发器在 desc 内（置换式，非净追加）。"""
+        root = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        for fname, marker in (("SKILL_ZH.md", "不适用"), ("SKILL.md", "Skip when")):
+            with open(os.path.join(root, fname), encoding="utf-8") as f:
+                txt = f.read()
+            m = re.search(r"description: >-\n((?:  .*\n)+?)(?=\w)", txt)
+            self.assertIsNotNone(m, fname)
+            d = " ".join(l.strip() for l in m.group(1).splitlines())
+            self.assertIn(marker, d, f"{fname} desc 缺负触发器标记 {marker!r}")
+
+    def test_deep_doc_entrances(self):
+        """模块3.2 深文档 30 秒入口：每个 references/*.md 有「何时读我」块。"""
+        root = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        rdir = os.path.join(root, "references")
+        md_files = [f for f in sorted(os.listdir(rdir)) if f.endswith(".md")]
+        self.assertGreaterEqual(len(md_files), 14)
+        for f in md_files:
+            with open(os.path.join(rdir, f), encoding="utf-8") as fh:
+                head = fh.read(600)
+            self.assertIn("何时读我", head, f"{f} 缺 30 秒入口块")
+
+    def test_capability_boundary_table(self):
+        """模块3.1 能力×边界成对表：主文件有表+四条评测点名边界行。"""
+        root = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        for fname in ("SKILL.md", "SKILL_ZH.md"):
+            with open(os.path.join(root, fname), encoding="utf-8") as f:
+                txt = f.read()
+            self.assertIn("Capabilities & Boundaries" if fname.endswith(".md") and not fname.endswith("ZH.md")
+                          else "能力与边界", txt, fname)
+            for needle in ("--verify", "--journal"):
+                self.assertIn(needle, txt, f"{fname} 缺边界要素 {needle!r}")
+
+    def test_antimode_alternatives(self):
+        """模块3.3 反模式带替代+防重复规则。"""
+        root = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        with open(os.path.join(root, "references", "pitfalls.md"), encoding="utf-8") as f:
+            txt = f.read()
+        self.assertIn("反模式 → ✅ 替代", txt)
+        self.assertIn("不要重复烧钱", txt)
+        self.assertIn("改变一个输入", txt)
+
+
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 28, f"expected 28 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer), got {len(jsons)}")
+        self.assertEqual(len(jsons), 29, f"expected 29 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2455,7 +2518,7 @@ class TestV280Help(unittest.TestCase):
 
 
 
-class TestV290DocsAndAdvisories(unittest.TestCase):
+class TestV20900DocsAndAdvisories(unittest.TestCase):
     """v2.9.0：边界收拢（limits §六/§七）、独立快速入门、预判 advisory、KeyError 纠错。"""
 
     @classmethod
@@ -2483,8 +2546,8 @@ class TestV290DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 4.10.0", self.zh)
-        self.assertIn("version: 4.10.0", self.en)
+        self.assertIn("version: 5.0.0", self.zh)
+        self.assertIn("version: 5.0.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2533,7 +2596,7 @@ class TestV290FieldNearMiss(unittest.TestCase):
 
 
 
-class TestV300Docs(unittest.TestCase):
+class TestV30000Docs(unittest.TestCase):
     """v3.0.0：类别列、速查卡、行内警示、模块拆分。"""
 
     @classmethod
@@ -2558,7 +2621,7 @@ class TestV300Docs(unittest.TestCase):
 
     def test_inline_warnings(self):
         self.assertIn("自动联动同款配色", self.zh)
-        self.assertIn("auto-link a matching theme", self.en)
+        self.assertIn("auto-links its theme", self.en)
         self.assertIn("references/cheatsheet.md", self.zh)
         self.assertIn("references/cheatsheet.md", self.en)
 
@@ -2579,8 +2642,8 @@ class TestV300Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 4.10.0", self.zh)
-        self.assertIn("version: 4.10.0", self.en)
+        self.assertIn("version: 5.0.0", self.zh)
+        self.assertIn("version: 5.0.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2613,8 +2676,8 @@ class TestV300Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 4.10.0", self.zh)
-        self.assertIn("version: 4.10.0", self.en)
+        self.assertIn("version: 5.0.0", self.zh)
+        self.assertIn("version: 5.0.0", self.en)
 
 
 
@@ -2637,7 +2700,7 @@ class TestV300Docs(unittest.TestCase):
 
 
 
-class TestV3100(unittest.TestCase):
+class TestV30100(unittest.TestCase):
     """v3.1.0：--quick 一键出图 + 自动降采样 + 文档口径。"""
 
     def test_quick_renders(self):
@@ -2679,9 +2742,9 @@ class TestV3100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 4.10.0", zh)
+        self.assertIn("version: 5.0.0", zh)
         self.assertIn("--quick", zh)
-        self.assertIn("自动等距采样到 2000 行", zh)
+        self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
         self.assertIn("JSON vs CSV 能力对照", df)
 
@@ -2791,7 +2854,7 @@ class TestV3700(unittest.TestCase):
 
 
 
-class TestV3300(unittest.TestCase):
+class TestV30300(unittest.TestCase):
     """v3.3.0：frontmatter 冒号炸弹防御 + README 官方化。"""
 
     @classmethod
@@ -2817,7 +2880,7 @@ class TestV3300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "28 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "29 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2848,12 +2911,12 @@ class TestV3300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.10.0", t, name)
+            self.assertIn("version: 5.0.0", t, name)
 
 
 
 
-class TestV3400(unittest.TestCase):
+class TestV30400(unittest.TestCase):
     """v3.4.0：直接标注 + 标题层级 + Pro 透传。"""
 
     def test_direct_label_renders(self):
@@ -2937,7 +3000,7 @@ class TestV3400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.10.0", t, name)
+            self.assertIn("version: 5.0.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3005,7 +3068,7 @@ class TestV3500(unittest.TestCase):
 
 
 
-class TestV3600(unittest.TestCase):
+class TestV30600(unittest.TestCase):
     """v3.6.0：静默忽略显式化 + CSV 误差棒前置 + 历史披露。"""
 
     def test_stats_ignored_announced(self):
@@ -3056,12 +3119,12 @@ class TestV3600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.10.0", t, name)
+            self.assertIn("version: 5.0.0", t, name)
 
 
 
 
-class TestV3800(unittest.TestCase):
+class TestV30800(unittest.TestCase):
     """v3.8.0：--pub-ready 一键投稿包 + 中位数 bootstrap CI。"""
 
     def test_pub_ready_e2e(self):
@@ -3123,12 +3186,12 @@ class TestV3800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 4.10.0", t, name)
+            self.assertIn("version: 5.0.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
 
-class TestV3900(unittest.TestCase):
+class TestV30900(unittest.TestCase):
     """v3.9.0：--order 类别顺序 + --normalize 归一化 + --doctor 体检。"""
 
     def test_order_function_bar(self):
@@ -3240,7 +3303,7 @@ class TestV3900(unittest.TestCase):
             self.assertIn("doctor 参数/环境体检", r.stderr)
 
 
-class TestV3910(unittest.TestCase):
+class TestV30910(unittest.TestCase):
     """v3.9.1 文档准确性热修回归锁。"""
 
     @classmethod
@@ -3288,7 +3351,7 @@ class TestV3910(unittest.TestCase):
     def test_references_all_listed(self):
         """文件结构节须列全 references 文档（progressive 靶点）。"""
         for kw in ("clinical-lab-trends", "composite-layouts",
-                   "reverse-engineering-colors", "cheatsheet / quickstart"):
+                   "reverse-engineering-colors", "cheatsheet", "quickstart"):
             self.assertIn(kw, self.zh)
             self.assertIn(kw, self.en)
 
@@ -3469,7 +3532,7 @@ class TestV40000(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
 
 
-class TestV41000(unittest.TestCase):
+class TestV40100(unittest.TestCase):
     """v4.1.0：composite 自动面板标签（panel_labels）+ --summary 自动数据摘要副标题。"""
 
     @classmethod
@@ -4253,7 +4316,7 @@ class TestV49000(unittest.TestCase):
         self.assertIn("aliyun", src)
 
 
-class TestV410000(unittest.TestCase):
+class TestV41000(unittest.TestCase):
     """v4.10.0：swimmer 临床试验游泳图（第 28 种图型，逐例时长+持续箭头+里程碑）。"""
 
     def test_swimmer_e2e_group(self):
@@ -4440,6 +4503,113 @@ class TestV410000(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-250:])
             self.assertIn("--verify", r.stderr)
             self.assertIn("--pub-ready", r.stderr)
+
+
+
+class TestV50000(unittest.TestCase):
+    """v5.0.0：ridgeline 山脊图（第 29 种图型）+ --audit 数字对账侧车。"""
+
+    def test_ridgeline_e2e(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "r.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["基线", "4周", "8周", "12周"],
+                 "datasets": {"基线": [42, 48, 52, 55, 58, 60, 63, 65, 68, 72, 78, 85, 42, 50, 56, 61, 66, 70, 74, 80],
+                              "4周": [28, 33, 38, 41, 45, 48, 52, 55, 58, 62, 68, 30, 36, 43, 49, 54, 60, 65],
+                              "8周": [18, 22, 26, 30, 33, 37, 41, 45, 49, 54, 20, 25, 31, 39, 47, 52],
+                              "12周": [12, 15, 19, 23, 27, 31, 36, 41, 46, 14, 18, 24, 33, 43]},
+                 "overlap": 0.55}, ensure_ascii=False))
+            out = os.path.join(td, "r.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "ridgeline", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("ridgeline: 4 组（overlap=0.55，sort=input）", r.stderr)
+
+    def test_ridgeline_degenerate_and_median_sort(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B", "C"],
+                 "datasets": {"A": [5, 6, 5, 7, 6], "B": [9], "C": [1, 2, 3, 4, 5, 6]},
+                 "sort": "median"}))
+            out = os.path.join(td, "d.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "ridgeline", "-d", f, "-o", out, "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("单值退化 1 组: B", r.stderr)
+            self.assertIn("sort=median", r.stderr)
+
+    def test_ridgeline_validate_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ({}, "datasets"),
+                ({"datasets": {}}, "datasets"),
+                ({"datasets": {"A": [1]}, "labels": ["A", "B"]}, "labels"),
+                ({"datasets": {"A": [1, "x", 3]}}, "非数值项"),
+                ({"datasets": {"A": [1, 2]}, "overlap": 1.2}, "overlap"),
+                ({"datasets": {"A": [1, 2]}, "sort": "asc"}, "sort"),
+            ]
+            for i, (data, want) in enumerate(cases):
+                f = os.path.join(td, f"b{i}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                out = os.path.join(td, f"b{i}.png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "ridgeline", "-d", f, "-o", out],
+                    capture_output=True, text=True, timeout=120)
+                self.assertNotEqual(r.returncode, 0, f"case{i} 应失败: {data}")
+                self.assertIn(want, r.stderr, f"case{i} 缺提示 {want!r}")
+
+    def test_ridgeline_alt_and_suggest(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        d = {"labels": ["A", "B"], "datasets": {"A": [1, 2, 3], "B": [4, 5, 6]}}
+        alt = gen_figure.generate_alt_text("ridgeline", d, "队列")
+        self.assertIn("山脊图", alt)
+        self.assertIn("2 组", alt)
+        recs = gen_figure.suggest_chart_type({"datasets": {"A": [1, 2], "B": [3, 4]}})
+        self.assertTrue(any(t == "ridgeline" for _, t, _ in recs), recs)
+
+    def test_ridgeline_template_command(self):
+        base = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        with io.open(os.path.join(base, "templates", "ridgeline.json"), encoding="utf-8") as fh:
+            cmd = json.load(fh)["_command"]
+        r = subprocess.run(cmd, shell=True, cwd=base, capture_output=True, text=True, timeout=240)
+        self.assertEqual(r.returncode, 0, r.stderr[-250:])
+
+    def test_audit_sidecar_deterministic(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "a.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B", "C"], "series": {"组1": [10, 20, 30], "组2": [5, 15, 25]}}))
+            outs = []
+            for i in range(2):
+                out = os.path.join(td, f"a{i}.png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "bar", "-d", f, "-o", out,
+                     "--audit", "--dpi", "80"],
+                    capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0, r.stderr[-250:])
+                ap = out + ".audit.json"
+                self.assertTrue(os.path.exists(ap), r.stderr[-250:])
+                outs.append(io.open(ap, encoding="utf-8").read())
+            self.assertEqual(outs[0], outs[1], "audit 侧车须同输入同字节")
+            d = json.loads(outs[0])
+            s1 = d["stats"]["series.组1"]
+            self.assertEqual(s1["n"], 3)
+            self.assertAlmostEqual(s1["mean"], 20.0)
+            self.assertAlmostEqual(s1["median"], 20.0)
+            self.assertIn("input_sha256_12", d)
+
+    def test_registry_count_29(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3
+        self.assertGreaterEqual(n, 29, f"注册表图型数: {n}")
 
 
 if __name__ == "__main__":

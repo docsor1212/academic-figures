@@ -1,6 +1,10 @@
 # 速查卡（Cheat Sheet）
 
-> 一页速查：28 种图型命令骨架、全量参数、退出码、边界 Top 5。
+> **何时读我**：已经知道图型，要一条能跑的命令骨架。
+> **最短路径**：Ctrl-F 图型名 → 复制命令行 → 换数据文件。
+> **回 INDEX**：SKILL.md「文件索引与 30 秒路由」。
+
+> 一页速查：29 种图型命令骨架、全量参数、退出码、边界 Top 5。
 > 细节：`--explain <类型>`；数据格式 `references/data-formats.md`；参数交互 `references/limits.md`。
 
 ## 一、图型命令骨架（通用格式）
@@ -27,6 +31,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | waterfall | `change[]` 每例最佳缓解%；`group` RECIST 着色、`pr_cut/pd_cut` 阈值线（v4.8） |
 | raincloud | schema 同 violin（labels+datasets）；`jitter`/`cloud_scale` 可调（v4.9） |
 | swimmer | `end[]` 每例时长必填(>0)；`start/names/group/milestones/ongoing/ref_lines` 可选；`sort=duration|input`（v4.10） |
+| ridgeline | schema 同 violin（labels+datasets）；`overlap` 0~0.95、`sort=median`；单值组退化告知（v5.0） |
 | bland_altman | 两组等长 |
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |

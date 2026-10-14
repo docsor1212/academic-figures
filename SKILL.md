@@ -1,18 +1,21 @@
 ---
 name: academic-figures
-version: 4.10.0
+version: 5.0.0
 description: >-
-  Publication-ready scientific figures from one command — 28 chart types (bar, slope, volcano,
-  grouped bar, scatter, heatmap, forest plot, KM survival curve (Kaplan-Meier, ROC,
-  violin, box, composite panels, PRISMA 2020 flow, funnel, Bland-Altman, PCA,
-  venn 2-4 sets, upset set intersections (5+ sets), oncology waterfall (RECIST), raincloud (cloud+box+rain trio),
-  clinical swimmer (per-subject duration, ongoing arrows, milestones),
-  clustered heatmap, dual-axis, Cox multi-variable regression forest), 9 themes incl. colorblind-safe Okabe-Ito and NEJM/Lancet/Science
-  journal palettes, 9 journal submission presets, YAML figure pipeline (a whole
-  paper in one command), multi-format export (TIFF/PNG/PDF in one run), Python
-  API, --wizard chart picker, render watchdog with auto-degrade retry,
-  reviewer-style --annotate arrows, PDF text-overlap + font-size gates, 600dpi
-  output. 100% local — data never leaves your machine.
+  Publication-ready scientific figures from one command — 29 chart types (bar, slope,
+  volcano, ridgeline, grouped bar, scatter, heatmap, forest
+  plot, KM survival curve with risk table,
+  Cox regression forest, ROC, violin, box, composite panels, PRISMA 2020 flow, funnel,
+  Bland-Altman, PCA, venn 2-4 sets, upset set intersections (5+ sets), oncology waterfall
+  (RECIST), raincloud (cloud+box+rain trio), clinical swimmer (milestones, ongoing arrows),
+  clustered heatmap, dual-axis), 9 themes incl. colorblind-safe
+  Okabe-Ito and NEJM/Lancet/Science palettes, 9 journal submission presets, YAML figure
+  pipeline, one-run TIFF/PNG/PDF export, Python API, --wizard picker,
+  render watchdog, PDF overlap gate, 600dpi. 100% local, data
+  never leaves the machine. Use for — paper/submission figures, turning data files into
+  publication charts, batch re-rendering. Skip when — text polishing, translation or
+  rewriting (writing tools); business dashboards or slide/poster decoration; diagrams
+  with no data behind them.
 when_to_use: >-
   Use when making or generating any figure or chart from data (bar chart,
   scatter plot, heatmap, forest plot, Kaplan-Meier / survival curve, ROC curve,
@@ -24,19 +27,16 @@ when_to_use: >-
 ---
 
 <!--
-═══════════ Metadata archive (2026-09-13 frontmatter normalization) ═══════════
-ZCode skill auto-discovery only reads the frontmatter whitelist keys:
-  name / description / when_to_use / license / metadata
-and a description over 1024 characters is silently dropped (root cause of the
-v2.x auto-discovery failure: v2.4 had 1035 chars, v2.5 initial 1253).
-The following keys were moved out of frontmatter (info preserved):
-  version: 4.10.0
-  date: 2026-10-13
+═══ Metadata archive (2026-09-13 frontmatter normalization; compressed 2026-10-14) ═══
+ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
+(name / description / when_to_use / license / metadata); a description over
+1024 chars is silently dropped (root cause of the v2.x discovery failure).
+Keys moved out of frontmatter (info preserved):
+  version: 5.0.0
+  date: 2026-10-14
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
-Runtime deps: requirements.txt and scripts/setup_env.py; history: Version History below.
-═════════════════════════════════════════════════════════════════
 -->
 
 # Academic Figures — Publication-Quality Chart Generator
@@ -107,9 +107,6 @@ python3 scripts/gen_figure.py -t composite -d composite.json -o figure4.png --th
 python3 scripts/gen_figure.py -t heatmap -d data.json -o heatmap.png --cjk \
   --cmap RdBu_r --vmin -20 --vmax 45
 
-# Supplementary legend (journal format, "Figure 1 |" style), same data JSON
-python3 scripts/gen_legend.py -d data.json -t "Response to treatment" -f 1 -o legend.txt
-
 # v2.7: aspect-ratio presets (16:9 slides / 9:16 mobile); v2.8: big-cluster downsample
 python3 scripts/gen_figure.py -t bar --data d.json --size 16:9
 python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 2000 --timeout 600
@@ -128,6 +125,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Distribution | Box | `-t box` | Box-and-whisker, jitter points |
 | Distribution | Violin | `-t violin` | Density estimation, inner mean/median |
 | Distribution | Raincloud | `-t raincloud` | half-KDE cloud + box + jittered raw points trio (v4.9); violin schema |
+| Distribution | Ridgeline | `-t ridgeline` | stacked per-group KDE densities (joyplot), `overlap` 0-0.95, `sort=median`; shows how distributions shift across groups (v5.0) |
 | Paired | Before-after | `-t paired` | per-subject pairing lines + paired test (annotated at n≥6) |
 | Trend | Scatter | `-t scatter` | Trend line, r value, color grouping, mean points, point labels |
 | Trend | Line | `-t line` | Multiple series, error bands, markers |
@@ -154,7 +152,7 @@ Scan the Category column at a glance; getting-started path in `references/quicks
 ## Chart Decision Tree (compact; full version + getting-started: references/quickstart.md)
 
 ```text
-Group comparison → bar/box/violin/raincloud (full trio view; pre-post → paired) | Mean±error bars → bar (JSON errors)
+Group comparison → bar/box/violin/raincloud (full trio view; pre-post → paired; distribution shift across groups → ridgeline) | Mean±error bars → bar (JSON errors)
 Two-column correlation → scatter | Time-to-event → km / forest --stats cox | Diagnosis → roc (--compare)
 Set membership → venn (--area; 5+ sets → upset) | Numeric matrix → heatmap / cluster_heatmap | Sample classes → pca
 Omics differential expression → volcano |
@@ -166,60 +164,47 @@ Still unsure: `--suggest -d data.json` (auto-recommend), or `--wizard` (guided).
 **First time?** The full decision tree, a 4-step getting-started, Python API and the top
 pitfalls live in **`references/quickstart.md`** (standalone getting-started guide).
 
-## Limits & Compatibility (read before first run)
+## Capabilities & Boundaries (read before first run)
 
-**Data volume**: cluster_heatmap >3000 rows auto-downsamples to 2000 with a clear notice
-(alternatively `--downsample N` for a custom row count); pca ≤200 feature columns;
-venn 2-4 sets (4 sets use the ellipse layout); paired/bland_altman require equal-length pairs;
-km has no hard cap (50k rows render in ~3s).
-**Flag compatibility**: `--stats` box/violin (`cox`: forest only); `--compare` roc only;
-`--egger` funnel only; `--hatch` bar family only; `--sheet` xlsx only; `--journal` locks width
-(`--width` is overridden); `--area` venn only.
-**Timeout**: the render watchdog budget is adaptive per type and data size (30-1800s);
-`--timeout N` adjusts it, `--timeout 0` disables.
-**v3.9 flag scopes**: `--order` applies to bar/box/violin/line families (explicit list must
-cover all labels); `--normalize` applies to bar family/line only (distribution charts are
-never mean-normalized); `--doctor` works for every type (omit -o for check-only).
+| Capability | What it does | What it does NOT / boundary | Where to look |
+|------------|--------------|------------------------------|---------------|
+| Chart engine | 29 types, one command, 600dpi; byte-deterministic output | No interactive exploration (static files only); no 3-D plots | Chart Types ↑ |
+| Chart picking | `--suggest` (auto), `--wizard` (guided), `--quick` (auto-pick+render), `--explain TYPE` | Suggestions are structural heuristics — confirm the statistical meaning yourself | quickstart.md |
+| Stats | KM risk table/log-rank/median CI; Cox (Efron+PH); ROC DeLong; bootstrap CI; Egger | No Bayesian methods; no sample-size/power calculation | advanced.md |
+| Journal presets | 9 presets, exact width/font/DPI from author guidelines | `--journal` locks width (`--width` ignored, `--height` OK); Pro-only journals not preset | limits.md §6 |
+| Verification | `--verify` pixel overlap gate (exit 2), `audit_pdf.py` font-size gate | Off unless requested — PDF submission outputs should pass `--verify` explicitly (or `--pub-ready`) | §Verification ↓ |
+| Composite | Multi-panel A+B+C, `span` multi-cell | Panels cannot nest composite/diagram/upset | composite-layouts.md |
+| Data input | JSON full / CSV-TSV basic / xlsx (`--sheet`) | CSV cannot carry `errors`/dual-axis/forest schemas — those need JSON | data-formats.md |
+| Data volume | cluster_heatmap >3000 rows auto-downsamples (announced) | pca ≤200 feature columns; venn 2-4 sets; paired/bland_altman equal-length pairs | limits.md |
+| CJK | `--cjk` + recursive auto-detect in data | Headless servers need at least one CJK font installed (detect: `setup_env.py`) | pitfalls.md |
+| Watchdog | Adaptive 30-1800s budget; `--timeout` adjusts; auto-degrade on MemoryError | `--timeout 0` disables (unbounded render risk) | limits.md §7 |
+| Flag scopes | `--stats` box/violin (`cox`: forest); `--compare` roc; `--egger` funnel; `--hatch` bar family; `--order/--normalize` per family | Flag outside its scope is ignored with a notice — run `--doctor` to preflight combos | limits.md |
+| Exit codes | 0 success / 1 fatal validation / 2 overlap / 3 data / 4 env / 5 timeout / 6 memory | Exit 0 never co-exists with a silent data problem (non-finite values are fatal) | §Exit Codes ↓ |
 
 Full matrix: `references/limits.md`. FAQ: `references/faq.md`. Over-limit inputs are rejected with a Chinese error message
 plus a fix suggestion — no half-finished figures are ever written.
-**Flag interactions** (`--journal` locks width, PDF overlap check needs explicit `--verify`,
-default DPI) and **runtime environment boundaries** (headless servers, CJK fonts):
-see `references/limits.md` §6 and §7.
 
 ## Color Themes
 
-**Default theme = `glm`** (muted elegant Morandi-style palette, colorblind-safe).
-
-| Theme | Description | Colorblind Safe |
-|-------|-------------|----------------|
-| `glm` ⭐default | Muted Morandi palette (steel blue/warm yellow/sage/dusty purple/coral) | ✅ Yes |
-| `okabe-ito` | Nature Methods gold standard (Wong 2011) — journal submission first choice | ✅ Yes |
-| `cool` | Elegant cool-toned palette (navy/ocean/teal/slate) | ✅ Yes |
-| `classic` | Original matplotlib palette (kept for compatibility) | ❌ |
-| `nature` / `lancet` | NPG / Lancet journal palettes | ❌ |
-| `nejm` / `science` | NEJM (8 colors) / Science (10 colors) journal palettes | ❌ |
-| `conservative` | Professional muted palette | ❌ |
-
-`--list-themes` shows in-terminal swatches; `--theme-swatch glm -o swatch.png` renders a preview.
-**Recommendation**: use `--theme okabe-ito` for submissions (major journals require colorblind-safe
-figures; red-green schemes are a top rejection reason). **Journal linkage**: `--journal
-nejm|lancet|science|nature` auto-applies the matching theme when no explicit `--theme` is given.
-**GLM signature style**: `--style glm-hatch` = glm palette + black hatching (print-friendly); **journal-clean style**: `--style nature-clean` = Okabe-Ito palette + no top/right spines + no grid + frameless legend (Nature-style design language, new in v3.3);
-`--alternate` alternates yellow/blue per bar. Aliases: `okabe`→okabe-ito; case-insensitive,
-prefix matching (`--theme gla` → glm).
+**Default = `glm`** (muted Morandi, colorblind-safe). Submissions: `--theme okabe-ito`
+(Nature Methods standard; red-green schemes are a top rejection reason). Palettes: `glm` /
+`okabe-ito` / `cool` (all colorblind-safe); `nature` `lancet` `nejm` `science` `conservative`
+`classic`. `--style glm-hatch` adds print-friendly black hatching; `--style nature-clean` =
+spine/grid-free journal-clean look; `--journal nejm|lancet|science|nature` auto-links its theme.
+`--list-themes` (swatches), `--theme-swatch glm -o preview.png`, `--alternate` (yellow/blue bars).
+Aliases `okabe`→`okabe-ito`; case-insensitive prefix match. Full guide: `references/color-guide.md`.
 
 ## Journal Submission Presets (v2.0)
 
-> ⚠ Interactions: `--journal` locks the figure width (`--width` is overridden; `--height` still works); `nejm/lancet/science/nature` auto-link a matching theme unless you pass an explicit `--theme`. Full flag interactions: `references/limits.md` §6.
+> ⚠ `--journal` locks width (`--width` overridden; `--height` works); `nejm/lancet/science/nature`
+auto-link their theme unless `--theme` is explicit. `--style glm-hatch` is theme-level, distinct
+from the bar-family `--hatch` flag. Full interactions: `references/limits.md` §6.
 
-`--journal <name>` + `--column single|double` applies the journal's exact column width, font size,
-font family and DPI automatically (widths from official author guidelines). **9 presets**:
-(Note: `--style glm-hatch` is a theme-level hatch style, distinct from the bar-family-only `--hatch` flag.)
-`nature`, `lancet`, `science`, `cell`, `nejm`, `jama`, `ieee` + Chinese **`cma`** (中华医学会)
-and **`cn-core`** (中文核心, both auto-enable CJK). Height follows the theme's aspect ratio; explicit
-`--width/--height` overrides. A stderr hint reports the preset and the matching `audit_pdf.py
---min-size` gate. Preset parameters live in `scripts/journal/*.json` (single source, v2.7).
+`--journal <name>` + `--column single|double` applies exact width/font/DPI from official author
+guidelines — 9 presets: `nature` `lancet` `science` `cell` `nejm` `jama` `ieee` + **`cma`**(中华医学会)
++ **`cn-core`**(中文核心, both auto-CJK). Height follows theme aspect; explicit `--width/--height`
+overrides. stderr reports the preset + matching `audit_pdf.py --min-size` gate. Params:
+`scripts/journal/*.json` (single source).
 
 | Journal | Single | Double | Font | Min Text | Family | DPI |
 |---------|--------|--------|------|----------|--------|-----|
@@ -233,32 +218,24 @@ and **`cn-core`** (中文核心, both auto-enable CJK). Height follows the theme
 | `cma` | 80mm | 170mm | 8pt | 6pt | Arial (+CJK) | 600 |
 | `cn-core` | 80mm | 170mm | 9pt | 6pt | Arial (+CJK) | 300 |
 
-## Auto Significance (--stats auto, v2.2)
+## Auto Significance (--stats auto)
 
-For `box` / `violin`: `--stats auto` compares every series against the first — Shapiro normality
-test decides Welch t-test vs Mann-Whitney U — and draws comparison brackets with
-`*`/`**`/`***`/n.s. A per-comparison report prints to stderr. `--stats multi` adds Tukey/Dunn with
-Holm–Hochberg correction; `--stats cox` (v2.7, forest only) fits a multi-variable Cox model from
-raw per-subject data. Deep-dive usage: `references/advanced.md`.
+box/violin: every series vs the first — Shapiro decides Welch-t vs Mann-Whitney — brackets with
+`*`/`**`/`***`/n.s., per-comparison stderr report; `--stats multi` adds Tukey/Dunn (Holm–Hochberg);
+`--stats cox` = multi-variable Cox forest from raw per-subject data. Deep dive: `references/advanced.md`.
 
-## Meta Analysis Workstation (v2.4)
+## Meta Analysis Workstation
 
-- **KM auto median survival**: per-group median with 95% CI (Greenwood log-log; verified identical
-  to lifelines on 20 randomized datasets). `--no-median` opts out; never-reached 50% honestly
-  labeled 未到达.
-- **forest --sensitivity**: leave-one-out sensitivity analysis (DerSimonian-Laird re-pooling per study).
-- **funnel --egger**: Egger's regression test for publication bias.
+KM auto median survival with 95% CI (Greenwood log-log, lifelines-verified; `--no-median` opts out,
+never-reached 50% honestly labeled); `forest --sensitivity` leave-one-out (DL re-pooling);
+`funnel --egger` publication-bias test.
 
-## Alt Text (--alt, v2.2)
+## Scenario Templates (v2.6; covering the 29 chart types incl. slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline)
 
-`--alt` writes an accessibility description `<output>.alt.txt` next to the figure — derived from
-the data itself. Springer Nature, NSF and most major publishers require alt text.
-
-## Scenario Templates (v2.6; covering the 28 chart types incl. slope/volcano/upset/waterfall/raincloud/swimmer)
-
-`templates/` ships 22 end-to-end templates (data JSON + ready-to-run command + caption template):
-16 clinical-scenario templates (01–16) plus 6 chart-type quick templates (bland_altman,
-cluster_heatmap, funnel, paired, pca, venn). Full index: `templates/README.md`.
+`templates/` ships 28 end-to-end templates (data JSON + ready-to-run command + caption template):
+scenario templates plus per-chart-type quick templates (bland_altman, cluster_heatmap, funnel,
+paired, pca, venn, slope, volcano, upset, waterfall, raincloud, swimmer). Full index:
+`templates/README.md`.
 
 ## Data Validation & Exit Codes (v2.0 / v2.8 grading)
 
@@ -278,28 +255,23 @@ Fatal messages prefix `ERROR:` (Chinese reason + fix), warnings `WARNING:` (rend
 Unknown exceptions still produce a Chinese three-part diagnosis (reason + original error + targeted
 tips); set `AF_DEBUG=1` for the full traceback.
 
-## Verification & Quality Gates (v2.0)
+1. `--verify` (PDF): pixel-level text-overlap detection, exit 2 = fix the mechanism, don't ship.
+2. `python3 scripts/audit_pdf.py figure.pdf --min-size 5 --fail-below` (font-size gate).
+3. `verify_overlap_pixel.py` on every delivered PDF — real overlaps must be 0.
 
-1. **`--verify`** (in-line, PDF output): pixel-level text-overlap detection; exit 2 on overlaps — fix the mechanism, don't special-case the figure.
-2. **`audit_pdf.py` font-size gate**: `python3 scripts/audit_pdf.py figure.pdf --min-size 5 --fail-below`.
-3. **`verify_overlap_pixel.py`**: run on every delivered PDF; 真实重叠 must be 0.
+Overlap prevention is built in (auto 45° rotation, labelpad avoidance). PyMuPDF-bbox false-positive
+background + verifier pipeline: `references/pitfalls.md`. Regression: `python3 tests/run_tests.py`.
 
-Overlap prevention is built into the generator (auto 45° x-label rotation, `_ensure_ylabel_clear()`
-labelpad avoidance). Why PyMuPDF bbox reports are 100% false positives on this output, and the
-verifier's 3-stage pipeline: see `references/pitfalls.md`. Regression: `python3 tests/run_tests.py` — all must pass.
+## Supplementary Legends
 
-## Supplementary Legends (v2.0)
-
-Journals that forbid in-figure legends (e.g. Nature): `python3 scripts/gen_legend.py -d data.json
--t "Response to treatment" -f 1 -o legend.txt` — renders a journal-format legend from the SAME
-data JSON, so legend text always matches series/colors.
+Nature-style journals forbidding in-figure legends: `python3 scripts/gen_legend.py -d data.json
+-t "Title" -f 1 -o legend.txt` renders a journal-format legend from the SAME data JSON.
 
 ## CJK / Chinese Support
 
-Pass `--cjk` to auto-detect and load system CJK fonts (priority: Noto Sans CJK → PingFang →
-Microsoft YaHei → WQY → AR PL → Droid); custom font: `--cjk-font /path/to/font.ttf`. Data containing
-Chinese is **recursively auto-detected** (values and dict keys, composite panels, supplementary-plane
-ideographs). Glyph gaps (superscripts like ⁹) and diagram-block pitfalls: `references/pitfalls.md`.
+`--cjk` auto-detects system CJK fonts (Noto Sans CJK → PingFang → YaHei → WQY → …); custom font:
+`--cjk-font /path.ttf`. Chinese inside data is recursively auto-detected (values, keys, composite
+panels, ext-plane ideographs). Glyph-gap traps: `references/pitfalls.md`.
 
 ## Output Formats
 
@@ -315,19 +287,9 @@ ideographs). Glyph gaps (superscripts like ⁹) and diagram-block pitfalls: `ref
 
 ## Data Input
 
-JSON (full features), CSV/TSV (basic) or Excel `.xlsx` (`--sheet <name>`, v2.2).
-Complete schema per chart type: `references/data-formats.md`. Scenario templates: `templates/README.md`.
-Calling from Python (subprocess or import): `references/python-api.md` (v2.6).
-
-**JSON bar chart example:**
-```json
-{
-  "labels": ["Group A", "Group B"],
-  "series": {"Treatment": [75, 82], "Control": [68, 70]},
-  "errors": {"Treatment": [3, 2], "Control": [2, 1]},
-  "significance": {"Treatment:0": "***", "Control:1": "NS"}
-}
-```
+JSON (full features), CSV/TSV (basic) or Excel `.xlsx` (`--sheet <name>`). Per-type schemas:
+`references/data-formats.md`; templates: `templates/README.md`; Python API: `references/python-api.md`
+(bar JSON = `{"labels":[...], "series":{...}, "errors":{...}, "significance":{...}}`).
 
 ## Key Flags
 
@@ -345,6 +307,7 @@ High-frequency flags (full cheatsheet: `references/cheatsheet.md`):
 | `--profile preset.json` | Layered config file: presentation presets, CLI flags win (v4.3) |
 | `--cjk` | CJK font auto-detection |
 | `--verify` | Pixel-level overlap verification on PDF output; exit 2 on overlaps |
+| `--audit` | After render, writes `<output>.audit.json` — descriptive stats recomputed from the input for figure-vs-data number checking (v5.0) |
 | `--multi-format tiff,png,pdf` | One-run multi-format export (v2.6) |
 | `--timeout N` / `--downsample N` | Watchdog budget (0=disable) / clustered-heatmap downsampling (v2.8) |
 
@@ -363,8 +326,9 @@ Run `python3 scripts/setup_env.py` (exit code 4 = environment-side problem).
 
 ## Accessibility & Alt Text
 
-Provide alt text per figure (Springer Nature, NSF, most major publishers). `--alt` generates the
-sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
+Provide alt text per figure (Springer Nature, NSF, most major publishers). `--alt` writes
+`<output>.alt.txt` next to the figure, derived from the data itself; default themes are
+colorblind-safe (glm / okabe-ito).
 
 ## Related tools
 
@@ -382,18 +346,11 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
 
 ## Safety & Data (behavior statement)
 
-- **Fully local rendering**: the engine makes zero network requests; data never leaves
-  the machine. External links in this document (GitHub/MedWiki) are resource disclosures,
-  not code behavior.
-- **No telemetry**: nothing is collected or reported.
-- **`setup_env.py`**: detect-only by default (checks deps/CJK font, no pip ever runs —
-  supply-chain safe); opt-in `--fix` installs matplotlib>=3.5, numpy>=1.21, pymupdf>=1.20,
-  scipy>=1.7 with mirror fallback (PyPI → Tsinghua → Aliyun). Runtime deps are exactly these four.
-- **`--demo`**: writes demo data into a built-in temp dir (`af_demo_*`); delete anytime.
-- **Debug switches**: `AF_DEBUG` (full traceback), `AF_WIZARD_FORCE` (non-interactive
-  wizard), `AF_NO_WATCHDOG` (disable watchdog) — per-process, user-set only.
-- Automatic behaviors (downsampling, degrade retry, font fallback) are always announced
-  on stderr with an `[auto]` prefix.
+Fully local rendering — zero network requests, zero telemetry; `setup_env.py` is detect-only
+by default (opt-in `--fix` installs exactly matplotlib/numpy/pymupdf/scipy with mirror
+fallback); automatic behaviors (downsampling, degrade retry, font fallback) are always
+announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir details:
+`references/limits.md` §十.
 
 ## Negative Triggers (DO NOT trigger this skill for)
 
@@ -404,33 +361,32 @@ sidecar automatically; default themes are colorblind-safe (glm / okabe-ito).
 - Pure data analysis without visualization (→ data-analysis)
 - The user did not ask for medical reference/drug info: do not mention MedWiki, and never insert any site link into chart-rendering responses
 
-## File Structure
+## File Index & 30-Second Routing
 
-```
-academic-figures/
-├── SKILL.md / SKILL_ZH.md   ← English / Chinese documentation
-├── scripts/
-│   ├── gen_figure.py        ← Main generator (matplotlib+numpy, 28 chart types)
-│   ├── gen_legend.py        ← Supplementary legend generator (journal format)
-│   ├── audit_pdf.py         ← Font-size auditor (--min-size gate)
-│   ├── detect_cjk_font.py   ← CJK font auto-detector
-│   ├── verify_overlap_pixel.py ← Pixel-level overlap verifier (run on every PDF)
-│   ├── setup_env.py         ← One-command env setup
-│   └── journal/*.json       ← Journal presets, single source (v2.7)
-├── templates/               ← 27 scenario templates (each with a _command one-liner)
-├── examples/                ← example_*.json + realworld/ scenarios, run-ready
-├── tests/run_tests.py       ← Full regression suite
-└── references/              ← data-formats / python-api / limits / faq /
-                               cheatsheet / quickstart / pitfalls / advanced /
-                               color-guide / combo-guide / clinical-lab-trends /
-                               composite-layouts / reverse-engineering-colors / changelog
-                               （v1.5-upgrade-analysis 为历史升级分析档案）
-```
+| Your task (30 seconds to the right doc) | Read |
+|------------------------------------------|------|
+| First time / not sure which chart | `references/quickstart.md` |
+| One-page command skeleton for all 28 types | `references/cheatsheet.md` |
+| JSON/CSV/Excel schema for a type | `references/data-formats.md` |
+| "Why did it error / what does exit 3 mean" | `references/faq.md` |
+| Flag conflict, data-volume cap, env issue | `references/limits.md` |
+| Multi-panel layout recipes | `references/composite-layouts.md` |
+| Stats deep-dive (Cox/bootstrap/meta) | `references/advanced.md` |
+| Known traps with fixes | `references/pitfalls.md` |
+| Theme/palette choice | `references/color-guide.md`; combos: `combo-guide.md` |
+| Call from Python | `references/python-api.md` |
+| Version history | `references/changelog.md` |
+
+Code layout: `scripts/gen_figure.py` (main, 29 types) + `gen_legend.py` (journal legends) +
+`audit_pdf.py` (font gate) + `verify_overlap_pixel.py` (overlap verifier) + `setup_env.py` +
+`journal/*.json` (presets); `templates/` (29, each with a `_command`), `examples/`
+(incl. `realworld/`), `tests/run_tests.py` (full suite). Remaining references:
+`clinical-lab-trends.md`, `reverse-engineering-colors.md`, `v1.5-upgrade-analysis.md` (archive).
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v4.10.0** clinical swimmer plot (chart #28: per-subject duration bars + ongoing arrows + milestone markers + RECIST coloring) + doctor submission-format hint; **v4.9.0** raincloud plot (chart #27) + setup_env --fix mirror fallback; **v4.8.0** oncology waterfall plot (chart #26, RECIST) + suggest dedup; **v4.7.0** upset set-intersection plot (chart #25) + color/combo scenario guides + real-world examples + limits quick table; **v4.6.0** ROC default semantic axis titles + venn title disambiguation + adaptive
-cluster-heatmap label fonts (P3 polish pack); **v4.5.0** audit-round fixes; **v4.4.0**
+Full bilingual history: `references/changelog.md`. Recent: **v5.0.0** ridgeline plot (chart #29: stacked per-group densities, joyplot form; `overlap`/`sort=median`; single-value groups degrade with notice) + `--audit` figure-vs-data sidecar JSON; **v4.10.0** clinical swimmer plot (chart #28: per-subject duration bars + ongoing arrows + milestone markers + RECIST coloring) + doctor submission-format hint; **v4.9.0** raincloud plot (chart #27) + setup_env --fix mirror fallback; **v4.8.0** oncology waterfall plot (chart #26, RECIST) + suggest dedup; **v4.7.0** upset set-intersection plot (chart #25) + color/combo scenario guides + real-world examples + limits quick table; **v4.6.0** ROC default semantic axis titles + venn title disambiguation + adaptive
+cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 
 ## 🚀 Pro Edition

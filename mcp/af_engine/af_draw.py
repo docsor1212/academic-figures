@@ -3240,6 +3240,8 @@ def alt_text_core(chart_type, data, title=""):
         return waterfall_alt(data, t)  # v4.8：实现在 af_draw（模块化纪律 <3400 行）
     if chart_type == "swimmer":
         return swimmer_alt(data, t)  # v4.10：实现在 af_draw（模块化纪律 <3400 行）
+    if chart_type == "ridgeline":
+        return ridgeline_alt(data, t)  # v5.0：同上
     if chart_type == "raincloud":
         return raincloud_alt(data, t)
     if chart_type == "upset":
@@ -3249,6 +3251,188 @@ def alt_text_core(chart_type, data, title=""):
                 f"（{'、'.join(list(map(str, s.keys()))[:6])}{'等' if len(s) > 6 else ''}），"
                 f"展示元素数最多的前 {top_n} 个交集；行=集合，柱=交集大小。{t}")
     return f"{chart_type} 图。{t}"
+
+
+
+def gen_ridgeline(data, ax, theme, cjk_fp, **kwargs):
+    """Ridgeline plot（v5.0，第 29 种图型）：山脊图/joyplot——多组 KDE 密度沿纵向
+    堆叠、部分重叠，一屏展示"分布如何逐组移动/变形"（时间进程/剂量梯度/分场景
+    比较的全景形态；Wehrle & Johnson 经典形态）。画序自底向上（画家算法），
+    上排山脊线完整覆盖下排填充。
+
+    JSON: {"labels": [...组名（自上而下）], "datasets": {组名: [数值...]}}
+    可选 "overlap": 0.55（0~0.95 山脊纵向重叠比例）、"sort": "input"(默认)|"median"、
+    "x_label": "..."。退化：某组仅 1 个不同值 → 该组退化为基线标记线并 stderr 告知。
+    """
+    from scipy.stats import gaussian_kde
+    labels = data.get("labels", data.get("x", []))
+    series = data.get("series", data.get("datasets", {}))
+    if not isinstance(series, dict) or not series:
+        raise ValueError("ridgeline: 需要 'datasets'（{{组名: [数值数组]}}），schema 同 violin")
+    names = list(series.keys())
+    if labels and len(labels) != len(names):
+        raise ValueError(f"ridgeline: labels 有 {len(labels)} 项但 datasets 有 {len(names)} 组——须一一对应")
+    for n, vals in series.items():
+        if not isinstance(vals, (list, tuple)) or not vals:
+            raise ValueError(f"ridgeline: datasets['{n}'] 必须是非空数值数组")
+        bad = [v for v in vals if isinstance(v, bool) or not isinstance(v, (int, float))
+               or not np.isfinite(float(v))]
+        if bad:
+            raise ValueError(f"ridgeline: datasets['{n}'] 含 {len(bad)} 个非有限数值（NaN/±Infinity/非数值）")
+    overlap = float(data.get("overlap", 0.55))
+    if not (0 <= overlap <= 0.95):
+        raise ValueError("ridgeline: overlap 取值 0~0.95（>0.95 山脊相互吞没）")
+    sort_mode = str(data.get("sort", "input")).strip().lower()
+    if sort_mode not in ("input", "median"):
+        raise ValueError("ridgeline: sort 只支持 'input' 或 'median'")
+    if sort_mode == "median":
+        names = sorted(names, key=lambda k: -float(np.median(series[k])))
+
+    allv = np.concatenate([np.asarray([float(x) for x in series[k]], dtype=float) for k in names])
+    gmin, gmax = float(allv.min()), float(allv.max())
+    pad = 0.15 * (gmax - gmin if gmax > gmin else max(1.0, abs(gmin)))
+    grid = np.linspace(gmin - 1.5 * pad, gmax + 1.5 * pad, 260)
+    dens = {}
+    for k in names:
+        v = np.asarray([float(x) for x in series[k]], dtype=float)
+        if len(np.unique(v)) < 2:
+            dens[k] = None  # 退化：单值组
+            continue
+        kde = gaussian_kde(v)
+        dens[k] = kde(grid)
+    hmax = max((d.max() for d in dens.values() if d is not None), default=1.0)
+    if hmax <= 0:
+        hmax = 1.0
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    n = len(names)
+    step = 1.0 - overlap
+    bases = {k: (n - 1 - i) * step for i, k in enumerate(names)}  # i=0 在顶
+    degenerate = []
+    # 画家算法：自底向上画，且每条山脊 fill/outline 同层 zorder 按位次递增——
+    # 上排山脊整体（含轮廓）覆盖下排重叠区（验收 P1：分层 zorder 会让下排轮廓
+    # 骑压上排填充，视觉上"下排覆盖上排"）
+    for k in reversed(names):
+        color = theme["colors"][names.index(k) % len(theme["colors"])]
+        base = bases[k]
+        z = 2.0 + (n - 1 - names.index(k))  # names 自上而下：顶排 z 最大，整层覆盖下排
+        if dens[k] is None:
+            v0 = float(np.asarray([float(x) for x in series[k]], dtype=float)[0])
+            ax.plot([v0, v0], [base, base + 0.45], color=color, lw=3.5,
+                    solid_capstyle="butt", alpha=0.85, zorder=z)
+            degenerate.append(k)
+            continue
+        d = dens[k] / hmax
+        ax.fill_between(grid, base, base + d, facecolor=color, alpha=0.85,
+                        edgecolor="none", zorder=z)
+        ax.plot(grid, base + d, color=color, lw=1.3, zorder=z + 0.01)
+        ax.plot([grid[0], grid[-1]], [base, base], color="#4A4A4A", lw=0.7,
+                alpha=0.65, zorder=z + 0.01)
+    ax.set_yticks([bases[k] for k in names])
+    ax.set_yticklabels(names, fontsize=fs_s,
+                       fontproperties=cjk_fp if cjk_fp and has_cjk("".join(names)) else None)
+    ax._af_category_axis = True  # 组名是数据：豁免刻度抽稀（同 raincloud）
+    top_base = bases[names[0]]
+    ax.set_xlim(grid[0], grid[-1])
+    ax.set_ylim(-0.18, top_base + 1.22)
+    xl = str(data.get("x_label", "") or ("数值" if cjk_fp else "Value"))
+    ax.set_xlabel(xl, fontsize=fs,
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
+    print(f"ridgeline: {n} 组（overlap={overlap:g}，sort={sort_mode}）"
+          + (f"；单值退化 {len(degenerate)} 组: {'、'.join(degenerate)}" if degenerate else ""),
+          file=sys.stderr)
+    apply_base_style(ax, theme)
+
+
+def ridgeline_alt(data, t=""):
+    """v5.0：ridgeline 的 --alt 文本（放本模块守 gen_figure <3400 行纪律）。"""
+    series = data.get("series", data.get("datasets", {}))
+    names = list(series.keys()) if isinstance(series, dict) else []
+    ns = {k: len(v) for k, v in series.items() if isinstance(v, list)} if isinstance(series, dict) else {}
+    overlap = data.get("overlap", 0.55)
+    med = []
+    for k in names:
+        v = [float(x) for x in series[k] if isinstance(x, (int, float)) and not isinstance(x, bool)]
+        if v:
+            v.sort()
+            m = v[len(v)//2] if len(v) % 2 else (v[len(v)//2 - 1] + v[len(v)//2]) / 2
+            med.append(f"{k} 中位 {m:g}")
+    return (f"山脊图（{len(names)} 组堆叠密度，overlap {overlap}），自上而下："
+            f"{'、'.join(names)}。各组的样本量：{'、'.join(f'{k} {ns[k]}' for k in names if k in ns)}。"
+            + ("；".join(med) + "。" if med else "") + t)
+
+
+def validate_ridgeline(data):
+    """v5.0：ridgeline 数据校验（返回 fatal 列表）；与 gen_ridgeline 同口径。"""
+    fatal = []
+    series = data.get("series", data.get("datasets", {}))
+    if not isinstance(series, dict) or not series:
+        fatal.append("ridgeline: 需要 'datasets'（{组名: [数值数组]}），schema 同 violin")
+        return fatal
+    labels = data.get("labels", data.get("x"))
+    if labels is not None and (not isinstance(labels, list) or len(labels) != len(series)):
+        fatal.append("ridgeline: labels 项数须与 datasets 组数一一对应")
+    for n, vals in series.items():
+        if not isinstance(vals, (list, tuple)) or not vals:
+            fatal.append(f"ridgeline: datasets['{n}'] 必须是非空数值数组")
+        elif any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in vals):
+            fatal.append(f"ridgeline: datasets['{n}'] 含非数值项")
+    ov = data.get("overlap")
+    if ov is not None and (not isinstance(ov, (int, float)) or isinstance(ov, bool)
+                           or not (0 <= float(ov) <= 0.95)):
+        fatal.append("ridgeline: overlap 取值 0~0.95")
+    sm = data.get("sort")
+    if sm is not None and str(sm).strip().lower() not in ("input", "median"):
+        fatal.append("ridgeline: sort 只支持 'input' 或 'median'")
+    return fatal
+
+
+
+
+def write_audit_sidecar(data, chart_type, out_path):
+    """v5.0 --audit：数字对账侧车 <output>.audit.json——从输入数据独立重算描述
+    统计（纯计数零推断），评审/用户可逐项核对"图上的数与数据是否对得上"。
+    同输入同字节（无时间戳；含输入 sha256 前 12 位做指纹）。"""
+    import hashlib
+    import json as _json
+    import os as _os
+
+    def _stats(vals):
+        xs = sorted(float(v) for v in vals
+                    if isinstance(v, (int, float)) and not isinstance(v, bool)
+                    and np.isfinite(float(v)))
+        n = len(xs)
+        if not n:
+            return {"n": 0}
+        mean = sum(xs) / n
+        var = sum((x - mean) ** 2 for x in xs) / (n - 1) if n > 1 else 0.0
+        med = xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2
+        return {"n": n, "mean": round(mean, 6), "sd": round(var ** 0.5, 6),
+                "median": round(med, 6), "min": round(xs[0], 6), "max": round(xs[-1], 6)}
+
+    audit = {"chart_type": chart_type, "generated_by": "academic-figures --audit",
+             "note": "描述统计由输入数据独立重算（纯计数零推断）；均值/中位数/SD 供逐项对账",
+             "stats": {}}
+    raw = _json.dumps(data, ensure_ascii=False, sort_keys=True, default=str)
+    audit["input_sha256_12"] = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
+    for container in ("datasets", "series", "groups"):
+        obj = data.get(container)
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if isinstance(v, list):
+                    audit["stats"][f"{container}.{k}"] = _stats(v)
+    labels = data.get("labels") or data.get("x")
+    if isinstance(labels, list):
+        audit["stats"]["labels"] = _stats(labels) if all(
+            isinstance(v, (int, float)) and not isinstance(v, bool) for v in labels) else {
+            "n": len(labels), "type": "categorical"}
+    dst = str(out_path) + ".audit.json"
+    with open(dst, "w", encoding="utf-8") as fh:
+        fh.write(_json.dumps(audit, ensure_ascii=False, indent=1, sort_keys=True))
+    print(f"audit: 数字对账侧车已写 {dst}（{len(audit['stats'])} 项）", file=sys.stderr)
+    return dst
+
 
 GENERATORS = {
     "bar": gen_bar,
@@ -3275,5 +3459,6 @@ GENERATORS = {
     "upset": gen_upset,
     "waterfall": gen_waterfall,
     "swimmer": gen_swimmer,
+    "ridgeline": gen_ridgeline,
     "raincloud": gen_raincloud,
 }

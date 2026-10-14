@@ -1,10 +1,36 @@
 # Changelog / 版本历史
 
+> **何时读我**：查某版本改了什么/历史特性。
+> **最短路径**：Ctrl-F 版本号。
+> **回 INDEX**：SKILL.md「版本历史」。
+
 > 本文件为完整双语版本历史；主文档只保留最近三个版本。
 
 ## English
 
 ## Version History
+
+## 5.0.0 — 2026-10-14
+
+  - **New chart type #29: `ridgeline` — stacked per-group densities (joyplot
+    form)**: one KDE ridge per group stacked vertically with partial overlap
+    (`overlap` 0–0.95, default 0.55), painter's-algorithm ordering (upper
+    ridges in front), per-ridge baselines and theme-cycled colors; shows how a
+    distribution shifts/morphs across ordered groups (time points, dose levels,
+    scenarios) in one frame. Same schema as violin (`labels` + `datasets`);
+    `sort=median` orders ridges by group median; single-value groups degrade to
+    a marker line with an explicit stderr notice. `--suggest` lists ridgeline
+    for raw per-group data; `--alt` accessibility text included.
+  - **`--audit` figure-vs-data sidecar**: after a successful render,
+    `<output>.audit.json` records descriptive statistics (n/mean/sd/median/
+    min/max per series) recomputed independently from the input data — pure
+    counts, zero inference — plus an input fingerprint, so any number on the
+    figure can be checked against the data. Deterministic: same input, same
+    audit file. Works for every chart type.
+  - `templates/ridgeline.json` (29 templates); docs updated to 29 chart types
+    across SKILL bilingual/README/quickstart/cheatsheet/templates-README.
+  - Tests: +TestV50000 (E2E render, validate fatals, alt/suggest, audit sidecar
+    determinism, template _command); suite green.
 
 ## 4.10.0 — 2026-10-13
 
@@ -645,6 +671,21 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v5.0.0（2026-10-14）
+
+- **新图型 #29：`ridgeline` 山脊图（joyplot 形态）**：每组一条 KDE 密度山脊
+  纵向堆叠、部分重叠（`overlap` 0~0.95，默认 0.55），画家算法上排在前的山脊
+  完整覆盖下排；一屏展示分布随有序分组（时间点/剂量/场景）的移动与变形。
+  schema 同 violin；`sort=median` 按组中位数排山脊；单值组退化为标记线并
+  stderr 明示；`--suggest` 自动路由；`--alt` 无障碍摘要。
+- **`--audit` 数字对账侧车**：渲染成功后写 `<输出>.audit.json`——从输入数据
+  独立重算描述统计（n/均值/SD/中位数/极值，纯计数零推断）+ 输入指纹，
+  图上的任何数都可与数据逐项对账；同输入同字节，全图型可用。
+- 模板 ridgeline.json（29 模板）；双语文档 29 种图型同步。
+- 测试：+TestV50000（E2E 渲染、校验致命项、alt/suggest、audit 侧车确定性、
+  模板 _command 逐字执行）。
+
 
 ### v4.10.0（2026-10-13）
 

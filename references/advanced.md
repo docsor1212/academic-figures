@@ -1,5 +1,9 @@
 # Advanced Usage / 深水区进阶
 
+> **何时读我**：要统计深用：Cox/bootstrap/Meta/敏感性分析。
+> **最短路径**：Ctrl-F 功能名（cox / egger / sensitivity）。
+> **回 INDEX**：SKILL.md「文件索引与 30 秒路由」。
+
 > 从主文档外移的进阶内容：统计深水区与投稿精修。主文档保持精简，按需查阅本文件。
 
 ## Statistics Deep-Dive (v2.3)

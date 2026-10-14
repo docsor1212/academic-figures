@@ -1,5 +1,9 @@
 # Clinical Lab Parameter Trend Figure
 
+> **何时读我**：临床检验指标趋势图（多次就诊数据）。
+> **最短路径**：按「场景→命令」表直接取。
+> **回 INDEX**：SKILL.md「文件索引与 30 秒路由」。
+
 ## When to Use
 
 Case reports or case series showing longitudinal laboratory data (e.g., HLH diagnostic criteria tracking, treatment response monitoring). Standard in NEJM, Lancet, Blood, and pediatric rheumatology journals.

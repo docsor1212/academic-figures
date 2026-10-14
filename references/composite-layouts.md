@@ -1,5 +1,9 @@
 # Composite Figure Layout Patterns
 
+> **何时读我**：多面板排版：panel_labels/span/占位。
+> **最短路径**：先看版式库，抄最接近的布局 JSON。
+> **回 INDEX**：SKILL.md「文件索引与 30 秒路由」。
+
 Proven multi-panel layouts for journal submission figures. Each layout combines
 chart types that tell a coherent clinical story.
 
