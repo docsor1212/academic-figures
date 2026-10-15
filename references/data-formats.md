@@ -680,3 +680,20 @@ from/to 等长数值数组必填。可选 `from_label`/`to_label`（图例名）
 `sort`（"gap"|"input"|"to"，默认 gap 降序）、`show_values`（点端数值）、
 `show_gap`（连接线中点 Δ 标注）、`x_label`。严格两时点：每行仅 from/to 两值。
 
+## calibration（v5.2）
+
+两种等价给法：
+1. `bins`: `[{"predicted": 0.1, "observed": 0.13, "n": 30, "ci_lo": 0.04,
+   "ci_hi": 0.28}, ...]`（对象数组，n/ci 可选）；
+2. `predicted`/`observed` 平行数组 + 可选平行 `ci_lo`/`ci_hi`/`n`。
+全值 ∈[0,1]；`hl_p`（0~1）左上角标注 Hosmer-Lemeshow p；`smooth: true` 画
+各箱线性插值细线（≥4 箱才有意义）。坐标轴固定等比 0~1（含 4% 端点 pad）。
+
+## dca（v5.2）
+
+`{"thresholds": [...], "models": [{"name": "...", "net_benefit": [...]}, ...]}`：
+thresholds 严格升序且在 (0,1) 开区间；models 1~6 个，net_benefit 长度=阈值数。
+参照策略二选一或都不给：`prevalence`（0~1，画理论全部干预线）或 `treat_all`
+（与 thresholds 等长的实测数组，优先）；`show_none: false` 关闭不干预 0 线。
+净收益单位=每 100 人净真阳性（Vickers 定义）。
+

@@ -2035,6 +2035,15 @@ def gen_waterfall(data, ax, theme, cjk_fp, **kwargs):
 _RECIST_SEMANTIC = {"CR": "#2C5F8A", "PR": "#5FA4D0", "SD": "#B8B8B8", "PD": "#D55E00"}
 
 
+def reserve_bottom_band(ax, n_rows, top_pad=0.4, band=0.8):
+    """v5.2 机制统一：行型横向图（y=0..n-1 倒轴）的底部浮动元素预留带——
+    图例/事实框等浮动元素专属空带，防与数据行碰撞（pitfalls 类级铁律
+    「浮动元素预留带」的共享实现；swimmer 事实框/dumbbell 图例两次教训沉淀）。
+    倒轴语义：底部空带 = y ∈ (-band, 0)；返回该区间供调用者放置浮动元素。"""
+    ax.set_ylim(n_rows + top_pad, -band)
+    return (-band, 0.0)
+
+
 def gen_swimmer(data, ax, theme, cjk_fp, **kwargs):
     """Swimmer plot（v4.10，第 28 种图型）：临床试验游泳图——每例受试者一条横条，
     条长=治疗/随访持续时长，按持续时长降序（经典形态，PharmaSUG/IASLC 惯例）；
@@ -2210,7 +2219,7 @@ def gen_swimmer(data, ax, theme, cjk_fp, **kwargs):
              ("自基线时间（周）" if cjk_fp else "Time from baseline (weeks)"))
     ax.set_xlabel(xl, fontsize=fs,
                   fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
-    ax.set_ylim(n + 1.1, -0.8)  # 首例（最长条）在顶部；上边留 ref_lines 标注位，
+    reserve_bottom_band(ax, n, top_pad=1.1)  # 首例（最长条）在顶部；上边留 ref_lines 标注位，
     # 底部预留 ~1.6 行空带给左下事实框（sorted-desc 时底部条最短，箱体不再咬条——验收 P1）
     _x_max = max(s_end + [v for row in s_ms for v in row])
     ax.set_xlim(0, _x_max * 1.07)  # 右侧留端部箭头位
@@ -3246,6 +3255,10 @@ def alt_text_core(chart_type, data, title=""):
         return dumbbell_alt(data, t)  # v5.1：同上
     if chart_type == "raincloud":
         return raincloud_alt(data, t)
+    if chart_type == "calibration":
+        return calibration_alt(data, t)  # v5.2：临床预测模型线
+    if chart_type == "dca":
+        return dca_alt(data, t)  # v5.2：临床预测模型线
     if chart_type == "upset":
         s = data.get("sets") or {}
         top_n = data.get("top_n", 12)
@@ -3512,7 +3525,7 @@ def gen_dumbbell(data, ax, theme, cjk_fp, **kwargs):
                        fontproperties=cjk_fp if cjk_fp and has_cjk("".join(snames)) else None)
     ax._af_category_axis = True  # 条目名是数据：豁免刻度抽稀（同 swimmer）
     # 底部预留 1 行空带给右下图例（gap 排序末行连接线可能顶到右缘，防碰撞）
-    ax.set_ylim(n + 0.4, -0.8)
+    reserve_bottom_band(ax, n, top_pad=0.4)
     ax.set_yticks([y[i] for i in range(n)])
     allv = fv + tv
     # 机制（类级铁律，见 pitfalls「端点标记必留 pad」）：显式 set_xlim 禁用
@@ -3584,7 +3597,286 @@ def validate_dumbbell(data):
 
 
 
-def write_repro_bundle(argv, data, out_path):
+# ═══ v5.2：calibration 校准曲线 + dca 决策曲线（临床预测模型线，第 31/32 图型）═══
+
+def _cal_bins(data):
+    """calibration 两种给法归一：bins[] 对象数组 或 predicted/observed 平行数组。
+    返回 (pred, obs, lo, hi, ns)；给法非法或非数值时抛 ValueError。"""
+    bins = data.get("bins")
+    if isinstance(bins, list) and bins:
+        pred, obs, lo, hi, ns = [], [], [], [], []
+        for i, b in enumerate(bins):
+            if not isinstance(b, dict) or "predicted" not in b or "observed" not in b:
+                raise ValueError(f"calibration: bins[{i}] 须为含 predicted/observed 的对象")
+            try:
+                pred.append(float(b["predicted"]))
+                obs.append(float(b["observed"]))
+                lo.append(float(b["ci_lo"]) if b.get("ci_lo") is not None else None)
+                hi.append(float(b["ci_hi"]) if b.get("ci_hi") is not None else None)
+                ns.append(int(b["n"]) if b.get("n") is not None else None)
+            except (TypeError, ValueError):
+                raise ValueError(f"calibration: bins[{i}] 的 predicted/observed/ci/n 须为数值")
+        return pred, obs, lo, hi, ns
+    pred, obs = data.get("predicted"), data.get("observed")
+    if not (isinstance(pred, list) and pred and isinstance(obs, list) and obs):
+        raise ValueError("calibration: 需要 bins[] 或 predicted/observed 平行数组")
+    if len(pred) != len(obs):
+        raise ValueError("calibration: predicted 与 observed 长度必须一致")
+    lo, hi, ns = data.get("ci_lo"), data.get("ci_hi"), data.get("n")
+    for nm, a in (("ci_lo", lo), ("ci_hi", hi), ("n", ns)):
+        if a is not None and (not isinstance(a, list) or len(a) != len(pred)):
+            raise ValueError(f"calibration: {nm} 长度必须与 predicted 一致")
+    try:
+        fv = lambda a: [float(v) if v is not None else None for v in (a or [])]
+        return ([float(v) for v in pred], [float(v) for v in obs],
+                fv(lo), fv(hi), [int(v) if v is not None else None for v in (ns or [])])
+    except (TypeError, ValueError):
+        raise ValueError("calibration: predicted/observed/ci/n 必须全为数值")
+
+
+def gen_calibration(data, ax, theme, cjk_fp, **kwargs):
+    """calibration 校准曲线（v5.2，第 31 种图型）：临床预测模型三件套之一
+    （与 ROC/DCA 同生态）——分箱预测概率 vs 实际观测率 + 理想对角线（虚线），
+    等比坐标。JSON: bins=[{predicted,observed,n?,ci_lo?,ci_hi?}] 或
+    predicted/observed 平行数组（ci_lo/ci_hi/n 可选平行数组，长度同 predicted）；
+    hl_p 可选（Hosmer-Lemeshow p，左上角标注）；smooth=true 画各箱线性插值
+    参考线（默认关，稀疏分箱慎用）。"""
+    pred, obs, lo, hi, ns = _cal_bins(data)
+    n = len(pred)
+    for i, (p, o) in enumerate(zip(pred, obs)):
+        if not (0.0 <= p <= 1.0 and 0.0 <= o <= 1.0):
+            raise ValueError(f"calibration: 第 {i+1} 箱 predicted/observed 须在 [0,1]")
+    for arr, nm in ((lo, "ci_lo"), (hi, "ci_hi")):
+        if any(v is not None and not (0.0 <= v <= 1.0) for v in arr):
+            raise ValueError(f"calibration: {nm} 超出 [0,1]")
+    hl_p = data.get("hl_p")
+    if hl_p is not None:
+        hl_p = float(hl_p)
+        if not (0.0 <= hl_p <= 1.0):
+            raise ValueError("calibration: hl_p 须在 [0,1]")
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    c_main = theme["colors"][0]
+    ax.plot([-0.02, 1.02], [-0.02, 1.02], ls=(0, (5, 4)), lw=1.1,
+            color="#999999", zorder=1)
+    yerr = None
+    if any(v is not None for v in lo) and any(v is not None for v in hi):
+        yerr = [[max(0.0, o - (l if l is not None else o)) for o, l in zip(obs, lo)],
+                [max(0.0, (h if h is not None else o) - o) for o, h in zip(obs, hi)]]
+    ax.errorbar(pred, obs, yerr=yerr, fmt="o", ms=5.5, mfc=c_main, mec=c_main,
+                ecolor=c_main, elinewidth=1.0, capsize=2.2, ls="none", zorder=3)
+    if bool(data.get("smooth")) and n >= 4:
+        sp = sorted(range(n), key=lambda i: pred[i])
+        ax.plot([pred[i] for i in sp], [obs[i] for i in sp], lw=1.0,
+                color=c_main, alpha=0.45, zorder=2)
+    # 端点标记必留 pad（类级铁律）：预测/观测可取 0/1，显式 xlim 禁用边距
+    _pad = 0.045
+    ax.set_xlim(-_pad, 1.0 + _pad)
+    ax.set_ylim(-_pad, 1.0 + _pad)
+    ax.set_aspect("equal", adjustable="box")  # 校准曲线正方形坐标为发表惯例
+    xl = str(data.get("x_label") or ("预测概率（分箱）" if cjk_fp else "Predicted probability"))
+    yl = str(data.get("y_label") or ("实际观测率" if cjk_fp else "Observed rate"))
+    ax.set_xlabel(xl, fontsize=fs, fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
+    ax.set_ylabel(yl, fontsize=fs, fontproperties=cjk_fp if cjk_fp and has_cjk(yl) else None)
+    handles = [plt.Line2D([], [], ls=(0, (5, 4)), lw=1.1, color="#999999"),
+               plt.Line2D([], [], marker="o", mfc=c_main, mec=c_main,
+                          ls="none", ms=5.5)]
+    lbls = [("理想校准" if cjk_fp else "Ideal"),
+            ("各箱（95%CI）" if (cjk_fp and yerr) else ("各箱" if cjk_fp else "Bins"))]
+    ax.legend(handles, lbls, loc="lower right", frameon=False, fontsize=fs_s,
+              prop=cjk_fp if cjk_fp else None)
+    if hl_p is not None:
+        ax.text(0.03, 0.97, f"Hosmer–Lemeshow p = {hl_p:g}", transform=ax.transAxes,
+                ha="left", va="top", fontsize=fs_s, color="#555555",
+                fontproperties=cjk_fp if cjk_fp else None)
+    devs = [o - p for p, o in zip(pred, obs)]
+    _n_all = sum(v for v in ns if v)
+    print(f"calibration: {n} 箱" + (f"，总 n={_n_all}" if _n_all else "")
+          + f"；平均偏差(观察-预测) {sum(devs)/n:+.3f}，最大 |偏差| {max(abs(d) for d in devs):.3f}",
+          file=sys.stderr)
+    apply_base_style(ax, theme)
+
+
+def calibration_alt(data, t=""):
+    """v5.2：calibration 的 --alt 文本（本模块实现守 gen_figure <3400 行纪律）。"""
+    try:
+        pred, obs, _lo, _hi, ns = _cal_bins(data)
+    except ValueError:
+        return f"校准曲线（分箱预测概率 vs 实际观测率）。{t}"
+    devs = [o - p for p, o in zip(pred, obs)]
+    _n_all = sum(v for v in ns if v)
+    return (f"校准曲线（{len(pred)} 箱" + (f"，总样本 {_n_all}" if _n_all else "")
+            + f"）：平均偏差(观察-预测) {sum(devs)/len(devs):+.3f}，"
+            f"最大 |偏差| {max(abs(d) for d in devs):.3f}；理想对角线为完美校准参照。{t}")
+
+
+def validate_calibration(data):
+    """v5.2：calibration 数据校验（返回 fatal 列表）；与 gen_calibration 同口径。"""
+    fatal = []
+    try:
+        pred, obs, lo, hi, _ns = _cal_bins(data)
+    except ValueError as e:
+        return [str(e)]
+    for i, (p, o) in enumerate(zip(pred, obs)):
+        if not (0.0 <= p <= 1.0 and 0.0 <= o <= 1.0):
+            fatal.append(f"calibration: 第 {i+1} 箱 predicted/observed 须在 [0,1]")
+    for nm, arr in (("ci_lo", lo), ("ci_hi", hi)):
+        if any(v is not None and not (0.0 <= v <= 1.0) for v in arr):
+            fatal.append(f"calibration: {nm} 超出 [0,1]")
+    hp = data.get("hl_p")
+    if hp is not None:
+        try:
+            if not (0.0 <= float(hp) <= 1.0):
+                fatal.append("calibration: hl_p 须在 [0,1]")
+        except (TypeError, ValueError):
+            fatal.append("calibration: hl_p 须为数值")
+    return fatal
+
+
+def gen_dca(data, ax, theme, cjk_fp, **kwargs):
+    """dca 决策曲线分析（v5.2，第 32 种图型）：临床预测模型三件套之一——
+    净收益 vs 阈值概率，各模型与两条参照策略（全部干预/不干预）比较，
+    净收益定义 Vickers（每 100 人净真阳性数）。
+    JSON: thresholds 严格升序 (0,1) 开区间；models=[{name, net_benefit}] 1~6 个；
+    prevalence (0,1) 可选（画理论 treat-all）或 treat_all 显式数组（优先）；
+    show_none 默认 true（treat-none=0 水平虚线）。"""
+    thr, models = data.get("thresholds"), data.get("models")
+    if not (isinstance(thr, list) and thr):
+        raise ValueError("dca: 需要 'thresholds'（升序阈值数组）")
+    try:
+        tv = [float(v) for v in thr]
+    except (TypeError, ValueError):
+        raise ValueError("dca: thresholds 必须全为数值")
+    if any(not (0.0 < v < 1.0) for v in tv) or any(
+            tv[i] >= tv[i + 1] for i in range(len(tv) - 1)):
+        raise ValueError("dca: thresholds 须严格升序且在 (0,1) 开区间（t=0/1 净收益无定义）")
+    if not (isinstance(models, list) and 1 <= len(models) <= 6):
+        raise ValueError("dca: 需要 'models'（1~6 个 {name, net_benefit} 对象）")
+    n = len(tv)
+    names, nbs = [], []
+    for i, m in enumerate(models):
+        if not isinstance(m, dict) or not isinstance(m.get("net_benefit"), list):
+            raise ValueError(f"dca: models[{i}] 须为含 name/net_benefit 的对象")
+        if len(m["net_benefit"]) != n:
+            raise ValueError(f"dca: models[{i}].net_benefit 长度必须与 thresholds 一致（{n}）")
+        try:
+            nbs.append([float(v) for v in m["net_benefit"]])
+        except (TypeError, ValueError):
+            raise ValueError(f"dca: models[{i}].net_benefit 必须全为数值")
+        names.append(str(m.get("name") or f"Model {i+1}"))
+    prev = data.get("prevalence")
+    if prev is not None:
+        prev = float(prev)
+        if not (0.0 < prev < 1.0):
+            raise ValueError("dca: prevalence 须在 (0,1)")
+    ta = data.get("treat_all")
+    if ta is not None:
+        if not (isinstance(ta, list) and len(ta) == n):
+            raise ValueError("dca: treat_all 长度必须与 thresholds 一致")
+        ta = [float(v) for v in ta]
+    show_none = data.get("show_none", True)
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    handles, hlbls = [], []
+    if ta is not None:
+        ax.plot(tv, ta, color="#888888", lw=1.6, zorder=2)
+        handles.append(plt.Line2D([], [], color="#888888", lw=1.6))
+        hlbls.append("全部干预" if cjk_fp else "Treat all")
+    elif prev is not None:
+        ax.plot(tv, [prev - (1.0 - prev) * t / (1.0 - t) for t in tv],
+                color="#888888", lw=1.6, zorder=2)
+        handles.append(plt.Line2D([], [], color="#888888", lw=1.6))
+        hlbls.append(f"全部干预（患病率 {prev:g}）" if cjk_fp
+                     else f"Treat all (prev {prev:g})")
+    if show_none:
+        ax.axhline(0.0, color="#AAAAAA", lw=1.2, ls=(0, (4, 3)), zorder=1)
+        handles.append(plt.Line2D([], [], color="#AAAAAA", lw=1.2, ls=(0, (4, 3))))
+        hlbls.append("不干预" if cjk_fp else "Treat none")
+    markers = ("o", "s", "^", "D", "v", "<")
+    all_nb = [v for row in nbs for v in row] + list(ta or [])
+    for i, (nm, nb) in enumerate(zip(names, nbs)):
+        c = theme["colors"][i % len(theme["colors"])]
+        ax.plot(tv, nb, color=c, lw=1.8, marker=markers[i % len(markers)],
+                ms=3.6, zorder=3)
+        handles.append(plt.Line2D([], [], color=c, lw=1.8,
+                                  marker=markers[i % len(markers)], ms=3.6))
+        hlbls.append(nm)
+    _pad = (max(tv) - min(tv)) * 0.04 or 0.01
+    ax.set_xlim(min(tv) - _pad, max(tv) + _pad)  # 端点标记必留 pad（类级铁律）
+    lo_y, hi_y = min(0.0, min(all_nb)), max(all_nb)
+    _py = (hi_y - lo_y) * 0.06 or 0.05
+    ax.set_ylim(lo_y - _py, hi_y + _py * 1.6)  # 顶部多留图例位
+    xl = str(data.get("x_label") or ("阈值概率" if cjk_fp else "Threshold probability"))
+    yl = str(data.get("y_label") or ("净收益" if cjk_fp else "Net benefit"))
+    ax.set_xlabel(xl, fontsize=fs, fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
+    ax.set_ylabel(yl, fontsize=fs, fontproperties=cjk_fp if cjk_fp and has_cjk(yl) else None)
+    ax.legend(handles, hlbls, loc="upper right", frameon=False, fontsize=fs_s,
+              prop=cjk_fp if cjk_fp and has_cjk("".join(names) + "".join(hlbls)) else None)
+    peaks = [f"{nm} 峰值 {max(nb):+.2f}@{tv[nb.index(max(nb))]:g}"
+             for nm, nb in zip(names, nbs)]
+    print(f"dca: 阈值 {min(tv):g}~{max(tv):g}（{n} 点），{len(names)} 个模型"
+          + (f"，患病率 {prev:g}" if prev is not None else "")
+          + "；" + "；".join(peaks), file=sys.stderr)
+    apply_base_style(ax, theme)
+
+
+def dca_alt(data, t=""):
+    """v5.2：dca 的 --alt 文本。"""
+    thr = data.get("thresholds") or []
+    models = data.get("models") or []
+    segs = []
+    for m in models:
+        if isinstance(m, dict) and isinstance(m.get("net_benefit"), list):
+            nb = [float(v) for v in m["net_benefit"]
+                  if isinstance(v, (int, float)) and not isinstance(v, bool)]
+            if nb:
+                i = nb.index(max(nb))
+                segs.append(f"{m.get('name', '模型')} 峰值净收益 {max(nb):+.2f}"
+                            f"（阈值 {thr[i] if i < len(thr) else '?'}）")
+    return (f"决策曲线分析（{len(models)} 个模型，{len(thr)} 个阈值点"
+            + ("；参照策略：全部干预/不干预" if data.get("show_none", True) else "")
+            + f"）：{'；'.join(segs)}。{t}")
+
+
+def validate_dca(data):
+    """v5.2：dca 数据校验（返回 fatal 列表）；与 gen_dca 同口径。"""
+    fatal = []
+    thr, models = data.get("thresholds"), data.get("models")
+    if not (isinstance(thr, list) and thr):
+        return ["dca: 需要 'thresholds'（升序阈值数组）"]
+    if any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in thr):
+        return ["dca: thresholds 必须全为数值"]
+    if any(not (0.0 < v < 1.0) for v in thr) or any(
+            thr[i] >= thr[i + 1] for i in range(len(thr) - 1)):
+        fatal.append("dca: thresholds 须严格升序且在 (0,1) 开区间")
+    if not (isinstance(models, list) and 1 <= len(models) <= 6):
+        fatal.append("dca: 需要 'models'（1~6 个 {name, net_benefit} 对象）")
+        return fatal
+    n = len(thr)
+    for i, m in enumerate(models):
+        if not isinstance(m, dict) or not isinstance(m.get("net_benefit"), list):
+            fatal.append(f"dca: models[{i}] 须为含 name/net_benefit 的对象")
+            continue
+        if len(m["net_benefit"]) != n:
+            fatal.append(f"dca: models[{i}].net_benefit 长度必须与 thresholds 一致（{n}）")
+        elif any(isinstance(v, bool) or not isinstance(v, (int, float))
+                 for v in m["net_benefit"]):
+            fatal.append(f"dca: models[{i}].net_benefit 必须全为数值")
+    prev = data.get("prevalence")
+    if prev is not None and (isinstance(prev, bool)
+                             or not isinstance(prev, (int, float))
+                             or not (0.0 < prev < 1.0)):
+        fatal.append("dca: prevalence 须为 (0,1) 内数值")
+    ta = data.get("treat_all")
+    if ta is not None and (not isinstance(ta, list) or len(ta) != n
+                           or any(isinstance(v, bool) or not isinstance(v, (int, float))
+                                  for v in ta)):
+        fatal.append("dca: treat_all 长度必须与 thresholds 一致且全为数值")
+    return fatal
+
+
+def write_repro_bundle(argv, data, out_path, extra_outputs=None):
     """v5.1 --repro：复跑交付包 <output>.repro/——数据副本+精确命令+README+
     audit.json+成图副本，任何人拿到包即可逐字节复现该图（确定性引擎：
     同输入同命令=同输出）。幂等：重跑整目录重建。"""
@@ -3607,9 +3899,12 @@ def write_repro_bundle(argv, data, out_path):
             _sh.copy2(src, _os.path.join(d, _os.path.basename(src)))
     except (ValueError, IndexError):
         pass
-    # 成图副本
-    if _os.path.isfile(str(out_path)):
-        _sh.copy2(str(out_path), _os.path.join(d, _os.path.basename(str(out_path))))
+    # 成图副本（主输出 + v5.2 起多格式交付的全部导出文件）
+    copied = set()
+    for p in [str(out_path)] + [str(x) for x in (extra_outputs or [])]:
+        if p and _os.path.isfile(p) and _os.path.basename(p) not in copied:
+            _sh.copy2(p, _os.path.join(d, _os.path.basename(p)))
+            copied.add(_os.path.basename(p))
     # audit（与 --audit 同一套独立重算）
     audit = {}
     def _stats(vals):
@@ -3642,7 +3937,8 @@ def write_repro_bundle(argv, data, out_path):
         "# 复跑说明 / REPRODUCE\n\n"
         "- 命令（逐字复跑）：见 `command.txt`\n"
         "- 输入数据：本目录内的数据文件副本（与原始输入逐字节一致）\n"
-        "- 成图副本：本目录内与交付物逐字节一致\n"
+        f"- 成图副本：本目录内与交付物逐字节一致"
+        + (f"（含 {len(copied)} 个导出格式文件）" if len(copied) > 1 else "") + "\n"
         "- audit.json：描述统计由输入独立重算（纯计数零推断），可逐项核对图上的数\n"
         "- 确定性保证：同输入+同命令 → 同字节输出（引擎无随机源/无时间戳）\n"
         "- 依赖：matplotlib + numpy（+scipy 仅 --stats/KDE 类图型）；中文字体：系统 CJK 字体或 --cjk-font 指定\n"
@@ -3652,6 +3948,29 @@ def write_repro_bundle(argv, data, out_path):
     print(f"repro: 复跑交付包已写 {d}{_os.sep}（命令/数据副本/成图副本/audit/README）",
           file=sys.stderr)
     return d
+
+
+# v5.2：--suggest 输出双语化（domestic 反馈：辅助输出此前以英文为主）
+_SUGGEST_TYPE_ZH = {
+    "bar": "柱状图", "grouped_bar": "分组柱状图", "hbar": "横向条形图",
+    "stacked_bar": "堆叠柱状图", "heatmap": "热图", "scatter": "散点图",
+    "line": "折线图", "dual_axis": "双轴图", "box": "箱线图",
+    "forest": "森林图", "km": "生存曲线", "roc": "ROC 曲线",
+    "violin": "小提琴图", "composite": "组合图", "diagram": "流程示意图",
+    "prisma": "PRISMA 流程图", "funnel": "Meta 漏斗图",
+    "bland_altman": "Bland-Altman 一致性", "pca": "PCA 降维",
+    "paired": "配对图", "venn": "韦恩图", "cluster_heatmap": "聚类热图",
+    "upset": "UpSet 交集图", "raincloud": "雨云图", "slope": "斜率图",
+    "volcano": "火山图", "swimmer": "游泳图", "waterfall": "瀑布图",
+    "ridgeline": "山脊图", "dumbbell": "哑铃图",
+    "calibration": "校准曲线", "dca": "决策曲线",
+}
+
+
+def format_suggest_line(idx, score, ctype, why):
+    """--suggest 单行双语：英文理由后追加图型中文名（未知类型静默回退英文）。"""
+    zh = _SUGGEST_TYPE_ZH.get(ctype)
+    return f"  [{idx}] {ctype:<12} score {score:<3} — {why}" + (f"（{zh}）" if zh else "")
 
 
 GENERATORS = {
@@ -3682,4 +4001,6 @@ GENERATORS = {
     "ridgeline": gen_ridgeline,
     "dumbbell": gen_dumbbell,
     "raincloud": gen_raincloud,
+    "calibration": gen_calibration,
+    "dca": gen_dca,
 }

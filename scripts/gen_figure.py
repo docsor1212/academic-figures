@@ -58,7 +58,9 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      validate_swimmer, alt_text_core,
                      gen_ridgeline, ridgeline_alt, validate_ridgeline,
                      write_audit_sidecar, gen_dumbbell, dumbbell_alt,
-                     validate_dumbbell, write_repro_bundle)
+                     validate_dumbbell, write_repro_bundle,
+                     gen_calibration, calibration_alt, validate_calibration,
+                     gen_dca, dca_alt, validate_dca, format_suggest_line)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
@@ -289,6 +291,12 @@ CHART_NOTES = {
     "dumbbell": "dumbbell: 哑铃图（v5.1，第 30 种图型；每行两点 from→to+连接线，横向形态，"
                  "强调逐条目差距）；JSON from/to 必填等长、labels 可选、from_label/to_label 图例名；"
                  "sort=gap|input|to；show_values/show_gap 可选；严格两时点，>2 用 slope/line。",
+    "calibration": "calibration: 校准曲线（v5.2，第 31 种图型；临床预测模型三件套之一，与 ROC/DCA 同生态）；"
+                   "JSON bins=[{predicted,observed,n?,ci_lo?,ci_hi?}] 或 predicted/observed 平行数组；"
+                   "hl_p 标注 Hosmer-Lemeshow p；smooth=true 插值参考线；等比坐标+理想对角线。",
+    "dca": "dca: 决策曲线分析（v5.2，第 32 种图型；净收益 vs 阈值概率）；JSON thresholds 严格升序"
+           "(0,1)+models=[{name,net_benefit}]（1~6 个）；prevalence 画理论全部干预线或 treat_all "
+           "显式数组；show_none 默认画不干预 0 线；净收益定义 Vickers。",
     "ridgeline": "ridgeline: 山脊图/joyplot（v5.0，第 29 种图型；多组 KDE 密度纵向堆叠部分重叠，"
                  "一屏看分布逐组移动/变形）；schema 同 violin（labels+datasets）；overlap(0~0.95) "
                  "调重叠、sort=median 按中位数排；单值组退化为标记线并告知。",
@@ -381,6 +389,19 @@ DEMO_DATA = {
                  "from": [32, 41, 28, 45, 38, 24],
                  "to": [58, 63, 49, 66, 60, 47],
                  "from_label": "基线", "to_label": "12周", "show_gap": True},
+    "calibration": {"predicted": [0.06, 0.14, 0.24, 0.35, 0.47, 0.58, 0.71, 0.85],
+                    "observed": [0.08, 0.11, 0.28, 0.33, 0.51, 0.55, 0.76, 0.81],
+                    "ci_lo": [0.02, 0.05, 0.19, 0.24, 0.40, 0.43, 0.63, 0.67],
+                    "ci_hi": [0.19, 0.21, 0.40, 0.45, 0.62, 0.67, 0.86, 0.90],
+                    "n": [58, 64, 71, 77, 69, 61, 52, 38], "hl_p": 0.42},
+    "dca": {"thresholds": [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85],
+            "models": [{"name": "模型A+年龄",
+                        "net_benefit": [0.152, 0.133, 0.124, 0.112, 0.095, 0.073,
+                                        0.048, 0.022, -0.001]},
+                       {"name": "模型B",
+                        "net_benefit": [0.148, 0.126, 0.110, 0.093, 0.072, 0.050,
+                                        0.027, 0.006, -0.011]}],
+            "prevalence": 0.18},
     "ridgeline": {"labels": ["基线", "4周", "8周", "12周"],
                   "datasets": {"基线": [42, 48, 52, 55, 58, 60, 63, 65, 68, 72, 78, 85, 42, 50, 56, 61, 66, 70, 74, 80],
                                "4周": [28, 33, 38, 41, 45, 48, 52, 55, 58, 62, 68, 30, 36, 43, 49, 54, 60, 65],
@@ -514,6 +535,10 @@ def suggest_chart_type(data):
         recs.append((88, "bland_altman", "two method arrays — bland-altman agreement"))
     if isinstance(data.get("fpr"), list) and isinstance(data.get("tpr"), list):
         recs.append((87, "roc", "flat fpr/tpr arrays — single-curve ROC"))
+    if isinstance(data.get("models"), list) and data.get("thresholds"):
+        recs.append((89, "dca", "thresholds + models[] net_benefit — decision curve"))
+    if data.get("bins") or (data.get("predicted") and data.get("observed")):
+        recs.append((88, "calibration", "predicted vs observed bins — calibration"))
     series = data.get("series")
     if isinstance(series, dict) and series:
         lists = [v for v in series.values() if isinstance(v, list)]
@@ -540,11 +565,12 @@ def cmd_suggest(data_path):
         sys.exit(1)
     recs = suggest_chart_type(data)
     if not recs:
-        print("No confident match — default to bar (labels + series). See --explain <type>.")
+        print("No confident match — default to bar (labels + series). "
+          "无高匹配图型，默认柱状图；--explain <type> 可查各图型字段说明。")
         return
-    print("Suggested chart types (best first):")
+    print("Suggested chart types 推荐图型（按匹配度，best first）:")
     for i, (score, ctype, why) in enumerate(recs[:3], 1):
-        print(f"  [{i}] {ctype:<12} score {score:<3} — {why}")
+        print(format_suggest_line(i, score, ctype, why))
     best = recs[0][1]
     print(f"\nRun: python3 scripts/gen_figure.py -t {best} -d '{data_path}' -o out.pdf "
           f"--theme okabe-ito --verify")
@@ -1688,6 +1714,12 @@ def validate_data(data, chart_type):
     elif chart_type == "raincloud":
         fatal.extend(validate_raincloud(data))
 
+    # ── calibration/dca: 临床预测模型线（校验逻辑在 af_draw，v5.2）──
+    elif chart_type == "calibration":
+        fatal.extend(validate_calibration(data))
+    elif chart_type == "dca":
+        fatal.extend(validate_dca(data))
+
     # ── composite: panels ──
     elif chart_type == "composite":
         panels = data.get("panels", [])
@@ -2423,7 +2455,7 @@ def main():
                         help="输出格式（默认按 --out 扩展名自动判断）")
     parser.add_argument("--pub-ready", action="store_true",
                         help="一键投稿包：自动加 --verify + --multi-format pdf,png + 色盲安全主题"
-                             "（--pub-ready theme,NAME 可指定主题；v3.8）")
+                             " + 复跑交付包（--pub-ready theme,NAME 可指定主题；v3.8，v5.2 合流复跑包）")
     parser.add_argument("--profile", default=None, metavar="FILE",
                         help="分层配置文件（v4.3）：JSON 预设呈现参数（theme/journal/"
                              "column/dpi/subtitle/source 等，白名单见文档），CLI 显式"
@@ -2648,7 +2680,7 @@ def main():
             args.theme = "okabe-ito"
         args.pub_ready_applied = True
         print("[pub-ready] 已应用投稿包：--verify（PDF 重叠门禁）+ 色盲安全主题 "
-              f"{args.theme} + 多格式导出 {args.multi_format}", file=sys.stderr)
+              f"{args.theme} + 多格式导出 {args.multi_format} + 复跑交付包", file=sys.stderr)
 
     # ── v3.1：--quick 一键出图（自动选型 → 复用主渲染管线）──
     if getattr(args, "quick", False):
@@ -3219,10 +3251,6 @@ def main():
         sz = os.path.getsize(final_out)
         fmt_info = f"{out_format.upper()} @ {dpi}DPI" if not is_vector else f"{out_format.upper()} 矢量"
         print(f"已保存: {final_out}（{sz:,} 字节，{fmt_info}{cjk_info}）", file=sys.stderr)
-        if getattr(args, "audit", False):
-            write_audit_sidecar(data, args.type, args.out)
-        if getattr(args, "repro", False):
-            write_repro_bundle(list(sys.argv), data, args.out)
     else:
         for _fmt, _path, _isvec in saved_files:
             sz = os.path.getsize(_path)
@@ -3254,6 +3282,14 @@ def main():
                           file=sys.stderr)
                     sys.exit(2)
                 print(f"VERIFY OK: no text overlaps in {final_out}", file=sys.stderr)
+
+    # ── v5.2 机制：audit/repro 移出单格式分支（multi-format 曾静默失效）；
+    # 且置于 verify 门禁之后——verify FAIL 退出时不给坏图留复跑包。
+    if getattr(args, "audit", False):
+        write_audit_sidecar(data, args.type, args.out)
+    if getattr(args, "repro", False) or getattr(args, "pub_ready_applied", False):
+        write_repro_bundle(list(sys.argv), data, args.out,
+                           extra_outputs=sorted({p for _f, p, _v in saved_files}))
 
 
 

@@ -113,7 +113,9 @@ _KNOWN_DATA_FIELDS = [
   "change", "pr_cut", "pd_cut",
   "datasets", "jitter", "cloud_scale",
   "start", "end", "milestones", "ongoing", "ref_lines",
-  "from", "to", "from_label", "to_label", "show_values", "show_gap"
+  "from", "to", "from_label", "to_label", "show_values", "show_gap",
+  "predicted", "observed", "bins", "ci_lo", "ci_hi", "hl_p", "smooth",
+  "thresholds", "models", "net_benefit", "prevalence", "treat_all", "show_none"
 ]
 
 
