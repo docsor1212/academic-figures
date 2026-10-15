@@ -57,7 +57,8 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      validate_waterfall, gen_swimmer, swimmer_alt,
                      validate_swimmer, alt_text_core,
                      gen_ridgeline, ridgeline_alt, validate_ridgeline,
-                     write_audit_sidecar)
+                     write_audit_sidecar, gen_dumbbell, dumbbell_alt,
+                     validate_dumbbell, write_repro_bundle)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
@@ -285,6 +286,9 @@ CHART_NOTES = {
              "title 字段；未展示交集只计入 stderr 事实行。",
     "raincloud": "raincloud: 雨云图（v4.9，第 27 种图型；分布三合一：KDE 半小提琴云+箱线五数概括+"
                  "抖动原始点雨）；schema 同 violin；--stats 通用；jitter(0~0.3)/cloud_scale(0~2.0，0=藏云)；零方差/单点组云退化并告知。",
+    "dumbbell": "dumbbell: 哑铃图（v5.1，第 30 种图型；每行两点 from→to+连接线，横向形态，"
+                 "强调逐条目差距）；JSON from/to 必填等长、labels 可选、from_label/to_label 图例名；"
+                 "sort=gap|input|to；show_values/show_gap 可选；严格两时点，>2 用 slope/line。",
     "ridgeline": "ridgeline: 山脊图/joyplot（v5.0，第 29 种图型；多组 KDE 密度纵向堆叠部分重叠，"
                  "一屏看分布逐组移动/变形）；schema 同 violin（labels+datasets）；overlap(0~0.95) "
                  "调重叠、sort=median 按中位数排；单值组退化为标记线并告知。",
@@ -373,6 +377,10 @@ DEMO_DATA = {
         "转录组": ["TP53", "KRAS", "EGFR", "BRCA1", "MYC", "PTEN", "NRAS", "PIK3CA", "ALK"], "蛋白组": ["TP53", "EGFR", "MYC", "AKT1", "KRAS", "ERBB2", "PTEN"],
         "甲基化": ["TP53", "BRCA1", "CDKN2A", "MGMT", "PTEN", "RB1"], "eQTL": ["KRAS", "PIK3CA", "PTEN", "AKT1", "MAP2K1", "EGFR"],
         "GWAS": ["TP53", "BRCA1", "ERBB2", "ATM", "CHEK2", "PALB2"]}},
+    "dumbbell": {"labels": ["中心A", "中心B", "中心C", "中心D", "中心E", "中心F"],
+                 "from": [32, 41, 28, 45, 38, 24],
+                 "to": [58, 63, 49, 66, 60, 47],
+                 "from_label": "基线", "to_label": "12周", "show_gap": True},
     "ridgeline": {"labels": ["基线", "4周", "8周", "12周"],
                   "datasets": {"基线": [42, 48, 52, 55, 58, 60, 63, 65, 68, 72, 78, 85, 42, 50, 56, 61, 66, 70, 74, 80],
                                "4周": [28, 33, 38, 41, 45, 48, 52, 55, 58, 62, 68, 30, 36, 43, 49, 54, 60, 65],
@@ -478,6 +486,11 @@ def suggest_chart_type(data):
         recs.append((70, "box", "raw per-group 'datasets' — boxplot view"))
         recs.append((71, "raincloud", "raw per-group 'datasets' — cloud+box+jitter trio"))
         recs.append((69, "ridgeline", "per-group 'datasets' — stacked-density ridgeline overview"))
+    _db_f, _db_t = data.get("from"), data.get("to")
+    if isinstance(_db_f, list) and isinstance(_db_t, list) and _db_f and \
+            len(_db_f) == len(_db_t) and \
+            all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in _db_f + _db_t):
+        recs.append((85, "dumbbell", "per-row 'from'/'to' pairs — dumbbell gap chart"))
     x, y = data.get("x"), data.get("y")
     if isinstance(x, list) and isinstance(y, list) and x and len(x) == len(y):
         recs.append((80, "scatter", "paired x/y arrays"))
@@ -1667,6 +1680,10 @@ def validate_data(data, chart_type):
     elif chart_type == "ridgeline":
         fatal.extend(validate_ridgeline(data))
 
+    # ── dumbbell: 哑铃图（校验逻辑在 af_draw.validate_dumbbell，v5.1）──
+    elif chart_type == "dumbbell":
+        fatal.extend(validate_dumbbell(data))
+
     # ── raincloud: 分布三合一（schema 同 violin；校验在 af_draw）──
     elif chart_type == "raincloud":
         fatal.extend(validate_raincloud(data))
@@ -2523,6 +2540,8 @@ def main():
                              "defaults 全局默认 + figures 逐图条目（type/data/out 必填，可覆盖默认），"
                              "一条命令批量渲染并写 .batch-report.json；相对路径相对流水线文件解析；"
                              "YAML 需先 pip install pyyaml（JSON 无额外依赖）")
+    parser.add_argument("--repro", action="store_true",
+                        help="渲染成功后写复跑交付包 <output>.repro/（命令+数据副本+成图副本+audit+README）")
     parser.add_argument("--audit", action="store_true",
                         help="渲染成功后写数字对账侧车 <output>.audit.json（描述统计独立重算，可逐项核对图上的数）")
     parser.add_argument("--verify", action="store_true",
@@ -3202,6 +3221,8 @@ def main():
         print(f"已保存: {final_out}（{sz:,} 字节，{fmt_info}{cjk_info}）", file=sys.stderr)
         if getattr(args, "audit", False):
             write_audit_sidecar(data, args.type, args.out)
+        if getattr(args, "repro", False):
+            write_repro_bundle(list(sys.argv), data, args.out)
     else:
         for _fmt, _path, _isvec in saved_files:
             sz = os.path.getsize(_path)

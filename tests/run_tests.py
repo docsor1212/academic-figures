@@ -1128,7 +1128,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 29, f"expected 29 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline), got {len(jsons)}")
+        self.assertEqual(len(jsons), 30, f"expected 30 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline/dumbbell), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.0.0", self.zh)
-        self.assertIn("version: 5.0.0", self.en)
+        self.assertIn("version: 5.1.0", self.zh)
+        self.assertIn("version: 5.1.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.0.0", self.zh)
-        self.assertIn("version: 5.0.0", self.en)
+        self.assertIn("version: 5.1.0", self.zh)
+        self.assertIn("version: 5.1.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.0.0", self.zh)
-        self.assertIn("version: 5.0.0", self.en)
+        self.assertIn("version: 5.1.0", self.zh)
+        self.assertIn("version: 5.1.0", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.0.0", zh)
+        self.assertIn("version: 5.1.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2880,7 +2880,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "29 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "30 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.0.0", t, name)
+            self.assertIn("version: 5.1.0", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.0.0", t, name)
+            self.assertIn("version: 5.1.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.0.0", t, name)
+            self.assertIn("version: 5.1.0", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.0.0", t, name)
+            self.assertIn("version: 5.1.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4610,6 +4610,144 @@ class TestV50000(unittest.TestCase):
         sys.path.insert(0, SCRIPT_DIR)
         n = len(gen_figure.GENERATORS) - 3
         self.assertGreaterEqual(n, 29, f"注册表图型数: {n}")
+
+
+
+class TestV50100(unittest.TestCase):
+    """v5.1.0：dumbbell 哑铃图（第 30 种图型）+ --repro 复跑交付包。"""
+
+    def test_dumbbell_e2e(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "d.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["中心A", "中心B", "中心C"],
+                 "from": [32, 41, 28], "to": [58, 63, 49],
+                 "from_label": "基线", "to_label": "12周", "show_gap": True},
+                ensure_ascii=False))
+            out = os.path.join(td, "d.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "dumbbell", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("dumbbell: 3 行（sort=gap，差距 21~26）", r.stderr)
+
+    def test_dumbbell_gap_sort_order(self):
+        """Δ 标注与排序配对正确性（回归：gaps 按原序取用曾致配对错位）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "g.json")
+            # A=26, B=22, C=21 → gap 降序应为 A, B, C
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B", "C"],
+                 "from": [32, 41, 28], "to": [58, 63, 49], "sort": "gap"}))
+            out = os.path.join(td, "g.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "dumbbell", "-d", f, "-o", out,
+                 "--dpi", "80", "--show-values"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertIn("起点均值 33.67 → 终点均值 56.67", r.stderr)
+
+    def test_dumbbell_validate_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ({}, "from"),
+                ({"from": [1, 2]}, "to"),
+                ({"from": [1, 2], "to": [3]}, "长度必须一致"),
+                ({"from": [1, "x"], "to": [2, 3]}, "必须全为数值"),
+                ({"from": [1, None], "to": [2, 3]}, "必须全为数值"),
+                ({"from": [1, 2], "to": [3, 4], "labels": ["A"]}, "labels"),
+                ({"from": [1, 2], "to": [3, 4], "from_label": 5}, "from_label"),
+                ({"from": [1, 2], "to": [3, 4], "sort": "asc"}, "sort"),
+            ]
+            for i, (data, want) in enumerate(cases):
+                f = os.path.join(td, f"b{i}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                out = os.path.join(td, f"b{i}.png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "dumbbell", "-d", f, "-o", out],
+                    capture_output=True, text=True, timeout=120)
+                self.assertNotEqual(r.returncode, 0, f"case{i} 应失败: {data}")
+                self.assertIn(want, r.stderr, f"case{i} 缺提示 {want!r}")
+
+    def test_dumbbell_alt_and_suggest(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        d = {"labels": ["A", "B"], "from": [10, 20], "to": [30, 25]}
+        alt = gen_figure.generate_alt_text("dumbbell", d, "队列")
+        self.assertIn("哑铃图", alt)
+        self.assertIn("A 10→30", alt)
+        recs = gen_figure.suggest_chart_type(
+            {"labels": ["A", "B"], "from": [1, 2], "to": [3, 4]})
+        self.assertTrue(any(t == "dumbbell" for _, t, _ in recs), recs)
+
+    def test_dumbbell_template_command(self):
+        base = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
+        with io.open(os.path.join(base, "templates", "dumbbell.json"), encoding="utf-8") as fh:
+            cmd = json.load(fh)["_command"]
+        r = subprocess.run(cmd, shell=True, cwd=base, capture_output=True, text=True, timeout=240)
+        self.assertEqual(r.returncode, 0, r.stderr[-250:])
+        self.assertNotIn("未知字段", r.stderr)
+
+    def test_repro_bundle(self):
+        """--repro 复跑交付包：五件齐+数据副本逐字节一致+命令逐字+幂等。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "r.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["A", "B", "C"], "series": {"组1": [10, 20, 30], "组2": [5, 15, 25]}}))
+            out = os.path.join(td, "r.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "-o", out,
+                 "--repro", "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            bundle = out + ".repro"
+            for name in ("command.txt", "README_REPRODUCE.md", "audit.json",
+                         "r.json", "r.png"):
+                self.assertTrue(os.path.exists(os.path.join(bundle, name)), name)
+            self.assertEqual(io.open(os.path.join(bundle, "r.json"), encoding="utf-8").read(),
+                             io.open(f, encoding="utf-8").read(), "数据副本须逐字节一致")
+            self.assertIn("--repro", io.open(os.path.join(bundle, "command.txt"),
+                                             encoding="utf-8").read())
+            # 幂等：重跑重建不报错
+            r2 = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "-d", f, "-o", out,
+                 "--repro", "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r2.returncode, 0, r2.stderr[-250:])
+            self.assertTrue(os.path.exists(os.path.join(bundle, "command.txt")))
+
+    def test_cli_flags_change_output(self):
+        """机制锁：CLI 旗标必须真实改变输出字节（防旗标静默无效类——v5.1
+        dumbbell --show-values 曾只读数据字典导致 CLI 无效）。"""
+        import hashlib as _hb
+        with tempfile.TemporaryDirectory() as td:
+            cases = [
+                ("dumbbell", {"labels": ["A", "B", "C"], "from": [10, 20, 30],
+                              "to": [25, 35, 45]}, ["--show-values"]),
+                ("waterfall", {"change": [-40, -20, -5, 10, 30]}, ["--show-values"]),
+            ]
+            for ctype, data, flags in cases:
+                f = os.path.join(td, f"{ctype}.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+                digest = []
+                for with_flag in (False, True):
+                    out = os.path.join(td, f"{ctype}_{with_flag}.png")
+                    cmd = [sys.executable, GEN, "-t", ctype, "-d", f, "-o", out,
+                           "--dpi", "70"] + (flags if with_flag else [])
+                    r = subprocess.run(cmd, capture_output=True, text=True, timeout=240)
+                    self.assertEqual(r.returncode, 0, r.stderr[-200:])
+                    digest.append(_hb.md5(open(out, "rb").read()).hexdigest())
+                self.assertNotEqual(digest[0], digest[1],
+                                    f"{ctype} {' '.join(flags)} 输出与无旗标完全相同——旗标静默无效")
+
+
+    def test_registry_count_30(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3
+        self.assertGreaterEqual(n, 30, f"注册表图型数: {n}")
 
 
 if __name__ == "__main__":

@@ -3242,6 +3242,8 @@ def alt_text_core(chart_type, data, title=""):
         return swimmer_alt(data, t)  # v4.10：实现在 af_draw（模块化纪律 <3400 行）
     if chart_type == "ridgeline":
         return ridgeline_alt(data, t)  # v5.0：同上
+    if chart_type == "dumbbell":
+        return dumbbell_alt(data, t)  # v5.1：同上
     if chart_type == "raincloud":
         return raincloud_alt(data, t)
     if chart_type == "upset":
@@ -3434,6 +3436,224 @@ def write_audit_sidecar(data, chart_type, out_path):
     return dst
 
 
+
+
+def gen_dumbbell(data, ax, theme, cjk_fp, **kwargs):
+    """Dumbbell plot（v5.1，第 30 种图型）：哑铃图——每行两点（from→to）+连接线，
+    横向形态（发表惯例），强调"逐条目的差距大小"（两时点/两组对照：基线 vs
+    随访、男 vs 女、实验 vs 对照；Pew/Lancet 系常用形态）。严格限两时点：
+    >2 时点请用 slope/line，配对检验请用 paired。
+
+    JSON: {"labels": [...], "from": [...], "to": [...],
+           "from_label": "起点"(可选图例名), "to_label": "终点",
+           "sort": "gap"(默认，|to-from| 降序)|"input"|"to"(按 to 降序),
+           "show_values": false(点端数值), "show_gap": false(连接线中点 Δ 标注),
+           "x_label": "..."}
+    """
+    import math as _m
+    labels = data.get("labels")
+    frm, to = data.get("from"), data.get("to")
+    if not (isinstance(frm, list) and frm and isinstance(to, list) and to):
+        raise ValueError("dumbbell: 需要 'from' 与 'to'（非空数值数组）")
+    if len(frm) != len(to):
+        raise ValueError("dumbbell: from 与 to 长度必须一致")
+    n = len(to)
+    try:
+        fv = [float(v) for v in frm]
+        tv = [float(v) for v in to]
+    except (TypeError, ValueError):
+        raise ValueError("dumbbell: from/to 必须全为数值")
+    if not (all(_m.isfinite(v) for v in fv) and all(_m.isfinite(v) for v in tv)):
+        raise ValueError("dumbbell: from/to 含非有限值（NaN/±Infinity）——请清洗源数据")
+    if labels is not None and (not isinstance(labels, list) or len(labels) != n):
+        raise ValueError("dumbbell: 'labels' 长度必须与 from/to 一致")
+    for key in ("from_label", "to_label"):
+        v = data.get(key)
+        if v is not None and not isinstance(v, str):
+            raise ValueError(f"dumbbell: '{key}' 须为字符串（图例名）")
+    sort_mode = str(data.get("sort", "gap")).strip().lower()
+    if sort_mode not in ("gap", "input", "to"):
+        raise ValueError("dumbbell: sort 只支持 'gap' | 'input' | 'to'")
+    order = list(range(n))
+    if sort_mode == "gap":
+        order = sorted(range(n), key=lambda i: (-abs(tv[i] - fv[i]), i))
+    elif sort_mode == "to":
+        order = sorted(range(n), key=lambda i: (-tv[i], i))
+
+    c_from = theme["colors"][0]
+    c_to = theme["colors"][1 % len(theme["colors"])]
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    show_values = bool(data.get("show_values", False) or kwargs.get("show_values", False))
+    show_gap = bool(data.get("show_gap", False))
+
+    y = list(range(n))
+    snames = [str(labels[i]) if labels else f"P{i+1:02d}" for i in order]
+    for row, i in enumerate(order):
+        lo, hi = min(fv[i], tv[i]), max(fv[i], tv[i])
+        ax.plot([lo, hi], [row, row], color="#BBBBBB", lw=2.8,
+                solid_capstyle="round", zorder=2)
+        ax.plot([fv[i]], [row], marker="o", mfc="white", mec=c_from, mew=1.7,
+                ms=8, ls="none", zorder=3)
+        ax.plot([tv[i]], [row], marker="o", mfc=c_to, mec=c_to, ms=8,
+                ls="none", zorder=4)
+        if show_values:
+            ax.text(fv[i], row + 0.22, f"{fv[i]:g}", ha="center", va="bottom",
+                    fontsize=fs_s, color=c_from)
+            ax.text(tv[i], row + 0.22, f"{tv[i]:g}", ha="center", va="bottom",
+                    fontsize=fs_s, color=c_to)
+        if show_gap and hi - lo > 0:
+            # 倒轴语义：数据 y 越大越靠下，row+0.26 = 连接线视觉下方
+            ax.text((lo + hi) / 2, row + 0.26, f"Δ{abs(tv[i] - fv[i]):g}",
+                    ha="center", va="top", fontsize=fs_s, color="#555555")
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(snames[:n], fontsize=fs_s,
+                       fontproperties=cjk_fp if cjk_fp and has_cjk("".join(snames)) else None)
+    ax._af_category_axis = True  # 条目名是数据：豁免刻度抽稀（同 swimmer）
+    # 底部预留 1 行空带给右下图例（gap 排序末行连接线可能顶到右缘，防碰撞）
+    ax.set_ylim(n + 0.4, -0.8)
+    ax.set_yticks([y[i] for i in range(n)])
+    allv = fv + tv
+    # 机制（类级铁律，见 pitfalls「端点标记必留 pad」）：显式 set_xlim 禁用
+    # matplotlib 边距，数据极值处的标记（本图 from/to 圆点）必被裁半——自留 4% pad
+    lo_all, hi_all = min(allv), max(allv)
+    _pad = (hi_all - lo_all) * 0.04 or (max(1.0, abs(hi_all) * 0.02))
+    ax.set_xlim(lo_all - _pad, hi_all + _pad)
+    fl = str(data.get("from_label", "") or ("起点" if cjk_fp else "From"))
+    tl = str(data.get("to_label", "") or ("终点" if cjk_fp else "To"))
+    handles = [plt.Line2D([], [], marker="o", mfc="white", mec=c_from, mew=1.7,
+                          ms=8, ls="none"),
+               plt.Line2D([], [], marker="o", mfc=c_to, mec=c_to, ms=8, ls="none")]
+    ax.legend(handles, [fl, tl], loc="lower right", frameon=False, fontsize=fs_s,
+              prop=cjk_fp if cjk_fp and has_cjk(fl + tl) else None)
+    xl = str(data.get("x_label", "") or ("数值" if cjk_fp else "Value"))
+    ax.set_xlabel(xl, fontsize=fs,
+                  fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
+    _gaps = [abs(tv[i] - fv[i]) for i in range(n)]
+    print(f"dumbbell: {n} 行（sort={sort_mode}，差距 {min(_gaps):g}~{max(_gaps):g}）"
+          f"；起点均值 {sum(fv)/n:.2f} → 终点均值 {sum(tv)/n:.2f}", file=sys.stderr)
+    apply_base_style(ax, theme)
+
+
+def dumbbell_alt(data, t=""):
+    """v5.1：dumbbell 的 --alt 文本（放本模块守 gen_figure <3400 行纪律）。"""
+    frm, to = data.get("from") or [], data.get("to") or []
+    n = min(len(frm), len(to))
+    labels = data.get("labels") or [f"P{i+1}" for i in range(n)]
+    pairs = []
+    for i in range(n):
+        try:
+            f0, t0 = float(frm[i]), float(to[i])
+            pairs.append(f"{labels[i]} {f0:g}→{t0:g}（差 {t0 - f0:+g}）")
+        except (TypeError, ValueError):
+            continue
+    return (f"哑铃图（每行两点比较，共 {n} 行）：{'；'.join(pairs)}。{t}")
+
+
+def validate_dumbbell(data):
+    """v5.1：dumbbell 数据校验（返回 fatal 列表）；与 gen_dumbbell 同口径。"""
+    fatal = []
+    frm, to = data.get("from"), data.get("to")
+    if not (isinstance(frm, list) and frm and isinstance(to, list) and to):
+        fatal.append("dumbbell: 需要 'from' 与 'to'（非空数值数组）")
+        return fatal
+    if len(frm) != len(to):
+        fatal.append("dumbbell: from 与 to 长度必须一致")
+        return fatal
+    for name, arr in (("from", frm), ("to", to)):
+        if any(isinstance(v, bool) or not isinstance(v, (int, float)) for v in arr):
+            fatal.append(f"dumbbell: {name} 必须全为数值")
+    import math as _m
+    if not any("必须全为数值" in f for f in fatal):
+        if not (all(_m.isfinite(float(v)) for v in frm)
+                and all(_m.isfinite(float(v)) for v in to)):
+            fatal.append("dumbbell: from/to 含非有限值——请清洗源数据")
+    labels = data.get("labels")
+    if labels is not None and (not isinstance(labels, list) or len(labels) != len(to)):
+        fatal.append("dumbbell: 'labels' 长度必须与 from/to 一致")
+    for key in ("from_label", "to_label"):
+        v = data.get(key)
+        if v is not None and not isinstance(v, str):
+            fatal.append(f"dumbbell: '{key}' 须为字符串")
+    sm = data.get("sort")
+    if sm is not None and str(sm).strip().lower() not in ("gap", "input", "to"):
+        fatal.append("dumbbell: sort 只支持 'gap' | 'input' | 'to'")
+    return fatal
+
+
+
+
+def write_repro_bundle(argv, data, out_path):
+    """v5.1 --repro：复跑交付包 <output>.repro/——数据副本+精确命令+README+
+    audit.json+成图副本，任何人拿到包即可逐字节复现该图（确定性引擎：
+    同输入同命令=同输出）。幂等：重跑整目录重建。"""
+    import hashlib
+    import json as _json
+    import os as _os
+    import shutil as _sh
+
+    d = str(out_path) + ".repro"
+    if _os.path.isdir(d):
+        _sh.rmtree(d)
+    _os.makedirs(d)
+    with open(_os.path.join(d, "command.txt"), "w", encoding="utf-8") as fh:
+        fh.write(" ".join(argv) + "\n")
+    # 数据副本（argv 里的 -d/--data 文件原样拷贝）
+    try:
+        di = argv.index("-d") if "-d" in argv else argv.index("--data")
+        src = argv[di + 1]
+        if _os.path.isfile(src):
+            _sh.copy2(src, _os.path.join(d, _os.path.basename(src)))
+    except (ValueError, IndexError):
+        pass
+    # 成图副本
+    if _os.path.isfile(str(out_path)):
+        _sh.copy2(str(out_path), _os.path.join(d, _os.path.basename(str(out_path))))
+    # audit（与 --audit 同一套独立重算）
+    audit = {}
+    def _stats(vals):
+        xs = sorted(float(v) for v in vals
+                    if isinstance(v, (int, float)) and not isinstance(v, bool)
+                    and np.isfinite(float(v)))
+        n = len(xs)
+        if not n:
+            return {"n": 0}
+        mean = sum(xs) / n
+        var = sum((x - mean) ** 2 for x in xs) / (n - 1) if n > 1 else 0.0
+        med = xs[n // 2] if n % 2 else (xs[n // 2 - 1] + xs[n // 2]) / 2
+        return {"n": n, "mean": round(mean, 6), "sd": round(var ** 0.5, 6),
+                "median": round(med, 6), "min": round(xs[0], 6), "max": round(xs[-1], 6)}
+    stats = {}
+    for container in ("datasets", "series", "groups"):
+        obj = data.get(container)
+        if isinstance(obj, dict):
+            for k, v in obj.items():
+                if isinstance(v, list):
+                    stats[f"{container}.{k}"] = _stats(v)
+    raw = _json.dumps(data, ensure_ascii=False, sort_keys=True, default=str)
+    audit = {"chart_type": data.get("_chart_type", ""),
+             "generated_by": "academic-figures --repro",
+             "input_sha256_12": hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12],
+             "stats": stats}
+    with open(_os.path.join(d, "audit.json"), "w", encoding="utf-8") as fh:
+        fh.write(_json.dumps(audit, ensure_ascii=False, indent=1, sort_keys=True))
+    readme = (
+        "# 复跑说明 / REPRODUCE\n\n"
+        "- 命令（逐字复跑）：见 `command.txt`\n"
+        "- 输入数据：本目录内的数据文件副本（与原始输入逐字节一致）\n"
+        "- 成图副本：本目录内与交付物逐字节一致\n"
+        "- audit.json：描述统计由输入独立重算（纯计数零推断），可逐项核对图上的数\n"
+        "- 确定性保证：同输入+同命令 → 同字节输出（引擎无随机源/无时间戳）\n"
+        "- 依赖：matplotlib + numpy（+scipy 仅 --stats/KDE 类图型）；中文字体：系统 CJK 字体或 --cjk-font 指定\n"
+    )
+    with open(_os.path.join(d, "README_REPRODUCE.md"), "w", encoding="utf-8") as fh:
+        fh.write(readme)
+    print(f"repro: 复跑交付包已写 {d}{_os.sep}（命令/数据副本/成图副本/audit/README）",
+          file=sys.stderr)
+    return d
+
+
 GENERATORS = {
     "bar": gen_bar,
     "grouped_bar": gen_bar,
@@ -3460,5 +3680,6 @@ GENERATORS = {
     "waterfall": gen_waterfall,
     "swimmer": gen_swimmer,
     "ridgeline": gen_ridgeline,
+    "dumbbell": gen_dumbbell,
     "raincloud": gen_raincloud,
 }

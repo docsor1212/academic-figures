@@ -15,6 +15,7 @@ _WIZARD_SHAPES = [
     ("每例最佳缓解百分比（肿瘤瀑布图）", ["waterfall"], "templates/waterfall.json"),
     ("每例治疗/随访时长（临床游泳图）", ["swimmer"], "templates/swimmer.json"),
     ("多组分布逐组移动全景（山脊图）", ["ridgeline"], "templates/ridgeline.json"),
+    ("逐条目两点差距（哑铃图）", ["dumbbell"], "templates/dumbbell.json"),
     ("二维数值矩阵（行×列）", ["heatmap", "cluster_heatmap"], "templates/cluster_heatmap.json"),
     ("逐例生存+协变量（多因素 Cox 回归）", ["forest"], None),
     ("效应值+标准误（Meta 分析）", ["forest"], "templates/01-meta-forest.json"),

@@ -1,16 +1,16 @@
 ---
 name: academic-figures
-version: 5.0.0
+version: 5.1.0
 description: >-
-  Publication-ready scientific figures from one command — 29 chart types (bar, slope,
-  volcano, ridgeline, grouped bar, scatter, heatmap, forest
-  plot, KM survival curve with risk table,
+  Publication-ready scientific figures from one command — 30 chart types (bar, slope,
+  volcano, ridgeline, dumbbell (two-point per-row gaps), grouped bar, scatter, heatmap,
+  forest plot, KM survival curve with risk table,
   Cox regression forest, ROC, violin, box, composite panels, PRISMA 2020 flow, funnel,
   Bland-Altman, PCA, venn 2-4 sets, upset set intersections (5+ sets), oncology waterfall
   (RECIST), raincloud (cloud+box+rain trio), clinical swimmer (milestones, ongoing arrows),
   clustered heatmap, dual-axis), 9 themes incl. colorblind-safe
-  Okabe-Ito and NEJM/Lancet/Science palettes, 9 journal submission presets, YAML figure
-  pipeline, one-run TIFF/PNG/PDF export, Python API, --wizard picker,
+  Okabe-Ito + NEJM/Lancet/Science palettes, 9 journal submission presets, YAML figure
+  pipeline, one-run TIFF/PNG/PDF, Python API, --wizard,
   render watchdog, PDF overlap gate, 600dpi. 100% local, data
   never leaves the machine. Use for — paper/submission figures, turning data files into
   publication charts, batch re-rendering. Skip when — text polishing, translation or
@@ -32,7 +32,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 5.0.0
+  version: 5.1.0
   date: 2026-10-14
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -126,6 +126,7 @@ python3 scripts/gen_figure.py -t cluster_heatmap --data big.json --downsample 20
 | Distribution | Violin | `-t violin` | Density estimation, inner mean/median |
 | Distribution | Raincloud | `-t raincloud` | half-KDE cloud + box + jittered raw points trio (v4.9); violin schema |
 | Distribution | Ridgeline | `-t ridgeline` | stacked per-group KDE densities (joyplot), `overlap` 0-0.95, `sort=median`; shows how distributions shift across groups (v5.0) |
+| Comparison | Dumbbell | `-t dumbbell` | two points per row (from→to) + connector, gap-sorted; `show_gap` Δ labels; strictly two time points (v5.1) |
 | Paired | Before-after | `-t paired` | per-subject pairing lines + paired test (annotated at n≥6) |
 | Trend | Scatter | `-t scatter` | Trend line, r value, color grouping, mean points, point labels |
 | Trend | Line | `-t line` | Multiple series, error bands, markers |
@@ -152,7 +153,7 @@ Scan the Category column at a glance; getting-started path in `references/quicks
 ## Chart Decision Tree (compact; full version + getting-started: references/quickstart.md)
 
 ```text
-Group comparison → bar/box/violin/raincloud (full trio view; pre-post → paired; distribution shift across groups → ridgeline) | Mean±error bars → bar (JSON errors)
+Group comparison → bar/box/violin/raincloud (full trio view; pre-post → paired; distribution shift across groups → ridgeline; two-point per-row gaps → dumbbell) | Mean±error bars → bar (JSON errors)
 Two-column correlation → scatter | Time-to-event → km / forest --stats cox | Diagnosis → roc (--compare)
 Set membership → venn (--area; 5+ sets → upset) | Numeric matrix → heatmap / cluster_heatmap | Sample classes → pca
 Omics differential expression → volcano |
@@ -168,7 +169,7 @@ pitfalls live in **`references/quickstart.md`** (standalone getting-started guid
 
 | Capability | What it does | What it does NOT / boundary | Where to look |
 |------------|--------------|------------------------------|---------------|
-| Chart engine | 29 types, one command, 600dpi; byte-deterministic output | No interactive exploration (static files only); no 3-D plots | Chart Types ↑ |
+| Chart engine | 30 types, one command, 600dpi; byte-deterministic output | No interactive exploration (static files only); no 3-D plots | Chart Types ↑ |
 | Chart picking | `--suggest` (auto), `--wizard` (guided), `--quick` (auto-pick+render), `--explain TYPE` | Suggestions are structural heuristics — confirm the statistical meaning yourself | quickstart.md |
 | Stats | KM risk table/log-rank/median CI; Cox (Efron+PH); ROC DeLong; bootstrap CI; Egger | No Bayesian methods; no sample-size/power calculation | advanced.md |
 | Journal presets | 9 presets, exact width/font/DPI from author guidelines | `--journal` locks width (`--width` ignored, `--height` OK); Pro-only journals not preset | limits.md §6 |
@@ -230,7 +231,7 @@ KM auto median survival with 95% CI (Greenwood log-log, lifelines-verified; `--n
 never-reached 50% honestly labeled); `forest --sensitivity` leave-one-out (DL re-pooling);
 `funnel --egger` publication-bias test.
 
-## Scenario Templates (v2.6; covering the 29 chart types incl. slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline)
+## Scenario Templates (v2.6; covering the 30 chart types incl. slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline/dumbbell)
 
 `templates/` ships 28 end-to-end templates (data JSON + ready-to-run command + caption template):
 scenario templates plus per-chart-type quick templates (bland_altman, cluster_heatmap, funnel,
@@ -307,6 +308,7 @@ High-frequency flags (full cheatsheet: `references/cheatsheet.md`):
 | `--profile preset.json` | Layered config file: presentation presets, CLI flags win (v4.3) |
 | `--cjk` | CJK font auto-detection |
 | `--verify` | Pixel-level overlap verification on PDF output; exit 2 on overlaps |
+| `--audit` / `--repro` | `--audit`: `<output>.audit.json` number-check sidecar (stats recomputed from input, v5.0); `--repro`: `<output>.repro/` reproduce bundle (command+data copy+figure copy+audit+README, v5.1) |
 | `--audit` | After render, writes `<output>.audit.json` — descriptive stats recomputed from the input for figure-vs-data number checking (v5.0) |
 | `--multi-format tiff,png,pdf` | One-run multi-format export (v2.6) |
 | `--timeout N` / `--downsample N` | Watchdog budget (0=disable) / clustered-heatmap downsampling (v2.8) |
@@ -366,7 +368,7 @@ announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir de
 | Your task (30 seconds to the right doc) | Read |
 |------------------------------------------|------|
 | First time / not sure which chart | `references/quickstart.md` |
-| One-page command skeleton for all 28 types | `references/cheatsheet.md` |
+| One-page command skeleton for all 30 types | `references/cheatsheet.md` |
 | JSON/CSV/Excel schema for a type | `references/data-formats.md` |
 | "Why did it error / what does exit 3 mean" | `references/faq.md` |
 | Flag conflict, data-volume cap, env issue | `references/limits.md` |
@@ -377,15 +379,15 @@ announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir de
 | Call from Python | `references/python-api.md` |
 | Version history | `references/changelog.md` |
 
-Code layout: `scripts/gen_figure.py` (main, 29 types) + `gen_legend.py` (journal legends) +
+Code layout: `scripts/gen_figure.py` (main, 30 types) + `gen_legend.py` (journal legends) +
 `audit_pdf.py` (font gate) + `verify_overlap_pixel.py` (overlap verifier) + `setup_env.py` +
-`journal/*.json` (presets); `templates/` (29, each with a `_command`), `examples/`
+`journal/*.json` (presets); `templates/` (30, each with a `_command`), `examples/`
 (incl. `realworld/`), `tests/run_tests.py` (full suite). Remaining references:
 `clinical-lab-trends.md`, `reverse-engineering-colors.md`, `v1.5-upgrade-analysis.md` (archive).
 
 ## Version History
 
-Full bilingual history: `references/changelog.md`. Recent: **v5.0.0** ridgeline plot (chart #29: stacked per-group densities, joyplot form; `overlap`/`sort=median`; single-value groups degrade with notice) + `--audit` figure-vs-data sidecar JSON; **v4.10.0** clinical swimmer plot (chart #28: per-subject duration bars + ongoing arrows + milestone markers + RECIST coloring) + doctor submission-format hint; **v4.9.0** raincloud plot (chart #27) + setup_env --fix mirror fallback; **v4.8.0** oncology waterfall plot (chart #26, RECIST) + suggest dedup; **v4.7.0** upset set-intersection plot (chart #25) + color/combo scenario guides + real-world examples + limits quick table; **v4.6.0** ROC default semantic axis titles + venn title disambiguation + adaptive
+Full bilingual history: `references/changelog.md`. Recent: **v5.1.0** dumbbell plot (chart #30: two points per row from→to, gap-sorted, Δ gap labels; strictly two time points) + `--repro` reproduce bundle (command+data copy+figure copy+audit in one folder); **v5.0.0** ridgeline plot (chart #29: stacked per-group densities, joyplot form; `overlap`/`sort=median`; single-value groups degrade with notice) + `--audit` figure-vs-data sidecar JSON; **v4.10.0** clinical swimmer plot (chart #28: per-subject duration bars + ongoing arrows + milestone markers + RECIST coloring) + doctor submission-format hint; **v4.9.0** raincloud plot (chart #27) + setup_env --fix mirror fallback; **v4.8.0** oncology waterfall plot (chart #26, RECIST) + suggest dedup; **v4.7.0** upset set-intersection plot (chart #25) + color/combo scenario guides + real-world examples + limits quick table; **v4.6.0** ROC default semantic axis titles + venn title disambiguation + adaptive
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 
