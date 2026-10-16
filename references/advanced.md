@@ -98,3 +98,81 @@
   `--journal nejm|science` 自动联动同款配色（见配色方案）。
 - 库异常中文映射 9 → 18 条（ParserError→"CSV 解析失败"、MemoryError→"数据规模超出
   可用内存"、InvalidFileException→"不是有效的 xlsx" 等）。
+
+## 临床预测模型评价三件套（v5.0~v5.2 深水区）
+
+预测模型论文（Logistic/Cox/机器学习）审稿人默认要看三件事，对应三种图：
+
+| 问题 | 图型 | 图上看什么 |
+|---|---|---|
+| 分得开吗（判别） | `-t roc`（`--compare` 多模型配对 DeLong） | AUC 及其 CI；两模型 AUC 差的 p |
+| 概率准吗（校准） | `-t calibration`（v5.2） | 各箱点贴对角线=校准好；系统性偏上=预测低估、偏下=高估 |
+| 用了有收益吗（临床效用） | `-t dca`（v5.2） | 模型曲线在哪个阈值区间同时压过「全部干预」与「不干预」 |
+
+**calibration 分箱实践**：外部分验证集优先；8~10 箱、每箱 ≥30 例是常见惯例
+（本引擎不做自动分箱——分箱口径属于方法学决策，须写入你的统计方法段）。
+`hl_p` 的解读注意：大样本下 Hosmer-Lemeshow 几乎必然显著，p>0.05 不能单独
+证明校准好，必须配合图形判读一起报告。误差棒=观察率 95%CI（你可用 Wilson
+近似自算后随箱给出，见 templates/calibration.json）。
+
+**DCA 解读**：纵轴净收益=每 100 人中净真阳性数（Vickers 定义，受益-受害加权）。
+横轴阈值必须取自临床决策点（「预测概率高于多少才干预」），不是统计网格；
+报告时写出获益区间（如 0.20~0.65）并与两参照策略对照。`prevalence` 用验证
+队列真实患病率；模型间区分度小时净收益曲线会贴近，别用轴缩放放大视觉差异。
+
+三件套同队列出图的推荐命令骨架：
+
+```bash
+python3 scripts/gen_figure.py -t roc          -d pred.json -o fig_roc.png --cjk
+python3 scripts/gen_figure.py -t calibration  -d pred.json -o fig_cal.png --cjk
+python3 scripts/gen_figure.py -t dca          -d pred.json -o fig_dca.png --cjk
+# 或一步投稿包（自动 verify+色盲安全+pdf/png 双格式+复跑包）：
+python3 scripts/gen_figure.py -t calibration -d pred.json -o fig_cal.png --pub-ready --cjk
+```
+
+## 多面板组合配方（composite 深水区）
+
+- **语法**：`panels: [{type, data, title, span?}, ...]`；`span:[rows,cols]`
+  让某面板占多格（跨格冲突会在渲染前报错，具体到面板序号）。
+- **典型论文图式**：A=原始分布（box/violin/raincloud）+ B=个体走向
+  （paired/slope）+ C=汇总统计（bar/forest）；审稿人最认「原始+个体+汇总」
+  三位一体，单柱状图被打回时优先补 A/B 两层。
+- **面板间一致性**：同一变量跨面板必须同色（配色方案 §四语义色一致规则）；
+  组合图图例可用 `--legend-outside` 合并为全图共享图例（同名自动去重）。
+- **禁嵌套**：composite/diagram/upset 不能再作为面板类型嵌套（校验会拦截）。
+
+## 统计标注决策树（--stats 怎么选）
+
+```text
+两组比较 → --stats auto   （Shapiro 过→配对/独立 t；不过→Wilcoxon/Mann-Whitney，自动选择并标注方法名）
+多组两两  → --stats multi （全组正态→ANOVA+Tukey HSD；否则 Kruskal-Wallis+Dunn+Hochberg 校正）
+配对数据  → paired -t + --stats auto（n>=6 才标注，不足时 stderr 提示效力不足）
+自跑检验  → JSON significance 键直接给 "组: p 值"（引擎只标注不计算，可溯源）
+```
+
+铁律：SD 与 SE 误差棒在 JSON `errors` 里给什么画什么，图注必须写明是哪种；
+显著性星号必须有对应检验（自己编星号=造假边缘）。
+
+## 投稿一键包与数字溯源（v5.0~v5.2）
+
+**`--pub-ready` 一条命令展开五件套**：`--verify`（PDF 像素级重叠门禁）+
+色盲安全主题（默认 okabe-ito，`--pub-ready theme,NAME` 换）+ 多格式导出
+（pdf 矢量+png 600dpi）+ **复跑交付包** `<输出>.repro/`（v5.2 合流）+
+数字对账侧车。包内逐文件：
+
+| 文件 | 用途 |
+|---|---|
+| `command.txt` | 逐字可复跑的精确命令 |
+| 数据副本 | 与原始输入逐字节一致 |
+| 成图副本 | 全部导出格式（pdf+png）逐字节一致 |
+| `audit.json` | 描述统计由输入**独立重算**（纯计数零推断）+输入 sha256 指纹 |
+| `README_REPRODUCE.md` | 双语复跑说明 |
+
+审稿人问「图上的数怎么来的」时，把 `.repro/` 整目录作为补充材料提交即可；
+确定性引擎保证同输入+同命令=同字节输出。verify FAIL（exit 2）时不会产出
+复跑包——复跑包里的图必然已过重叠门禁。
+
+**投稿前自检清单**：尺寸用 `--journal nature|lancet|science|nejm|cma|cn-core`
+预设（栏宽/字号下限/字体按各刊作者指南）；灰度印刷自检加 `--hatch`（黑白
+打印同色深浅难分时靠斜纹区分系列）；最小字号不低于目标期刊下限（nature 5pt /
+lancet 6pt，引擎按预设自动把守）；最终交付 PDF 走 `--verify`，位图走 600dpi。

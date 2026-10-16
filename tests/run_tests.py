@@ -1128,7 +1128,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 30, f"expected 30 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline/dumbbell), got {len(jsons)}")
+        self.assertEqual(len(jsons), 33, f"expected 33 templates (v2.6 base + ... + calibration/dca/nomogram), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.1.0", self.zh)
-        self.assertIn("version: 5.1.0", self.en)
+        self.assertIn("version: 5.3.0", self.zh)
+        self.assertIn("version: 5.3.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.1.0", self.zh)
-        self.assertIn("version: 5.1.0", self.en)
+        self.assertIn("version: 5.3.0", self.zh)
+        self.assertIn("version: 5.3.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.1.0", self.zh)
-        self.assertIn("version: 5.1.0", self.en)
+        self.assertIn("version: 5.3.0", self.zh)
+        self.assertIn("version: 5.3.0", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.1.0", zh)
+        self.assertIn("version: 5.3.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2880,7 +2880,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "30 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "33 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.1.0", t, name)
+            self.assertIn("version: 5.3.0", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.1.0", t, name)
+            self.assertIn("version: 5.3.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.1.0", t, name)
+            self.assertIn("version: 5.3.0", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.1.0", t, name)
+            self.assertIn("version: 5.3.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4013,8 +4013,8 @@ class TestV47000(unittest.TestCase):
         rw = os.path.join(base, "examples", "realworld")
         self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
         rws = sorted(os.listdir(rw))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 5,
-                         f"realworld 示例应 5 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 8,
+                         f"realworld 示例应 8 个: {rws}")
 
 
 class TestV48000(unittest.TestCase):
@@ -4748,6 +4748,286 @@ class TestV50100(unittest.TestCase):
         sys.path.insert(0, SCRIPT_DIR)
         n = len(gen_figure.GENERATORS) - 3
         self.assertGreaterEqual(n, 30, f"注册表图型数: {n}")
+
+
+class TestV50200(unittest.TestCase):
+    """v5.2.0：calibration 校准曲线（第 31）+ dca 决策曲线（第 32）
+    + --pub-ready 合流复跑包（机制）+ 预留带 helper（机制）+ 辅助输出双语化。"""
+
+    @classmethod
+    def _rw(cls, name):
+        return os.path.join(SCRIPT_DIR, "..", "examples", "realworld", name)
+
+    def test_calibration_e2e_realworld(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "c.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "calibration",
+                 "-d", self._rw("realworld_sepsis_calibration.json"),
+                 "-o", out, "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("calibration: 10 箱，总 n=500", r.stderr)
+            self.assertIn("平均偏差(观察-预测)", r.stderr)
+
+    def test_calibration_bins_schema(self):
+        """bins 对象数组与平行数组两种给法均可渲染（同一语义）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "b.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps({"bins": [
+                {"predicted": 0.10, "observed": 0.13, "n": 30, "ci_lo": 0.04, "ci_hi": 0.28},
+                {"predicted": 0.30, "observed": 0.26, "n": 40, "ci_lo": 0.14, "ci_hi": 0.42},
+                {"predicted": 0.52, "observed": 0.55, "n": 44, "ci_lo": 0.41, "ci_hi": 0.68},
+                {"predicted": 0.75, "observed": 0.79, "n": 36, "ci_lo": 0.64, "ci_hi": 0.90}]}))
+            out = os.path.join(td, "b.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "calibration", "-d", f, "-o", out,
+                 "--dpi", "80", "--alt"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            alt = io.open(os.path.splitext(out)[0] + ".alt.txt", encoding="utf-8").read()
+            self.assertIn("校准曲线（4 箱，总样本 150）", alt)
+
+    def test_calibration_range_fatals(self):
+        for bad, msg in (
+                ({"predicted": [0.2, 1.4], "observed": [0.3, 0.4]}, "须在 [0,1]"),
+                ({"predicted": [0.2, 0.4], "observed": [0.3]}, "长度必须一致"),
+                ({"predicted": [0.2], "observed": [0.3], "hl_p": 1.5}, "hl_p")):
+            with tempfile.TemporaryDirectory() as td:
+                f = os.path.join(td, "x.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(bad))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "calibration", "-d", f,
+                     "-o", os.path.join(td, "x.png"), "--dpi", "70"],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (bad, r.stderr[-200:]))
+                self.assertIn(msg, r.stderr)
+
+    def test_dca_e2e_prevalence_theory(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "d.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "dca",
+                 "-d", self._rw("realworld_sepsis_dca.json"),
+                 "-o", out, "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("患病率 0.21", r.stderr)   # 理论 treat-all 由 prevalence 推出
+            self.assertIn("峰值", r.stderr)
+
+    def test_dca_validate_fatals(self):
+        for bad, msg in (
+                ({"thresholds": [0.2, 0.1], "models": [{"name": "X", "net_benefit": [1, 2]}]},
+                 "严格升序"),
+                ({"thresholds": [0.1, 0.2], "models": [{"name": "X", "net_benefit": [1]}]},
+                 "长度必须与 thresholds 一致"),
+                ({"thresholds": [0.1, 0.2], "models": [{"name": "X", "net_benefit": [1, 2]}],
+                  "prevalence": 1.5}, "prevalence"),
+                ({"thresholds": [0.0, 0.2], "models": [{"name": "X", "net_benefit": [1, 2]}]},
+                 "(0,1)")):
+            with tempfile.TemporaryDirectory() as td:
+                f = os.path.join(td, "x.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(bad))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "dca", "-d", f,
+                     "-o", os.path.join(td, "x.png"), "--dpi", "70"],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (bad, r.stderr[-200:]))
+                self.assertIn(msg, r.stderr)
+
+    def test_pub_ready_emits_repro_bundle(self):
+        """机制锁：--pub-ready 必须产出复跑包（v5.2 合流；多格式副本进包）。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "p.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"predicted": [0.1, 0.4, 0.7], "observed": [0.12, 0.38, 0.72]}))
+            out = os.path.join(td, "p.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "calibration", "-d", f, "-o", out,
+                 "--pub-ready", "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            d = out + ".repro"
+            self.assertTrue(os.path.isdir(d), "--pub-ready 未产出复跑包")
+            files = os.listdir(d)
+            for need in ("command.txt", "audit.json", "README_REPRODUCE.md",
+                         "p.pdf", "p.png"):
+                self.assertIn(need, files, f"复跑包缺 {need}")
+
+    def test_repro_multiformat_no_longer_silent(self):
+        """机制锁：--repro 遇 --multi-format 曾静默失效（v5.1 前缺陷），现必须产出。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "m.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"predicted": [0.1, 0.4, 0.7], "observed": [0.12, 0.38, 0.72]}))
+            out = os.path.join(td, "m.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "calibration", "-d", f, "-o", out,
+                 "--multi-format", "png,pdf", "--repro", "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.isdir(out + ".repro"), "--multi-format 下 --repro 静默失效")
+
+    def test_registry_count_32(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3  # 纯别名 horizontal_bar/boxplot/survival
+        self.assertGreaterEqual(n, 32, f"注册表图型数: {n}")
+
+    def test_templates_meta_complete(self):
+        """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
+        tdir = os.path.join(SCRIPT_DIR, "..", "templates")
+        jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
+        self.assertEqual(len(jsons), 33)
+        for p in jsons:
+            d = json.load(io.open(p, encoding="utf-8"))
+            for key in ("_command", "_note"):
+                self.assertTrue(str(d.get(key) or "").strip(), f"{p} 缺 {key}")
+            self.assertIn("-t", d.get("_command", ""), p)
+
+    def test_realworld_sepsis_pair_run(self):
+        """脓毒症双示例 _command 逐字可执行 + n 逐箱自洽=500。"""
+        cal = json.load(io.open(self._rw("realworld_sepsis_calibration.json"),
+                                encoding="utf-8"))
+        self.assertEqual(sum(cal["n"]), 500)
+        with tempfile.TemporaryDirectory() as td:
+            for name, ctype, fact in (
+                    ("realworld_sepsis_calibration.json", "calibration", "10 箱"),
+                    ("realworld_sepsis_dca.json", "dca", "2 个模型")):
+                out = os.path.join(td, name + ".png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", ctype, "-d", self._rw(name),
+                     "-o", out, "--dpi", "70"],
+                    capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0, r.stderr[-250:])
+                self.assertIn(fact, r.stderr)
+
+    def test_suggest_bilingual_zh(self):
+        """domestic 修复锁：--suggest 推荐行带图型中文名。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "s.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"thresholds": [0.1, 0.3, 0.5],
+                 "models": [{"name": "A", "net_benefit": [0.1, 0.05, 0.01]}]}))
+            r = subprocess.run(
+                [sys.executable, GEN, "--suggest", "-d", f],
+                capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stderr[-200:])
+            self.assertIn("（决策曲线）", r.stdout)
+
+    def test_reserve_band_helper(self):
+        """机制锁：行型图底部预留带共享 helper（swimmer/dumbbell 不再各写各的）。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import af_draw
+        fig, ax = plt.subplots()
+        try:
+            band = af_draw.reserve_bottom_band(ax, 6, top_pad=1.1)
+            self.assertEqual(tuple(ax.get_ylim()), (6 + 1.1, -0.8))
+            self.assertEqual(band, (-0.8, 0.0))
+            af_draw.reserve_bottom_band(ax, 3, top_pad=0.4)
+            self.assertEqual(tuple(ax.get_ylim()), (3.4, -0.8))
+        finally:
+            plt.close(fig)
+
+    def test_swimmer_dumbbell_use_helper(self):
+        """防回潮：两处调用点必须经 reserve_bottom_band（不允许回退手写 set_ylim）。"""
+        src = io.open(os.path.join(SCRIPT_DIR, "af_draw.py"), encoding="utf-8").read()
+        self.assertIn("def reserve_bottom_band(", src)
+        self.assertGreaterEqual(src.count("reserve_bottom_band(ax, n,"), 2,
+                                "swimmer/dumbbell 应调用共享预留带 helper")
+
+
+class TestV50300(unittest.TestCase):
+    """v5.3.0：nomogram 列线图（第 33）+ 版本一致性锁（accuracy 机制）。"""
+
+    @classmethod
+    def _rw(cls, name):
+        return os.path.join(SCRIPT_DIR, "..", "examples", "realworld", name)
+
+    def test_nomogram_e2e_realworld(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "n.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "nomogram",
+                 "-d", self._rw("realworld_hcc_nomogram.json"),
+                 "-o", out, "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("nomogram: 5 个变量 + 3 个结局尺（Total Points 0~350）",
+                          r.stderr)
+
+    def test_nomogram_validate_fatals(self):
+        cases = [
+            ({"variables": [], "outcome_scales": [{"label": "Y", "ticks": [0.1, 0.2], "points_at": [0, 100]}]},
+             "variables"),
+            ({"variables": [{"name": "A", "ticks": [1]}],
+              "outcome_scales": [{"label": "Y", "ticks": [0.1, 0.2], "points_at": [0, 100]}]},
+             "2~12"),
+            ({"variables": [{"name": "A", "ticks": [1, 2], "points_at": [0, 150]}],
+              "outcome_scales": [{"label": "Y", "ticks": [0.1, 0.2], "points_at": [0, 100]}]},
+             "[0,100]"),
+            ({"variables": [{"name": "A", "ticks": [1, 2]}],
+              "outcome_scales": [{"label": "Y", "ticks": [0.1, 0.2], "points_at": [-5, 100]}]},
+             "非负"),
+            ({"variables": [{"name": "A", "ticks": [1, 2]}]}, "outcome_scales"),
+        ]
+        for bad, msg in cases:
+            with tempfile.TemporaryDirectory() as td:
+                f = os.path.join(td, "x.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(bad))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "nomogram", "-d", f,
+                     "-o", os.path.join(td, "x.png"), "--dpi", "70"],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (bad, r.stderr[-200:]))
+                self.assertIn(msg, r.stderr)
+
+    def test_nomogram_alt_and_suggest(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "n.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"variables": [{"name": "年龄", "ticks": [40, 60, 80]}],
+                 "outcome_scales": [{"label": "3 年生存", "ticks": [0.9, 0.5],
+                                     "points_at": [60, 180]}]}))
+            out = os.path.join(td, "n.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "nomogram", "-d", f, "-o", out,
+                 "--dpi", "80", "--alt"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            alt = io.open(os.path.splitext(out)[0] + ".alt.txt",
+                          encoding="utf-8").read()
+            self.assertIn("列线图（1 个预测变量", alt)
+            self.assertIn("3 年生存", alt)
+            r2 = subprocess.run(
+                [sys.executable, GEN, "--suggest", "-d", f],
+                capture_output=True, text=True, timeout=120)
+            self.assertIn("nomogram", r2.stdout)
+
+    def test_registry_count_33(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3  # 纯别名 horizontal_bar/boxplot/survival
+        self.assertGreaterEqual(n, 33, f"注册表图型数: {n}")
+
+    def test_version_consistency_lock(self):
+        """accuracy 机制锁：随包 evals/evals.json 的 skill_version 必须=SKILL 版本。"""
+        import re as _re
+        root = os.path.join(SCRIPT_DIR, "..")
+        sk = io.open(os.path.join(root, "SKILL.md"), encoding="utf-8").read()
+        m = _re.search(r"version: ([\d.]+)", sk)
+        sk_ver = m.group(1)
+        ev = json.load(io.open(os.path.join(root, "evals", "evals.json"),
+                               encoding="utf-8"))
+        self.assertEqual(ev.get("skill_version"), sk_ver,
+                         "evals.json skill_version 与 SKILL.md 版本漂移——"
+                         "发版必同步（accuracy 4.6 根因之一）")
 
 
 if __name__ == "__main__":

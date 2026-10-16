@@ -10,14 +10,29 @@
 
 ## 〇、速查表（最常撞的硬边界，30 秒版）
 
+**参数冲突集中速查（此前分散于 §一/§二/§六，此处一表收拢；细节仍见对应章节）：**
+
+| 冲突组合 | 行为 | 出口 |
+|---|---|---|
+| `--journal` × `--width` | `--journal` 锁宽，`--width` 被忽略 | `--height` 仍有效；stderr 报预设 |
+| `--stats auto/multi` × 非 box/violin | 忽略并 `[ignored]` 告知 | 改用 `--stats cox`（仅 forest） |
+| `--compare` × 非 roc ／ `--egger` × 非 funnel | 忽略并告知 | — |
+| `--hatch` × 非 bar 系 | 忽略并告知 | 品牌斜纹用 `--style glm-hatch`（全图型） |
+| composite 面板 × composite/diagram/upset | 渲染前校验拒绝 | 拆分多层组合 |
+| `--verify` × 非 PDF 输出 | 跳过并 WARNING | `--multi-format` 含 pdf 时核查该份 |
+| `--pub-ready` × 显式 `--theme` | 显式主题优先 | 不被 okabe-ito 覆盖 |
+| `--order "A,B"` × 未覆盖全部类别 | 报错列出完整清单 | 补全或改 `--order auto` |
+
 | 图型/能力 | 硬边界 | 越界行为 |
 |---|---|---|
-| cluster_heatmap | ≤3000 行 | 自动降采样到 2000 并告知 |
+| cluster_heatmap | **>1500 行告警 / 3000 行硬顶**（两级） | >1500 渲染时 WARNING 建议降采样；>3000 自动采样到 2000 并告知 |
 | pca | ≤200 特征列 | 报错指路降维 |
 | venn | 2~4 集合 | 报错；≥5 集合改 upset |
 | upset | 2~30 集合；交集展示 top_n 1~50 | 报错；截断交集计入 stderr |
 | km | 无硬上限 | — |
 | paired / bland_altman | 两组等长 | 报错示长度差 |
+| calibration / dca | calibration 值∈[0,1]；dca 阈值严格升序 (0,1) 开区间、1~6 模型 | 报错含具体箱号/序号 |
+| nomogram | variables 1~12、outcome_scales 1~3、每尺 ticks 2~12；变量 points_at∈[0,100] | 报错含尺名与首错刻度 |
 | 任意图 | 渲染看门狗 30~1800s 预算 | 内存不足自动降级重试 |
 
 细节与完整矩阵见下方 §一~§九。
@@ -27,12 +42,13 @@
 | 维度 | 上限 | 超出行为 |
 |---|---|---|
 | km / survival 每组样本 | 无硬上限（5 万行实测 3s 渲染） | — |
-| cluster_heatmap 行数 | **3000 行** | v3.1 起 >3000 行自动等距采样到 2000 行并显著告知（`--downsample N` 可自定行数） |
+| cluster_heatmap 行数 | **1500 警告线 / 3000 硬顶（两级）** | >1500 输出 WARNING 建议降采样；>3000 自动等距采样到 2000 行并显著告知（`--downsample N` 可自定行数） |
 | pca 特征列数 | **200 列** | 友好报错：请先降维/筛选 |
 | pca 最少样本 | 3 行 | 报错提示 |
 | venn 集合数 | **2~4 个**（4 集合为椭圆布局；区域计数需恰 15 键） | 报错提示 |
 | upset 集合数 | **2~30 个**（≥5 集合最见长；展示交集数 top_n 1~50，默认 12） | 超限报错；未展示交集计入 stderr 事实行 |
 | paired / bland_altman | 两组**等长**数据 | 报错提示实际长度差 |
+| calibration / dca | calibration 全值 **[0,1]**；dca 阈值 **(0,1) 开区间**严格升序、1~6 个模型 | 报错含首个越界箱号；dca 指明 t=0/1 无定义 |
 | heatmap 矩阵 | 无硬上限；>200×200 建议 PNG/SVG（TIFF 会很大） | — |
 | Shapiro 正态检验 | 每组 n>5000 自动跳过（视为正态） | stderr 提示 |
 | --stats multi 括号绘制 | 最多画 8 对显著对比 | stderr 提示（完整结果仍在） |

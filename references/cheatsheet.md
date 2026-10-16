@@ -33,6 +33,9 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | swimmer | `end[]` 每例时长必填(>0)；`start/names/group/milestones/ongoing/ref_lines` 可选；`sort=duration|input`（v4.10） |
 | ridgeline | schema 同 violin（labels+datasets）；`overlap` 0~0.95、`sort=median`；单值组退化告知（v5.0） |
 | dumbbell | `from[]`+`to[]` 等长必填；`labels/from_label/to_label` 可选；`sort=gap|input|to`、`show_values/show_gap`（v5.1） |
+| calibration | `bins[]` 或 `predicted/observed[]` 平行数组；`ci_lo/ci_hi/n/hl_p/smooth` 可选（v5.2） |
+| dca | `thresholds[]` 严格升序 (0,1)+`models[{name,net_benefit}]`；`prevalence` 或 `treat_all` 参照、`show_none` 可关（v5.2） |
+| nomogram | `variables[{name,ticks,points_at?}]` 1~12 + `outcome_scales[{label,ticks,points_at}]` 1~3；`total_points_max` 可选（v5.3） |
 | bland_altman | 两组等长 |
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |

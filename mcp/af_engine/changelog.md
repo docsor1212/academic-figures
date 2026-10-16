@@ -10,6 +10,64 @@
 
 ## Version History
 
+## 5.3.0 — 2026-10-17
+
+  - **New chart type #33: `nomogram` — clinical nomogram**: the prediction-model
+    lookup chart (points ruler → per-variable scales → Total Points → outcome
+    scales). JSON: `variables=[{name, ticks[2-12], labels?, points_at?}]`
+    (points_at defaults to linear 0-100) + `outcome_scales=[{label, ticks,
+    points_at}]` (1-3, in total-points units) + optional `total_points_max`.
+    Visualizes your **fitted** model — the engine does not fit; total-axis
+    ticks adaptively choose the nicest split (350→five-way 0/70/140/210/280/350),
+    and figure height scales with row count so dense nomograms never compress.
+  - **Version-consistency lock** (doc-accuracy mechanism): packaged
+    `evals/evals.json` `skill_version` now pinned to the SKILL version and
+    asserted by a regression test — ends the stale-metadata drift class.
+  - **Consolidated flag-conflict table** in `references/limits.md` §〇
+    (journal×width, stats scope, composite nesting, verify×format — all in one
+    place) and the cluster_heatmap two-tier wording (1500 warn / 3000 hard cap)
+    made explicit in both summary rows.
+  - **Per-chart pitfalls FAQ** in `references/faq.md` (Cox PH prerequisites,
+    upset top_n truncation accounting, venn --area fit deviation, dca endpoint
+    rule, calibration binning practice, nomogram provenance, swimmer arrows,
+    raincloud zero-variance) and remaining English-only diagnostics
+    (`VERIFY OK/FAIL`, `--verify` warnings) made bilingual.
+
+## 5.2.0 — 2026-10-16
+
+  - **New chart type #31: `calibration` — model calibration curve**: binned
+    predicted probability vs observed rate with the ideal diagonal as reference
+    (equal-aspect square axes, the publication convention). Two data schemas:
+    `bins=[{predicted, observed, n?, ci_lo?, ci_hi?}]` objects or parallel
+    `predicted`/`observed` arrays with optional `ci_lo`/`ci_hi`/`n`; optional
+    `hl_p` annotates the Hosmer-Lemeshow p; `smooth=true` adds a thin
+    interpolation line. Completes the clinical prediction-model evaluation set
+    alongside ROC.
+  - **New chart type #32: `dca` — decision curve analysis**: net benefit vs
+    threshold probability per model against the two reference strategies —
+    treat-all (theory line derived from `prevalence`, or an explicit
+    `treat_all` array) and treat-none (y=0, `show_none` toggle). Accepts 1-6
+    models; thresholds must be strictly ascending in the open (0,1) interval.
+  - **`--pub-ready` now bundles the reproduce package**: the submission pack
+    (--verify + colorblind-safe theme + multi-format export) also emits the
+    `--repro` bundle. Mechanism hardening: audit/repro emission moved out of
+    the single-format branch (they previously went silent with
+    `--multi-format`), and moved after the verify gate so a verify-FAIL exit
+    never leaves a reproduce bundle for a broken figure; multi-format exports
+    are all copied into the bundle.
+  - **Mechanism unification — reserved-band helper**: the bottom reserved-band
+    pattern (swimmer fact box, dumbbell legend) is now a shared
+    `reserve_bottom_band()` helper in the drawing layer, per the pitfalls
+    class rule for floating elements.
+  - **Bilingual helper outputs**: `--suggest` now appends the Chinese chart
+    name to every recommendation line; wizard/guide outputs remain fully
+    bilingual. All 32 templates now carry `_command`+`_note` meta fields
+    (6 previously silent templates gained captions), locked by a regression
+    test. `--alt` text available for both new chart types.
+  - 2 new scenario templates (`templates/calibration.json`, `dca.json`) and 2
+    real-world examples (`examples/realworld/realworld_sepsis_calibration.json`,
+    `realworld_sepsis_dca.json`, mutually consistent n=500 cohort).
+
 ## 5.1.0 — 2026-10-15
 
   - **New chart type #30: `dumbbell` — two points per row, gap-first**: one
@@ -695,6 +753,52 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v5.3.0（2026-10-17）
+
+- **新图型 #33：`nomogram` 列线图（临床预测模型第四件）**：Points 计分尺→
+  逐变量刻度→Total Points→结局概率尺。JSON：`variables=[{name, ticks[2~12],
+  labels?, points_at?}]`（points_at 缺省线性 0~100）+`outcome_scales=
+  [{label, ticks, points_at}]`（1~3 个，总积分口径）+`total_points_max` 可选。
+  **只可视化你已拟合的模型，引擎不拟合**（points 请来自 R rms::nomogram 等）；
+  总轴刻度自适应选最好台阶（350→五等分 0/70/140/210/280/350）；图高随行数
+  自适应（≥0.6 英寸/行），多变量列线图不再行距压缩。
+- **版本一致性锁**（文档准确性机制化）：随包 `evals/evals.json` 的
+  `skill_version` 钉住 SKILL 版本并由回归测试断言——终结陈旧元数据漂移类
+  （此前 2.2.0 随包漂流三个大版本）。
+- **参数冲突集中表**：`references/limits.md` §〇 新增一表收拢全部冲突组合
+  （journal×width/stats 域/composite 嵌套/verify×格式）；cluster_heatmap
+  两级口径（1500 警告线/3000 硬顶）在两处速查行写明。
+- **图型专属易错点 FAQ**：faq.md 新增一节（Cox PH 前提/upset top_n 截断
+  对账/venn --area 拟合偏差/dca 端点规则/calibration 分箱惯例/nomogram
+  来源口径/swimmer 箭头/raincloud 零方差）；残留英文诊断输出
+  （VERIFY OK/FAIL、--verify 警告）双语化。
+
+### v5.2.0（2026-10-16）
+
+- **新图型 #31：`calibration` 校准曲线（临床预测模型三件套补齐）**：分箱
+  预测概率 vs 实际观测率+理想对角线参照，等比正方形坐标（发表惯例）。两种
+  数据给法：`bins=[{predicted,observed,n?,ci_lo?,ci_hi?}]` 对象数组或
+  `predicted`/`observed` 平行数组（`ci_lo`/`ci_hi`/`n` 可选）；`hl_p` 标注
+  Hosmer-Lemeshow p；`smooth=true` 加细插值参考线。与 ROC 同一直接用户群
+  （预测模型论文），补齐 ROC+校准+DCA 评价三件套。
+- **新图型 #32：`dca` 决策曲线分析**：净收益 vs 阈值概率，各模型与两条参照
+  策略同图——全部干预（由 `prevalence` 推理论线，或 `treat_all` 显式数组）
+  与不干预（y=0 水平线，`show_none` 可关）；1~6 个模型；阈值须严格升序且在
+  (0,1) 开区间（t=0/1 净收益无定义）。
+- **`--pub-ready` 合流复跑包**：投稿包（--verify+色盲安全主题+多格式导出）
+  现在同时产出 `--repro` 复跑交付包。机制硬化：audit/repro 写出移出单格式
+  分支（此前遇 `--multi-format` 静默失效），并移到 verify 门禁之后——
+  verify FAIL 退出不再给坏图留复跑包；多格式导出文件全部进包。
+- **机制统一——预留带 helper**：swimmer 事实框/dumbbell 图例的底部预留带
+  模式收敛为绘图层共享 `reserve_bottom_band()`（pitfalls「浮动元素预留带」
+  类级铁律的共享实现）。
+- **辅助输出双语化**：`--suggest` 每条推荐追加图型中文名；向导/决策树输出
+  保持全中文；32 个模板 `_command`+`_note` 元字段全覆盖（此前 6 个模板
+  缺图注说明），并由回归测试锁定。两个新图型均带 `--alt` 无障碍摘要。
+- 模板 ×2（`templates/calibration.json`、`dca.json`）；真实场景示例 ×2
+  （`examples/realworld/realworld_sepsis_calibration.json`、
+  `realworld_sepsis_dca.json`，同一 n=500 队列叙事、n 逐箱自洽可对账）。
 
 ### v5.1.0（2026-10-15）
 
