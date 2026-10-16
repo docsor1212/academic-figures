@@ -10,6 +10,29 @@
 
 ## Version History
 
+## 5.3.0 — 2026-10-17
+
+  - **New chart type #33: `nomogram` — clinical nomogram**: the prediction-model
+    lookup chart (points ruler → per-variable scales → Total Points → outcome
+    scales). JSON: `variables=[{name, ticks[2-12], labels?, points_at?}]`
+    (points_at defaults to linear 0-100) + `outcome_scales=[{label, ticks,
+    points_at}]` (1-3, in total-points units) + optional `total_points_max`.
+    Visualizes your **fitted** model — the engine does not fit; total-axis
+    ticks adaptively choose the nicest split (350→five-way 0/70/140/210/280/350),
+    and figure height scales with row count so dense nomograms never compress.
+  - **Version-consistency lock** (doc-accuracy mechanism): packaged
+    `evals/evals.json` `skill_version` now pinned to the SKILL version and
+    asserted by a regression test — ends the stale-metadata drift class.
+  - **Consolidated flag-conflict table** in `references/limits.md` §〇
+    (journal×width, stats scope, composite nesting, verify×format — all in one
+    place) and the cluster_heatmap two-tier wording (1500 warn / 3000 hard cap)
+    made explicit in both summary rows.
+  - **Per-chart pitfalls FAQ** in `references/faq.md` (Cox PH prerequisites,
+    upset top_n truncation accounting, venn --area fit deviation, dca endpoint
+    rule, calibration binning practice, nomogram provenance, swimmer arrows,
+    raincloud zero-variance) and remaining English-only diagnostics
+    (`VERIFY OK/FAIL`, `--verify` warnings) made bilingual.
+
 ## 5.2.0 — 2026-10-16
 
   - **New chart type #31: `calibration` — model calibration curve**: binned
@@ -730,6 +753,26 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v5.3.0（2026-10-17）
+
+- **新图型 #33：`nomogram` 列线图（临床预测模型第四件）**：Points 计分尺→
+  逐变量刻度→Total Points→结局概率尺。JSON：`variables=[{name, ticks[2~12],
+  labels?, points_at?}]`（points_at 缺省线性 0~100）+`outcome_scales=
+  [{label, ticks, points_at}]`（1~3 个，总积分口径）+`total_points_max` 可选。
+  **只可视化你已拟合的模型，引擎不拟合**（points 请来自 R rms::nomogram 等）；
+  总轴刻度自适应选最好台阶（350→五等分 0/70/140/210/280/350）；图高随行数
+  自适应（≥0.6 英寸/行），多变量列线图不再行距压缩。
+- **版本一致性锁**（文档准确性机制化）：随包 `evals/evals.json` 的
+  `skill_version` 钉住 SKILL 版本并由回归测试断言——终结陈旧元数据漂移类
+  （此前 2.2.0 随包漂流三个大版本）。
+- **参数冲突集中表**：`references/limits.md` §〇 新增一表收拢全部冲突组合
+  （journal×width/stats 域/composite 嵌套/verify×格式）；cluster_heatmap
+  两级口径（1500 警告线/3000 硬顶）在两处速查行写明。
+- **图型专属易错点 FAQ**：faq.md 新增一节（Cox PH 前提/upset top_n 截断
+  对账/venn --area 拟合偏差/dca 端点规则/calibration 分箱惯例/nomogram
+  来源口径/swimmer 箭头/raincloud 零方差）；残留英文诊断输出
+  （VERIFY OK/FAIL、--verify 警告）双语化。
 
 ### v5.2.0（2026-10-16）
 

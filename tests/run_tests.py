@@ -1128,7 +1128,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 32, f"expected 32 templates (v2.6 base + slope/volcano/upset/waterfall/raincloud/swimmer/ridgeline/dumbbell/calibration/dca), got {len(jsons)}")
+        self.assertEqual(len(jsons), 33, f"expected 33 templates (v2.6 base + ... + calibration/dca/nomogram), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.2.0", self.zh)
-        self.assertIn("version: 5.2.0", self.en)
+        self.assertIn("version: 5.3.0", self.zh)
+        self.assertIn("version: 5.3.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.2.0", self.zh)
-        self.assertIn("version: 5.2.0", self.en)
+        self.assertIn("version: 5.3.0", self.zh)
+        self.assertIn("version: 5.3.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.2.0", self.zh)
-        self.assertIn("version: 5.2.0", self.en)
+        self.assertIn("version: 5.3.0", self.zh)
+        self.assertIn("version: 5.3.0", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.2.0", zh)
+        self.assertIn("version: 5.3.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2880,7 +2880,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "32 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "33 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.2.0", t, name)
+            self.assertIn("version: 5.3.0", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.2.0", t, name)
+            self.assertIn("version: 5.3.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.2.0", t, name)
+            self.assertIn("version: 5.3.0", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.2.0", t, name)
+            self.assertIn("version: 5.3.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4013,8 +4013,8 @@ class TestV47000(unittest.TestCase):
         rw = os.path.join(base, "examples", "realworld")
         self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
         rws = sorted(os.listdir(rw))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 7,
-                         f"realworld 示例应 7 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 8,
+                         f"realworld 示例应 8 个: {rws}")
 
 
 class TestV48000(unittest.TestCase):
@@ -4880,7 +4880,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 32)
+        self.assertEqual(len(jsons), 33)
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -4940,6 +4940,94 @@ class TestV50200(unittest.TestCase):
         self.assertIn("def reserve_bottom_band(", src)
         self.assertGreaterEqual(src.count("reserve_bottom_band(ax, n,"), 2,
                                 "swimmer/dumbbell 应调用共享预留带 helper")
+
+
+class TestV50300(unittest.TestCase):
+    """v5.3.0：nomogram 列线图（第 33）+ 版本一致性锁（accuracy 机制）。"""
+
+    @classmethod
+    def _rw(cls, name):
+        return os.path.join(SCRIPT_DIR, "..", "examples", "realworld", name)
+
+    def test_nomogram_e2e_realworld(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "n.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "nomogram",
+                 "-d", self._rw("realworld_hcc_nomogram.json"),
+                 "-o", out, "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("nomogram: 5 个变量 + 3 个结局尺（Total Points 0~350）",
+                          r.stderr)
+
+    def test_nomogram_validate_fatals(self):
+        cases = [
+            ({"variables": [], "outcome_scales": [{"label": "Y", "ticks": [0.1, 0.2], "points_at": [0, 100]}]},
+             "variables"),
+            ({"variables": [{"name": "A", "ticks": [1]}],
+              "outcome_scales": [{"label": "Y", "ticks": [0.1, 0.2], "points_at": [0, 100]}]},
+             "2~12"),
+            ({"variables": [{"name": "A", "ticks": [1, 2], "points_at": [0, 150]}],
+              "outcome_scales": [{"label": "Y", "ticks": [0.1, 0.2], "points_at": [0, 100]}]},
+             "[0,100]"),
+            ({"variables": [{"name": "A", "ticks": [1, 2]}],
+              "outcome_scales": [{"label": "Y", "ticks": [0.1, 0.2], "points_at": [-5, 100]}]},
+             "非负"),
+            ({"variables": [{"name": "A", "ticks": [1, 2]}]}, "outcome_scales"),
+        ]
+        for bad, msg in cases:
+            with tempfile.TemporaryDirectory() as td:
+                f = os.path.join(td, "x.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(bad))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "nomogram", "-d", f,
+                     "-o", os.path.join(td, "x.png"), "--dpi", "70"],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (bad, r.stderr[-200:]))
+                self.assertIn(msg, r.stderr)
+
+    def test_nomogram_alt_and_suggest(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "n.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"variables": [{"name": "年龄", "ticks": [40, 60, 80]}],
+                 "outcome_scales": [{"label": "3 年生存", "ticks": [0.9, 0.5],
+                                     "points_at": [60, 180]}]}))
+            out = os.path.join(td, "n.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "nomogram", "-d", f, "-o", out,
+                 "--dpi", "80", "--alt"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            alt = io.open(os.path.splitext(out)[0] + ".alt.txt",
+                          encoding="utf-8").read()
+            self.assertIn("列线图（1 个预测变量", alt)
+            self.assertIn("3 年生存", alt)
+            r2 = subprocess.run(
+                [sys.executable, GEN, "--suggest", "-d", f],
+                capture_output=True, text=True, timeout=120)
+            self.assertIn("nomogram", r2.stdout)
+
+    def test_registry_count_33(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3  # 纯别名 horizontal_bar/boxplot/survival
+        self.assertGreaterEqual(n, 33, f"注册表图型数: {n}")
+
+    def test_version_consistency_lock(self):
+        """accuracy 机制锁：随包 evals/evals.json 的 skill_version 必须=SKILL 版本。"""
+        import re as _re
+        root = os.path.join(SCRIPT_DIR, "..")
+        sk = io.open(os.path.join(root, "SKILL.md"), encoding="utf-8").read()
+        m = _re.search(r"version: ([\d.]+)", sk)
+        sk_ver = m.group(1)
+        ev = json.load(io.open(os.path.join(root, "evals", "evals.json"),
+                               encoding="utf-8"))
+        self.assertEqual(ev.get("skill_version"), sk_ver,
+                         "evals.json skill_version 与 SKILL.md 版本漂移——"
+                         "发版必同步（accuracy 4.6 根因之一）")
 
 
 if __name__ == "__main__":

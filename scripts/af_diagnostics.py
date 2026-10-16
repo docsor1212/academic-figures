@@ -115,7 +115,8 @@ _KNOWN_DATA_FIELDS = [
   "start", "end", "milestones", "ongoing", "ref_lines",
   "from", "to", "from_label", "to_label", "show_values", "show_gap",
   "predicted", "observed", "bins", "ci_lo", "ci_hi", "hl_p", "smooth",
-  "thresholds", "models", "net_benefit", "prevalence", "treat_all", "show_none"
+  "thresholds", "models", "net_benefit", "prevalence", "treat_all", "show_none",
+  "variables", "outcome_scales", "total_points_max", "ticks", "points_at"
 ]
 
 

@@ -1,6 +1,6 @@
 # 模板库（v2.6 全图型覆盖）
 
-32 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注说明，**覆盖全部 32 种图型**（v5.0 增 ridgeline，v5.1 增 dumbbell，v5.2 增 calibration/dca）。用法：
+33 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注说明，**覆盖全部 33 种图型**（v5.2 增 calibration/dca，v5.3 增 nomogram）。用法：
 
 ```bash
 cp templates/01-meta-forest.json my_data.json
@@ -40,7 +40,7 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | waterfall.json | waterfall 肿瘤缓解瀑布图（v4.8） | raincloud.json | raincloud 雨云图（v4.9） |
 | swimmer.json | swimmer 游泳图（v4.10） | ridgeline.json | ridgeline 山脊图（v5.0） |
 | dumbbell.json | dumbbell 哑铃图（v5.1） | calibration.json | calibration 校准曲线（v5.2） |
-| dca.json | dca 决策曲线（v5.2） | | |
+| dca.json | dca 决策曲线（v5.2） | nomogram.json | nomogram 列线图（v5.3） |
 | volcano.json | volcano 火山图 | — | — |
 
 > v2.6 起模板与图型一一对应（v4.9 增 raincloud）；不确定用哪个图型可对数据跑

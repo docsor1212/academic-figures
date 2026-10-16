@@ -3259,6 +3259,8 @@ def alt_text_core(chart_type, data, title=""):
         return calibration_alt(data, t)  # v5.2：临床预测模型线
     if chart_type == "dca":
         return dca_alt(data, t)  # v5.2：临床预测模型线
+    if chart_type == "nomogram":
+        return nomogram_alt(data, t)  # v5.3：预测模型线（列线图）
     if chart_type == "upset":
         s = data.get("sets") or {}
         top_n = data.get("top_n", 12)
@@ -3876,6 +3878,208 @@ def validate_dca(data):
     return fatal
 
 
+# ═══ v5.3：nomogram 列线图（临床预测模型线，第 33 图型）═══
+
+def _nom_fmt(v):
+    """nomogram 刻度值格式化：整数值去小数尾，其余 %g。"""
+    if isinstance(v, (int, float)) and not isinstance(v, bool) \
+            and float(v).is_integer():
+        return str(int(v))
+    return f"{v:g}"
+
+
+def _nom_ticks(var, pts_hi=100.0, name_key="name"):
+    """nomogram 尺归一：返回 (tick_labels, points_at)。ticks 数值→格式化；
+    points_at 缺省=线性 0..100。变量尺 pts_hi=100；结局尺传总积分上限
+    （None=只查非负）。name_key 取 name/label 进报错。给法非法抛 ValueError。"""
+    disp = str(var.get(name_key) or "?")
+    ticks = var.get("ticks")
+    if not (isinstance(ticks, list) and 2 <= len(ticks) <= 12):
+        raise ValueError(f"nomogram: 尺「{disp}」需要 ticks（2~12 个刻度）")
+    labels = var.get("labels")
+    if labels is not None and (not isinstance(labels, list) or len(labels) != len(ticks)):
+        raise ValueError(f"nomogram: 「{disp}」labels 长度必须与 ticks 一致")
+    fmt = _nom_fmt
+    out = [str(labels[i]) if labels else (str(t) if isinstance(t, str) else fmt(t))
+           for i, t in enumerate(ticks)]
+    pa = var.get("points_at")
+    if pa is None:
+        n = len(ticks)
+        pa = [k * 100.0 / (n - 1) for k in range(n)]
+    else:
+        if not (isinstance(pa, list) and len(pa) == len(ticks)):
+            raise ValueError(f"nomogram: 「{disp}」points_at 长度必须与 ticks 一致")
+        try:
+            pa = [float(v) for v in pa]
+        except (TypeError, ValueError):
+            raise ValueError(f"nomogram: 「{disp}」points_at 必须全为数值")
+        if any(v < 0.0 for v in pa) or (pts_hi is not None
+                                        and any(v > pts_hi for v in pa)):
+            hi = f"[0,{pts_hi:g}]" if pts_hi is not None else "非负"
+            raise ValueError(f"nomogram: 「{disp}」points_at 须 {hi}")
+    return out, pa
+
+
+def gen_nomogram(data, ax, theme, cjk_fp, **kwargs):
+    """nomogram 列线图（v5.3，第 33 种图型）：临床预测模型第四件——把多变量
+    回归模型的贡献转成"查表尺"：各变量刻度→Points(0~100)→Total Points→
+    结局概率。引擎只做可视化不拟合：points/points_at 请来自你已拟合的模型
+    （R rms::nomogram / Python 统计包输出），方法学口径写入统计方法段。
+    JSON: variables=[{name, ticks[2~12], labels?, points_at?}]
+          outcome_scales=[{label, ticks, points_at}]（1~3 个，points 为总分口径）
+          total_points_max 可选（默认=结局尺最大 points 或 100×变量数）。
+    返回 "diagram" 哨兵（自管版面：无轴框/无网格）。"""
+    variables = data.get("variables")
+    if not (isinstance(variables, list) and 1 <= len(variables) <= 12):
+        raise ValueError("nomogram: 需要 variables（1~12 个 {name, ticks, ...} 对象）")
+    vlabels, vpoints, vnames = [], [], []
+    for v in variables:
+        if not isinstance(v, dict) or not v.get("name") or "ticks" not in v:
+            raise ValueError("nomogram: variables 每项须为含 name/ticks 的对象")
+        lab, pts = _nom_ticks(v, pts_hi=100.0, name_key="name")
+        vnames.append(str(v["name"]))
+        vlabels.append(lab)
+        vpoints.append(pts)
+    outcomes = data.get("outcome_scales") or []
+    if not (isinstance(outcomes, list) and 1 <= len(outcomes) <= 3):
+        raise ValueError("nomogram: 需要 outcome_scales（1~3 个 {label, ticks, points_at}）")
+    olab, olabels, opoints = [], [], []
+    for o in outcomes:
+        if not isinstance(o, dict) or not o.get("label") or "ticks" not in o:
+            raise ValueError("nomogram: outcome_scales 每项须为含 label/ticks 的对象")
+        lab, pts = _nom_ticks(o, pts_hi=None, name_key="label")
+        olab.append(str(o["label"]))
+        olabels.append(lab)
+        opoints.append(pts)
+    tmax = data.get("total_points_max")
+    if tmax is not None:
+        tmax = float(tmax)
+        if not (tmax > 0):
+            raise ValueError("nomogram: total_points_max 须为正数")
+    else:
+        pool = [p for row in opoints for p in row] or [100.0 * len(variables)]
+        tmax = max(pool + [100.0])
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    cjk = cjk_fp
+    fp = cjk  # 行名/刻度可能含中文，统一挂字体（无中文时 has_cjk 判空）
+    x0, x1 = 0.055, 0.955
+    W = x1 - x0
+
+    def px(p, span):
+        return x0 + (p / span) * W if span else x0
+
+    rows = [("Points", ["0", "25", "50", "75", "100"],
+             [0, 25, 50, 75, 100], 100.0, True)]
+    for nm, labs, pts in zip(vnames, vlabels, vpoints):
+        rows.append((nm, labs, pts, 100.0, False))
+    # 自适应好台阶：在 4/5/8/10 等分中选步长最"整"（尾数最短）的方案
+    tp_ticks = min(((k, len(str(round(tmax / k, 4)).split(".")[-1].rstrip("0")))
+                    for k in (4, 5, 8, 10)), key=lambda x: x[1])[0]
+    rows.append(("Total Points 总积分" if cjk else "Total Points",
+                 [_nom_fmt(tmax * k / tp_ticks) for k in range(tp_ticks + 1)],
+                 [tmax * k / tp_ticks for k in range(tp_ticks + 1)], tmax, True))
+    for lb, labs, pts in zip(olab, olabels, opoints):
+        rows.append((lb, labs, pts, tmax, False))
+
+    n = len(rows)
+    c_line, c_txt = "#333333", "#111111"
+    for i, (nm, labs, pts, span, is_ruler) in enumerate(rows):
+        y = -i * 1.0
+        xs = [px(p, span) for p in pts]
+        lw = 1.6 if is_ruler else 1.2
+        ax.plot([min(xs), max(xs)], [y, y], color=c_line, lw=lw,
+                solid_capstyle="butt", zorder=2)
+        for k, x in enumerate(xs):
+            ax.plot([x, x], [y, y - 0.14], color=c_line, lw=1.0, zorder=2)
+            ax.text(x, y - 0.24, labs[k], ha="center", va="top", fontsize=fs_s,
+                    color=c_txt, zorder=3,
+                    fontproperties=fp if fp and has_cjk(labs[k]) else None)
+        nm_disp = ("Points" if nm == "Points" and not cjk
+                   else "Points 点数" if nm == "Points" else nm)
+        ax.text(x0, y + 0.16, nm_disp, ha="left", va="bottom", fontsize=fs_s,
+                color=c_txt, zorder=3,
+                fontproperties=fp if fp and has_cjk(nm_disp) else None)
+    ax.set_xlim(0, 1)
+    ax.set_ylim(-(n - 1) * 1.0 - 0.75, 0.62)
+    ax.axis("off")
+    # 自管版面：行多则增高图幅（≥0.6in/行），根治多变量行距压缩
+    _w = ax.figure.get_size_inches()[0]
+    _h = min(13.0, max(ax.figure.get_size_inches()[1], 1.9 + 0.62 * n))
+    ax.figure.set_size_inches(_w, _h)
+    _pv = ["%s（%s）" % (vnames[i], "，".join(vlabels[i][:4])
+                        + ("…" if len(vlabels[i]) > 4 else ""))
+           for i in range(len(vnames))]
+    print(f"nomogram: {len(vnames)} 个变量 + {len(olab)} 个结局尺"
+          f"（Total Points 0~{tmax:g}）；变量：" + "；".join(_pv), file=sys.stderr)
+    return "diagram"
+
+
+def nomogram_alt(data, t=""):
+    """v5.3：nomogram 的 --alt 文本。"""
+    variables = data.get("variables") or []
+    outcomes = data.get("outcome_scales") or []
+    segs = []
+    for v in variables:
+        if isinstance(v, dict) and v.get("name"):
+            ticks = v.get("ticks") or []
+            segs.append(f"{v['name']}（{'，'.join(map(str, ticks[:5]))}"
+                        f"{'…' if len(ticks) > 5 else ''}）")
+    outs = []
+    for o in outcomes:
+        if isinstance(o, dict):
+            pa = o.get("points_at") or []
+            if pa:
+                outs.append(f"{o.get('label', '结局')}（总分 {pa[0]}~{pa[-1]}）")
+    return (f"列线图（{len(variables)} 个预测变量"
+            + (f"，结局尺：{'、'.join(outs)}" if outs else "")
+            + f"）：变量自上而下为 {'；'.join(segs)}；"
+              "顶部 Points 尺逐变量计分，合计后查 Total Points 对应结局概率。"
+              f"{t}")
+
+
+def validate_nomogram(data):
+    """v5.3：nomogram 数据校验（返回 fatal 列表）；与 gen_nomogram 同口径。"""
+    fatal = []
+    variables = data.get("variables")
+    if not (isinstance(variables, list) and 1 <= len(variables) <= 12):
+        return ["nomogram: 需要 variables（1~12 个 {name, ticks, ...} 对象）"]
+    seen = set()
+    for v in variables:
+        if not isinstance(v, dict) or not v.get("name") or "ticks" not in v:
+            fatal.append("nomogram: variables 每项须为含 name/ticks 的对象")
+            continue
+        try:
+            _nom_ticks(v)
+        except ValueError as e:
+            fatal.append(str(e))
+        nm = str(v["name"])
+        if nm in seen:
+            fatal.append(f"nomogram: 变量名重复「{nm}」")
+        seen.add(nm)
+    outcomes = data.get("outcome_scales") or []
+    if not (isinstance(outcomes, list) and 1 <= len(outcomes) <= 3):
+        fatal.append("nomogram: 需要 outcome_scales（1~3 个 {label, ticks, points_at}）")
+        return fatal
+    for o in outcomes:
+        if not isinstance(o, dict) or not o.get("label") or "ticks" not in o:
+            fatal.append("nomogram: outcome_scales 每项须为含 label/ticks 的对象")
+            continue
+        try:
+            _nom_ticks(o, pts_hi=None, name_key="label")
+        except ValueError as e:
+            fatal.append(str(e))
+    tmax = data.get("total_points_max")
+    if tmax is not None:
+        try:
+            if not (float(tmax) > 0):
+                fatal.append("nomogram: total_points_max 须为正数")
+        except (TypeError, ValueError):
+            fatal.append("nomogram: total_points_max 须为数值")
+    return fatal
+
+
 def write_repro_bundle(argv, data, out_path, extra_outputs=None):
     """v5.1 --repro：复跑交付包 <output>.repro/——数据副本+精确命令+README+
     audit.json+成图副本，任何人拿到包即可逐字节复现该图（确定性引擎：
@@ -4003,4 +4207,5 @@ GENERATORS = {
     "raincloud": gen_raincloud,
     "calibration": gen_calibration,
     "dca": gen_dca,
+    "nomogram": gen_nomogram,
 }
