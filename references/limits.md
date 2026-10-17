@@ -33,6 +33,7 @@
 | paired / bland_altman | 两组等长 | 报错示长度差 |
 | calibration / dca | calibration 值∈[0,1]；dca 阈值严格升序 (0,1) 开区间、1~6 模型 | 报错含具体箱号/序号 |
 | nomogram | variables 1~12、outcome_scales 1~3、每尺 ticks 2~12；变量 points_at∈[0,100] | 报错含尺名与首错刻度 |
+| rcs | points ≥5 且 value 单调；log_y=true 时 est/ci>0；ref 须在 value 范围内 | 报错含首个坏网格点序号 |
 | 任意图 | 渲染看门狗 30~1800s 预算 | 内存不足自动降级重试 |
 
 细节与完整矩阵见下方 §一~§九。
@@ -105,6 +106,20 @@
 `references/composite-layouts.md`。PRISMA 数字自洽校验规则见 `--explain prisma`。
 
 ## 六、输出与默认行为交互（v2.9 收拢：易忽略的参数交互）
+
+### 期刊预设明细（自 SKILL.md 下沉 v5.4；9 预设栏宽/字号/字体/最小字号/DPI——数值来自各刊作者指南，唯一权威源 `scripts/journal/*.json`）
+
+| Journal | Single | Double | Font | Min Text | Family | DPI |
+|---------|--------|--------|------|----------|--------|-----|
+| `nature` | 89mm | 183mm | 7pt | **5pt** | Helvetica | 600 |
+| `lancet` | 85mm | 183mm | 8pt | **6pt** | Arial | 600 |
+| `science` | 55mm | 120mm | 7pt | 5pt | Helvetica | 600 |
+| `cell` | 85mm | 176mm | 8pt | 6pt | Arial | 300 |
+| `nejm` | 89mm | 190mm | 8pt | 6pt | Helvetica | 300 |
+| `jama` | 89mm | 183mm | 8pt | 6pt | Arial | 600 |
+| `ieee` | 89mm | 181mm | 8pt | 6pt | Times New Roman | 600 |
+| `cma` | 80mm | 170mm | 8pt | 6pt | Arial (+CJK) | 600 |
+| `cn-core` | 80mm | 170mm | 9pt | 6pt | Arial (+CJK) | 300 |
 
 | 交互/默认 | 事实 | 建议 |
 |---|---|---|

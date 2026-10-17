@@ -61,7 +61,8 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      validate_dumbbell, write_repro_bundle,
                      gen_calibration, calibration_alt, validate_calibration,
                      gen_dca, dca_alt, validate_dca, format_suggest_line,
-                     gen_nomogram, nomogram_alt, validate_nomogram)
+                     gen_nomogram, nomogram_alt, validate_nomogram,
+                     gen_rcs, rcs_alt, validate_rcs)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
@@ -302,6 +303,9 @@ CHART_NOTES = {
                 "JSON variables=[{name,ticks[2~12],labels?,points_at?}]（points_at 缺省线性 0~100）+outcome_scales="
                 "[{label,ticks,points_at}]（1~3，总积分口径）；total_points_max 可选；引擎只可视化不拟合，"
                 "points 请来自已拟合模型（R rms::nomogram 等）。",
+    "rcs": "rcs: 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 种图型）；JSON points=[{value,est,ci_lo,ci_hi}]"
+           "（≥5 网格点，来自已拟合样条模型，引擎不拟合）；ref 参照值、log_y 默认对数轴（HR/OR）、"
+           "hline_at 覆盖参照水平、hist=false 关底部 rug；曲线偏离参照水平=存在非线性关联。",
     "ridgeline": "ridgeline: 山脊图/joyplot（v5.0，第 29 种图型；多组 KDE 密度纵向堆叠部分重叠，"
                  "一屏看分布逐组移动/变形）；schema 同 violin（labels+datasets）；overlap(0~0.95) "
                  "调重叠、sort=median 按中位数排；单值组退化为标记线并告知。",
@@ -373,27 +377,19 @@ DEMO_DATA = {
                "ci_high": [0.94, 1.03, 1.00, 0.84], "overall": {"estimate": 0.73, "ci_low": 0.6, "ci_high": 0.88}},
     "km": {"groups": {"治疗组": [[0, 1], [6, 0.8], [12, 0.7], [18, 0.6], [24, 0.55]],
                       "对照组": [[0, 1], [6, 0.9], [12, 0.75], [18, 0.6], [24, 0.45]]}, "log_rank": {"p": 0.03}},
-    "roc": {"curves": [{"fpr": [0.0, 0.1, 0.2, 0.4, 0.6, 1.0], "tpr": [0.0, 0.6, 0.8, 0.9, 0.95, 1.0],
-                        "label": "模型A", "auc": 0.92},
-                       {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], "tpr": [0.0, 0.4, 0.6, 0.75, 0.85, 1.0],
-                        "label": "模型B", "auc": 0.85}]},
+    "roc": {"curves": [{"fpr": [0.0, 0.1, 0.2, 0.4, 0.6, 1.0], "tpr": [0.0, 0.6, 0.8, 0.9, 0.95, 1.0], "label": "模型A", "auc": 0.92},
+                       {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], "tpr": [0.0, 0.4, 0.6, 0.75, 0.85, 1.0], "label": "模型B", "auc": 0.85}]},
     "violin": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0], "组C": [3.0, 3.2, 3.8, 4.5, 4.8, 5.2]}},
     "box": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0]}},
-    "slope": {"left_label": "基线", "right_label": "12 周",
-              "items": {"药物A": [72, 85], "药物B": [65, 61], "对照": [70, 71]}},
-    "volcano": {"log2fc": [-2.3, -1.4, -1.1, -0.4, 0.2, 0.6, 1.2, 1.6, 2.4],
-                "pvalue": [3e-4, 0.012, 0.04, 0.5, 0.8, 0.3, 0.02, 3e-5, 8e-7],
-                "names": ["SLC6A4", "MAOA", "FKBP5", "NR3C1", "CRH", "AVP", "BDNF", "COMT", "HTR1A"]},
+    "slope": {"left_label": "基线", "right_label": "12 周", "items": {"药物A": [72, 85], "药物B": [65, 61], "对照": [70, 71]}},
+    "volcano": {"log2fc": [-2.3, -1.4, -1.1, -0.4, 0.2, 0.6, 1.2, 1.6, 2.4], "pvalue": [3e-4, 0.012, 0.04, 0.5, 0.8, 0.3, 0.02, 3e-5, 8e-7], "names": ["SLC6A4", "MAOA", "FKBP5", "NR3C1", "CRH", "AVP", "BDNF", "COMT", "HTR1A"]},
     "raincloud": {"labels": ["活动期", "低活动", "对照"], "datasets": {"活动期": [12.1, 14.2, 15.8, 13.4, 16.1, 12.9, 14.8, 13.9], "低活动": [6.2, 7.1, 5.8, 6.9, 7.5, 6.4, 5.5, 7.0], "对照": [3.1, 2.8, 3.5, 3.0, 2.6, 3.3, 3.2, 2.9]}},
     "upset": {"title": "五组学平台差异基因交集", "sets": {
         "转录组": ["TP53", "KRAS", "EGFR", "BRCA1", "MYC", "PTEN", "NRAS", "PIK3CA", "ALK"], "蛋白组": ["TP53", "EGFR", "MYC", "AKT1", "KRAS", "ERBB2", "PTEN"],
         "甲基化": ["TP53", "BRCA1", "CDKN2A", "MGMT", "PTEN", "RB1"], "eQTL": ["KRAS", "PIK3CA", "PTEN", "AKT1", "MAP2K1", "EGFR"], "GWAS": ["TP53", "BRCA1", "ERBB2", "ATM", "CHEK2", "PALB2"]}},
-    "dumbbell": {"labels": ["中心A", "中心B", "中心C", "中心D", "中心E", "中心F"],
-                 "from": [32, 41, 28, 45, 38, 24], "to": [58, 63, 49, 66, 60, 47],
-                 "from_label": "基线", "to_label": "12周", "show_gap": True},
+    "dumbbell": {"labels": ["中心A", "中心B", "中心C", "中心D", "中心E", "中心F"], "from": [32, 41, 28, 45, 38, 24], "to": [58, 63, 49, 66, 60, 47], "from_label": "基线", "to_label": "12周", "show_gap": True},
     "calibration": {"predicted": [0.06, 0.14, 0.24, 0.35, 0.47, 0.58, 0.71, 0.85], "observed": [0.08, 0.11, 0.28, 0.33, 0.51, 0.55, 0.76, 0.81],
-                    "ci_lo": [0.02, 0.05, 0.19, 0.24, 0.40, 0.43, 0.63, 0.67], "ci_hi": [0.19, 0.21, 0.40, 0.45, 0.62, 0.67, 0.86, 0.90],
-                    "n": [58, 64, 71, 77, 69, 61, 52, 38], "hl_p": 0.42},
+                    "ci_lo": [0.02, 0.05, 0.19, 0.24, 0.40, 0.43, 0.63, 0.67], "ci_hi": [0.19, 0.21, 0.40, 0.45, 0.62, 0.67, 0.86, 0.90], "n": [58, 64, 71, 77, 69, 61, 52, 38], "hl_p": 0.42},
     "dca": {"thresholds": [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85],
             "models": [{"name": "模型A+年龄", "net_benefit": [0.152, 0.133, 0.124, 0.112, 0.095, 0.073, 0.048, 0.022, -0.001]},
                        {"name": "模型B", "net_benefit": [0.148, 0.126, 0.110, 0.093, 0.072, 0.050, 0.027, 0.006, -0.011]}],
@@ -405,6 +401,8 @@ DEMO_DATA = {
         {"label": "3 年无病生存", "ticks": [0.9, 0.7, 0.5, 0.3], "points_at": [55, 120, 190, 260]},
         {"label": "5 年无病生存", "ticks": [0.9, 0.7, 0.5, 0.3], "points_at": [45, 100, 160, 230]}],
         "total_points_max": 320},
+    "rcs": {"points": [{"value": 40, "est": 1.02, "ci_lo": 0.72, "ci_hi": 1.45}, {"value": 45, "est": 0.94, "ci_lo": 0.74, "ci_hi": 1.19}, {"value": 50, "est": 0.88, "ci_lo": 0.76, "ci_hi": 1.02}, {"value": 55, "est": 1.05, "ci_lo": 0.93, "ci_hi": 1.19}, {"value": 60, "est": 1.38, "ci_lo": 1.15, "ci_hi": 1.66}, {"value": 65, "est": 1.79, "ci_lo": 1.36, "ci_hi": 2.36}],
+            "ref": 50, "x_label": "年龄（岁）", "y_label": "HR（对数轴）"},
     "ridgeline": {"labels": ["基线", "4周", "8周", "12周"], "overlap": 0.55,
                   "datasets": {"基线": [42, 48, 52, 55, 58, 60, 63, 65, 68, 72, 78, 85, 42, 50, 56, 61, 66, 70, 74, 80], "4周": [28, 33, 38, 41, 45, 48, 52, 55, 58, 62, 68, 30, 36, 43, 49, 54, 60, 65], "8周": [18, 22, 26, 30, 33, 37, 41, 45, 49, 54, 20, 25, 31, 39, 47, 52], "12周": [12, 15, 19, 23, 27, 31, 36, 41, 46, 14, 18, 24, 33, 43]}},
     "waterfall": {"change": [-72.4, -65.1, -58.9, -52.0, -41.8, -32.1, -24.5, -15.2, -8.9, -3.4, 0.8, 12.6, 25.3, 41.7, 52.0],
@@ -415,13 +413,8 @@ DEMO_DATA = {
                 "group": ["CR", "CR", "PR", "PR", "PR", "PR", "SD", "SD", "SD", "PD", "PD", "PD"],
                 "milestones": [[8.2], [9.5], [6.1], [7.0], [10.2], [], [5.5], [], [], [], [], []],
                 "ongoing": [True, True, True, False, True, False, False, False, False, False, False, False], "ref_lines": [12, 24]},
-    "dual_axis": {"labels": ["0周", "4周", "8周", "12周"],
-                  "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]},
-                  "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
-    "prisma": {"records_identified": 128, "duplicates_removed": 23, "records_excluded": 61,
-               "reports_not_retrieved": 3,
-               "exclusion_reasons": {"人群不符": 5, "干预不符": 7, "数据不可用": 4},
-               "studies_included": 25},
+    "dual_axis": {"labels": ["0周", "4周", "8周", "12周"], "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]}, "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
+    "prisma": {"records_identified": 128, "duplicates_removed": 23, "records_excluded": 61, "reports_not_retrieved": 3, "exclusion_reasons": {"人群不符": 5, "干预不符": 7, "数据不可用": 4}, "studies_included": 25},
 }
 
 
@@ -537,6 +530,9 @@ def suggest_chart_type(data):
         recs.append((88, "calibration", "predicted vs observed bins — calibration"))
     if data.get("variables") and data.get("outcome_scales"):
         recs.append((91, "nomogram", "variables + outcome_scales — nomogram"))
+    _p0 = data.get("points")
+    if isinstance(_p0, list) and _p0 and isinstance(_p0[0], dict) and "est" in _p0[0]:
+        recs.append((88, "rcs", "points[] est/ci grid — nonlinear dose-response"))
     series = data.get("series")
     if isinstance(series, dict) and series:
         lists = [v for v in series.values() if isinstance(v, list)]
@@ -733,16 +729,19 @@ def _adjacent_too_close(b1, b2, axis, min_gap=MIN_TICK_GAP):
 
 
 def _tick_boxes(ax, renderer):
-    """Return (x_labels, y_labels, x_boxes, y_boxes) for visible tick labels."""
+    """Return (x_labels, y_labels, x_boxes, y_boxes) for visible tick labels.
+
+    v5.4 机制修复：只统计视图区间内的刻度——区间外刻度渲染时不画，但其
+    包围盒曾与轴角 y 标签假相交触发降级阶梯（DCA 着色首踩）。"""
     xl, yl, xb, yb = [], [], [], []
-    for lab in ax.get_xticklabels():
-        if lab.get_text().strip() and lab.get_visible():
-            xl.append(lab)
-            xb.append(lab.get_window_extent(renderer))
-    for lab in ax.get_yticklabels():
-        if lab.get_text().strip() and lab.get_visible():
-            yl.append(lab)
-            yb.append(lab.get_window_extent(renderer))
+    x0v, x1v = sorted(ax.get_xlim())
+    y0v, y1v = sorted(ax.get_ylim())
+    for tv, lab in zip(ax.get_xticks(), ax.get_xticklabels()):
+        if lab.get_text().strip() and lab.get_visible() and x0v <= tv <= x1v:
+            xl.append(lab); xb.append(lab.get_window_extent(renderer))
+    for tv, lab in zip(ax.get_yticks(), ax.get_yticklabels()):
+        if lab.get_text().strip() and lab.get_visible() and y0v <= tv <= y1v:
+            yl.append(lab); yb.append(lab.get_window_extent(renderer))
     return xl, yl, xb, yb
 
 
@@ -1288,6 +1287,8 @@ def _doctor_report(args, data):
     import importlib
     issues = 0
     print("── doctor 参数/环境体检（v3.9）──", file=sys.stderr)
+    import af_diagnostics as _afd
+    issues += _afd.doctor_composite_shared_scale(data, lambda s: print(s, file=sys.stderr))
     combos = [
         (args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin", "raincloud"),
          f"--stats {args.stats} 仅 box/violin/raincloud 生效"),
@@ -1713,12 +1714,9 @@ def validate_data(data, chart_type):
         fatal.extend(validate_raincloud(data))
 
     # ── calibration/dca: 临床预测模型线（校验逻辑在 af_draw，v5.2）──
-    elif chart_type == "calibration":
-        fatal.extend(validate_calibration(data))
-    elif chart_type == "dca":
-        fatal.extend(validate_dca(data))
-    elif chart_type == "nomogram":
-        fatal.extend(validate_nomogram(data))
+    elif chart_type in ("calibration", "dca", "nomogram", "rcs"):
+        fatal.extend({"calibration": validate_calibration, "dca": validate_dca,
+                      "nomogram": validate_nomogram, "rcs": validate_rcs}[chart_type](data))
 
     # ── composite: panels ──
     elif chart_type == "composite":

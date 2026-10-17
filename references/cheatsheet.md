@@ -36,6 +36,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | calibration | `bins[]` 或 `predicted/observed[]` 平行数组；`ci_lo/ci_hi/n/hl_p/smooth` 可选（v5.2） |
 | dca | `thresholds[]` 严格升序 (0,1)+`models[{name,net_benefit}]`；`prevalence` 或 `treat_all` 参照、`show_none` 可关（v5.2） |
 | nomogram | `variables[{name,ticks,points_at?}]` 1~12 + `outcome_scales[{label,ticks,points_at}]` 1~3；`total_points_max` 可选（v5.3） |
+| rcs | `points[{value,est,ci_lo,ci_hi}]` ≥5；`ref/log_y/hline_at/hist` 可选（v5.4） |
 | bland_altman | 两组等长 |
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |

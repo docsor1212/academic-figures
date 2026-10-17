@@ -116,7 +116,8 @@ _KNOWN_DATA_FIELDS = [
   "from", "to", "from_label", "to_label", "show_values", "show_gap",
   "predicted", "observed", "bins", "ci_lo", "ci_hi", "hl_p", "smooth",
   "thresholds", "models", "net_benefit", "prevalence", "treat_all", "show_none",
-  "variables", "outcome_scales", "total_points_max", "ticks", "points_at"
+  "variables", "outcome_scales", "total_points_max", "ticks", "points_at",
+  "points", "est", "ci_lo", "ci_hi", "ref", "log_y", "hline_at", "hist", "benefit_shade"
 ]
 
 
@@ -162,3 +163,45 @@ def _print_v3_error(e):
     print("仍失败：AF_DEBUG=1 重跑可输出完整技术细节（反馈问题时请附上）", file=sys.stderr)
 
 
+
+
+def doctor_composite_shared_scale(data, print_fn=None):
+    """v5.4 --doctor 规则：组合图「同变量跨面板」尺度一致性预检——
+    ≥2 个面板 y 轴标签相同（同变量语义）而数值范围差异 >5 倍时提示：
+    审稿人会视为两回事/或应共享尺度（pitfalls 配色跨面板一致性规则的孪生）。
+    返回提示数（0=通过）。print_fn 注入 stderr 打印。"""
+    out = print_fn or (lambda s: None)
+    n = 0
+    panels = data.get("panels") if isinstance(data, dict) else None
+    if not (isinstance(panels, list) and len(panels) >= 2):
+        return 0
+    by_ylabel = {}
+    for p in panels:
+        if not isinstance(p, dict):
+            continue
+        d = p.get("data") if isinstance(p.get("data"), dict) else p
+        yl = str(d.get("y_label") or d.get("ylabel") or "")
+        if not yl:
+            continue
+        rng = None
+        for key in ("series", "datasets", "groups"):
+            obj = d.get(key)
+            if isinstance(obj, dict) and obj:
+                vals = [v for row in obj.values() if isinstance(row, list)
+                        for v in row
+                        if isinstance(v, (int, float)) and not isinstance(v, bool)]
+                if len(vals) >= 2:
+                    lo, hi = min(vals), max(vals)
+                    rng = (abs(lo) + abs(hi)) / 2 or abs(hi) or 1.0
+                    span = (hi - lo) or 1.0
+                    rng = max(abs(span), abs(hi))
+                break
+        if rng is not None:
+            by_ylabel.setdefault(yl, []).append(rng)
+    for yl, rngs in by_ylabel.items():
+        if len(rngs) >= 2 and max(rngs) / max(min(rngs), 1e-12) > 5:
+            out(f"[doctor] 面板间「{yl}」数值范围相差 "
+                f"{max(rngs) / max(min(rngs), 1e-12):.0f} 倍——同变量跨面板请共享"
+                f"同一 y 尺度（或改用不同轴标签区分不同变量）")
+            n += 1
+    return n

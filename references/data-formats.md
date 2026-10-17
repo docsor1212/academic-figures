@@ -706,3 +706,12 @@ variables 1~12 个，每项 `name`+`ticks`（2~12 个）必填，`labels` 自定
 `label`+`ticks`+`points_at`（**总积分口径**，非 0~100）。total_points_max 缺省
 =结局尺最大 points_at。引擎只可视化不拟合：points 请来自已拟合模型
 （R rms::nomogram / Python 统计包输出），方法学口径写入统计方法段。
+
+## rcs（v5.4）
+
+`{"points": [{"value": 40, "est": 1.02, "ci_lo": 0.72, "ci_hi": 1.45}, ...]}`：
+≥5 个网格点（value 单调、来自你拟合的样条模型，引擎不拟合）。可选 `ref`
+（参照竖线，惯例=中位数）、`log_y`（默认 true=HR/OR 对数轴；false 时参照
+水平线默认 y=0，可用 `hline_at` 覆盖）、`hist`（默认 true，底部暴露 rug）、
+`x_label`/`y_label`。解读：曲线偏离参照水平=非线性关联；置信带与参照水平
+相交=无统计学差异区。
