@@ -14,6 +14,7 @@ _WIZARD_SHAPES = [
     ("预测概率分箱 vs 实际发生率（模型校准）", ["calibration"], "templates/calibration.json"),
     ("预测模型临床净收益 vs 阈值（决策曲线）", ["dca"], "templates/dca.json"),
     ("预测模型查表尺（列线图，变量计分→总积分→概率）", ["nomogram"], "templates/nomogram.json"),
+    ("暴露-结局非线性剂量反应（RCS 样条，HR/OR 带 CI）", ["rcs"], "templates/rcs.json"),
     ("基因/元素集合（交并关系；≥5 集合选 upset）", ["venn", "upset"], "templates/venn.json"),
     ("每例最佳缓解百分比（肿瘤瀑布图）", ["waterfall"], "templates/waterfall.json"),
     ("每例治疗/随访时长（临床游泳图）", ["swimmer"], "templates/swimmer.json"),

@@ -10,6 +10,38 @@
 
 ## Version History
 
+## 5.4.0 — 2026-10-18
+
+  - **New chart type #34: `rcs` — restricted cubic spline / nonlinear
+    dose-response curve**: estimate line + 95%CI band (log-ratio axis by
+    default), no-effect horizontal rule + `ref` vertical reference, exposure
+    rug along the bottom. JSON: `points=[{value, est, ci_lo, ci_hi}]` (≥5 grid
+    points from your fitted spline model — the engine visualizes, it does not
+    fit); `log_y=false` switches to a linear scale with the reference level at
+    y=0 (`hline_at` overrides).
+  - **DCA benefit-region shading**: thresholds where a model's net benefit
+    beats both reference strategies are shaded in the model's color
+    (`benefit_shade=false` to disable); the shaded ranges are reported on
+    stderr for figure-vs-text cross-checking.
+  - **Tick-collision false positive fixed at the mechanism level** (found via
+    the DCA shading work): the anti-overlap pass counted out-of-view ticks
+    (e.g. x=0.0 when xlim starts at 0.016 — never rendered) as visible boxes;
+    a false intersection with the corner y-label then triggered the
+    degradation ladder and silently hid real tick labels. Collision detection
+    now filters ticks to the view interval.
+  - **Scenario cards** (`references/scenario-cards.md`): 12 complete
+    workflows, one card each = scenario + full runnable command + per-flag
+    explanation + variants — the single entry covering the whole parameter
+    system (answers "why do I need several docs for one scenario").
+  - **SKILL.md density slimming**: journal preset table sunk to
+    `references/limits.md` §六, stats/legend mini-sections merged, rare flags
+    delegated to the cheatsheet — 33 chart types stay, prose shrinks.
+  - **--doctor cross-panel shared-scale precheck**: composite panels sharing a
+    y-label (same variable semantics) with >5× range mismatch are flagged
+    before rendering.
+  - Log-axis plain ticks (LogLocator 1/1.5/2/3/5/7 + scalar formatter) for all
+    log-scale renders — no more 10⁰-style offsets.
+
 ## 5.3.0 — 2026-10-17
 
   - **New chart type #33: `nomogram` — clinical nomogram**: the prediction-model
@@ -753,6 +785,28 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v5.4.0（2026-10-18）
+
+- **新图型 #34：`rcs` 限制性立方样条/非线性剂量反应曲线**：估计线+95%CI 带
+  （默认对数比值轴）、无效应水平参照线+`ref` 竖直参照线、底部暴露 rug。
+  JSON：`points=[{value,est,ci_lo,ci_hi}]`（≥5 个网格点，来自你拟合的样条模型
+  ——引擎只可视化不拟合）；`log_y=false` 切线性轴（参照水平默认 y=0，
+  `hline_at` 可覆盖）。
+- **DCA 获益区间着色**：模型净收益同时压过两条参照策略的阈值区段按模型色
+  淡色填充（`benefit_shade=false` 关闭）；着色区段写入 stderr 供图文对账。
+- **刻度碰撞假阳性机制级修复**（随 DCA 着色工作发现）：防重叠检查曾把视图
+  区间外的刻度（如 xlim 从 0.016 起、渲染不显示的 x=0.0）当可见框，与轴角
+  y 标签假相交后触发降级阶梯，静默藏掉真实刻度标签。碰撞检测现按视图区间
+  过滤。
+- **场景卡片**（`references/scenario-cards.md`）：12 个完整工作流，每卡=
+  场景+完整可跑命令+参数逐项说明+常见变体——参数体系的单一入口。
+- **SKILL.md 减密**：期刊预设表下沉 `references/limits.md` §六，统计/图例
+  小节合并，低频参数移交 cheatsheet——33 种图型信息不减，密度下降。
+- **--doctor 跨面板共享尺度预检**：组合图同 y 轴标签（同变量语义）面板数值
+  范围差 >5 倍时渲染前提示。
+- 全部对数轴平实刻度（LogLocator 1/1.5/2/3/5/7 + 标量格式化），不再出现
+  10⁰ 式科学计数法。
 
 ### v5.3.0（2026-10-17）
 

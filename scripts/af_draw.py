@@ -3261,6 +3261,8 @@ def alt_text_core(chart_type, data, title=""):
         return dca_alt(data, t)  # v5.2：临床预测模型线
     if chart_type == "nomogram":
         return nomogram_alt(data, t)  # v5.3：预测模型线（列线图）
+    if chart_type == "rcs":
+        return rcs_alt(data, t)  # v5.4：临床回归线（限制性立方样条）
     if chart_type == "upset":
         s = data.get("sets") or {}
         top_n = data.get("top_n", 12)
@@ -3797,6 +3799,33 @@ def gen_dca(data, ax, theme, cjk_fp, **kwargs):
         hlbls.append("不干预" if cjk_fp else "Treat none")
     markers = ("o", "s", "^", "D", "v", "<")
     all_nb = [v for row in nbs for v in row] + list(ta or [])
+    # 获益区间着色（v5.4）：模型净收益 > max(treat-all, treat-none=0) 的连续
+    # 区段淡色填充（临床含义：该阈值区间内按模型决策有净获益）。受益于参照
+    # 线存在；无任何参照时跳过。benefit_shade=false 关闭。
+    _shade_on = bool(data.get("benefit_shade", True))
+    _ta_arr = ta if ta is not None else (
+        [prev - (1.0 - prev) * t / (1.0 - t) for t in tv] if prev is not None else None)
+    _shade_msg = []
+    if _shade_on:
+        for i, (nm, nb) in enumerate(zip(names, nbs)):
+            c = theme["colors"][i % len(theme["colors"])]
+            if _ta_arr is not None:
+                cond = [(n > a and n > 0) for n, a in zip(nb, _ta_arr)]
+            else:
+                cond = [n > 0 for n in nb]
+            if any(cond):
+                ax.fill_between(tv, 0, nb, where=cond, color=c, alpha=0.12,
+                                lw=0, zorder=1)
+                _runs = []
+                _s = None
+                for k, f in enumerate(cond + [False]):
+                    if f and _s is None:
+                        _s = k
+                    elif not f and _s is not None:
+                        _runs.append((tv[_s], tv[k - 1]))
+                        _s = None
+                _shade_msg.append(f"{nm} 获益区 " + "、".join(
+                    f"{a:g}~{b:g}" for a, b in _runs))
     for i, (nm, nb) in enumerate(zip(names, nbs)):
         c = theme["colors"][i % len(theme["colors"])]
         ax.plot(tv, nb, color=c, lw=1.8, marker=markers[i % len(markers)],
@@ -3819,7 +3848,8 @@ def gen_dca(data, ax, theme, cjk_fp, **kwargs):
              for nm, nb in zip(names, nbs)]
     print(f"dca: 阈值 {min(tv):g}~{max(tv):g}（{n} 点），{len(names)} 个模型"
           + (f"，患病率 {prev:g}" if prev is not None else "")
-          + "；" + "；".join(peaks), file=sys.stderr)
+          + "；" + "；".join(peaks)
+          + (("；" + "；".join(_shade_msg)) if _shade_msg else ""), file=sys.stderr)
     apply_base_style(ax, theme)
 
 
@@ -4080,6 +4110,161 @@ def validate_nomogram(data):
     return fatal
 
 
+# ═══ v5.4：rcs 限制性立方样条曲线（临床回归线，第 34 图型）+ DCA 获益区着色 ═══
+
+def gen_rcs(data, ax, theme, cjk_fp, **kwargs):
+    """rcs 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 种图型）：把已拟合
+    样条模型的网格结果画成 带置信带的效应曲线（HR/OR 惯例对数轴 + 参照线）。
+    JSON: points=[{value, est, ci_lo, ci_hi}]（≥5 点，来自你拟合的 RCS/Cox/
+    Logistic 样条输出——引擎只可视化不拟合，方法学口径写入统计方法段）；
+    ref 参照值（竖虚线，惯例=中位数）；log_y 默认 true（比值尺度；差值尺度
+    传 false，此时参照水平线默认 y=0，可用 hline_at 覆盖）；hist=true 底部
+    暴露变量 rug。"""
+    import math as _m
+    pts = data.get("points")
+    if not (isinstance(pts, list) and len(pts) >= 5):
+        raise ValueError("rcs: 需要 points（≥5 个 {value, est, ci_lo, ci_hi}，来自已拟合样条模型）")
+    vals, ests, los, his = [], [], [], []
+    for i, p in enumerate(pts):
+        if not isinstance(p, dict) or not all(k in p for k in ("value", "est", "ci_lo", "ci_hi")):
+            raise ValueError(f"rcs: points[{i}] 须为含 value/est/ci_lo/ci_hi 的对象")
+        try:
+            v, e, lo, hi = (float(p["value"]), float(p["est"]),
+                            float(p["ci_lo"]), float(p["ci_hi"]))
+        except (TypeError, ValueError):
+            raise ValueError(f"rcs: points[{i}] 四个字段必须全为数值")
+        if not all(_m.isfinite(x) for x in (v, e, lo, hi)):
+            raise ValueError(f"rcs: points[{i}] 含非有限值——请清洗源数据")
+        vals.append(v); ests.append(e); los.append(lo); his.append(hi)
+    log_y = bool(data.get("log_y", True))
+    if log_y and (min(ests) <= 0 or min(los) <= 0):
+        raise ValueError("rcs: log_y=true 时 est/ci 必须 >0（比值尺度）；差值尺度请传 log_y=false")
+    for i, (e, lo, hi) in enumerate(zip(ests, los, his)):
+        if not (lo <= e <= hi):
+            raise ValueError(f"rcs: points[{i}] 须 ci_lo ≤ est ≤ ci_hi")
+    order = sorted(range(len(vals)), key=lambda i: vals[i])
+    sv = [vals[i] for i in order]
+    for a, b in zip(sv, sv[1:]):
+        if a == b:
+            raise ValueError("rcs: points 的 value 有重复——样条网格须单调")
+    hline_at = data.get("hline_at", 1.0 if log_y else 0.0)
+    hline_at = float(hline_at)
+    ref = data.get("ref")
+    if ref is not None:
+        ref = float(ref)
+        if not (min(vals) <= ref <= max(vals)):
+            raise ValueError("rcs: ref 须落在 points 的 value 范围内")
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    c_main = theme["colors"][0]
+    xs = sv
+    lo_s = [los[i] for i in order]
+    hi_s = [his[i] for i in order]
+    e_s = [ests[i] for i in order]
+    # 置信带 + 效应线（端点必留 pad，类级铁律）
+    ax.fill_between(xs, lo_s, hi_s, color=c_main, alpha=0.18, zorder=1)
+    ax.plot(xs, e_s, color=c_main, lw=1.8, zorder=3)
+    _xr = (max(xs) - min(xs)) * 0.04 or 0.5
+    ax.set_xlim(min(xs) - _xr, max(xs) + _xr)
+    lo_all, hi_all = min(lo_s + [hline_at]), max(hi_s + [hline_at])
+    _yr = (hi_all - lo_all) * 0.06 or 0.1
+    ax.set_ylim(lo_all - _yr, hi_all + _yr * 1.4)
+    if log_y:
+        ax.set_yscale("log")
+        # 对数轴平实刻度（验收 P1 根治：禁科学计数法/偏移记法，主刻度加密到
+        # 1/1.5/2/3/5/7 子刻度——窄比值区间下默认 LogLocator 只出 10⁰ 类标签）
+        from matplotlib.ticker import LogLocator, ScalarFormatter, NullFormatter
+        ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 1.5, 2.0, 3.0, 5.0, 7.0), numticks=100))
+        _sf = ScalarFormatter()
+        _sf.set_powerlimits((-3, 4))
+        ax.yaxis.set_major_formatter(_sf)
+        ax.yaxis.set_minor_formatter(NullFormatter())
+    # 参照线：水平（无效应）+ 竖直（参照值）
+    ax.axhline(hline_at, color="#999999", lw=1.1, ls=(0, (5, 4)), zorder=2)
+    handles = [plt.Line2D([], [], color=c_main, lw=1.8),
+               plt.Line2D([], [], color="#999999", lw=1.1, ls=(0, (5, 4)))]
+    lbls = [(est_label := ("OR" if "OR" in str(data.get("y_label", "") or "") else "HR")) + ("（95%CI 带）" if cjk_fp else " (95%CI band)"),
+            ("无效应" if cjk_fp else "No effect")]
+    if ref is not None:
+        ax.axvline(ref, color="#BBBBBB", lw=1.0, ls=(0, (3, 3)), zorder=2)
+        ax.text(ref, hi_all + _yr * 0.9, f"ref={ref:g}", ha="center", va="bottom",
+                fontsize=fs_s, color="#777777")
+        handles.append(plt.Line2D([], [], color="#BBBBBB", lw=1.0, ls=(0, (3, 3))))
+        lbls.append("参照值" if cjk_fp else "Reference")
+    if bool(data.get("hist", True)):
+        for v in xs:
+            ax.plot([v, v], [lo_all - _yr * 0.75, lo_all - _yr * 0.35],
+                    color="#AAAAAA", lw=0.9, zorder=2)
+    xl = str(data.get("x_label") or ("" if not cjk_fp else ""))
+    yl = str(data.get("y_label") or ("比值（对数轴）" if cjk_fp and log_y else ""))
+    if xl:
+        ax.set_xlabel(xl, fontsize=fs, fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
+    if yl:
+        ax.set_ylabel(yl, fontsize=fs, fontproperties=cjk_fp if cjk_fp and has_cjk(yl) else None)
+    ax.legend(handles, lbls, loc="upper right", frameon=False, fontsize=fs_s,
+              prop=cjk_fp if cjk_fp and has_cjk("".join(lbls)) else None)
+    print(f"rcs: {len(vals)} 个网格点，value {min(xs):g}~{max(xs):g}"
+          + (f"，ref={ref:g}" if ref is not None else "")
+          + f"；est {min(e_s):g}~{max(e_s):g}（{'对数轴' if log_y else '线性轴'}）",
+          file=sys.stderr)
+    apply_base_style(ax, theme)
+
+
+def rcs_alt(data, t=""):
+    """v5.4：rcs 的 --alt 文本。"""
+    pts = data.get("points") or []
+    es = [float(p.get("est")) for p in pts
+          if isinstance(p, dict) and isinstance(p.get("est"), (int, float))
+          and not isinstance(p.get("est"), bool)]
+    if es:
+        seg = (f"效应在网格内介于 {min(es):g}~{max(es):g}"
+               f"（{'对数轴' if data.get('log_y', True) else '线性轴'}）")
+    else:
+        seg = "带 95%CI 置信带的非线性效应曲线"
+    return (f"限制性立方样条曲线（{len(pts)} 个网格点；{seg}）："
+            "曲线偏离参照水平=存在非线性关联；置信带与参照水平相交处为无统计学差异区。"
+            f"{t}")
+
+
+def validate_rcs(data):
+    """v5.4：rcs 数据校验（返回 fatal 列表）；与 gen_rcs 同口径。"""
+    fatal = []
+    pts = data.get("points")
+    if not (isinstance(pts, list) and len(pts) >= 5):
+        return ["rcs: 需要 points（≥5 个 {value, est, ci_lo, ci_hi}）"]
+    for i, p in enumerate(pts):
+        if not isinstance(p, dict) or not all(k in p for k in ("value", "est", "ci_lo", "ci_hi")):
+            fatal.append(f"rcs: points[{i}] 须为含 value/est/ci_lo/ci_hi 的对象")
+            continue
+        try:
+            v, e, lo, hi = (float(p["value"]), float(p["est"]),
+                            float(p["ci_lo"]), float(p["ci_hi"]))
+        except (TypeError, ValueError):
+            fatal.append(f"rcs: points[{i}] 四个字段必须全为数值")
+            continue
+        if lo > e or e > hi:
+            fatal.append(f"rcs: points[{i}] 须 ci_lo ≤ est ≤ ci_hi")
+    if data.get("log_y", True):
+        for i, p in enumerate(pts):
+            if isinstance(p, dict):
+                try:
+                    if float(p["est"]) <= 0 or float(p["ci_lo"]) <= 0:
+                        fatal.append("rcs: log_y=true 时 est/ci 必须 >0（差值尺度请传 log_y=false）")
+                        break
+                except (TypeError, ValueError, KeyError):
+                    pass
+    ref = data.get("ref")
+    if ref is not None:
+        try:
+            vs = [float(p["value"]) for p in pts if isinstance(p, dict)]
+            if not (min(vs) <= float(ref) <= max(vs)):
+                fatal.append("rcs: ref 须落在 points 的 value 范围内")
+        except (TypeError, ValueError, KeyError):
+            pass
+    return fatal
+
+
 def write_repro_bundle(argv, data, out_path, extra_outputs=None):
     """v5.1 --repro：复跑交付包 <output>.repro/——数据副本+精确命令+README+
     audit.json+成图副本，任何人拿到包即可逐字节复现该图（确定性引擎：
@@ -4208,4 +4393,5 @@ GENERATORS = {
     "calibration": gen_calibration,
     "dca": gen_dca,
     "nomogram": gen_nomogram,
+    "rcs": gen_rcs,
 }
