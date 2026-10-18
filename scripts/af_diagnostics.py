@@ -117,7 +117,8 @@ _KNOWN_DATA_FIELDS = [
   "predicted", "observed", "bins", "ci_lo", "ci_hi", "hl_p", "smooth",
   "thresholds", "models", "net_benefit", "prevalence", "treat_all", "show_none",
   "variables", "outcome_scales", "total_points_max", "ticks", "points_at",
-  "points", "est", "ci_lo", "ci_hi", "ref", "log_y", "hline_at", "hist", "benefit_shade"
+  "points", "est", "ci_lo", "ci_hi", "ref", "log_y", "hline_at", "hist", "benefit_shade",
+  "subgroups", "levels", "p_interaction", "p", "overall", "est_label", "log_x"
 ]
 
 

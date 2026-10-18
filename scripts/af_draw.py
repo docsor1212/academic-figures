@@ -3263,6 +3263,8 @@ def alt_text_core(chart_type, data, title=""):
         return nomogram_alt(data, t)  # v5.3：预测模型线（列线图）
     if chart_type == "rcs":
         return rcs_alt(data, t)  # v5.4：临床回归线（限制性立方样条）
+    if chart_type == "subgroup":
+        return subgroup_alt(data, t)  # v5.5：亚组分析森林图
     if chart_type == "upset":
         s = data.get("sets") or {}
         top_n = data.get("top_n", 12)
@@ -4172,13 +4174,9 @@ def gen_rcs(data, ax, theme, cjk_fp, **kwargs):
     ax.set_ylim(lo_all - _yr, hi_all + _yr * 1.4)
     if log_y:
         ax.set_yscale("log")
-        # 对数轴平实刻度（验收 P1 根治：禁科学计数法/偏移记法，主刻度加密到
-        # 1/1.5/2/3/5/7 子刻度——窄比值区间下默认 LogLocator 只出 10⁰ 类标签）
-        from matplotlib.ticker import LogLocator, ScalarFormatter, NullFormatter
-        ax.yaxis.set_major_locator(LogLocator(base=10.0, subs=(1.0, 1.5, 2.0, 3.0, 5.0, 7.0), numticks=100))
-        _sf = ScalarFormatter()
-        _sf.set_powerlimits((-3, 4))
-        ax.yaxis.set_major_formatter(_sf)
+        # 对数轴平实刻度（共享 helper，v5.5 起 subgroup 同用）
+        from matplotlib.ticker import ScalarFormatter, NullFormatter
+        _plain_log_ticks_x(ax)
         ax.yaxis.set_minor_formatter(NullFormatter())
     # 参照线：水平（无效应）+ 竖直（参照值）
     ax.axhline(hline_at, color="#999999", lw=1.1, ls=(0, (5, 4)), zorder=2)
@@ -4262,6 +4260,283 @@ def validate_rcs(data):
                 fatal.append("rcs: ref 须落在 points 的 value 范围内")
         except (TypeError, ValueError, KeyError):
             pass
+    return fatal
+
+
+# ═══ v5.5：subgroup 亚组分析森林图（临床回归线，第 35 图型）═══
+
+def _plain_log_ticks_x(ax):
+    """_plain_log_ticks 的 y 轴变体（rcs 用）。"""
+    from matplotlib.ticker import LogLocator
+    _plain_log_ticks(ax)
+    ax.yaxis.set_major_locator(LogLocator(base=10.0,
+                                          subs=(1.0, 1.5, 2.0, 3.0, 5.0, 7.0),
+                                          numticks=100))
+
+
+def _bold_fontprops(cjk_fp, fs):
+    """CJK 真粗体（v5.5 验收三轮意见的机制实现）：set_weight 对无 Bold face
+    的 CJK 字体会静默回退 regular——此处优先找系统 Bold CJK 字面文件（如
+    NotoSerifCJK-Bold.ttc）直接实例化；找不到则退化为描边路径效果（必然增粗）。
+    返回 (fontprops|None, stroke_path_effect|None)。"""
+    try:
+        import matplotlib.font_manager as _fm
+        _keys = ("Noto Sans CJK", "Noto Serif CJK", "Source Han", "WenQuanYi",
+                 "Microsoft YaHei", "PingFang", "SimHei")
+        _cands = [f.fname for f in _fm.fontManager.ttflist
+                  if "bold" in f.fname.lower()
+                  and any(k in (f.name or "") for k in _keys)]
+        if _cands:
+            fp = (cjk_fp.copy() if cjk_fp is not None else _fm.FontProperties())
+            fp.set_file(_cands[0])
+            return fp, None
+    except Exception:
+        pass
+    try:
+        import matplotlib.patheffects as _pe
+        return None, _pe.withStroke(linewidth=max(0.8, fs * 0.05), foreground="#222222")
+    except Exception:
+        return None, None
+
+
+def _plain_log_ticks(ax):
+    """对数轴平实刻度（v5.4 验收 P1 的共享实现）：主刻度 1/1.5/2/3/5/7 子集
+    + 标量格式化，禁 10⁰ 式科学计数法/偏移记法。所有对数轴图型统一走此 helper。"""
+    from matplotlib.ticker import LogLocator, ScalarFormatter, NullFormatter
+    ax.xaxis.set_major_locator(LogLocator(base=10.0,
+                                          subs=(1.0, 1.5, 2.0, 3.0, 5.0, 7.0),
+                                          numticks=100))
+    _sf = ScalarFormatter()
+    _sf.set_powerlimits((-3, 4))
+    ax.xaxis.set_major_formatter(_sf)
+    ax.xaxis.set_minor_formatter(NullFormatter())
+
+
+def gen_subgroup_forest(data, ax, theme, cjk_fp, **kwargs):
+    """subgroup 亚组分析森林图（v5.5，第 35 种图型）：亚组效应 + 交互检验
+    一图呈现（NEJM/Lancet 风格：左侧亚组行、中间 CI 森林、右侧 est/p 列，
+    亚组标题行报 P interaction，底部总效应菱形）。
+    JSON: subgroups=[{name, p_interaction?, levels=[{name, est, ci_low, ci_high,
+    n?, p?}]}]（1~12 组，每组 2~8 层）；overall={est, ci_low, ci_high, p?, n?}
+    可选；est_label 决定无效线（比率 HR/OR/RR=1，差值 MD/SMD=0）；log_x 默认
+    true（比率尺度惯例）。引擎只可视化不拟合：est/p 请来自你的亚组模型。"""
+    import math as _m
+    subgroups = data.get("subgroups")
+    if not (isinstance(subgroups, list) and 1 <= len(subgroups) <= 12):
+        raise ValueError("subgroup: 需要 subgroups（1~12 个 {name, levels} 对象）")
+    parsed = []
+    for sg in subgroups:
+        if not isinstance(sg, dict) or not sg.get("name") or not isinstance(sg.get("levels"), list):
+            raise ValueError("subgroup: subgroups 每项须为含 name/levels 的对象")
+        if not (2 <= len(sg["levels"]) <= 8):
+            raise ValueError(f"subgroup: 「{sg['name']}」levels 须 2~8 层")
+        levels = []
+        for lv in sg["levels"]:
+            if not isinstance(lv, dict) or not lv.get("name"):
+                raise ValueError(f"subgroup: 「{sg['name']}」levels 每项须含 name")
+            try:
+                e, lo, hi = float(lv["est"]), float(lv["ci_low"]), float(lv["ci_high"])
+            except (KeyError, TypeError, ValueError):
+                raise ValueError(f"subgroup: 「{sg['name']}」/{lv.get('name')} 须有数值 est/ci_low/ci_high")
+            if not all(_m.isfinite(x) for x in (e, lo, hi)):
+                raise ValueError(f"subgroup: 「{sg['name']}」/{lv['name']} 含非有限值")
+            if not (lo <= e <= hi):
+                raise ValueError(f"subgroup: 「{sg['name']}」/{lv['name']} 须 ci_low ≤ est ≤ ci_high")
+            p = lv.get("p")
+            if p is not None:
+                p = float(p)
+                if not (0.0 <= p <= 1.0):
+                    raise ValueError(f"subgroup: 「{sg['name']}」/{lv['name']} p 须在 [0,1]")
+            levels.append({"name": str(lv["name"]), "est": e, "lo": lo, "hi": hi,
+                           "n": lv.get("n"), "p": p})
+        pi = sg.get("p_interaction")
+        if pi is not None:
+            pi = float(pi)
+            if not (0.0 <= pi <= 1.0):
+                raise ValueError(f"subgroup: 「{sg['name']}」p_interaction 须在 [0,1]")
+        parsed.append({"name": str(sg["name"]), "levels": levels, "pi": pi})
+    overall = data.get("overall")
+    if overall is not None:
+        if not isinstance(overall, dict):
+            raise ValueError("subgroup: overall 须为对象")
+        try:
+            overall = {**overall, "est": float(overall["est"]),
+                       "lo": float(overall["ci_low"]), "hi": float(overall["ci_high"])}
+        except (KeyError, TypeError, ValueError):
+            raise ValueError("subgroup: overall 须有数值 est/ci_low/ci_high")
+        if not (overall["lo"] <= overall["est"] <= overall["hi"]):
+            raise ValueError("subgroup: overall 须 ci_low ≤ est ≤ ci_high")
+    est_label = str(data.get("est_label") or "HR")
+    log_x = bool(data.get("log_x", est_label.upper() in ("HR", "OR", "RR")))
+    ref = 0.0 if est_label.upper() in ("MD", "SMD") else 1.0
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 1.5)
+    c_main = theme["colors"][0]
+    c_alt = theme["colors"][1 % len(theme["colors"])]
+    fp_bold, hdr_stroke = _bold_fontprops(cjk_fp, fs_s)
+
+    # 行布局（自上而下）：组标题行+层行；底部 overall
+    rows = []  # (kind, payload, y)
+    y = 0.0
+    all_ests = [lv["est"] for sg in parsed for lv in sg["levels"]]
+    all_los = [lv["lo"] for sg in parsed for lv in sg["levels"]]
+    all_his = [lv["hi"] for sg in parsed for lv in sg["levels"]]
+    if overall:
+        all_ests.append(overall["est"]); all_los.append(overall["lo"]); all_his.append(overall["hi"])
+    for sg in parsed:
+        rows.append(("header", sg, y))
+        y -= 1.0
+        for lv in sg["levels"]:
+            rows.append(("level", lv, y))
+            y -= 1.0
+        y -= 0.45
+    if overall:
+        y -= 0.25
+        rows.append(("overall", overall, y))
+    n_rows = len(rows)
+
+    # 绘制
+    fp_hdr = cjk_fp
+    for kind, payload, yy in rows:
+        if kind == "header":
+            _ht = ax.text(-0.145, yy, payload["name"], transform=ax.get_yaxis_transform(),
+                          ha="left", va="center", fontsize=fs_s,
+                          color="#222222",
+                          fontproperties=fp_bold if fp_bold else (cjk_fp if cjk_fp and has_cjk(payload["name"]) else None))
+            if hdr_stroke is not None:
+                _ht.set_path_effects([hdr_stroke])
+            _ht._af_keep_fp = True  # 兜底不得覆盖本对象的粗体字面（机制标记）
+            if payload["pi"] is not None:
+                _show_pi(payload["pi"], yy, fs_s, cjk_fp, ax)
+        elif kind == "level":
+            # 层名左对齐固定列（标题 x=-0.145，层名 x=-0.113）：缩进恒定、
+            # 恒在绘图区外不压脊线（-0.113 为最长层名 TPS≥50% 留 >8px 余量，
+            # 验收四轮实测值；禁右对齐锚点进 axes 内部）
+            ax.text(-0.113, yy, payload["name"],
+                    transform=ax.get_yaxis_transform(), ha="left", va="center",
+                    fontsize=fs_s, color="#333333",
+                    fontproperties=cjk_fp if cjk_fp and has_cjk(payload["name"]) else None)
+            ax.plot([payload["lo"], payload["hi"]], [yy, yy], color="#555555",
+                    lw=1.4, solid_capstyle="butt", zorder=3)
+            ax.plot([payload["lo"], payload["lo"]], [yy - 0.14, yy + 0.14],
+                    color="#555555", lw=1.2, zorder=3)
+            ax.plot([payload["hi"], payload["hi"]], [yy - 0.14, yy + 0.14],
+                    color="#555555", lw=1.2, zorder=3)
+            sig = payload["p"] is not None and payload["p"] < 0.05
+            ax.scatter([payload["est"]], [yy],
+                       s=52 if sig else 40, marker="s",
+                       c=c_main if sig else "white",
+                       edgecolors=c_main, linewidths=1.2, zorder=4)
+            _lv_txt = f"{payload['est']:.2f} ({payload['lo']:.2f}, {payload['hi']:.2f})"
+            ax.text(1.03, yy, _lv_txt, transform=ax.get_yaxis_transform(),
+                    ha="left", va="center", fontsize=fs_s, family="monospace",
+                    color="#222222")
+            if payload["p"] is not None:
+                ax.text(1.30, yy, _fmt_p(payload["p"]), transform=ax.get_yaxis_transform(),
+                        ha="left", va="center", fontsize=fs_s,
+                        color="#8a1f1f" if sig else "#222222")
+        else:  # overall
+            ax.plot([payload["lo"], payload["hi"]], [yy, yy], color="#444444",
+                    lw=1.6, zorder=3)
+            ax.scatter([payload["est"]], [yy], s=110, marker="D", c=c_alt,
+                       edgecolors="#333333", linewidths=0.9, zorder=4)
+            ax.text(-0.02, yy, "Overall 总效应" if cjk_fp else "Overall",
+                    transform=ax.get_yaxis_transform(), ha="right", va="center",
+                    fontsize=fs_s, fontweight="bold",
+                    fontproperties=fp_hdr if fp_hdr else None)
+            ax.text(1.03, yy, f"{payload['est']:.2f} ({payload['lo']:.2f}, {payload['hi']:.2f})",
+                    transform=ax.get_yaxis_transform(), ha="left", va="center",
+                    fontsize=fs_s, family="monospace", fontweight="bold")
+            if payload.get("p") is not None:
+                ax.text(1.30, yy, _fmt_p(float(payload["p"])), transform=ax.get_yaxis_transform(),
+                        ha="left", va="center", fontsize=fs_s, fontweight="bold")
+
+    # 轴：est 尺度 + 无效线 + 平实对数刻度
+    lo_all, hi_all = min(all_los), max(all_his)
+    if log_x:
+        lo_all, hi_all = max(lo_all, 1e-3), hi_all
+        _pad_lo, _pad_hi = lo_all / 1.25, hi_all * 1.25
+        ax.set_xlim(_pad_lo, _pad_hi)
+        ax.set_xscale("log")
+        _plain_log_ticks(ax)
+        ax.axvline(ref, color="#999999", lw=1.0, ls=(0, (5, 4)), zorder=1)
+    else:
+        _pad = (hi_all - lo_all) * 0.08 or 0.1
+        ax.set_xlim(lo_all - _pad, hi_all + _pad)
+        ax.axvline(ref, color="#999999", lw=1.0, ls=(0, (5, 4)), zorder=1)
+    ax.set_ylim(y - 0.9, 1.35)
+    ax.set_yticks([])
+    xl = str(data.get("x_label") or est_label)
+    ax.set_xlabel(xl, fontsize=fs, fontproperties=cjk_fp if cjk_fp and has_cjk(xl) else None)
+    # 列头
+    ax.text(1.03, 1.02, est_label + (" (95% CI)" if "CI" not in est_label else ""),
+            transform=ax.get_yaxis_transform(), ha="left", va="bottom", fontsize=fs_s)
+    if any(lv["p"] is not None for sg in parsed for lv in sg["levels"]) \
+            or (overall and overall.get("p") is not None):
+        ax.text(1.30, 1.02, "P", transform=ax.get_yaxis_transform(),
+                ha="left", va="bottom", fontsize=fs_s)
+    ax._af_category_axis = True  # 行名是数据：豁免防重叠抽稀
+    _n_lv = sum(len(sg["levels"]) for sg in parsed)
+    _sig_int = sum(1 for sg in parsed if sg["pi"] is not None and sg["pi"] < 0.05)
+    print(f"subgroup: {len(parsed)} 个亚组变量 / {_n_lv} 层"
+          + (f"+overall" if overall else "")
+          + f"；交互显著（P<0.05）{_sig_int} 个", file=sys.stderr)
+    apply_base_style(ax, theme)
+
+
+def _show_pi(pi, y, fs, cjk_fp, ax):
+    ax.text(1.30, y, _fmt_p(pi), transform=ax.get_yaxis_transform(),
+            ha="left", va="center", fontsize=fs, fontweight="bold",
+            color="#8a1f1f" if pi < 0.05 else "#555555")
+
+
+def _fmt_p(p):
+    return "<0.001" if p < 0.001 else f"{p:.3f}"
+
+
+def subgroup_alt(data, t=""):
+    subgroups = data.get("subgroups") or []
+    segs = []
+    for sg in subgroups:
+        if isinstance(sg, dict) and sg.get("name"):
+            lv = sg.get("levels") or []
+            names = "、".join(str(l.get("name", "?")) for l in lv[:4] if isinstance(l, dict))
+            pi = sg.get("p_interaction")
+            segs.append(f"{sg['name']}（{names}{'…' if len(lv) > 4 else ''}"
+                        f"{f'；P 交互={pi}' if pi is not None else ''}）")
+    return (f"亚组分析森林图（{len(subgroups)} 个亚组变量）：{'；'.join(segs)}。"
+            "方块=各层效应估计，横线=95%CI，菱形=总效应；P 交互<0.05 提示效应"
+            f"存在亚组异质性。{t}")
+
+
+def validate_subgroup(data):
+    """v5.5：subgroup 数据校验（返回 fatal 列表）；与 gen_subgroup_forest 同口径。"""
+    fatal = []
+    subgroups = data.get("subgroups")
+    if not (isinstance(subgroups, list) and 1 <= len(subgroups) <= 12):
+        return ["subgroup: 需要 subgroups（1~12 个 {name, levels} 对象）"]
+    for sg in subgroups:
+        if not isinstance(sg, dict) or not sg.get("name") or not isinstance(sg.get("levels"), list):
+            fatal.append("subgroup: subgroups 每项须为含 name/levels 的对象")
+            continue
+        if not (2 <= len(sg["levels"]) <= 8):
+            fatal.append(f"subgroup: 「{sg['name']}」levels 须 2~8 层")
+        for lv in sg["levels"]:
+            if not isinstance(lv, dict) or not lv.get("name"):
+                fatal.append(f"subgroup: 「{sg['name']}」levels 每项须含 name")
+                continue
+            try:
+                if not (float(lv["ci_low"]) <= float(lv["est"]) <= float(lv["ci_high"])):
+                    fatal.append(f"subgroup: 「{sg['name']}」/{lv['name']} 须 ci_low ≤ est ≤ ci_high")
+            except (KeyError, TypeError, ValueError):
+                fatal.append(f"subgroup: 「{sg['name']}」/{lv.get('name')} 须有数值 est/ci_low/ci_high")
+            p = lv.get("p")
+            if p is not None and not (0.0 <= float(p) <= 1.0):
+                fatal.append(f"subgroup: 「{sg['name']}」/{lv['name']} p 须在 [0,1]")
+        pi = sg.get("p_interaction")
+        if pi is not None and not (0.0 <= float(pi) <= 1.0):
+            fatal.append(f"subgroup: 「{sg['name']}」p_interaction 须在 [0,1]")
     return fatal
 
 
@@ -4394,4 +4669,5 @@ GENERATORS = {
     "dca": gen_dca,
     "nomogram": gen_nomogram,
     "rcs": gen_rcs,
+    "subgroup": gen_subgroup_forest,
 }

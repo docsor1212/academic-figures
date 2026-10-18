@@ -34,6 +34,7 @@
 | calibration / dca | calibration 值∈[0,1]；dca 阈值严格升序 (0,1) 开区间、1~6 模型 | 报错含具体箱号/序号 |
 | nomogram | variables 1~12、outcome_scales 1~3、每尺 ticks 2~12；变量 points_at∈[0,100] | 报错含尺名与首错刻度 |
 | rcs | points ≥5 且 value 单调；log_y=true 时 est/ci>0；ref 须在 value 范围内 | 报错含首个坏网格点序号 |
+| subgroup | subgroups 1~12、每组 levels 2~8；ci_low≤est≤ci_high；p/p_interaction∈[0,1] | 报错含亚组名/层名 |
 | 任意图 | 渲染看门狗 30~1800s 预算 | 内存不足自动降级重试 |
 
 细节与完整矩阵见下方 §一~§九。

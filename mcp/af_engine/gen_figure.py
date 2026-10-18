@@ -62,7 +62,8 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      gen_calibration, calibration_alt, validate_calibration,
                      gen_dca, dca_alt, validate_dca, format_suggest_line,
                      gen_nomogram, nomogram_alt, validate_nomogram,
-                     gen_rcs, rcs_alt, validate_rcs)
+                     gen_rcs, rcs_alt, validate_rcs,
+                     gen_subgroup_forest, subgroup_alt, validate_subgroup)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
@@ -306,6 +307,10 @@ CHART_NOTES = {
     "rcs": "rcs: 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 种图型）；JSON points=[{value,est,ci_lo,ci_hi}]"
            "（≥5 网格点，来自已拟合样条模型，引擎不拟合）；ref 参照值、log_y 默认对数轴（HR/OR）、"
            "hline_at 覆盖参照水平、hist=false 关底部 rug；曲线偏离参照水平=存在非线性关联。",
+    "subgroup": "subgroup: 亚组分析森林图（v5.5，第 35 种图型；各层效应+P 交互一图呈现）；"
+                "JSON subgroups=[{name,p_interaction?,levels=[{name,est,ci_low,ci_high,n?,p?}]}]"
+                "（1~12 组×2~8 层）+overall 可选（底部菱形）；est_label 定无效线（HR/OR/RR=1，MD/SMD=0）；"
+                "log_x 默认 true；引擎只可视化不拟合。",
     "ridgeline": "ridgeline: 山脊图/joyplot（v5.0，第 29 种图型；多组 KDE 密度纵向堆叠部分重叠，"
                  "一屏看分布逐组移动/变形）；schema 同 violin（labels+datasets）；overlap(0~0.95) "
                  "调重叠、sort=median 按中位数排；单值组退化为标记线并告知。",
@@ -355,30 +360,16 @@ def cmd_theme_swatch(theme_key, out):
 
 
 DEMO_DATA = {
-    "bar": {"labels": ["TNF抑制剂", "IL-6抑制剂", "JAK抑制剂", "IL-1抑制剂", "CTLA-4融合"],
-            "series": {"应答率(%)": [62, 55, 48, 40, 35], "缓解率(%)": [28, 22, 20, 15, 10]}},
-    "hbar": {"labels": ["TNF抑制剂", "IL-6抑制剂", "JAK抑制剂", "IL-1抑制剂", "CTLA-4融合"],
-             "series": {"ACR50应答率(%)": [62, 55, 48, 40, 35]}},
-    "stacked_bar": {"labels": ["队列A", "队列B", "队列C"],
-                    "series": {"缓解": [45, 38, 30], "部分缓解": [25, 30, 28], "无缓解": [30, 32, 42]},
-                    "percentage": True},
-    "heatmap": {"rows": ["IL-6", "TNF-α", "CRP", "ESR"],
-                "cols": ["IL-6", "TNF-α", "CRP", "ESR"],
-                "matrix": [[1.0, 0.72, 0.85, 0.68], [0.72, 1.0, 0.65, 0.60],
-                           [0.85, 0.65, 1.0, 0.75], [0.68, 0.60, 0.75, 1.0]]},
-    "line": {"labels": ["0周", "4周", "8周", "12周", "16周"],
-             "series": {"TNF抑制剂": [5.8, 4.2, 3.5, 3.0, 2.6], "联合治疗": [5.9, 3.8, 2.8, 2.2, 1.8]}},
-    "scatter": {"x": [2, 4, 8, 12, 16, 20, 24, 28],
-                "y": [45, 38, 28, 22, 18, 15, 12, 10],
-                "groups": ["应答者", "应答者", "应答者", "应答者",
-                           "非应答者", "非应答者", "非应答者", "非应答者"]},
-    "forest": {"labels": ["Smith 2023", "Tanaka 2023", "Brown 2022", "王明 2024"],
-               "estimates": [0.72, 0.80, 0.75, 0.65], "ci_low": [0.55, 0.62, 0.56, 0.48],
-               "ci_high": [0.94, 1.03, 1.00, 0.84], "overall": {"estimate": 0.73, "ci_low": 0.6, "ci_high": 0.88}},
-    "km": {"groups": {"治疗组": [[0, 1], [6, 0.8], [12, 0.7], [18, 0.6], [24, 0.55]],
-                      "对照组": [[0, 1], [6, 0.9], [12, 0.75], [18, 0.6], [24, 0.45]]}, "log_rank": {"p": 0.03}},
-    "roc": {"curves": [{"fpr": [0.0, 0.1, 0.2, 0.4, 0.6, 1.0], "tpr": [0.0, 0.6, 0.8, 0.9, 0.95, 1.0], "label": "模型A", "auc": 0.92},
-                       {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], "tpr": [0.0, 0.4, 0.6, 0.75, 0.85, 1.0], "label": "模型B", "auc": 0.85}]},
+    "bar": {"labels": ["TNF抑制剂", "IL-6抑制剂", "JAK抑制剂", "IL-1抑制剂", "CTLA-4融合"], "series": {"应答率(%)": [62, 55, 48, 40, 35], "缓解率(%)": [28, 22, 20, 15, 10]}},
+    "hbar": {"labels": ["TNF抑制剂", "IL-6抑制剂", "JAK抑制剂", "IL-1抑制剂", "CTLA-4融合"], "series": {"ACR50应答率(%)": [62, 55, 48, 40, 35]}},
+    "stacked_bar": {"labels": ["队列A", "队列B", "队列C"], "percentage": True, "series": {"缓解": [45, 38, 30], "部分缓解": [25, 30, 28], "无缓解": [30, 32, 42]}},
+    "heatmap": {"rows": ["IL-6", "TNF-α", "CRP", "ESR"], "cols": ["IL-6", "TNF-α", "CRP", "ESR"],
+                "matrix": [[1.0, 0.72, 0.85, 0.68], [0.72, 1.0, 0.65, 0.60], [0.85, 0.65, 1.0, 0.75], [0.68, 0.60, 0.75, 1.0]]},
+    "line": {"labels": ["0周", "4周", "8周", "12周", "16周"], "series": {"TNF抑制剂": [5.8, 4.2, 3.5, 3.0, 2.6], "联合治疗": [5.9, 3.8, 2.8, 2.2, 1.8]}},
+    "scatter": {"x": [2, 4, 8, 12, 16, 20, 24, 28], "y": [45, 38, 28, 22, 18, 15, 12, 10], "groups": ["应答者"] * 4 + ["非应答者"] * 4},
+    "forest": {"labels": ["Smith 2023", "Tanaka 2023", "Brown 2022", "王明 2024"], "estimates": [0.72, 0.80, 0.75, 0.65], "ci_low": [0.55, 0.62, 0.56, 0.48], "ci_high": [0.94, 1.03, 1.00, 0.84], "overall": {"estimate": 0.73, "ci_low": 0.6, "ci_high": 0.88}},
+    "km": {"groups": {"治疗组": [[0, 1], [6, 0.8], [12, 0.7], [18, 0.6], [24, 0.55]], "对照组": [[0, 1], [6, 0.9], [12, 0.75], [18, 0.6], [24, 0.45]]}, "log_rank": {"p": 0.03}},
+    "roc": {"curves": [{"fpr": [0.0, 0.1, 0.2, 0.4, 0.6, 1.0], "tpr": [0.0, 0.6, 0.8, 0.9, 0.95, 1.0], "label": "模型A", "auc": 0.92}, {"fpr": [0.0, 0.2, 0.4, 0.6, 0.8, 1.0], "tpr": [0.0, 0.4, 0.6, 0.75, 0.85, 1.0], "label": "模型B", "auc": 0.85}]},
     "violin": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0], "组C": [3.0, 3.2, 3.8, 4.5, 4.8, 5.2]}},
     "box": {"datasets": {"组A": [1.2, 2.3, 2.1, 3.0, 2.8, 3.5], "组B": [2.0, 2.4, 3.1, 3.8, 4.2, 4.0]}},
     "slope": {"left_label": "基线", "right_label": "12 周", "items": {"药物A": [72, 85], "药物B": [65, 61], "对照": [70, 71]}},
@@ -403,6 +394,14 @@ DEMO_DATA = {
         "total_points_max": 320},
     "rcs": {"points": [{"value": 40, "est": 1.02, "ci_lo": 0.72, "ci_hi": 1.45}, {"value": 45, "est": 0.94, "ci_lo": 0.74, "ci_hi": 1.19}, {"value": 50, "est": 0.88, "ci_lo": 0.76, "ci_hi": 1.02}, {"value": 55, "est": 1.05, "ci_lo": 0.93, "ci_hi": 1.19}, {"value": 60, "est": 1.38, "ci_lo": 1.15, "ci_hi": 1.66}, {"value": 65, "est": 1.79, "ci_lo": 1.36, "ci_hi": 2.36}],
             "ref": 50, "x_label": "年龄（岁）", "y_label": "HR（对数轴）"},
+    "subgroup": {"subgroups": [
+        {"name": "年龄", "p_interaction": 0.48, "levels": [
+            {"name": "<65 岁", "n": 120, "est": 0.72, "ci_low": 0.55, "ci_high": 0.94, "p": 0.015}, {"name": "≥65 岁", "n": 98, "est": 0.81, "ci_low": 0.58, "ci_high": 1.13, "p": 0.22}]},
+        {"name": "性别", "p_interaction": 0.71, "levels": [
+            {"name": "男", "n": 126, "est": 0.69, "ci_low": 0.52, "ci_high": 0.91, "p": 0.008}, {"name": "女", "n": 92, "est": 0.84, "ci_low": 0.60, "ci_high": 1.18, "p": 0.32}]},
+        {"name": "PD-L1 表达", "p_interaction": 0.03, "levels": [
+            {"name": "TPS≥50%", "n": 84, "est": 0.55, "ci_low": 0.39, "ci_high": 0.78, "p": 0.001}, {"name": "TPS<50%", "n": 134, "est": 0.86, "ci_low": 0.67, "ci_high": 1.10, "p": 0.23}]}],
+        "overall": {"n": 218, "est": 0.75, "ci_low": 0.61, "ci_high": 0.92, "p": 0.007}, "est_label": "HR", "x_label": "PFS HR（免疫治疗 vs 化疗）"},
     "ridgeline": {"labels": ["基线", "4周", "8周", "12周"], "overlap": 0.55,
                   "datasets": {"基线": [42, 48, 52, 55, 58, 60, 63, 65, 68, 72, 78, 85, 42, 50, 56, 61, 66, 70, 74, 80], "4周": [28, 33, 38, 41, 45, 48, 52, 55, 58, 62, 68, 30, 36, 43, 49, 54, 60, 65], "8周": [18, 22, 26, 30, 33, 37, 41, 45, 49, 54, 20, 25, 31, 39, 47, 52], "12周": [12, 15, 19, 23, 27, 31, 36, 41, 46, 14, 18, 24, 33, 43]}},
     "waterfall": {"change": [-72.4, -65.1, -58.9, -52.0, -41.8, -32.1, -24.5, -15.2, -8.9, -3.4, 0.8, 12.6, 25.3, 41.7, 52.0],
@@ -411,8 +410,7 @@ DEMO_DATA = {
     "swimmer": {"end": [38.9, 34.2, 30.5, 26.1, 22.4, 18.7, 15.9, 12.3, 9.8, 6.4, 4.1, 2.2],
                 "names": [f"P{i:03d}" for i in range(1, 13)],
                 "group": ["CR", "CR", "PR", "PR", "PR", "PR", "SD", "SD", "SD", "PD", "PD", "PD"],
-                "milestones": [[8.2], [9.5], [6.1], [7.0], [10.2], [], [5.5], [], [], [], [], []],
-                "ongoing": [True, True, True, False, True, False, False, False, False, False, False, False], "ref_lines": [12, 24]},
+                "milestones": [[8.2], [9.5], [6.1], [7.0], [10.2], [], [5.5], [], [], [], [], []], "ongoing": [True, True, True, False, True, False, False, False, False, False, False, False], "ref_lines": [12, 24]},
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"], "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]}, "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
     "prisma": {"records_identified": 128, "duplicates_removed": 23, "records_excluded": 61, "reports_not_retrieved": 3, "exclusion_reasons": {"人群不符": 5, "干预不符": 7, "数据不可用": 4}, "studies_included": 25},
 }
@@ -530,9 +528,10 @@ def suggest_chart_type(data):
         recs.append((88, "calibration", "predicted vs observed bins — calibration"))
     if data.get("variables") and data.get("outcome_scales"):
         recs.append((91, "nomogram", "variables + outcome_scales — nomogram"))
-    _p0 = data.get("points")
-    if isinstance(_p0, list) and _p0 and isinstance(_p0[0], dict) and "est" in _p0[0]:
+    if isinstance((_p0 := data.get("points")), list) and _p0 and isinstance(_p0[0], dict) and "est" in _p0[0]:
         recs.append((88, "rcs", "points[] est/ci grid — nonlinear dose-response"))
+    if data.get("subgroups"):
+        recs.append((93, "subgroup", "subgroups[] levels est/CI — subgroup forest"))
     series = data.get("series")
     if isinstance(series, dict) and series:
         lists = [v for v in series.values() if isinstance(v, list)]
@@ -1714,9 +1713,10 @@ def validate_data(data, chart_type):
         fatal.extend(validate_raincloud(data))
 
     # ── calibration/dca: 临床预测模型线（校验逻辑在 af_draw，v5.2）──
-    elif chart_type in ("calibration", "dca", "nomogram", "rcs"):
+    elif chart_type in ("calibration", "dca", "nomogram", "rcs", "subgroup"):
         fatal.extend({"calibration": validate_calibration, "dca": validate_dca,
-                      "nomogram": validate_nomogram, "rcs": validate_rcs}[chart_type](data))
+                      "nomogram": validate_nomogram, "rcs": validate_rcs,
+                      "subgroup": validate_subgroup}[chart_type](data))
 
     # ── composite: panels ──
     elif chart_type == "composite":
@@ -3131,7 +3131,8 @@ def main():
     # （如 KM 风险表/中位生存标注）导致 cjk_fp 未启用——此处发现 CJK 文本即自动找字体。
     import matplotlib.text as _mtext
     _cjk_texts = [t for t in fig.findobj(_mtext.Text)
-                  if t.get_text() and has_cjk(t.get_text())]
+                  if t.get_text() and has_cjk(t.get_text())
+                  and not getattr(t, "_af_keep_fp", False)]
     if _cjk_texts:
         if cjk_fp is None:
             try:
