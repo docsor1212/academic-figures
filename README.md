@@ -9,9 +9,9 @@
 [![Site](https://img.shields.io/badge/Site-docsor.cn-teal)](https://docsor.cn)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Tests](https://img.shields.io/badge/tests-392%20pass-brightgreen)
+![Tests](https://img.shields.io/badge/tests-397%20pass-brightgreen)
 
-**34 chart types** (bar/slope/volcano/upset set-intersections/oncology waterfall/raincloud/clinical swimmer/ridgeline joyplot/dumbbell gap chart/model calibration curve/decision curve analysis/clinical nomogram/restricted cubic spline/box/violin/
+**35 chart types** (bar/slope/volcano/upset set-intersections/oncology waterfall/raincloud/clinical swimmer/ridgeline joyplot/dumbbell gap chart/model calibration curve/decision curve analysis/clinical nomogram/restricted cubic spline/subgroup forest/box/violin/
 scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/venn 4-set ellipse/Bland-Altman/PCA/
 funnel/paired/dual-axis/stacked/composite/diagram/PRISMA 2020 …) · **9 journal presets** (Nature/Lancet/Science/Cell/NEJM/JAMA/IEEE/CMA/
 中文核心) · **9 color themes** incl. colorblind-safe Okabe-Ito · **600dpi TIFF/PDF/SVG/EPS** ·
@@ -53,21 +53,23 @@ python3 scripts/gen_figure.py -t km -d survival.json -o km.png --cjk
 - Full docs: `SKILL.md` (EN) · 中文文档见 SkillHub 页面
 - Getting started: `references/quickstart.md` · One-page cheatsheet:
   `references/cheatsheet.md` · Limits & flag interactions: `references/limits.md`
-- Scenario templates: `templates/` (34, each with a ready-to-run command)
-- Regression suite: `tests/run_tests.py` (392 tests)
+- Scenario templates: `templates/` (35, each with a ready-to-run command)
+- Regression suite: `tests/run_tests.py` (397 tests)
 
 ## Install
 
+**国内网络优先（无需访问 GitHub）**：
+- **SkillHub（中文，一条命令安装）**：[skillhub.cn/skill/academic-figures](https://skillhub.cn/skill/academic-figures) — 搜索 `academic-figures`
+- **ModelScope 魔搭镜像**：<https://modelscope.cn/skills/Docsor/academic-figures> — 与 GitHub 版本对齐；喜欢请点个赞
+- 依赖安装走国内镜像：`python3 scripts/setup_env.py`（pip 失败自动切清华→阿里源，仅装 matplotlib/numpy/pymupdf/scipy）
+- `uvx`/`pip` 工具链同样走上述镜像；skill 本体与文档全部本地运行，无需访问 GitHub
+
+**GitHub 源码**（国际网络）：
 ```bash
 git clone https://github.com/docsor1212/academic-figures.git
 cd academic-figures
 python3 scripts/setup_env.py    # optional: install deps + self-check
 ```
-
-Or install as an agent skill from [SkillHub](https://skillhub.cn/skill/academic-figures)
-(中文) — search `academic-figures`.
-
-**China mirror (ModelScope 魔搭)**: <https://modelscope.cn/skills/Docsor/academic-figures> — if you find this skill useful, a like there helps others find it.
 
 ## Related tools · 相关工具
 

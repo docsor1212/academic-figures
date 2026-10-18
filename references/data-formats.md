@@ -715,3 +715,11 @@ variables 1~12 个，每项 `name`+`ticks`（2~12 个）必填，`labels` 自定
 水平线默认 y=0，可用 `hline_at` 覆盖）、`hist`（默认 true，底部暴露 rug）、
 `x_label`/`y_label`。解读：曲线偏离参照水平=非线性关联；置信带与参照水平
 相交=无统计学差异区。
+
+## subgroup（v5.5）
+
+`{"subgroups": [{"name": "年龄", "p_interaction": 0.48, "levels": [
+{"name": "<65", "est": 0.72, "ci_low": 0.55, "ci_high": 0.94, "n": 120, "p": 0.015}, ...]}, ...]}`：
+subgroups 1~12 个、levels 每组 2~8 层；`overall`（底部菱形）与 `est_label`
+（HR/OR/RR 无效线=1，MD/SMD=0）、`log_x`（默认比率尺度 true）可选。
+引擎只可视化不拟合：est/p/交互检验来自你的亚组模型（交互须含交互项的多因素模型）。

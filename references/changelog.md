@@ -10,6 +10,25 @@
 
 ## Version History
 
+## 5.5.0 — 2026-10-19
+
+  - **New chart type #35: `subgroup` — subgroup analysis forest**: per-level
+    estimate squares + 95%CI whiskers, P-interaction per variable on the
+    subgroup header row, Overall diamond at the bottom, right-side est (95% CI)
+    and P columns (significant values accented). JSON: `subgroups=[{name,
+    p_interaction?, levels=[{name, est, ci_low, ci_high, n?, p?}]}]` (1-12
+    variables × 2-8 levels) + optional `overall`; `est_label` picks the
+    no-effect line (HR/OR/RR=1, MD/SMD=0); `log_x` defaults to ratio scale
+    with plain log ticks. Visualizes your fitted subgroup model — the engine
+    does not fit.
+  - **FAQ discoverability**: top-of-SKILL pointer and section-nav entry for
+    `references/faq.md`.
+  - **Boundaries-first ordering**: Capabilities & Boundaries now sits right
+    after the section nav (before Quick Start) in both SKILL docs.
+  - **Domestic install channels documented first** in README: SkillHub /
+    ModelScope mirror / setup_env mirror fallback; GitHub demoted to the
+    international option.
+
 ## 5.4.0 — 2026-10-18
 
   - **New chart type #34: `rcs` — restricted cubic spline / nonlinear
@@ -785,6 +804,17 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v5.5.0（2026-10-19）
+
+- **新图型 #35：`subgroup` 亚组分析森林图**：逐层效应方块+95%CI、亚组标题
+  行报 P 交互、底部 Overall 菱形、右侧 est(95%CI)/P 双列（显著值红色）。
+  `subgroups=[{name, p_interaction?, levels=[...]}]`（1~12×2~8）+`overall`
+  可选；`est_label` 定无效线；`log_x` 默认比率对数轴+平实刻度。只可视化
+  已拟合亚组模型（引擎不拟合）。
+- **FAQ 可发现性**：SKILL 顶部指针+章节导航条目。
+- **边界前置**：能力与边界章节移至章节导航之后（双语）。
+- **国内安装通路前置**：README 安装节 SkillHub/魔搭/setup_env 镜像优先。
 
 ### v5.4.0（2026-10-18）
 

@@ -97,6 +97,16 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig10 --pub-ready \
 `--pub-ready` 一条命令=--verify 门禁+色盲安全主题+pdf/png 双格式+复跑交付包 `<输出>.repro/`｜
 `--journal cn-core` 中文核心预设（自动 CJK+字号下限把守）｜复跑包给审稿人=数字可逐项对账。
 
+## 卡13 疗效亚组分析（亚组森林图+P 交互）
+
+```bash
+python3 scripts/gen_figure.py -t subgroup -d subgroups.json -o fig13.pdf --cjk --verify
+```
+`subgroups=[{name, p_interaction?, levels=[{name, est, ci_low, ci_high, n?, p?}]}]`
+每亚组变量 2~8 层｜`overall` 给总效应（底部菱形）｜方块实心=层内 P<0.05｜
+P 交互<0.05 红色提示效应异质（交互检验须来自含交互项的多因素模型，逐层检验不代替）｜
+差值尺度传 `"est_label": "MD"`（无效线自动取 0）。
+
 ## 卡11 不确定用什么图（三件套向导）
 
 ```bash

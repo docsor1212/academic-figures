@@ -1128,7 +1128,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 34, f"expected 34 templates (v2.6 base + ... + nomogram/rcs), got {len(jsons)}")
+        self.assertEqual(len(jsons), 35, f"expected 35 templates (v2.6 base + ... + rcs/subgroup), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.4.0", self.zh)
-        self.assertIn("version: 5.4.0", self.en)
+        self.assertIn("version: 5.5.0", self.zh)
+        self.assertIn("version: 5.5.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.4.0", self.zh)
-        self.assertIn("version: 5.4.0", self.en)
+        self.assertIn("version: 5.5.0", self.zh)
+        self.assertIn("version: 5.5.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.4.0", self.zh)
-        self.assertIn("version: 5.4.0", self.en)
+        self.assertIn("version: 5.5.0", self.zh)
+        self.assertIn("version: 5.5.0", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.4.0", zh)
+        self.assertIn("version: 5.5.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2880,7 +2880,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "34 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "35 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.4.0", t, name)
+            self.assertIn("version: 5.5.0", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.4.0", t, name)
+            self.assertIn("version: 5.5.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.4.0", t, name)
+            self.assertIn("version: 5.5.0", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.4.0", t, name)
+            self.assertIn("version: 5.5.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4013,8 +4013,8 @@ class TestV47000(unittest.TestCase):
         rw = os.path.join(base, "examples", "realworld")
         self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
         rws = sorted(os.listdir(rw))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 9,
-                         f"realworld 示例应 9 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 10,
+                         f"realworld 示例应 10 个: {rws}")
 
 
 class TestV48000(unittest.TestCase):
@@ -4880,7 +4880,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 34)
+        self.assertEqual(len(jsons), 35)
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5145,6 +5145,87 @@ class TestV50400(unittest.TestCase):
         sys.path.insert(0, SCRIPT_DIR)
         n = len(gen_figure.GENERATORS) - 3  # 纯别名 horizontal_bar/boxplot/survival
         self.assertGreaterEqual(n, 34, f"注册表图型数: {n}")
+
+
+class TestV50500(unittest.TestCase):
+    """v5.5.0：subgroup 亚组分析森林图（第 35）+ FAQ 可发现性 + 边界前置。"""
+
+    @classmethod
+    def _rw(cls, name):
+        return os.path.join(SCRIPT_DIR, "..", "examples", "realworld", name)
+
+    def test_subgroup_e2e_realworld(self):
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "s.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "subgroup",
+                 "-d", self._rw("realworld_immunotherapy_subgroup.json"),
+                 "-o", out, "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            self.assertTrue(os.path.exists(out))
+            self.assertIn("subgroup: 4 个亚组变量 / 8 层+overall", r.stderr)
+            self.assertIn("交互显著（P<0.05）0 个", r.stderr)
+
+    def test_subgroup_validate_fatals(self):
+        for bad, msg in (
+                ({"subgroups": []}, "1~12"),
+                ({"subgroups": [{"name": "A", "levels": [{"name": "x", "est": 1.5,
+                  "ci_low": 2.0, "ci_high": 1.0}, {"name": "y", "est": 0.9,
+                  "ci_low": 0.7, "ci_high": 1.1}]}]}, "ci_low ≤ est ≤ ci_high"),
+                ({"subgroups": [{"name": "A", "levels": [{"name": "x", "est": 1.0,
+                  "ci_low": 0.8, "ci_high": 1.2}, {"name": "y", "est": 0.9,
+                  "ci_low": 0.7, "ci_high": 1.1}], "p_interaction": 1.5}]}, "p_interaction"),
+                ({"subgroups": [{"name": "A", "levels": [{"name": "x", "est": 1.0,
+                  "ci_low": 0.8, "ci_high": 1.2}]}]}, "2~8")):
+            with tempfile.TemporaryDirectory() as td:
+                f = os.path.join(td, "x.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(bad))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "subgroup", "-d", f,
+                     "-o", os.path.join(td, "x.png"), "--dpi", "70"],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (msg, r.stderr[-200:]))
+                self.assertIn(msg, r.stderr)
+
+    def test_subgroup_alt_and_suggest(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "s.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(
+                {"subgroups": [{"name": "年龄", "p_interaction": 0.4, "levels": [
+                    {"name": "A", "est": 0.7, "ci_low": 0.5, "ci_high": 0.9, "p": 0.01},
+                    {"name": "B", "est": 0.8, "ci_low": 0.6, "ci_high": 1.0, "p": 0.05}]}],
+                  "overall": {"est": 0.75, "ci_low": 0.6, "ci_high": 0.9}}))
+            out = os.path.join(td, "s.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "subgroup", "-d", f, "-o", out,
+                 "--dpi", "80", "--alt"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            alt = io.open(os.path.splitext(out)[0] + ".alt.txt", encoding="utf-8").read()
+            self.assertIn("亚组分析森林图（1 个亚组变量）", alt)
+            self.assertIn("P 交互=0.4", alt)
+            r2 = subprocess.run(
+                [sys.executable, GEN, "--suggest", "-d", f],
+                capture_output=True, text=True, timeout=120)
+            self.assertIn("subgroup", r2.stdout)
+
+    def test_registry_count_35(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3  # 纯别名 horizontal_bar/boxplot/survival
+        self.assertGreaterEqual(n, 35, f"注册表图型数: {n}")
+
+    def test_faq_discoverability_and_boundaries_first(self):
+        """评测对策锁：FAQ 顶部指针 + 能力边界在快速开始之前（双语）。"""
+        root = os.path.join(SCRIPT_DIR, "..")
+        for doc, faq_needle, cap, quick in (
+                ("SKILL.md", "references/faq.md", "## Capabilities & Boundaries", "## Quick Start"),
+                ("SKILL_ZH.md", "references/faq.md", "## 能力与边界", "## 快速开始")):
+            txt = io.open(os.path.join(root, doc), encoding="utf-8").read()
+            self.assertIn(faq_needle, txt.split("## Quick Start")[0] if doc == "SKILL.md" else txt[:6000],
+                          f"{doc} 顶部缺 FAQ 指针")
+            self.assertLess(txt.index(cap), txt.index(quick), f"{doc} 边界节未前置")
 
 
 if __name__ == "__main__":
