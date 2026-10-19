@@ -12,6 +12,16 @@
 
 ## Version History
 
+## 5.6.1 — 2026-10-20
+
+  - **Fix: galbraith deep-branch crash** — with >12 studies and adjacent
+    outlier labels, the label-declutter keep-outlier path hit a variable-name
+    typo (NameError). Added a regression lock with duplicate outlier studies.
+  - **Label avoidance upgrade**: the declutter now walks a vertical ladder
+    (8 depths) plus mirrored horizontal candidates before giving up, driven
+    by acceptance testing on a real 83-study meta-analysis dataset — dense
+    outlier clusters now resolve with zero glyph overlap.
+
 ## 5.6.0 — 2026-10-20
 
   - **New chart type #36: `galbraith` — Galbraith radial plot (meta-analysis
@@ -835,6 +845,13 @@
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
 
 ## 中文
+
+### v5.6.1（2026-10-20）
+
+- **修复 galbraith 深分支崩溃**：研究数>12 且多个离群标注相邻时，避让的
+  「离群保留」分支引用了笔误变量名（NameError）；新增同点重复离群回归锁。
+- **研究名避让算法升级**：纵向 8 档阶梯+横向镜像候选位全部试净后才落位；
+  由真实 83 项研究元分析数据的验收 fail 驱动——密集离群区零字形叠印。
 
 ### v5.6.0（2026-10-20）
 
