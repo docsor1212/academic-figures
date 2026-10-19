@@ -41,6 +41,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | bland_altman | 两组等长 |
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |
+| galbraith | 数据同 funnel（studies name/effect/se，效应 log 尺度）；≥3 研究；`est_label`=OR/HR/RR 默认画效应量弧线、MD/SMD 自动关（v5.6） |
 | composite | panels 内除 composite/diagram/upset 外任意图型；不可嵌套 |
 | volcano | log2fc+pvalue 数组；fc_cut/p_cut/top 数据键；阈值线+Top 标注 |
 | slope | 两时点 [左值, 右值]；`panel_labels`/`left_floor` 等 + `--peak-label` 峰值注记（v4.2） |

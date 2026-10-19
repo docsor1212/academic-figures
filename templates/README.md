@@ -1,6 +1,6 @@
 # 模板库（v2.6 全图型覆盖）
 
-35 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注说明，**覆盖全部 35 种图型**（v5.4 增 rcs，v5.5 增 subgroup）。用法：
+36 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注说明，**覆盖全部 36 种图型**（v5.5 增 subgroup，v5.6 增 galbraith）。用法：
 
 ```bash
 cp templates/01-meta-forest.json my_data.json
@@ -42,7 +42,7 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | dumbbell.json | dumbbell 哑铃图（v5.1） | calibration.json | calibration 校准曲线（v5.2） |
 | dca.json | dca 决策曲线（v5.2） | nomogram.json | nomogram 列线图（v5.3） |
 | rcs.json | rcs 非线性剂量反应（v5.4） | subgroup.json | subgroup 亚组森林图（v5.5） |
-| volcano.json | volcano 火山图 | — | — |
+| galbraith.json | galbraith Galbraith 径向图（v5.6） | volcano.json | volcano 火山图 |
 
 > v2.6 起模板与图型一一对应（v4.9 增 raincloud）；不确定用哪个图型可对数据跑
 > `python3 scripts/gen_figure.py --suggest -d 你的数据.json`。

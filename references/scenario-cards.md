@@ -53,15 +53,17 @@ python3 scripts/gen_figure.py -t rcs -d rcs.json -o fig5.pdf --cjk --verify
 默认对数轴（HR/OR）+`ref` 参照竖线+底部 rug；差值尺度传 `"log_y": false`（参照水平线默认 y=0）。
 解释口径：置信带与参照水平相交=无统计学差异区。
 
-## 卡6 Meta 分析（森林图+漏斗图）
+## 卡6 Meta 分析（森林图+漏斗图+Galbraith 径向图）
 
 ```bash
 python3 scripts/gen_figure.py -t forest -d meta.json -o fig6a.pdf --theme okabe-ito --verify
 python3 scripts/gen_figure.py -t funnel -d meta.json -o fig6b.pdf --egger
+python3 scripts/gen_figure.py -t galbraith -d meta.json -o fig6c.pdf
 ```
 forest：效应值+CI+权重气泡+总效应菱形+I²｜`--stats cox` 原始逐例数据直接建模（PH 检验自动）｜
 funnel：DL 合并线+`--egger` 不对称检验（<5 研究不可靠，引擎会警告）｜
-敏感性：`forest --sensitivity` 留一法。
+galbraith（v5.6）：精度 1/SE×标准化效应径向图——带外研究=异质性/离群嫌疑（stderr 逐个报名）；效应取 log 值时默认画 OR 弧线读数｜
+敏感性：`forest --sensitivity` 留一法。三件套分工：forest 看合并效应、funnel 看小样本不对称（发表偏倚）、galbraith 看谁是异质性来源。
 
 ## 卡7 组学差异表达（火山图+聚类热图）
 

@@ -575,6 +575,11 @@ Layout multiple chart panels (A, B, C...) in a single figure. Each panel can be 
   - `data`: Data object matching the panel's chart type (see other sections for schema)
   - `xlabel`, `ylabel` (optional): Per-panel axis labels
   - `show_values`, `legend`, `trend`, `hatch`, `horizontal`, `show_ratio` (optional): Per-panel flags
+- `share_y` (bool, optional, v5.6): when true, panels sharing the same `ylabel`
+  (same-variable semantics) are unified to one y scale (log scales sync too);
+  the unified range is reported on stderr. Use when reviewers would misread
+  panels whose identical-variable axes span very different ranges — `--doctor`
+  flags that case (>5× spread) and points here.
 
 ---
 

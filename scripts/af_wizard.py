@@ -23,7 +23,7 @@ _WIZARD_SHAPES = [
     ("逐条目两点差距（哑铃图）", ["dumbbell"], "templates/dumbbell.json"),
     ("二维数值矩阵（行×列）", ["heatmap", "cluster_heatmap"], "templates/cluster_heatmap.json"),
     ("逐例生存+协变量（多因素 Cox 回归）", ["forest"], None),
-    ("效应值+标准误（Meta 分析）", ["forest"], "templates/01-meta-forest.json"),
+    ("效应值+标准误（Meta 分析）", ["forest", "funnel", "galbraith"], "templates/01-meta-forest.json"),
     ("流程步骤/研究设计", ["diagram", "stacked_bar", "prisma"],
      "templates/16-study-design-diagram.json"),
     ("同一对象两次测量（一致性/前后）", ["bland_altman", "paired"],

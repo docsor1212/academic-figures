@@ -136,6 +136,12 @@ auto=各组对第一组（两组就能用）；multi=全两两（需 ≥3 组，
 **Q：`--egger` 能用在森林图上吗？**
 不能——仅 funnel（≥3 研究）。森林图的 Meta 功能是 `--stats cox`（多因素回归）。
 
+**Q：漏斗图和 Galbraith 径向图（v5.6）怎么选？**
+同一份数据（studies name/effect/se）两者都吃：漏斗图看**小样本不对称**（发表偏倚线索，配 `--egger` 检验）；Galbraith 径向图看**谁是异质性来源**（±1.96 同质带外的研究 stderr 逐个报名，配森林图权重交叉核对）。审稿人常要求两者齐备。注意效应请给 log 值（OR/HR/RR 尺度）——径向图的效应量弧线按 est_label 读回临床尺度，MD/SMD 自动关弧线。
+
+**Q：composite 多面板同一变量的 y 轴范围差很大，审稿人误读怎么办？**
+v5.6 起在 composite 数据加 `"share_y": true`——同 ylabel 的面板自动统一 y 轴（含 log 尺度同步），stderr 报统一范围；`--doctor` 预检发现范围差 >5 倍时也会提示这一出口。
+
 **Q：`--hatch` 和 `--style glm-hatch` 什么区别？**
 `--hatch` 仅 bar 系（柱状填充斜纹）；`--style glm-hatch` 是主题级开关（glm 配色+全图斜纹风格）。
 

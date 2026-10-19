@@ -45,28 +45,7 @@ def gen_funnel(data, ax, theme, cjk_fp, **kwargs):
     或 {"effects": [...], "ses": [...], "labels": [...] }（效应建议为 log 尺度）。
     选项: egger=True 画 Egger 回归线（stderr 报告不对称检验 p）。
     """
-    studies = data.get("studies", None)
-    if studies:
-        names = [str(s.get("name", f"研究{i+1}")) for i, s in enumerate(studies)]
-        es = [float(s["effect"]) for s in studies]
-        ses = [float(s["se"]) for s in studies]
-    else:
-        es = data.get("effects", data.get("effects_list", None))
-        ses = data.get("ses", data.get("se_list", None))
-        names = list(data.get("labels", []))
-        if es is None or ses is None:
-            raise ValueError(
-                "funnel: 需要 'studies'（每项含 name/effect/se）或 'effects'+'ses' 数组 — "
-                "森林图的 effect/lci/uci 格式请先换算（se≈(uci−lci)/3.92）")
-    if len(es) != len(ses) or len(es) == 0:
-        raise ValueError(f"funnel: effects({len(es)}) 与 ses({len(ses)}) 数量不一致或为空")
-    es = np.asarray(es, float)
-    ses = np.asarray(ses, float)
-    bad = ~(np.isfinite(es) & np.isfinite(ses) & (ses > 0))
-    if bad.any():
-        raise ValueError(f"funnel: {int(bad.sum())} 个研究的 se 非法（必须为正且有限）")
-    if len(es) < 5:
-        _warn(f"funnel: 仅 {len(es)} 个研究，漏斗对称性目测不可靠（建议 >=10）")
+    names, es, ses = _meta_studies(data, "funnel", hint="漏斗对称性目测不可靠")
 
     pooled = st.dl_pool(es, ses)
     c_main = theme["colors"][0]
@@ -105,6 +84,226 @@ def gen_funnel(data, ax, theme, cjk_fp, **kwargs):
               prop=cjk_fp if _has_cjk("".join(names)) or cjk_fp and _has_cjk(str(data.get("title", ""))) else None)
     _warn(f"funnel: DL 随机效应合并 {pooled['pooled']:.4g}（95%CI {pooled['pooled']-1.96*pooled['se']:.3g}~"
           f"{pooled['pooled']+1.96*pooled['se']:.3g}），异质性 I²={pooled['i2']:.0f}%，P_het={pooled['p_het']:.3g}")
+    return None
+
+
+def _meta_studies(data, tname, hint=""):
+    """funnel/galbraith 共用的 Meta 研究数据解析。
+
+    接受 studies[]（每项 name/effect/se）或 effects+ses 平行数组；校验数量一致、
+    se 为正且有限；<5 个研究给统计效力警告。返回 (names, es, ses) ndarray。"""
+    studies = data.get("studies", None)
+    if studies:
+        names = [str(s.get("name", f"研究{i+1}")) for i, s in enumerate(studies)]
+        es = [float(s["effect"]) for s in studies]
+        ses = [float(s["se"]) for s in studies]
+    else:
+        es = data.get("effects", data.get("effects_list", None))
+        ses = data.get("ses", data.get("se_list", None))
+        names = list(data.get("labels", []))
+        if es is None or ses is None:
+            raise ValueError(
+                f"{tname}: 需要 'studies'（每项含 name/effect/se）或 'effects'+'ses' 数组 — "
+                "森林图的 effect/lci/uci 格式请先换算（se≈(uci−lci)/3.92）")
+    if len(es) != len(ses) or len(es) == 0:
+        raise ValueError(f"{tname}: effects({len(es)}) 与 ses({len(ses)}) 数量不一致或为空")
+    es = np.asarray(es, float)
+    ses = np.asarray(ses, float)
+    bad = ~(np.isfinite(es) & np.isfinite(ses) & (ses > 0))
+    if bad.any():
+        raise ValueError(f"{tname}: {int(bad.sum())} 个研究的 se 非法（必须为正且有限）")
+    if len(es) < 5:
+        _warn(f"{tname}: 仅 {len(es)} 个研究，{hint}（建议 >=10）")
+    return names, es, ses
+
+
+# ── galbraith Galbraith 径向图（v5.6 第 36 种图型，漏斗图姊妹图） ─────
+
+_RATIO_LABELS = ("OR", "HR", "RR")
+
+
+def _draw_galbraith_arcs(ax, b, x_hi, est_label, fs_s, cjk_fp, pts=None):
+    """比率尺度效应量弧线：以原点为心的虚线圆弧，标注合并线上 OR/HR/RR 读数。
+
+    目标效应 v → log 值 m，与合并线 y=bx 交于 x=m/b；只画与合并方向同侧、
+    落在数据精度范围内的弧（MD/SMD 已在上层自动关闭）。
+    标签放弧段中点并向外径向偏移（数据点簇集在合并线上，交点处必撞名——
+    v5.6 视觉验收教训）；与任何研究点过近的标签整条弃标（弧线仍在）。"""
+    import matplotlib.patches as mpatches
+    if b == 0:
+        _warn("galbraith: 合并效应为 0，效应量弧线无法定位，已跳过")
+        return
+    skipped = 0
+    for v in (0.125, 0.25, 0.5, 1, 2, 4, 8, 16):
+        m = float(np.log(v))
+        x_m = m / b
+        if not (0 < x_m <= x_hi):
+            continue
+        r = float(np.hypot(x_m, m))
+        ang = float(np.degrees(np.arctan2(m, x_m)))
+        ax.add_patch(mpatches.Arc((0, 0), 2 * r, 2 * r, theta1=ang - 26.0,
+                                  theta2=ang + 26.0, color="#999999",
+                                  lw=0.9, linestyle=":", zorder=2))
+        # 标签位=弧段中点（ang−14°）再径向外推 12%——离开数据线簇集区
+        import math as _m
+        _a = _m.radians(ang - 14.0)
+        lx, ly = 1.12 * r * _m.cos(_a), 1.12 * r * _m.sin(_a)
+        if pts is not None and len(pts):
+            _dx = np.array([lx - px for px, _ in pts])
+            _dy = np.array([ly - pz for _, pz in pts])
+            _near = float(np.hypot(x_hi, 1.0)) * 0.10  # 归一化最小间距（轴跨度 10%）
+            if bool((np.hypot(_dx, _dy) < _near).any()):
+                skipped += 1
+                continue
+        ax.annotate(f"{est_label}={v:g}", (lx, ly), ha="center", va="center",
+                    fontsize=fs_s, color="#666666",
+                    fontproperties=cjk_fp if cjk_fp and _has_cjk(est_label) else None)
+    if skipped:
+        _warn(f"galbraith: {skipped} 条弧线读数与研究名过近已省略（弧线仍保留）")
+
+
+def _declutter_annotations(ax, anns):
+    """研究名标注去叠印（v5.6 视觉验收机制；类级铁律「相邻标注以画布完整性优先」）。
+
+    逐个用真实像素框检测：与已放置标注重叠者翻到数据点下方重试；
+    仍重叠则弃标（离群项例外——信息优先保留原位）。返回弃标数。
+    anns 项 = (标注对象, 是否离群, 名, x, y, (dx,dy)offset, ha, 字号, 颜色, fp)"""
+    if len(anns) < 2:
+        return 0
+    import matplotlib.patheffects as _pe
+    _stroke = [_pe.withStroke(linewidth=2.2, foreground="white")]
+    fig = ax.figure
+    fig.canvas.draw()
+    renderer = fig.canvas.get_renderer()
+    placed = []
+    dropped = 0
+    for a, is_out, nm, xi, zi, (dx, dy), ha, fs, color, fp in anns:
+        bb = a.get_window_extent(renderer).expanded(1.05, 1.25)
+        if not any(bb.overlaps(p) for p in placed):
+            placed.append(bb)
+            continue
+        a.remove()
+        a2 = ax.annotate(nm, (xi, zi), textcoords="offset points",
+                         xytext=(dx, -abs(dy) - 12), ha=ha, va="top",
+                         fontsize=fs, color=color, fontproperties=fp,
+                         path_effects=_stroke, zorder=6)
+        bb2 = a2.get_window_extent(renderer).expanded(1.05, 1.25)
+        if not any(bb2.overlaps(p) for p in placed):
+            placed.append(bb2)
+        elif is_outlier:
+            a2.remove()
+            _re = ax.annotate(nm, (xi, zi), textcoords="offset points",
+                              xytext=(dx, dy), ha=ha, fontsize=fs,
+                              color=color, fontproperties=fp,
+                              path_effects=_stroke, zorder=6)
+            placed.append(_re.get_window_extent(renderer).expanded(1.05, 1.25))
+        else:
+            a2.remove()
+            dropped += 1
+    return dropped
+
+
+def gen_galbraith(data, ax, theme, cjk_fp, **kwargs):
+    """Galbraith 径向图（Meta 异质性可视化，漏斗图姊妹图；v5.6 第 36 种图型）。
+
+    x=精度 1/SE，y=标准化效应 effect/SE；过原点固定效应回归线斜率 b=合并效应，
+    ±1.96 平行带=同质区，带外研究=异质性/离群嫌疑（stderr 逐个报名+红圈高亮）。
+    比率尺度（est_label=OR/HR/RR，效应取 log 值）默认画效应量弧线，把 y 轴读回
+    临床尺度；MD/SMD 自动关弧线（差值尺度弧线无意义）。
+    数据：与 funnel 完全同 schema；选项 est_label（默认 OR）/arcs（auto/true/false）。
+    """
+    names, es, ses = _meta_studies(data, "galbraith", hint="径向图分辨率有限")
+    if len(es) < 3:
+        raise ValueError("galbraith: 至少需要 3 个研究（精度-标准化效应平面才有可读性）")
+    est_label = str(data.get("est_label") or "OR").upper()
+    arcs_mode = data.get("arcs")
+    if arcs_mode in (None, "auto"):
+        arcs = est_label in _RATIO_LABELS
+    else:
+        if not isinstance(arcs_mode, bool):
+            raise ValueError("galbraith: arcs 须为 true/false/auto")
+        arcs = arcs_mode
+        if arcs and est_label not in _RATIO_LABELS:
+            _warn("galbraith: MD/SMD 等差值尺度的效应量弧线无意义，已自动关闭"
+                  "（arcs 仅对比率尺度有意义）")
+            arcs = False
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 2)
+    c_main = theme["colors"][0]
+    x = 1.0 / ses
+    z = es / ses
+    b = float(np.sum(x * z) / np.sum(x * x))   # 过原点加权回归=固定效应合并
+    pooled = st.dl_pool(es, ses)               # stderr 报告 DL 随机效应口径
+
+    x_hi = float(x.max()) * 1.08
+    xg = np.linspace(0.0, x_hi, 64)
+    ax.fill_between(xg, b * xg - 1.96, b * xg + 1.96,
+                    color="#BBBBBB", alpha=0.18, zorder=1)
+    for off in (-1.96, 1.96):
+        ax.plot(xg, b * xg + off, color="#888888", lw=1.1, ls="--", zorder=2)
+    ax.plot(xg, b * xg, color=c_main, lw=1.6, zorder=3,
+            label=f"固定效应合并 b={b:.3g}")
+    ax.axhline(0, color="#CCCCCC", lw=0.8, zorder=1)
+
+    resid = z - b * x
+    out_idx = [int(i) for i in np.where(np.abs(resid) > 1.96)[0]]
+    ax.scatter(x, z, s=42, color=c_main, edgecolor="#333333",
+               linewidth=0.8, zorder=4)
+    for i in out_idx:   # 离群点红圈高亮（不遮数据点）
+        ax.scatter([x[i]], [z[i]], s=130, facecolors="none",
+                   edgecolors="#C0392B", linewidths=1.4, zorder=5)
+    show_all = names and len(names) <= 12
+    _x_right = float(x.max()) * 0.90   # 右缘标注左翻（端点 pad 铁律：右 10% 区域标签向左，防溢出画布）
+    import matplotlib.patheffects as _pe
+    _stroke = [_pe.withStroke(linewidth=2.2, foreground="white")]  # 白描边：标注压合并线仍可读（视觉验收结论落地）
+    _anns = []
+    for i, nm in enumerate(names):
+        if show_all or i in out_idx:
+            _flip = x[i] >= _x_right
+            _dx, _dy = (-7, 5) if _flip else (6, 5)
+            _ha = "right" if _flip else "left"
+            _color = "#8a1f1f" if i in out_idx else "#555555"
+            _fp = cjk_fp if cjk_fp and _has_cjk(nm) else None
+            _a = ax.annotate(nm, (x[i], z[i]), textcoords="offset points",
+                             xytext=(_dx, _dy), ha=_ha, fontsize=fs_s,
+                             color=_color, fontproperties=_fp,
+                             path_effects=_stroke)
+            _anns.append((_a, i in out_idx, nm, float(x[i]), float(z[i]),
+                          (_dx, _dy), _ha, fs_s, _color, _fp))
+    if names and len(names) > 12:
+        _warn(f"galbraith: {len(names)} 个研究仅标离群名（>12 不逐个标注）"
+              + ("" if out_idx else "，当前无离群"))
+
+    ax.set_xlim(0, x_hi)
+    pad = max(0.6, 0.08 * float(z.max() - z.min()))
+    ax.set_ylim(min(float(z.min()), -2.2) - pad, max(float(z.max()), 2.2) + pad)
+    _dropped = _declutter_annotations(ax, _anns)
+    if _dropped:
+        _warn(f"galbraith: {_dropped} 个研究名与相邻标注叠印已省略（数据点仍在图上）")
+    if arcs:
+        _pts = list(zip(x.tolist(), z.tolist()))
+        _draw_galbraith_arcs(ax, b, x_hi, est_label, fs_s, cjk_fp, pts=_pts)
+    xl = str(data.get("x_label") or "精度 1/SE")
+    yl = (f"标准化效应（{est_label} 尺度）" if est_label in _RATIO_LABELS
+          else "标准化效应 effect/SE")
+    ax.set_xlabel(xl, fontproperties=cjk_fp if cjk_fp and _has_cjk(xl) else None)
+    ax.set_ylabel(yl, fontproperties=cjk_fp if cjk_fp and _has_cjk(yl) else None)
+    if ax.get_legend_handles_labels()[1]:
+        ax.legend(fontsize=fs - 1, loc="upper left", framealpha=0.9, prop=cjk_fp)
+
+    def _nm(i):
+        return names[i] if i < len(names) and names[i] else f"研究{i+1}"
+    _ol = "、".join(f"{_nm(i)}({resid[i]:+.2f})" for i in out_idx[:6])
+    _warn(f"galbraith: 固定效应合并 b={b:.4g}；DL 随机效应 {pooled['pooled']:.4g}"
+          f"（95%CI {pooled['pooled']-1.96*pooled['se']:.3g}~"
+          f"{pooled['pooled']+1.96*pooled['se']:.3g}），I²={pooled['i2']:.0f}%，"
+          f"P_het={pooled['p_het']:.3g}；"
+          + (f"±1.96 带外离群 {len(out_idx)} 个：{_ol}" if out_idx
+             else "研究均在 ±1.96 带内（未见明显异质性离群）"))
+    if out_idx:
+        _warn("galbraith: 带外研究是异质性主要来源——考虑随机效应合并（DL 已报）、"
+              "分层 Meta 或剔除该研究的敏感性分析对照")
     return None
 
 
@@ -1201,6 +1400,7 @@ def gen_cluster_heatmap(data, ax, theme, cjk_fp, **kwargs):
 
 EXTRA_GENERATORS = {
     "funnel": gen_funnel,
+    "galbraith": gen_galbraith,
     "bland_altman": gen_bland_altman,
     "pca": gen_pca,
     "paired": gen_paired,
@@ -1216,6 +1416,18 @@ EXTRA_DEMO_DATA = {
         {"name": "Garcia 2023", "effect": 0.42, "se": 0.31},
         {"name": "陈 2024", "effect": 0.61, "se": 0.15},
         {"name": "Kim 2025", "effect": 0.73, "se": 0.11},
+    ]},
+    "galbraith": {"est_label": "OR", "studies": [
+        {"name": "Smith 2019", "effect": 0.58, "se": 0.34},
+        {"name": "Lee 2020", "effect": 0.71, "se": 0.28},
+        {"name": "王 2021", "effect": 0.62, "se": 0.19},
+        {"name": "Garcia 2021", "effect": 0.55, "se": 0.15},
+        {"name": "陈 2022", "effect": 0.67, "se": 0.12},
+        {"name": "Kim 2022", "effect": 0.49, "se": 0.11},
+        {"name": "Rossi 2023", "effect": 0.73, "se": 0.10},
+        {"name": "Nakamura 2023", "effect": 0.60, "se": 0.09},
+        {"name": "李 2024", "effect": 0.64, "se": 0.08},
+        {"name": "Dubois 2024", "effect": 1.55, "se": 0.22},
     ]},
     "bland_altman": {"methods": {"新仪器": [5.1, 4.9, 5.3, 5.6, 4.8, 5.2, 5.0, 5.5],
                                  "金标准": [5.0, 5.1, 5.2, 5.4, 5.0, 5.1, 5.2, 5.3]}},
@@ -1252,6 +1464,21 @@ def validate_extra(chart_type, data):
                    if not isinstance(s, dict) or "effect" not in s or "se" not in s]
             if bad:
                 fatal.append(f"funnel: studies 第 {bad[:3]} 项缺少 effect 或 se 字段")
+    elif chart_type == "galbraith":
+        if not data.get("studies") and (data.get("effects") is None or data.get("ses") is None):
+            fatal.append("galbraith: 需要 'studies'（每项含 name/effect/se）或 'effects'+'ses'")
+        elif isinstance(data.get("studies"), list):
+            if len(data["studies"]) < 3:
+                fatal.append("galbraith: 至少需要 3 个研究（精度-标准化效应平面才有可读性）")
+            bad = [i for i, s in enumerate(data["studies"])
+                   if not isinstance(s, dict) or "effect" not in s or "se" not in s]
+            if bad:
+                fatal.append(f"galbraith: studies 第 {bad[:3]} 项缺少 effect 或 se 字段")
+        elif isinstance(data.get("effects"), list) and len(data["effects"]) < 3:
+            fatal.append("galbraith: 至少需要 3 个研究（精度-标准化效应平面才有可读性）")
+        _arcs = data.get("arcs")
+        if _arcs not in (None, "auto") and not isinstance(_arcs, bool):
+            fatal.append("galbraith: arcs 须为 true/false/auto（默认 auto=比率尺度开弧线）")
     elif chart_type == "bland_altman":
         if ("a" not in data or "b" not in data) and not isinstance(data.get("methods"), dict):
             fatal.append("bland_altman: 需要 'a'+'b' 数组或 'methods' 两个系列")
@@ -1292,6 +1519,10 @@ def alt_extra(chart_type, data, title=""):
     if chart_type == "funnel":
         n = len(data.get("studies", data.get("effects", [])) or [])
         return f"{t}漏斗图，含 {n} 个研究的效应值散点、DerSimonian-Laird 合并效应线与 95% 伪置信漏斗线。"
+    if chart_type == "galbraith":
+        n = len(data.get("studies", data.get("effects", [])) or [])
+        return (f"{t}Galbraith 径向图，{n} 个研究按精度（1/SE）与标准化效应排布，"
+                "过原点直线为固定效应合并，±1.96 平行带覆盖同质研究，带外即离群/异质性嫌疑。")
     if chart_type == "bland_altman":
         a = data.get("a") or (data.get("methods") or {}).get(list(data.get("methods", {}))[0], [])
         return f"{t}Bland-Altman 一致性图，{len(a)} 对测量的差值-均值散点，含均值差线与 95% 一致性界线。"
@@ -1340,6 +1571,8 @@ def make_caption(chart_type, data, title=""):
                  "Line plot of trends."),
         "funnel": ("漏斗图：各研究效应值 vs 标准误，虚线为 95% 伪置信界，竖线为 DL 随机效应合并值。",
                    "Funnel plot: study effects vs SE, dashed pseudo-95% CI bounds, vertical line = DL pooled estimate."),
+        "galbraith": ("Galbraith 径向图：横轴精度 1/SE、纵轴标准化效应，过原点直线为固定效应合并，±1.96 平行带外的研究提示离群/异质性。",
+                      "Galbraith radial plot: precision (1/SE) vs standardized effect; regression through origin = pooled fixed effect; studies outside the ±1.96 band suggest heterogeneity or outliers."),
         "bland_altman": ("Bland-Altman 图：横轴两法均值、纵轴差值；实线=均值差，虚线=95% 一致性界值。",
                          "Bland-Altman plot: mean vs difference; solid = mean difference, dashed = 95% limits of agreement."),
         "pca": ("PCA 得分图（PC1×PC2，标准化后），椭圆为各组均值±2SD，箭头为载荷前 5 特征。",

@@ -1128,7 +1128,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 35, f"expected 35 templates (v2.6 base + ... + rcs/subgroup), got {len(jsons)}")
+        self.assertEqual(len(jsons), 36, f"expected 36 templates (v2.6 base + ... + rcs/subgroup/galbraith), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.5.0", self.zh)
-        self.assertIn("version: 5.5.0", self.en)
+        self.assertIn("version: 5.6.0", self.zh)
+        self.assertIn("version: 5.6.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.5.0", self.zh)
-        self.assertIn("version: 5.5.0", self.en)
+        self.assertIn("version: 5.6.0", self.zh)
+        self.assertIn("version: 5.6.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.5.0", self.zh)
-        self.assertIn("version: 5.5.0", self.en)
+        self.assertIn("version: 5.6.0", self.zh)
+        self.assertIn("version: 5.6.0", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.5.0", zh)
+        self.assertIn("version: 5.6.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2880,7 +2880,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "35 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "36 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.5.0", t, name)
+            self.assertIn("version: 5.6.0", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.5.0", t, name)
+            self.assertIn("version: 5.6.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.5.0", t, name)
+            self.assertIn("version: 5.6.0", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.5.0", t, name)
+            self.assertIn("version: 5.6.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4013,8 +4013,8 @@ class TestV47000(unittest.TestCase):
         rw = os.path.join(base, "examples", "realworld")
         self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
         rws = sorted(os.listdir(rw))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 10,
-                         f"realworld 示例应 10 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 11,
+                         f"realworld 示例应 11 个: {rws}")
 
 
 class TestV48000(unittest.TestCase):
@@ -4451,10 +4451,13 @@ class TestV41000(unittest.TestCase):
                                   "realworld_csle_swimmer.json")):
             with io.open(os.path.join(base, name), encoding="utf-8") as fh:
                 cmd = json.load(fh)["_command"]
-            r = subprocess.run(cmd, shell=True, cwd=base,
-                               capture_output=True, text=True, timeout=240)
-            self.assertEqual(r.returncode, 0, f"{name}: {r.stderr[-250:]}")
-            self.assertNotIn("未知字段", r.stderr, name)
+            # -o 重定向到临时目录：逐字执行但产物不落 trunk（v5.6 哨兵泄漏教训机制化）
+            with tempfile.TemporaryDirectory() as td:
+                cmd = cmd.rsplit("-o ", 1)[0] + "-o " + os.path.join(td, "out.png")
+                r = subprocess.run(cmd, shell=True, cwd=base,
+                                   capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0, f"{name}: {r.stderr[-250:]}")
+                self.assertNotIn("未知字段", r.stderr, name)
 
     def test_swimmer_realworld_self_consistency(self):
         """realworld 数据程序化自洽断言（v4.8 RECIST 断言器同纪律）。"""
@@ -4578,7 +4581,9 @@ class TestV50000(unittest.TestCase):
         base = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
         with io.open(os.path.join(base, "templates", "ridgeline.json"), encoding="utf-8") as fh:
             cmd = json.load(fh)["_command"]
-        r = subprocess.run(cmd, shell=True, cwd=base, capture_output=True, text=True, timeout=240)
+        with tempfile.TemporaryDirectory() as td:  # 产物不落 trunk（哨兵纪律）
+            cmd = cmd.rsplit("-o ", 1)[0] + "-o " + os.path.join(td, "out.png")
+            r = subprocess.run(cmd, shell=True, cwd=base, capture_output=True, text=True, timeout=240)
         self.assertEqual(r.returncode, 0, r.stderr[-250:])
 
     def test_audit_sidecar_deterministic(self):
@@ -4686,7 +4691,9 @@ class TestV50100(unittest.TestCase):
         base = os.path.normpath(os.path.join(SCRIPT_DIR, ".."))
         with io.open(os.path.join(base, "templates", "dumbbell.json"), encoding="utf-8") as fh:
             cmd = json.load(fh)["_command"]
-        r = subprocess.run(cmd, shell=True, cwd=base, capture_output=True, text=True, timeout=240)
+        with tempfile.TemporaryDirectory() as td:  # 产物不落 trunk（哨兵纪律）
+            cmd = cmd.rsplit("-o ", 1)[0] + "-o " + os.path.join(td, "out.png")
+            r = subprocess.run(cmd, shell=True, cwd=base, capture_output=True, text=True, timeout=240)
         self.assertEqual(r.returncode, 0, r.stderr[-250:])
         self.assertNotIn("未知字段", r.stderr)
 
@@ -4880,7 +4887,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 35)
+        self.assertEqual(len(jsons), 36)
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5216,6 +5223,12 @@ class TestV50500(unittest.TestCase):
         n = len(gen_figure.GENERATORS) - 3  # 纯别名 horizontal_bar/boxplot/survival
         self.assertGreaterEqual(n, 35, f"注册表图型数: {n}")
 
+    def test_registry_count_36(self):
+        import gen_figure
+        sys.path.insert(0, SCRIPT_DIR)
+        n = len(gen_figure.GENERATORS) - 3  # 纯别名 horizontal_bar/boxplot/survival
+        self.assertGreaterEqual(n, 36, f"注册表图型数: {n}")
+
     def test_faq_discoverability_and_boundaries_first(self):
         """评测对策锁：FAQ 顶部指针 + 能力边界在快速开始之前（双语）。"""
         root = os.path.join(SCRIPT_DIR, "..")
@@ -5226,6 +5239,174 @@ class TestV50500(unittest.TestCase):
             self.assertIn(faq_needle, txt.split("## Quick Start")[0] if doc == "SKILL.md" else txt[:6000],
                           f"{doc} 顶部缺 FAQ 指针")
             self.assertLess(txt.index(cap), txt.index(quick), f"{doc} 边界节未前置")
+
+
+class TestV50600(unittest.TestCase):
+    """v5.6.0：galbraith Galbraith 径向图（第 36 种图型）+ composite share_y 自动统一
+    + prompt-cards 提示词卡片 + changelog 版本索引拆分。"""
+
+    GAL_DEMO = {
+        "est_label": "OR",
+        "studies": [
+            {"name": "Smith 2019", "effect": 0.58, "se": 0.34},
+            {"name": "Lee 2020", "effect": 0.71, "se": 0.28},
+            {"name": "王 2021", "effect": 0.62, "se": 0.19},
+            {"name": "Garcia 2021", "effect": 0.55, "se": 0.15},
+            {"name": "陈 2022", "effect": 0.67, "se": 0.12},
+            {"name": "Kim 2022", "effect": 0.49, "se": 0.11},
+            {"name": "Rossi 2023", "effect": 0.73, "se": 0.10},
+            {"name": "Nakamura 2023", "effect": 0.60, "se": 0.09},
+            {"name": "李 2024", "effect": 0.64, "se": 0.08},
+            {"name": "Dubois 2024", "effect": 1.55, "se": 0.22},
+        ]}
+
+    def test_galbraith_e2e_and_outlier_report(self):
+        """E2E：demo 数据渲染 + stderr 报固定效应/DL 合并/I²/带外离群点名。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "g.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(self.GAL_DEMO))
+            out = os.path.join(td, "g.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "galbraith", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.exists(out) and os.path.getsize(out) > 10000)
+            self.assertIn("固定效应合并 b=", r.stderr)
+            self.assertIn("I²=", r.stderr)
+            self.assertIn("带外离群 1 个：Dubois 2024", r.stderr)
+
+    def test_galbraith_arcs_and_smd_auto_off(self):
+        """OR 默认画效应量弧线；MD/SMD 硬传 arcs=true 自动关并告知（pitfalls 类级铁律）。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_v23_charts
+        import matplotlib.pyplot as plt
+        theme = {"colors": ["#2E5E8F", "#FFB627"], "font_size": 10}
+        fig, ax = plt.subplots()
+        af_v23_charts.gen_galbraith(dict(self.GAL_DEMO), ax, theme, None)
+        n_arc_or = sum(1 for c in ax.patches if type(c).__name__ == "Arc")
+        self.assertGreater(n_arc_or, 0, "OR 尺度应有效应量弧线")
+        plt.close(fig)
+        fig2, ax2 = plt.subplots()
+        smd = {"est_label": "SMD", "arcs": True,
+               "studies": self.GAL_DEMO["studies"]}
+        af_v23_charts.gen_galbraith(smd, ax2, theme, None)
+        self.assertEqual(sum(1 for c in ax2.patches if type(c).__name__ == "Arc"), 0,
+                         "MD/SMD 尺度弧线必须自动关闭")
+        plt.close(fig2)
+
+    def test_galbraith_validation_fatals(self):
+        with tempfile.TemporaryDirectory() as td:
+            for bad, msg in (
+                ({"studies": [{"name": "a", "effect": 0.5, "se": 0.2},
+                              {"name": "b", "effect": 0.6, "se": 0.1}]},
+                 "至少需要 3 个研究"),
+                ({"studies": [{"name": "a", "effect": 0.5, "se": 0.2},
+                              {"name": "b", "effect": 0.6, "se": 0.1},
+                              {"name": "c", "effect": 0.4, "se": 0.15}],
+                  "arcs": "yes"},
+                 "arcs 须为 true/false/auto"),
+                ({}, "需要 'studies'")):
+                f = os.path.join(td, "x.json")
+                io.open(f, "w", encoding="utf-8").write(json.dumps(bad))
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "galbraith", "-d", f,
+                     "-o", os.path.join(td, "x.png"), "--dpi", "70"],
+                    capture_output=True, text=True, timeout=120)
+                self.assertEqual(r.returncode, 1, (msg, r.stderr[-200:]))
+                self.assertIn(msg, r.stderr)
+
+    def test_galbraith_alt_and_suggest(self):
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "g.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(self.GAL_DEMO))
+            out = os.path.join(td, "g.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "galbraith", "-d", f, "-o", out,
+                 "--dpi", "70", "--alt"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-250:])
+            alt = io.open(os.path.splitext(out)[0] + ".alt.txt", encoding="utf-8").read()
+            self.assertIn("Galbraith 径向图", alt)
+            self.assertIn("10 个研究", alt)
+            r2 = subprocess.run(
+                [sys.executable, GEN, "--suggest", "-d", f],
+                capture_output=True, text=True, timeout=120)
+            self.assertIn("galbraith", r2.stdout)
+
+    def test_share_y_unifies_and_noop_without(self):
+        """composite share_y：同 ylabel 面板 y 轴统一；缺省不动（机制锁）。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        import gen_figure
+        theme = dict(gen_figure.THEMES["glm"])
+        panels = [
+            {"title": "A", "type": "bar", "ylabel": "应答率(%)", "pos": [0, 0],
+             "data": {"labels": ["a", "b"], "series": {"药": [60.0, 55.0]}}},
+            {"title": "B", "type": "bar", "ylabel": "应答率(%)", "pos": [0, 1],
+             "data": {"labels": ["c", "d"], "series": {"药": [0.4, 0.3]}}},
+        ]
+        fig, ax = plt.subplots(figsize=(8, 4))
+        gen_figure.GENERATORS["composite"](
+            {"layout": [1, 2], "share_y": True, "panels": panels}, ax, theme, None)
+        y1, y2 = fig.axes[0].get_ylim(), fig.axes[1].get_ylim()
+        self.assertEqual(y1, y2, f"share_y 未统一: {y1} vs {y2}")
+        plt.close(fig)
+        fig2, ax2 = plt.subplots(figsize=(8, 4))
+        gen_figure.GENERATORS["composite"](
+            {"layout": [1, 2], "panels": panels}, ax2, theme, None)
+        self.assertNotEqual(fig2.axes[0].get_ylim(), fig2.axes[1].get_ylim(),
+                            "无 share_y 时不得改动面板轴")
+        plt.close(fig2)
+
+    def test_doctor_shared_scale_mentions_share_y(self):
+        import af_diagnostics
+        buf = []
+        af_diagnostics.doctor_composite_shared_scale(
+            {"panels": [
+                {"type": "bar", "ylabel": "值", "data": {"series": {"s": [1.0, 2.0]}}},
+                {"type": "bar", "ylabel": "值", "data": {"series": {"s": [300.0, 400.0]}}}]},
+            buf.append)
+        self.assertTrue(any("share_y" in s for s in buf), "doctor 提示须给出 share_y 出口")
+
+    def test_prompt_cards_doc(self):
+        """提示词卡片：≥12 卡 + 「对智能体说」可粘贴结构 + 双语头。"""
+        p = os.path.join(SCRIPT_DIR, "..", "references", "prompt-cards.md")
+        t = io.open(p, encoding="utf-8").read()
+        self.assertGreaterEqual(t.count("\n## 卡"), 12, "提示词卡应 ≥12 张")
+        self.assertGreaterEqual(t.count("**对智能体说**"), 12)
+        self.assertIn("应产出", t)
+        self.assertIn("验收点", t)
+        self.assertIn("Prompt cards", t)
+
+    def test_changelog_split(self):
+        """changelog 拆分：索引+最近三版瘦身版 + 全量存档零删减。"""
+        root = os.path.join(SCRIPT_DIR, "..")
+        slim = io.open(os.path.join(root, "references", "changelog.md"), encoding="utf-8").read()
+        full = io.open(os.path.join(root, "references", "changelog-full.md"), encoding="utf-8").read()
+        self.assertLess(len(slim.split("\n")), 400, f"changelog.md 应 <400 行（现 {len(slim.splitlines())}）")
+        self.assertGreaterEqual(slim.count("\n| v"), 15, "版本索引应 ≥15 行")
+        self.assertIn("changelog-full.md", slim)
+        self.assertIn("## 4.9.0", full, "全量存档须保留早期版本")
+        self.assertIn("## 5.5.0", full)
+
+    def test_cli_help_scenario_quickref(self):
+        """评测 summary 建议：CLI 帮助带场景速查（epilog）。"""
+        r = subprocess.run([sys.executable, GEN, "--help"],
+                           capture_output=True, text=True, timeout=120)
+        self.assertIn("场景速查", r.stdout + r.stderr)
+        self.assertIn("galbraith", r.stdout + r.stderr)
+
+    def test_v56_counts_and_fields(self):
+        """计数锁收口：模板 36 / realworld 11 / 新字段白名单。"""
+        root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+        tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
+        self.assertEqual(len(tpls), 36, f"模板应 36 个: {len(tpls)}")
+        rws = os.listdir(os.path.join(root, "examples", "realworld"))
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 11,
+                         f"realworld 应 11 个: {rws}")
+        from af_diagnostics import _KNOWN_DATA_FIELDS
+        for fld in ("arcs", "share_y", "est_label"):
+            self.assertIn(fld, _KNOWN_DATA_FIELDS, f"新字段 {fld} 须进白名单（铁律#1）")
 
 
 if __name__ == "__main__":
