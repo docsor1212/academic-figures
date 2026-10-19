@@ -22,7 +22,7 @@ when_to_use: >-
 ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_to_use/
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
-  version: 5.6.0
+  version: 5.6.1
   date: 2026-10-20
   author: docsor1212
   lang: zh
@@ -342,7 +342,7 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 
 ## 版本历史
 
-完整双语版本历史见 `references/changelog.md`（版本索引+最近三版；完整存档 `references/changelog-full.md`）。近期：**v5.6.0** Galbraith 径向图（第 36 图型：Meta 异质性可视化——精度 1/SE×标准化效应、过原点固定效应合并线、±1.96 同质带、带外离群 stderr 逐个报名；OR/HR/RR 效应量弧线，MD/SMD 自动关）+ composite `share_y` 共享尺度自动统一（同 ylabel 面板一个 y 轴；doctor 预检给出机制出口）+ 提示词卡片文档（12 张对智能体说的可粘贴指令）+ changelog 拆分（版本索引+最近三版，内容零删减）+ CLI 帮助场景速查；**v5.5.0** subgroup 亚组分析森林图（第 35 图型：逐层效应+P 交互+Overall 菱形+右侧 est/P 双列，只可视化已拟合亚组模型）+ FAQ 可发现性提升（顶部指针+章节导航）+ 国内安装通路文档化；**v5.4.0** rcs 限制性立方样条曲线（第 34 图型：非线性剂量反应+95%CI 带+对数比值轴+参照线+暴露 rug，只可视化已拟合样条）+ DCA 获益区间着色 + 场景卡片单一入口文档（12 个完整工作流）+ SKILL 减密（期刊表下沉 limits §六）+ --doctor 跨面板共享尺度预检；**v5.3.0** nomogram 列线图（第 33 图型：Points 计分尺→逐变量刻度→Total Points→结局概率尺；只可视化已拟合模型，总分好台阶自适应，行数自适应图高）+ 版本一致性锁（随包 evals.json 钉住 SKILL 版本）+ limits 参数冲突集中表 + FAQ 图型专属易错点；**v5.2.0** 临床预测模型线补齐：calibration 校准曲线（第 31 图型：分箱预测 vs 观测+理想对角线+CI 误差棒+H-L p 可选）+ dca 决策曲线（第 32 图型：净收益 vs 阈值，全部干预/不干预双参照）+ `--pub-ready` 合流复跑包（verify 门禁后产出、多格式感知）+ `--suggest` 双语化 + 行型图预留带 helper 机制统一；**v5.1.0** dumbbell 哑铃图（第 30 图型：逐行 from→to 两点+差距降序+Δ 标注）+ `--repro` 复跑交付包（一目录逐字节复现）；**v5.0.0** ridgeline 山脊图（第 29 图型：多组 KDE 堆叠、overlap 可调、单值组退化告知）+ `--audit` 数字对账侧车；**v4.10.0** swimmer 游泳图（第 28 图型：逐例时长条+持续中箭头+里程碑圆点+RECIST 着色）+doctor 投稿格式提示；**v4.9.0** raincloud 雨云图（第 27 图型，分布三合一）+setup_env --fix 镜像回退；**v4.8.0** waterfall 肿瘤缓解瀑布图（第 26 图型，RECIST 着色+阈值线）+suggest 去重；**v4.7.0** upset 集合交集图（第 25 图型）+配色/组合场景指南+真实科研场景示例+limits 速查表；**v4.6.0** ROC 默认语义轴标题 + venn 标题消歧 + 聚类热图行标签自适应字号（P3 视觉打磨包）；**v4.5.0** 独立测试 12 项修复；**v4.4.0** volcano 火山图；更早版本见 changelog。
+完整双语版本历史见 `references/changelog.md`（版本索引+最近三版；完整存档 `references/changelog-full.md`）。近期：**v5.6.1** galbraith 深分支修复（>12 研究+离群标注相邻 NameError）+研究名避让升级（纵向 8 档+横向镜像；真实 83 项研究元分析数据验收零叠印）；**v5.6.0** Galbraith 径向图（第 36 图型：Meta 异质性可视化——精度 1/SE×标准化效应、过原点固定效应合并线、±1.96 同质带、带外离群 stderr 逐个报名；OR/HR/RR 效应量弧线，MD/SMD 自动关）+ composite `share_y` 共享尺度自动统一（同 ylabel 面板一个 y 轴；doctor 预检给出机制出口）+ 提示词卡片文档（12 张对智能体说的可粘贴指令）+ changelog 拆分（版本索引+最近三版，内容零删减）+ CLI 帮助场景速查；**v5.5.0** subgroup 亚组分析森林图（第 35 图型：逐层效应+P 交互+Overall 菱形+右侧 est/P 双列，只可视化已拟合亚组模型）+ FAQ 可发现性提升（顶部指针+章节导航）+ 国内安装通路文档化；**v5.4.0** rcs 限制性立方样条曲线（第 34 图型：非线性剂量反应+95%CI 带+对数比值轴+参照线+暴露 rug，只可视化已拟合样条）+ DCA 获益区间着色 + 场景卡片单一入口文档（12 个完整工作流）+ SKILL 减密（期刊表下沉 limits §六）+ --doctor 跨面板共享尺度预检；**v5.3.0** nomogram 列线图（第 33 图型：Points 计分尺→逐变量刻度→Total Points→结局概率尺；只可视化已拟合模型，总分好台阶自适应，行数自适应图高）+ 版本一致性锁（随包 evals.json 钉住 SKILL 版本）+ limits 参数冲突集中表 + FAQ 图型专属易错点；**v5.2.0** 临床预测模型线补齐：calibration 校准曲线（第 31 图型：分箱预测 vs 观测+理想对角线+CI 误差棒+H-L p 可选）+ dca 决策曲线（第 32 图型：净收益 vs 阈值，全部干预/不干预双参照）+ `--pub-ready` 合流复跑包（verify 门禁后产出、多格式感知）+ `--suggest` 双语化 + 行型图预留带 helper 机制统一；**v5.1.0** dumbbell 哑铃图（第 30 图型：逐行 from→to 两点+差距降序+Δ 标注）+ `--repro` 复跑交付包（一目录逐字节复现）；**v5.0.0** ridgeline 山脊图（第 29 图型：多组 KDE 堆叠、overlap 可调、单值组退化告知）+ `--audit` 数字对账侧车；**v4.10.0** swimmer 游泳图（第 28 图型：逐例时长条+持续中箭头+里程碑圆点+RECIST 着色）+doctor 投稿格式提示；**v4.9.0** raincloud 雨云图（第 27 图型，分布三合一）+setup_env --fix 镜像回退；**v4.8.0** waterfall 肿瘤缓解瀑布图（第 26 图型，RECIST 着色+阈值线）+suggest 去重；**v4.7.0** upset 集合交集图（第 25 图型）+配色/组合场景指南+真实科研场景示例+limits 速查表；**v4.6.0** ROC 默认语义轴标题 + venn 标题消歧 + 聚类热图行标签自适应字号（P3 视觉打磨包）；**v4.5.0** 独立测试 12 项修复；**v4.4.0** volcano 火山图；更早版本见 changelog。
 
 ## 🚀 进阶版：论文配图一键生成 Pro
 

@@ -178,27 +178,38 @@ def _declutter_annotations(ax, anns):
     placed = []
     dropped = 0
     for a, is_out, nm, xi, zi, (dx, dy), ha, fs, color, fp in anns:
-        bb = a.get_window_extent(renderer).expanded(1.05, 1.25)
+        bb = a.get_window_extent(renderer).expanded(1.12, 1.50)
         if not any(bb.overlaps(p) for p in placed):
             placed.append(bb)
             continue
         a.remove()
-        a2 = ax.annotate(nm, (xi, zi), textcoords="offset points",
-                         xytext=(dx, -abs(dy) - 12), ha=ha, va="top",
-                         fontsize=fs, color=color, fontproperties=fp,
-                         path_effects=_stroke, zorder=6)
-        bb2 = a2.get_window_extent(renderer).expanded(1.05, 1.25)
-        if not any(bb2.overlaps(p) for p in placed):
-            placed.append(bb2)
-        elif is_outlier:
+        # 候选位序列（real2 视觉验收两轮 fail 教训：仅纵向加深不够——
+        # 双离群纵向互堵时需横向镜像候选；正下方、正下更深、左下×2、上方加深）
+        _ha_m = "right" if ha == "left" else "left"
+        _cands = tuple((dx, -abs(dy) - _d, ha, "top") for _d in (18, 27, 36, 48, 62, 80, 104, 132)) \
+                 + tuple((-dx - 2, -abs(dy) - _d, _ha_m, "top") for _d in (18, 48)) \
+                 + ((dx, abs(dy) + 6, ha, "bottom"),)
+        a2 = None
+        bb2 = None
+        for _ox, _oy, _ha2, _va2 in _cands:
+            a2 = ax.annotate(nm, (xi, zi), textcoords="offset points",
+                             xytext=(_ox, _oy), ha=_ha2, va=_va2,
+                             fontsize=fs, color=color, fontproperties=fp,
+                             path_effects=_stroke, zorder=6)
+            bb2 = a2.get_window_extent(renderer).expanded(1.12, 1.50)
+            if not any(bb2.overlaps(p) for p in placed):
+                break
             a2.remove()
+            a2 = None
+        if a2 is not None:
+            placed.append(bb2)
+        elif is_out:
             _re = ax.annotate(nm, (xi, zi), textcoords="offset points",
                               xytext=(dx, dy), ha=ha, fontsize=fs,
                               color=color, fontproperties=fp,
                               path_effects=_stroke, zorder=6)
-            placed.append(_re.get_window_extent(renderer).expanded(1.05, 1.25))
+            placed.append(_re.get_window_extent(renderer).expanded(1.12, 1.50))
         else:
-            a2.remove()
             dropped += 1
     return dropped
 

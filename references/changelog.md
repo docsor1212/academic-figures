@@ -10,6 +10,7 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
+| v5.6.1 | 2026-10-20 | 修复 galbraith 深分支崩溃（>12 研究+离群标注相邻）+研究名避让算法升级（纵向 8 档+横向镜像，密集区零叠印） |
 | v5.6.0 | 2026-10-20 | 新图型#36：`galbraith`Galbraith 径向图（Meta 异质性可视化）+composite `share_y` 共享尺度自动统一+提示词卡片文档 |
 | v5.5.0 | 2026-10-19 | 新图型#35：`subgroup`亚组分析森林图 |
 | v5.4.0 | 2026-10-18 | 新图型#34：`rcs`限制性立方样条/非线性剂量反应曲线 |
@@ -35,6 +36,16 @@
 ### English
 
 ## Version History
+
+## 5.6.1 — 2026-10-20
+
+  - **Fix: galbraith deep-branch crash** — with >12 studies and adjacent
+    outlier labels, the label-declutter keep-outlier path hit a variable-name
+    typo (NameError). Added a regression lock with duplicate outlier studies.
+  - **Label avoidance upgrade**: the declutter now walks a vertical ladder
+    (8 depths) plus mirrored horizontal candidates before giving up, driven
+    by acceptance testing on a real 83-study meta-analysis dataset — dense
+    outlier clusters now resolve with zero glyph overlap.
 
 ## 5.6.0 — 2026-10-20
 
@@ -143,6 +154,13 @@
 ## 中文
 
 ## 版本历史
+
+### v5.6.1（2026-10-20）
+
+- **修复 galbraith 深分支崩溃**：研究数>12 且多个离群标注相邻时，避让的
+  「离群保留」分支引用了笔误变量名（NameError）；新增同点重复离群回归锁。
+- **研究名避让算法升级**：纵向 8 档阶梯+横向镜像候选位全部试净后才落位；
+  由真实 83 项研究元分析数据的验收 fail 驱动——密集离群区零字形叠印。
 
 ### v5.6.0（2026-10-20）
 
