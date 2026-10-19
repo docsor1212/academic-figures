@@ -18,6 +18,10 @@
 - **ROC `--compare`**: paired DeLong test between >=2 model AUCs (needs `labels`
   plus per-curve raw `scores`; fpr/tpr-only curves cannot be DeLong-tested).
 - **New chart types**: `-t funnel` (Meta funnel, DL pooled line, `--egger`),
+  `-t galbraith` (v5.6 Meta heterogeneity radial: precision 1/SE × standardized
+  effect, pooled fixed-effect line, ±1.96 band, per-study outlier stderr report;
+  same schema as funnel — use both together: funnel for small-study asymmetry,
+  Galbraith to name the heterogeneity sources),
   `-t bland_altman` (LoA), `-t pca` (scores + group ellipses + top-5 loadings),
   `-t paired` (before-after lines + paired test), `-t venn` (2-3 sets, exact
   region counts; `--area` for area-proportional Euler mode), `-t cluster_heatmap`
@@ -65,7 +69,9 @@
 - **`--stats multi`**（box/violin）：全两两比较——全组过 Shapiro→ANOVA+Tukey HSD；
   否则 Kruskal-Wallis+Dunn（Hochberg 校正）。
 - **ROC `--compare`**：>=2 个模型 AUC 的配对 DeLong 检验（需 labels + 各曲线原始 scores）。
-- **新图型**：`-t funnel`（Meta 漏斗，DL 合并线，`--egger` 不对称检验）、`-t bland_altman`
+- **新图型**：`-t funnel`（Meta 漏斗，DL 合并线，`--egger` 不对称检验）、`-t galbraith`
+  （v5.6 Meta 异质性径向图：精度 1/SE×标准化效应、过原点合并线、±1.96 同质带、离群逐个报名；
+  与 funnel 同 schema——漏斗看小样本不对称，径向图点名异质性来源）、`-t bland_altman`
   （一致性界值）、`-t pca`（得分+分组椭圆+载荷 top5）、`-t paired`（配对前后线+配对检验）、
   `-t venn`（2~3 集合精确区域计数；`--area` 面积比例 Euler 模式）、`-t cluster_heatmap`（Ward 聚类重排，行数上限 3000）。
 - **`--pipeline analysis.yaml`**（v2.6）多图流水线：defaults 全局默认 + figures 逐图清单，

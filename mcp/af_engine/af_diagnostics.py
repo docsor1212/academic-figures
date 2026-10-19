@@ -118,7 +118,8 @@ _KNOWN_DATA_FIELDS = [
   "thresholds", "models", "net_benefit", "prevalence", "treat_all", "show_none",
   "variables", "outcome_scales", "total_points_max", "ticks", "points_at",
   "points", "est", "ci_lo", "ci_hi", "ref", "log_y", "hline_at", "hist", "benefit_shade",
-  "subgroups", "levels", "p_interaction", "p", "overall", "est_label", "log_x"
+  "subgroups", "levels", "p_interaction", "p", "overall", "est_label", "log_x",
+  "arcs", "share_y"
 ]
 
 
@@ -181,7 +182,10 @@ def doctor_composite_shared_scale(data, print_fn=None):
         if not isinstance(p, dict):
             continue
         d = p.get("data") if isinstance(p.get("data"), dict) else p
-        yl = str(d.get("y_label") or d.get("ylabel") or "")
+        # v5.6 修复：ylabel 在 composite schema 里是面板级字段（data-formats.md），
+        # 旧实现只读 panel.data.ylabel——标准数据上预检从未生效；两级都查。
+        yl = str(p.get("y_label") or p.get("ylabel")
+                 or d.get("y_label") or d.get("ylabel") or "")
         if not yl:
             continue
         rng = None
@@ -203,6 +207,7 @@ def doctor_composite_shared_scale(data, print_fn=None):
         if len(rngs) >= 2 and max(rngs) / max(min(rngs), 1e-12) > 5:
             out(f"[doctor] 面板间「{yl}」数值范围相差 "
                 f"{max(rngs) / max(min(rngs), 1e-12):.0f} 倍——同变量跨面板请共享"
-                f"同一 y 尺度（或改用不同轴标签区分不同变量）")
+                f"同一 y 尺度（composite 数据加 \"share_y\": true 可自动统一；"
+                f"或改用不同轴标签区分不同变量）")
             n += 1
     return n

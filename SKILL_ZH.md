@@ -2,8 +2,8 @@
 name: academic-figures
 description: >-
   论文配图一键生成：一条命令从 JSON/CSV/Excel 生成顶刊级学术图表，科研绘图
-  与期刊配图全场景覆盖。35 种图表（森林图/KM 生存曲线（自动风险表）/ROC/校准
-  曲线/决策曲线 DCA/列线图/RCS 非线性剂量反应/亚组分析森林图/火山图/雨云图/山脊图/哑铃图/游泳图（逐例时长+里程碑）/
+  与期刊配图全场景覆盖。36 种图表（森林图/KM 生存曲线（自动风险表）/ROC/校准
+  曲线/决策曲线 DCA/列线图/RCS 非线性剂量反应/亚组分析森林图/Galbraith 径向图/火山图/雨云图/山脊图/哑铃图/游泳图（逐例时长+里程碑）/
   肿瘤缓解瀑布图/UpSet 交集/PRISMA 流程图/漏斗/BA 一致性/PCA/热图/箱线/小提琴/
   组合图/Cox 多因素回归森林图等），9 套配色（含色盲安全 Okabe-Ito 与期刊色板），9 种期刊投稿预设，
   YAML 流水线一条命令出全套论文图，一次渲染多格式导出（TIFF/PNG/PDF），
@@ -13,7 +13,7 @@ description: >-
 when_to_use: >-
   用户要画图/出图/生成图表时使用：柱状图、散点图、热力图、森林图、KM 生存
   曲线、ROC 曲线、小提琴图、箱线图、组合图、流程图、PRISMA 系统综述、Meta
-  漏斗图、韦恩/欧拉图、PCA 得分图、Bland-Altman 一致性；需要论文/期刊/SCI
+  漏斗图/Galbraith 径向图、韦恩/欧拉图、PCA 得分图、Bland-Altman 一致性；需要论文/期刊/SCI
   配图导出（600dpi、色盲安全）；或把数据文件转成学术图表。
 ---
 
@@ -22,8 +22,8 @@ when_to_use: >-
 ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_to_use/
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
-  version: 5.5.0
-  date: 2026-10-14
+  version: 5.6.0
+  date: 2026-10-20
   author: docsor1212
   lang: zh
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -32,7 +32,7 @@ license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效�
 
 # Academic Figures — 论文配图一键生成工具
 
-> 📊 **35种图表 · 9套配色（含色盲安全+期刊色板） · 零配置中文 · 600dpi出版级输出 · PDF/TIFF/SVG全支持 · 渲染看门狗+中文诊断**
+> 📊 **36种图表 · 9套配色（含色盲安全+期刊色板） · 零配置中文 · 600dpi出版级输出 · PDF/TIFF/SVG全支持 · 渲染看门狗+中文诊断**
 > 纯本地运行 · 数据不出本机 · Python一条命令搞定 · 内置校验+验证门禁
 
 > ⚡ **三条最常用边界**：投稿 PDF 加 `--verify`（仅 PDF 生效）；`--journal` 会锁定图宽（`--width` 被忽略）；cluster_heatmap >3000 行自动降采样到 2000 行。
@@ -52,8 +52,9 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 
 | 能力 | 做到什么 | 做不到/边界 | 详见 |
 |------|---------|-------------|------|
-| 图表引擎 | 35 种图型一条命令 600dpi；同输入同字节确定性输出 | 无交互式探索（只出静态文件）；无 3D 图 | 「图表类型」表 ↑ |
+| 图表引擎 | 36 种图型一条命令 600dpi；同输入同字节确定性输出 | 无交互式探索（只出静态文件）；无 3D 图 | 「图表类型」表 ↑ |
 | 预测模型评价 | calibration 分箱值∈[0,1]；dca 阈值严格升序 (0,1) 开区间、1~6 个模型；nomogram 1~12 变量+1~3 结局尺；rcs ≥5 个已拟合网格点；subgroup 1~12 变量×2~8 层 | 无自动分箱；nomogram/rcs/subgroup 只可视化已拟合模型（不拟合） | 「图表类型」表 ↑ |
+| Meta 分析 | funnel/galbraith 数据同 schema（studies name/effect/se，效应 log 尺度）；galbraith ≥3 研究，<5 统计效力警告 | 弧线仅对比率尺度（OR/HR/RR）；MD/SMD 自动关 | 「图表类型」表 ↑ |
 | 选图 | `--suggest` 自动推荐 / `--wizard` 问答 / `--quick` 自动选型渲染 / `--explain 类型` | 推荐是结构启发式——统计含义请自行确认 | quickstart.md |
 | 统计 | KM 风险表/log-rank/中位生存 CI；Cox（Efron+PH）；ROC DeLong；bootstrap CI；Egger | 无贝叶斯方法；无样本量/把握度计算 | advanced.md |
 | 期刊预设 | 9 预设，官方栏宽/字号/DPI | `--journal` 锁宽度（`--width` 被忽略，`--height` 有效） | limits.md §六 |
@@ -73,7 +74,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 
 | 特性 | 说明 |
 |------|------|
-| 📊 **35种图表** | 见下方「图表类型」全表；v5.4 加 rcs 非线性剂量反应，v5.5 加 subgroup 亚组分析森林图（P 交互） |
+| 📊 **36种图表** | 见下方「图表类型」全表；v5.5 加 subgroup 亚组分析森林图（P 交互），v5.6 加 Galbraith 径向图（Meta 异质性） |
 | 🎨 **9套配色** | **Okabe-Ito色盲安全**（Nature Methods 金标准）、GLM 素雅莫兰迪、NEJM/Lancet/Science 期刊色板等 |
 | 📐 **期刊预设** | `--journal nature/lancet/nejm/science/cma/cn-core`：官方栏宽、字号、字体族、600dpi 一键应用 |
 | 🧭 **上手向导** | `--wizard` 四问生成完整命令（非交互环境自动打印选图决策树） |
@@ -102,6 +103,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 | 预测模型 | 列线图 | `-t nomogram` | Points 计分尺→逐变量刻度→Total Points→结局概率尺；可视化你已拟合的模型（引擎不拟合），总分自适应好台阶，行数自适应图高（v5.3） |
 | 临床回归 | RCS 样条 | `-t rcs` | 非线性剂量反应（已拟合样条结果可视化）：估计线+95%CI 带、对数比值轴、无效应/参照双虚线、底部暴露 rug（v5.4） |
 | 临床回归 | 亚组森林图 | `-t subgroup` | 亚组分析：逐层效应方块+95%CI、每变量 P 交互、Overall 菱形、右侧 est/P 双列；可视化你已拟合的亚组模型（引擎不拟合）（v5.5） |
+| Meta 分析 | Galbraith 径向图 | `-t galbraith` | 异质性可视化（漏斗图姊妹图）：精度 1/SE×标准化效应、过原点固定效应合并线、±1.96 同质带、带外离群 stderr 逐个报名；OR/HR/RR 效应量弧线（v5.6） |
 | 分布 | 小提琴图 | `-t violin` | 密度估计、内置均值/中位线 |
 | 配对 | 前后配对图 | `-t paired` | 个体前后连线+配对检验（n≥6 才标注，效力提示） |
 | 趋势 | 散点图 | `-t scatter` | 趋势线、相关系数、分组着色、点标签 |
@@ -133,7 +135,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 分组比较 → bar/box/violin/raincloud（分布三合一；配对→paired；分布逐组移动全景 → ridgeline；逐条目两点差距 → dumbbell）｜均值±误差棒 → bar（JSON errors）
 两列相关 → scatter｜时间-事件 → km / forest --stats cox｜诊断 → roc（--compare）
 集合交并 → venn（--area；≥5 集合 → upset）｜数值矩阵 → heatmap / cluster_heatmap｜多变量分类 → pca
-组学差异表达 → volcano（火山图）｜肿瘤最佳缓解 → waterfall（RECIST 瀑布图）｜逐例时长 → swimmer（游泳图）｜Meta 汇总 → forest（--egger）｜一致性 → bland_altman｜流程 → diagram/prisma
+组学差异表达 → volcano（火山图）｜肿瘤最佳缓解 → waterfall（RECIST 瀑布图）｜逐例时长 → swimmer（游泳图）｜Meta 汇总 → forest + funnel（--egger）+ galbraith（异质性/离群）三件套｜一致性 → bland_altman｜流程 → diagram/prisma
 预测模型评价 → roc + calibration + dca + nomogram + rcs + subgroup（P 交互）六件套
 多面板 → composite
 ```
@@ -317,9 +319,10 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 | 你的任务（30 秒到对的文档） | 读 |
 |------------------------------|-----|
 | 第一次用 / 不知道选哪种图 | `references/quickstart.md` |
-| 35 种图型一页命令骨架 | `references/cheatsheet.md` |
+| 36 种图型一页命令骨架 | `references/cheatsheet.md` |
 | 常见报错速答（FAQ） | `references/faq.md` |
-| 场景卡片（12 个完整工作流一文件跑通） | `references/scenario-cards.md` |
+| 场景卡片（13 个完整工作流一文件跑通） | `references/scenario-cards.md` |
+| 提示词卡片（12 张「对智能体说」可粘贴指令→命令→验收点） | `references/prompt-cards.md` |
 | 某图型的 JSON/CSV/Excel schema | `references/data-formats.md` |
 | "为什么报错 / exit 3 什么意思" | `references/faq.md` |
 | 参数冲突/数据量上限/环境问题 | `references/limits.md` |
@@ -328,9 +331,9 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 | 已知陷阱与修法 | `references/pitfalls.md` |
 | 配色选择 | `references/color-guide.md`；组合：`combo-guide.md` |
 | Python 里调用 | `references/python-api.md` |
-| 版本历史 | `references/changelog.md` |
+| 版本历史 | `references/changelog.md`（版本索引+最近三版详情；完整存档 `references/changelog-full.md`） |
 
-代码布局：`scripts/gen_figure.py`（主生成器，35 图型）+ `gen_legend.py`（期刊图例）+
+代码布局：`scripts/gen_figure.py`（主生成器，36 图型）+ `gen_legend.py`（期刊图例）+
 `audit_pdf.py`（字号门禁）+ `verify_overlap_pixel.py`（重叠验证）+ `setup_env.py` +
 `journal/*.json`（预设）；`templates/`（33 个，各带 `_command`）、`examples/`（含
 `realworld/` 真实场景）、`tests/run_tests.py`（全量回归）。其余 references：
@@ -339,7 +342,7 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 
 ## 版本历史
 
-完整双语版本历史见 `references/changelog.md`。近期：**v5.5.0** subgroup 亚组分析森林图（第 35 图型：逐层效应+P 交互+Overall 菱形+右侧 est/P 双列，只可视化已拟合亚组模型）+ FAQ 可发现性提升（顶部指针+章节导航）+ 国内安装通路文档化；**v5.4.0** rcs 限制性立方样条曲线（第 34 图型：非线性剂量反应+95%CI 带+对数比值轴+参照线+暴露 rug，只可视化已拟合样条）+ DCA 获益区间着色 + 场景卡片单一入口文档（12 个完整工作流）+ SKILL 减密（期刊表下沉 limits §六）+ --doctor 跨面板共享尺度预检；**v5.3.0** nomogram 列线图（第 33 图型：Points 计分尺→逐变量刻度→Total Points→结局概率尺；只可视化已拟合模型，总分好台阶自适应，行数自适应图高）+ 版本一致性锁（随包 evals.json 钉住 SKILL 版本）+ limits 参数冲突集中表 + FAQ 图型专属易错点；**v5.2.0** 临床预测模型线补齐：calibration 校准曲线（第 31 图型：分箱预测 vs 观测+理想对角线+CI 误差棒+H-L p 可选）+ dca 决策曲线（第 32 图型：净收益 vs 阈值，全部干预/不干预双参照）+ `--pub-ready` 合流复跑包（verify 门禁后产出、多格式感知）+ `--suggest` 双语化 + 行型图预留带 helper 机制统一；**v5.1.0** dumbbell 哑铃图（第 30 图型：逐行 from→to 两点+差距降序+Δ 标注）+ `--repro` 复跑交付包（一目录逐字节复现）；**v5.0.0** ridgeline 山脊图（第 29 图型：多组 KDE 堆叠、overlap 可调、单值组退化告知）+ `--audit` 数字对账侧车；**v4.10.0** swimmer 游泳图（第 28 图型：逐例时长条+持续中箭头+里程碑圆点+RECIST 着色）+doctor 投稿格式提示；**v4.9.0** raincloud 雨云图（第 27 图型，分布三合一）+setup_env --fix 镜像回退；**v4.8.0** waterfall 肿瘤缓解瀑布图（第 26 图型，RECIST 着色+阈值线）+suggest 去重；**v4.7.0** upset 集合交集图（第 25 图型）+配色/组合场景指南+真实科研场景示例+limits 速查表；**v4.6.0** ROC 默认语义轴标题 + venn 标题消歧 + 聚类热图行标签自适应字号（P3 视觉打磨包）；**v4.5.0** 独立测试 12 项修复；**v4.4.0** volcano 火山图；更早版本见 changelog。
+完整双语版本历史见 `references/changelog.md`（版本索引+最近三版；完整存档 `references/changelog-full.md`）。近期：**v5.6.0** Galbraith 径向图（第 36 图型：Meta 异质性可视化——精度 1/SE×标准化效应、过原点固定效应合并线、±1.96 同质带、带外离群 stderr 逐个报名；OR/HR/RR 效应量弧线，MD/SMD 自动关）+ composite `share_y` 共享尺度自动统一（同 ylabel 面板一个 y 轴；doctor 预检给出机制出口）+ 提示词卡片文档（12 张对智能体说的可粘贴指令）+ changelog 拆分（版本索引+最近三版，内容零删减）+ CLI 帮助场景速查；**v5.5.0** subgroup 亚组分析森林图（第 35 图型：逐层效应+P 交互+Overall 菱形+右侧 est/P 双列，只可视化已拟合亚组模型）+ FAQ 可发现性提升（顶部指针+章节导航）+ 国内安装通路文档化；**v5.4.0** rcs 限制性立方样条曲线（第 34 图型：非线性剂量反应+95%CI 带+对数比值轴+参照线+暴露 rug，只可视化已拟合样条）+ DCA 获益区间着色 + 场景卡片单一入口文档（12 个完整工作流）+ SKILL 减密（期刊表下沉 limits §六）+ --doctor 跨面板共享尺度预检；**v5.3.0** nomogram 列线图（第 33 图型：Points 计分尺→逐变量刻度→Total Points→结局概率尺；只可视化已拟合模型，总分好台阶自适应，行数自适应图高）+ 版本一致性锁（随包 evals.json 钉住 SKILL 版本）+ limits 参数冲突集中表 + FAQ 图型专属易错点；**v5.2.0** 临床预测模型线补齐：calibration 校准曲线（第 31 图型：分箱预测 vs 观测+理想对角线+CI 误差棒+H-L p 可选）+ dca 决策曲线（第 32 图型：净收益 vs 阈值，全部干预/不干预双参照）+ `--pub-ready` 合流复跑包（verify 门禁后产出、多格式感知）+ `--suggest` 双语化 + 行型图预留带 helper 机制统一；**v5.1.0** dumbbell 哑铃图（第 30 图型：逐行 from→to 两点+差距降序+Δ 标注）+ `--repro` 复跑交付包（一目录逐字节复现）；**v5.0.0** ridgeline 山脊图（第 29 图型：多组 KDE 堆叠、overlap 可调、单值组退化告知）+ `--audit` 数字对账侧车；**v4.10.0** swimmer 游泳图（第 28 图型：逐例时长条+持续中箭头+里程碑圆点+RECIST 着色）+doctor 投稿格式提示；**v4.9.0** raincloud 雨云图（第 27 图型，分布三合一）+setup_env --fix 镜像回退；**v4.8.0** waterfall 肿瘤缓解瀑布图（第 26 图型，RECIST 着色+阈值线）+suggest 去重；**v4.7.0** upset 集合交集图（第 25 图型）+配色/组合场景指南+真实科研场景示例+limits 速查表；**v4.6.0** ROC 默认语义轴标题 + venn 标题消歧 + 聚类热图行标签自适应字号（P3 视觉打磨包）；**v4.5.0** 独立测试 12 项修复；**v4.4.0** volcano 火山图；更早版本见 changelog。
 
 ## 🚀 进阶版：论文配图一键生成 Pro
 

@@ -2514,6 +2514,7 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                         key=lambda i: (panels[i].get("pos", [9, 9])[0],
                                        panels[i].get("pos", [9, 9])[1]))
     _pl_of = {idx: k for k, idx in enumerate(_pos_order)}
+    _panel_axes = []  # (ax, ylabel) 采集——share_y 统一用（v5.6）
 
     for _pi, panel in enumerate(panels):
         pos = panel.get("pos", [0, 0])
@@ -2587,6 +2588,7 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
             sub_ax.set_ylabel(panel["ylabel"], fontsize=theme["font_size"] - 1,
                               fontproperties=cjk_fp if cjk_fp and has_cjk(panel["ylabel"]) else None)
             _ensure_ylabel_clear(sub_ax)
+        _panel_axes.append((sub_ax, (sub_ax.get_ylabel() or "").strip()))
 
         # Legend for panel
         show_legend = panel.get("legend", True)
@@ -2597,6 +2599,32 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
         # Colorbar for heatmap panels
         if extra is not None and hasattr(extra, 'get_cmap'):
             cbar = fig.colorbar(extra, ax=sub_ax, shrink=0.8)
+
+    # v5.6 composite 共享尺度自动统一：share_y=true 时，同 ylabel（同变量语义）
+    # 的面板 y 轴统一到全体范围（doctor 预检「范围差>5 倍」提示的机制出口）。
+    if bool(data.get("share_y", False)):
+        _groups = {}
+        for _a, _yl in _panel_axes:
+            if _yl:
+                _groups.setdefault(_yl, []).append(_a)
+        for _yl, _axs in _groups.items():
+            if len(_axs) < 2:
+                continue
+            _log = any(a.get_yscale() == "log" for a in _axs)
+            if _log:
+                for a in _axs:
+                    a.set_yscale("log")
+                _lo = min(max(a.get_ylim()[0], 1e-12) for a in _axs)
+                _hi = max(a.get_ylim()[1] for a in _axs)
+            else:
+                _lo = min(a.get_ylim()[0] for a in _axs)
+                _hi = max(a.get_ylim()[1] for a in _axs)
+            if not (_hi > _lo):
+                continue
+            for a in _axs:
+                a.set_ylim(_lo, _hi)
+            print(f"composite: share_y 已统一「{_yl}」×{len(_axs)} 面板 y 轴"
+                  f"（{'log ' if _log else ''}{_lo:.4g}~{_hi:.4g}）", file=sys.stderr)
 
     return "composite"  # signal to main() that figure is already built
 
