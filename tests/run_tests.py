@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.7.0", self.zh)
-        self.assertIn("version: 5.7.0", self.en)
+        self.assertIn("version: 5.7.1", self.zh)
+        self.assertIn("version: 5.7.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.7.0", self.zh)
-        self.assertIn("version: 5.7.0", self.en)
+        self.assertIn("version: 5.7.1", self.zh)
+        self.assertIn("version: 5.7.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.7.0", self.zh)
-        self.assertIn("version: 5.7.0", self.en)
+        self.assertIn("version: 5.7.1", self.zh)
+        self.assertIn("version: 5.7.1", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.7.0", zh)
+        self.assertIn("version: 5.7.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.7.0", t, name)
+            self.assertIn("version: 5.7.1", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.7.0", t, name)
+            self.assertIn("version: 5.7.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.7.0", t, name)
+            self.assertIn("version: 5.7.1", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.7.0", t, name)
+            self.assertIn("version: 5.7.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -5657,12 +5657,35 @@ class TestV50700(unittest.TestCase):
             self.assertIn(fld, _KNOWN_DATA_FIELDS, f"cif 字段 {fld} 须进白名单")
 
     def test_cif_galbraith_polish_locked(self):
-        """v5.7 galbraith polish 机制锁：弧线最小间距 0.075 + 无效应线小标。"""
+        """v5.7 galbraith polish 机制锁：弧线最小间距 0.075 + 无效应线小标
+        + 弧线-读数原子性（读数放不下→整条弧线省略，弧 patch 数==读数数）。"""
         sys.path.insert(0, SCRIPT_DIR)
         src = io.open(os.path.join(SCRIPT_DIR, "af_v23_charts.py"),
                       encoding="utf-8").read()
         self.assertIn("* 0.075", src, "弧线最小间距应放宽为轴跨度 7.5%")
         self.assertIn('_rl = f"{est_label}=1"', src, "无效应线小标缺失")
+        self.assertIn("整条省略", src, "弧线-读数原子性机制缺失")
+        # 行为锁：galbraith 模板渲染，弧 patch 数==RR 读数标注数（一一配对）
+        import matplotlib.pyplot as plt
+        import af_v23_charts
+        from matplotlib.patches import Arc
+        demo = json.load(io.open(os.path.join(SCRIPT_DIR, "..",
+                                              "templates", "galbraith.json"),
+                                 encoding="utf-8"))
+        theme = {"colors": ["#2E5E8F", "#FFB627"], "font_size": 10}
+        fig = plt.figure(figsize=(7, 5))
+        ax = fig.add_subplot(111)
+        try:
+            af_v23_charts.gen_galbraith(demo, ax, theme, None)
+            _lbl = str(demo.get("est_label") or "OR").upper()
+            n_arc = sum(1 for p in ax.patches if isinstance(p, Arc))
+            n_rr = sum(1 for t in ax.texts if t.get_text().startswith(f"{_lbl}=")
+                       and t.get_text() != f"{_lbl}=1")
+            self.assertGreater(n_arc, 0, "应至少保留一条弧线")
+            self.assertEqual(n_arc, n_rr,
+                             f"弧线({n_arc})与读数({n_rr})必须一一配对")
+        finally:
+            plt.close(fig)
 
 
 if __name__ == "__main__":
