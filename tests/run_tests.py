@@ -5657,12 +5657,35 @@ class TestV50700(unittest.TestCase):
             self.assertIn(fld, _KNOWN_DATA_FIELDS, f"cif 字段 {fld} 须进白名单")
 
     def test_cif_galbraith_polish_locked(self):
-        """v5.7 galbraith polish 机制锁：弧线最小间距 0.075 + 无效应线小标。"""
+        """v5.7 galbraith polish 机制锁：弧线最小间距 0.075 + 无效应线小标
+        + 弧线-读数原子性（读数放不下→整条弧线省略，弧 patch 数==读数数）。"""
         sys.path.insert(0, SCRIPT_DIR)
         src = io.open(os.path.join(SCRIPT_DIR, "af_v23_charts.py"),
                       encoding="utf-8").read()
         self.assertIn("* 0.075", src, "弧线最小间距应放宽为轴跨度 7.5%")
         self.assertIn('_rl = f"{est_label}=1"', src, "无效应线小标缺失")
+        self.assertIn("整条省略", src, "弧线-读数原子性机制缺失")
+        # 行为锁：galbraith 模板渲染，弧 patch 数==RR 读数标注数（一一配对）
+        import matplotlib.pyplot as plt
+        import af_v23_charts
+        from matplotlib.patches import Arc
+        demo = json.load(io.open(os.path.join(SCRIPT_DIR, "..",
+                                              "templates", "galbraith.json"),
+                                 encoding="utf-8"))
+        theme = {"colors": ["#2E5E8F", "#FFB627"], "font_size": 10}
+        fig = plt.figure(figsize=(7, 5))
+        ax = fig.add_subplot(111)
+        try:
+            af_v23_charts.gen_galbraith(demo, ax, theme, None)
+            _lbl = str(demo.get("est_label") or "OR").upper()
+            n_arc = sum(1 for p in ax.patches if isinstance(p, Arc))
+            n_rr = sum(1 for t in ax.texts if t.get_text().startswith(f"{_lbl}=")
+                       and t.get_text() != f"{_lbl}=1")
+            self.assertGreater(n_arc, 0, "应至少保留一条弧线")
+            self.assertEqual(n_arc, n_rr,
+                             f"弧线({n_arc})与读数({n_rr})必须一一配对")
+        finally:
+            plt.close(fig)
 
 
 if __name__ == "__main__":

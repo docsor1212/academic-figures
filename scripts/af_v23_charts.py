@@ -141,13 +141,12 @@ def _draw_galbraith_arcs(ax, b, x_hi, est_label, fs_s, cjk_fp, pts=None):
             continue
         r = float(np.hypot(x_m, m))
         ang = float(np.degrees(np.arctan2(m, x_m)))
-        ax.add_patch(mpatches.Arc((0, 0), 2 * r, 2 * r, theta1=ang - 26.0,
-                                  theta2=ang + 26.0, color="#999999",
-                                  lw=0.9, linestyle=":", zorder=2))
         # 标签位=弧段中点（ang−14°）再径向外推 12%——离开数据线簇集区
         import math as _m
         _a = _m.radians(ang - 14.0)
         lx, ly = 1.12 * r * _m.cos(_a), 1.12 * r * _m.sin(_a)
+        # v5.7.0 交付验收裁决：弧线与读数同生共死——读数放不下时整条弧线
+        # 一并省略（无读数的弧线对读者是无法判读的噪声；stderr 报告条数）
         if pts is not None and len(pts):
             _dx = np.array([lx - px for px, _ in pts])
             _dy = np.array([ly - pz for _, pz in pts])
@@ -156,11 +155,15 @@ def _draw_galbraith_arcs(ax, b, x_hi, est_label, fs_s, cjk_fp, pts=None):
             if bool((np.hypot(_dx, _dy) < _near).any()):
                 skipped += 1
                 continue
+        ax.add_patch(mpatches.Arc((0, 0), 2 * r, 2 * r, theta1=ang - 26.0,
+                                  theta2=ang + 26.0, color="#999999",
+                                  lw=0.9, linestyle=":", zorder=2))
         ax.annotate(f"{est_label}={v:g}", (lx, ly), ha="center", va="center",
                     fontsize=fs_s, color="#666666",
                     fontproperties=cjk_fp if cjk_fp and _has_cjk(est_label) else None)
     if skipped:
-        _warn(f"galbraith: {skipped} 条弧线读数与研究名过近已省略（弧线仍保留）")
+        _warn(f"galbraith: {skipped} 条效应量弧线（含读数）与研究名过近已整条省略"
+              "（保留的弧线均带读数）")
 
 
 def _declutter_annotations(ax, anns):
