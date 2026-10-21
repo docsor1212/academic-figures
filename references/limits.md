@@ -35,6 +35,7 @@
 | nomogram | variables 1~12、outcome_scales 1~3、每尺 ticks 2~12；变量 points_at∈[0,100] | 报错含尺名与首错刻度 |
 | rcs | points ≥5 且 value 单调；log_y=true 时 est/ci>0；ref 须在 value 范围内 | 报错含首个坏网格点序号 |
 | subgroup | subgroups 1~12、每组 levels 2~8；ci_low≤est≤ci_high；p/p_interaction∈[0,1] | 报错含亚组名/层名 |
+| cif | time+event 等长非空；event 须整数 ≥0（0=删失 1=目标事件 ≥2=竞争）；时间 ≥0；至少 1 个事件；单队列（不支持 groups 多臂） | 报错含首个坏项序号；groups 提示改用 `-t km`（AJ 自动模式） |
 | 任意图 | 渲染看门狗 30~1800s 预算 | 内存不足自动降级重试 |
 
 细节与完整矩阵见下方 §一~§九。

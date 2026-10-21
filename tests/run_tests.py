@@ -1128,7 +1128,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 36, f"expected 36 templates (v2.6 base + ... + rcs/subgroup/galbraith), got {len(jsons)}")
+        self.assertEqual(len(jsons), 37, f"expected 37 templates (v2.6 base + ... + rcs/subgroup/galbraith/cif), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.6.1", self.zh)
-        self.assertIn("version: 5.6.1", self.en)
+        self.assertIn("version: 5.7.0", self.zh)
+        self.assertIn("version: 5.7.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.6.1", self.zh)
-        self.assertIn("version: 5.6.1", self.en)
+        self.assertIn("version: 5.7.0", self.zh)
+        self.assertIn("version: 5.7.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.6.1", self.zh)
-        self.assertIn("version: 5.6.1", self.en)
+        self.assertIn("version: 5.7.0", self.zh)
+        self.assertIn("version: 5.7.0", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.6.1", zh)
+        self.assertIn("version: 5.7.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2880,7 +2880,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "36 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "37 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.6.1", t, name)
+            self.assertIn("version: 5.7.0", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.6.1", t, name)
+            self.assertIn("version: 5.7.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.6.1", t, name)
+            self.assertIn("version: 5.7.0", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.6.1", t, name)
+            self.assertIn("version: 5.7.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4013,8 +4013,8 @@ class TestV47000(unittest.TestCase):
         rw = os.path.join(base, "examples", "realworld")
         self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
         rws = sorted(os.listdir(rw))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 11,
-                         f"realworld 示例应 11 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 12,
+                         f"realworld 示例应 12 个: {rws}")
 
 
 class TestV48000(unittest.TestCase):
@@ -4887,7 +4887,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 36)
+        self.assertEqual(len(jsons), 37)
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5413,16 +5413,256 @@ class TestV50600(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(td, "g.png")))
 
     def test_v56_counts_and_fields(self):
-        """计数锁收口：模板 36 / realworld 11 / 新字段白名单。"""
+        """计数锁收口：模板 37 / realworld 12 / 新字段白名单（v5.7 起 cif+mgus2 入列）。"""
         root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
-        self.assertEqual(len(tpls), 36, f"模板应 36 个: {len(tpls)}")
+        self.assertEqual(len(tpls), 37, f"模板应 37 个: {len(tpls)}")
         rws = os.listdir(os.path.join(root, "examples", "realworld"))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 11,
-                         f"realworld 应 11 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 12,
+                         f"realworld 应 12 个: {rws}")
         from af_diagnostics import _KNOWN_DATA_FIELDS
         for fld in ("arcs", "share_y", "est_label"):
             self.assertIn(fld, _KNOWN_DATA_FIELDS, f"新字段 {fld} 须进白名单（铁律#1）")
+
+
+class TestV50700(unittest.TestCase):
+    """v5.7.0：cif 竞争风险累计发生率（第 37 种图型，Aalen-Johansen+1−KM 高估对照）
+    + 反模式集中页 antipatterns.md + Galbraith 弧线密度放宽/无效应线小标
+    + --list-types 权威清单 + MCP 清单机制化。"""
+
+    CIF_DEMO = {"time": [3, 5, 6, 7, 8, 10, 12, 12, 14, 16, 18, 20, 22, 24, 26, 28,
+                          30, 32, 34, 36, 38, 40, 42, 44],
+                 "event": [1, 2, 1, 0, 1, 2, 0, 1, 0, 2, 1, 0, 0, 2, 1, 0,
+                           2, 0, 1, 0, 0, 2, 0, 0],
+                 "cause_labels": {"1": "复发", "2": "移植相关死亡"},
+                 "time_unit": "月"}
+
+    # ── 数学锁（独立第二实现对拍 + 完备性恒等式 + 高估定理） ──
+
+    def test_cif_math_identity_and_second_impl(self):
+        """手算数据：AJ 双实现对拍 + sum(CIF)+S=1 恒等式 + 1−KM ≥ CIF1（高估定理）。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_v23_stats as st
+        times = [1, 2, 2, 3, 3, 4]
+        events = [1, 2, 0, 1, 2, 1]
+        res = st.aalen_johansen(times, events)
+        # 手算期望：t=1: C1=1/6, S=5/6; t=2: C2=1/6, S=2/3; t=3: C1=7/18, C2=7/18,
+        # S=2/9; t=4: C1=11/18, S=0
+        self.assertAlmostEqual(res["cif"][1][-1], 11 / 18, places=10)
+        self.assertAlmostEqual(res["cif"][2][-1], 7 / 18, places=10)
+        self.assertAlmostEqual(res["survival"][-1], 0.0, places=10)
+        for k, tk in enumerate(res["times"]):
+            tot = res["survival"][k] + sum(res["cif"][j][k] for j in res["cif"])
+            self.assertAlmostEqual(tot, 1.0, places=10, msg=f"恒等式在 t={tk} 破坏")
+        # 独立第二实现（逐次循环重算）
+        pairs = sorted(zip(times, events))
+        S, c1 = 1.0, 0.0
+        for tk in sorted(set(x for x, _ in pairs)):
+            Y = sum(1 for x, _ in pairs if x >= tk)
+            d1 = sum(1 for x, e in pairs if x == tk and e == 1)
+            dall = sum(1 for x, e in pairs if x == tk and e >= 1)
+            Sb = S
+            if dall:
+                S *= 1 - dall / Y
+            if d1:
+                c1 += Sb * d1 / Y
+        self.assertAlmostEqual(c1, res["cif"][1][-1], places=10, msg="第二实现对拍失败")
+        # 高估定理：1−KM（竞争当删失）在每个事件时间 ≥ CIF1
+        naive = st.km_estimate(times, [1 if e == 1 else 0 for e in events])
+        one_minus = [1 - s for s in naive[1]]
+        for k, tk in enumerate(naive[0]):
+            cif1_at = 0.0
+            for tt, vv in zip(res["times"], res["cif"][1]):
+                if tt <= tk:
+                    cif1_at = vv
+            self.assertGreaterEqual(one_minus[k] + 1e-12, cif1_at,
+                                    f"1−KM 在 t={tk} 低于 CIF1（高估定理破坏）")
+
+    # ── E2E 渲染与报告 ──
+
+    def test_cif_e2e_render_and_report(self):
+        """E2E：demo 渲染 + stderr 报事件计数/末点 CIF/高估百分点。"""
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "c.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(self.CIF_DEMO))
+            out = os.path.join(td, "c.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "cif", "-d", f, "-o", out,
+                 "--dpi", "80", "--cjk"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.exists(out) and os.path.getsize(out) > 10000)
+            self.assertIn("目标事件 7", r.stderr)
+            self.assertIn("竞争事件 6", r.stderr)
+            self.assertIn("删失 11", r.stderr)
+            self.assertIn("高估 +", r.stderr)
+            self.assertIn("1−KM", r.stderr)
+            self.assertIn("cif: 竞争风险下 1−KM 系统性高估", r.stderr)
+
+    def test_cif_realworld_mgus2_renders(self):
+        """真实公开数据（Mayo mgus2 1384 例）E2E：恒等式与计数自洽。"""
+        src = os.path.join(SCRIPT_DIR, "..", "examples", "realworld",
+                           "hematology_mgus_cif.json")
+        self.assertTrue(os.path.isfile(src), "mgus2 真实数据示例缺失")
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "m.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "cif", "-d", src, "-o", out,
+                 "--dpi", "60"],
+                capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("n=1384", r.stderr)
+            self.assertIn("目标事件 115", r.stderr)
+            self.assertIn("竞争事件 860", r.stderr)
+            # AJ 恒等式：末点两因 CIF 之和 = 1（stderr 报告 3 位小数）
+            m = re.search(r"进展（MGUS→浆细胞病） (0\.\d+)，死亡（竞争事件） (0\.\d+)",
+                          r.stderr)
+            self.assertTrue(m, f"末点报告缺失: {r.stderr[-300:]}")
+            self.assertAlmostEqual(float(m.group(1)) + float(m.group(2)), 1.0,
+                                   delta=0.002)
+
+    def test_cif_km_autoswitch_guidance(self):
+        """机制锁：km 撞到竞争编码自动切 AJ 并引导专用 -t cif。"""
+        data = {"groups": {"A": [[1, 1], [2, 2], [3, 0], [4, 1], [5, 2], [6, 1]]}}
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "k.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+            out = os.path.join(td, "k.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "km", "-d", f, "-o", out,
+                 "--dpi", "60", "--no-risk-table"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("Aalen-Johansen", r.stderr)
+            self.assertIn("-t cif", r.stderr)
+
+    def test_cif_validate_fatals(self):
+        """校验：缺 event/groups 多臂/非整数编码/负时间/全删失 全部中文拒绝。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_v23_charts
+        cases = [
+            ({"time": [1, 2]}, "'time'+'event'"),
+            ({"time": [1, 2], "event": [1]}, "长度必须一致"),
+            ({"groups": {"A": [[1, 1]]}, "time": [1], "event": [1]}, "groups"),
+            ({"time": [1, 2], "event": [1.5, 0]}, "整数编码"),
+            ({"time": [-1, 2], "event": [1, 0]}, "非数值/负数"),
+            ({"time": [1, 2], "event": [0, 0]}, "全部为删失"),
+            ({"time": [1, 2], "event": [1, 0], "compare_km": "yes"},
+             "compare_km"),
+        ]
+        for data, frag in cases:
+            fatal, _w = af_v23_charts.validate_extra("cif", data)
+            self.assertTrue(fatal, f"应拒绝: {data}")
+            self.assertTrue(any(frag in x for x in fatal),
+                            f"报错须含「{frag}」: {fatal}")
+
+    def test_cif_no_competing_auto_off(self):
+        """无竞争事件：compare_km=true 自动关（KM 口径正确无需对照）。"""
+        data = {"time": [1, 2, 3, 4, 5], "event": [1, 0, 1, 0, 1],
+                "compare_km": True}
+        with tempfile.TemporaryDirectory() as td:
+            f = os.path.join(td, "n.json")
+            io.open(f, "w", encoding="utf-8").write(json.dumps(data))
+            out = os.path.join(td, "n.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "cif", "-d", f, "-o", out,
+                 "--dpi", "60"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("无竞争事件", r.stderr)
+            self.assertNotIn("高估 +", r.stderr)
+
+    def test_cif_percent_axis_and_legend(self):
+        """percent 百分轴 + cause_labels 进图例（matplotlib 内省）。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_v23_charts
+        import matplotlib.pyplot as plt
+        theme = {"colors": ["#2E5E8F", "#FFB627"], "font_size": 10}
+        data = dict(self.CIF_DEMO)
+        data["percent"] = True
+        fig = plt.figure(figsize=(6, 4))
+        ax = fig.add_subplot(111)
+        try:
+            af_v23_charts.gen_cif(data, ax, theme, None)
+            self.assertIn("%", ax.get_ylabel())
+            labels = ax.get_legend().get_texts()
+            words = " ".join(t.get_text() for t in labels)
+            self.assertIn("复发", words)
+            self.assertIn("移植相关死亡", words)
+            self.assertIn("1−KM", words)
+            self.assertLessEqual(max(max(ln.get_ydata()) for ln in ax.lines),
+                                 100.0 + 1e-9, "percent 轴下曲线应 ≤100")
+        finally:
+            plt.close(fig)
+
+    def test_cif_template_and_realworld_commands_run(self):
+        """模板与 realworld 示例 _command 逐字可执行（-o 重定向临时目录防泄漏）。"""
+        with tempfile.TemporaryDirectory() as td:
+            for rel in ("templates/cif.json",
+                        "examples/realworld/hematology_mgus_cif.json"):
+                src = os.path.join(SCRIPT_DIR, "..", rel)
+                d = json.load(io.open(src, encoding="utf-8"))
+                cmd = d["_command"].split()
+                assert "-o" in cmd, rel
+                out = os.path.join(td, os.path.basename(rel) + ".png")
+                i = cmd.index("-o")
+                cmd[i + 1] = out
+                r = subprocess.run(cmd, capture_output=True, text=True,
+                                   timeout=300, cwd=os.path.join(SCRIPT_DIR, ".."))
+                self.assertEqual(r.returncode, 0, f"{rel}: {r.stderr[-300:]}")
+                self.assertTrue(os.path.exists(out) and
+                                os.path.getsize(out) > 10000, rel)
+
+    def test_list_types_authoritative(self):
+        """--list-types 输出权威注册表（MCP 动态清单数据源）。"""
+        r = subprocess.run([sys.executable, GEN, "--list-types"],
+                           capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0)
+        ts = [x.strip() for x in r.stdout.splitlines() if x.strip()]
+        self.assertIn("cif", ts)
+        self.assertIn("galbraith", ts)
+        self.assertGreaterEqual(len(ts), 37)
+        sys.path.insert(0, SCRIPT_DIR)
+        import gen_figure
+        self.assertEqual(set(ts), set(gen_figure.GENERATORS),
+                         "--list-types 与注册表不一致")
+
+    def test_antipatterns_page_wired(self):
+        """反模式集中页存在、含五类反模式与交叉链接，SKILL 双语路由直达。"""
+        root = os.path.join(SCRIPT_DIR, "..")
+        p = os.path.join(root, "references", "antipatterns.md")
+        self.assertTrue(os.path.isfile(p), "antipatterns.md 缺失")
+        t = io.open(p, encoding="utf-8").read()
+        for kw in ("pitfalls.md", "faq.md", "limits.md", "Aalen-Johansen"):
+            self.assertIn(kw, t)
+        for sk in ("SKILL.md", "SKILL_ZH.md"):
+            s = io.open(os.path.join(root, sk), encoding="utf-8").read()
+            self.assertIn("antipatterns.md", s, f"{sk} 未链接反模式集中页")
+
+    def test_v570_counts_and_docs(self):
+        """v5.7.0 计数锁：37 模板/注册表≥37/README 37 chart types/realworld 12。"""
+        root = os.path.join(SCRIPT_DIR, "..")
+        jsons = glob.glob(os.path.join(root, "templates", "*.json"))
+        self.assertEqual(len(jsons), 37, f"templates 应 37: {len(jsons)}")
+        sys.path.insert(0, SCRIPT_DIR)
+        import gen_figure
+        self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 37)
+        readme = io.open(os.path.join(root, "README.md"), encoding="utf-8").read()
+        self.assertIn("37 chart types", readme)
+        rws = [x for x in os.listdir(os.path.join(root, "examples", "realworld"))
+               if x.endswith(".json")]
+        self.assertEqual(len(rws), 12, f"realworld 应 12: {rws}")
+        from af_diagnostics import _KNOWN_DATA_FIELDS
+        for fld in ("cause_labels", "compare_km", "percent", "time_unit", "y_max"):
+            self.assertIn(fld, _KNOWN_DATA_FIELDS, f"cif 字段 {fld} 须进白名单")
+
+    def test_cif_galbraith_polish_locked(self):
+        """v5.7 galbraith polish 机制锁：弧线最小间距 0.075 + 无效应线小标。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        src = io.open(os.path.join(SCRIPT_DIR, "af_v23_charts.py"),
+                      encoding="utf-8").read()
+        self.assertIn("* 0.075", src, "弧线最小间距应放宽为轴跨度 7.5%")
+        self.assertIn('_rl = f"{est_label}=1"', src, "无效应线小标缺失")
 
 
 if __name__ == "__main__":

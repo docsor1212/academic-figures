@@ -151,7 +151,8 @@ def _draw_galbraith_arcs(ax, b, x_hi, est_label, fs_s, cjk_fp, pts=None):
         if pts is not None and len(pts):
             _dx = np.array([lx - px for px, _ in pts])
             _dy = np.array([ly - pz for _, pz in pts])
-            _near = float(np.hypot(x_hi, 1.0)) * 0.10  # 归一化最小间距（轴跨度 10%）
+            # v5.7：最小间距 0.10→0.075（读数密度放宽，仍以碰撞检测兜底防叠印）
+            _near = float(np.hypot(x_hi, 1.0)) * 0.075  # 归一化最小间距（轴跨度 7.5%）
             if bool((np.hypot(_dx, _dy) < _near).any()):
                 skipped += 1
                 continue
@@ -268,6 +269,11 @@ def gen_galbraith(data, ax, theme, cjk_fp, **kwargs):
     _x_right = float(x.max()) * 0.90   # 右缘标注左翻（端点 pad 铁律：右 10% 区域标签向左，防溢出画布）
     import matplotlib.patheffects as _pe
     _stroke = [_pe.withStroke(linewidth=2.2, foreground="white")]  # 白描边：标注压合并线仍可读（视觉验收结论落地）
+    # v5.7：无效应参考线小标（比率尺度 y=0 即 OR=1；差值尺度=差值 0）
+    _rl = f"{est_label}=1" if est_label in _RATIO_LABELS else "差值=0"
+    ax.annotate(_rl, (x_hi, 0.0), ha="right", va="bottom", xytext=(0, 2),
+                textcoords="offset points", fontsize=fs_s, color="#999999",
+                path_effects=_stroke, zorder=2)
     _anns = []
     for i, nm in enumerate(names):
         if show_all or i in out_idx:
@@ -315,6 +321,153 @@ def gen_galbraith(data, ax, theme, cjk_fp, **kwargs):
     if out_idx:
         _warn("galbraith: 带外研究是异质性主要来源——考虑随机效应合并（DL 已报）、"
               "分层 Meta 或剔除该研究的敏感性分析对照")
+    return None
+
+
+# ── cif 竞争风险累计发生率（v5.7 第 37 种图型；Aalen-Johansen） ────────
+
+def _naive_one_minus_km(times, events, target=1):
+    """1−KM 朴素估计（竞争事件当删失）——高估参照线。
+
+    返回 (t_seq, one_minus_s_seq)，t 从 0 起（阶梯画法 where='post'）。"""
+    e1 = [1 if int(e) == target else 0 for e in events]
+    t_seq, s_seq, _ = st.km_estimate(times, e1)
+    return t_seq, [1.0 - s for s in s_seq]
+
+
+def gen_cif(data, ax, theme, cjk_fp, **kwargs):
+    """竞争风险累计发生率图（Aalen-Johansen；v5.7 第 37 种图型）。
+
+    有竞争事件（如死亡）时 1−KM 系统性高估目标事件的累计发生率（审稿高频
+    退稿点）——实线按事件原因分解 AJ 累计发生率，compare_km 叠加 1−KM 朴素
+    对照虚线直观显示高估幅度；stderr 报告事件计数/末点对比与口径提醒。
+    数据：长表 time+event 两等长数组（0=删失 1=目标事件 ≥2=竞争事件编号），
+    可选 cause_labels / percent / time_unit / y_max / compare_km（auto=有
+    竞争事件才画）。多臂分组请用 -t km（v3.7 起内置 AJ 自动模式）。
+    """
+    t_raw = data.get("time")
+    e_raw = data.get("event")
+    if not isinstance(t_raw, list) or not isinstance(e_raw, list):
+        if isinstance(data.get("groups"), dict):
+            raise ValueError("cif: 不支持 groups 多臂分组——CIF 按事件原因分层；"
+                             "多臂竞争风险请用 -t km（内置 AJ 自动模式）")
+        raise ValueError("cif: 需要 'time'+'event' 两个等长数组"
+                         "（0=删失 1=目标事件 ≥2=竞争事件）")
+    if len(t_raw) != len(e_raw):
+        raise ValueError(f"cif: time 有 {len(t_raw)} 个值但 event 有 "
+                         f"{len(e_raw)} 个 — 长度必须一致")
+    if not t_raw:
+        raise ValueError("cif: 数据为空")
+    try:
+        times = [float(v) for v in t_raw]
+    except (TypeError, ValueError):
+        raise ValueError("cif: time 含非数值项（NaN/字符串）——请清洗后重试")
+    try:
+        events = [int(v) for v in e_raw]
+    except (TypeError, ValueError):
+        raise ValueError("cif: event 含非整数编码（须为 0=删失 1=目标事件 ≥2=竞争事件）")
+    for _v, _e in zip(t_raw, e_raw):
+        # v5.7 审计 P2：与 validate 层同口径——bool/字符串在 Python API 直调时也不静默放行
+        if isinstance(_v, bool) or not isinstance(_v, (int, float)) or _v != _v:
+            raise ValueError("cif: time 含非数值项（NaN/布尔/字符串）——请清洗后重试")
+        if (isinstance(_e, bool) or not isinstance(_e, (int, float))
+                or float(_e) != int(_e) or int(_e) < 0):
+            raise ValueError(f"cif: event 编码须为 ≥0 整数（0=删失 1=目标事件 ≥2=竞争），"
+                             f"发现 {_e!r}")
+    if any(t < 0 for t in times):
+        raise ValueError("cif: 存在负时间——随访时间须 ≥0")
+    n = len(times)
+    n1 = sum(1 for e in events if e == 1)
+    comp_codes = sorted({e for e in events if e >= 2})
+    nc = sum(1 for e in events if e == 0)
+    if n1 == 0 and not comp_codes:
+        raise ValueError("cif: 全部为删失（event 全 0）——无法估计累计发生率")
+
+    cause_labels = data.get("cause_labels") if isinstance(data.get("cause_labels"), dict) else {}
+    compare_mode = data.get("compare_km", "auto")
+    percent = bool(data.get("percent"))
+    unit = str(data.get("time_unit") or "")
+
+    aj = st.aalen_johansen(times, events)
+    if compare_mode in (None, "auto"):
+        compare = bool(comp_codes) and n1 > 0
+    else:
+        if not isinstance(compare_mode, bool):
+            raise ValueError("cif: compare_km 须为 true/false/auto"
+                             "（默认 auto=有竞争事件才画参照线）")
+        compare = compare_mode and n1 > 0
+        if compare_mode and not comp_codes:
+            _warn("cif: 无竞争事件（无 ≥2 编码）——1−KM 与目标因累计发生率重合，"
+                  "对照线已省略（此时 KM 口径正确，无需 CIF）")
+            compare = False
+        if compare_mode and n1 == 0:
+            _warn("cif: 无目标事件（无 1 编码）——1−KM 对照线无对象，已省略")
+            compare = False
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 2)
+    _scale = 100.0 if percent else 1.0
+
+    def _cause_name(j):
+        v = cause_labels.get(str(j), cause_labels.get(j))
+        return str(v) if v else ("目标事件" if j == 1 else f"竞争事件 {j}")
+
+    for k, j in enumerate(sorted(aj["cif"].keys())):
+        ys = [0.0] + [v * _scale for v in aj["cif"][j]]
+        xs = [0.0] + list(aj["times"])
+        ax.step(xs, ys, where="post", color=theme["colors"][k % len(theme["colors"])],
+                lw=2, label=_cause_name(j), zorder=3)
+    if compare:
+        tk, sk = _naive_one_minus_km(times, events, 1)
+        ax.step(tk, [v * _scale for v in sk], where="post", color="#888888",
+                lw=1.4, ls="--", label="1−KM（竞争当删失，高估参照）", zorder=2)
+
+    ax.set_xlabel(f"时间（{unit}）" if unit else "时间",
+                  fontproperties=cjk_fp if cjk_fp and (_has_cjk(unit) or not unit) else None)
+    yl = "累计发生率（%）" if percent else "累计发生率 Cumulative Incidence"
+    ax.set_ylabel(yl, fontproperties=cjk_fp if cjk_fp and _has_cjk(yl) else None)
+    _vals = [v * _scale for vs in aj["cif"].values() for v in vs]
+    if compare and sk:
+        _vals.append(max(sk) * _scale)
+    _top = max(_vals + [0.0])
+    import math as _m
+    if percent:
+        _top = max(10.0, _m.ceil(_top * 1.08 / 10.0) * 10.0)
+    else:
+        _top = max(0.10, _m.ceil(_top * 1.08 * 20.0) / 20.0)
+    _user_top = data.get("y_max")
+    if isinstance(_user_top, (int, float)) and _user_top > 0:
+        ax.set_ylim(0, _user_top)
+    else:
+        ax.set_ylim(0, _top if percent else min(1.0, _top))
+    if ax.get_legend_handles_labels()[1]:
+        ax.legend(fontsize=fs - 1, loc="lower right", framealpha=0.9, prop=cjk_fp)
+
+    def _end(states):
+        out = {}
+        for j in states:
+            seq = aj["cif"].get(j)
+            out[j] = seq[-1] if seq else 0.0
+        return out
+
+    _parts = "，".join(f"{_cause_name(j)} {_end([j])[j]:.3f}"
+                       for j in sorted(aj["cif"].keys()))
+    _tmax = aj["times"][-1] if len(aj["times"]) else 0.0
+    _msg = (f"cif: n={n}（目标事件 {n1}"
+            + (f"，竞争事件 {sum(1 for e in events if e >= 2)}" if comp_codes else "")
+            + f"，删失 {nc}）；随访 0~{_tmax:g}" + unit)
+    if aj["cif"]:
+        _msg += f"；末点累计发生率——{_parts}"
+    if compare:
+        km_end = sk[-1] if sk else 0.0
+        c1 = aj["cif"].get(1, [0.0])[-1]
+        _msg += (f"；1−KM 末点 {km_end:.3f}（高估 "
+                 f"{(km_end - c1) * 100:+.1f} 个百分点）")
+        _warn("cif: 竞争风险下 1−KM 系统性高估目标事件累计发生率——"
+              "论文请报告 CIF（Aalen-Johansen）口径并注明竞争事件")
+    if n1 == 0:
+        _warn("cif: 无目标事件（event=1）——仅绘制竞争事件累计发生率曲线")
+    _warn(_msg)
     return None
 
 
@@ -1412,6 +1565,7 @@ def gen_cluster_heatmap(data, ax, theme, cjk_fp, **kwargs):
 EXTRA_GENERATORS = {
     "funnel": gen_funnel,
     "galbraith": gen_galbraith,
+    "cif": gen_cif,
     "bland_altman": gen_bland_altman,
     "pca": gen_pca,
     "paired": gen_paired,
@@ -1440,6 +1594,12 @@ EXTRA_DEMO_DATA = {
         {"name": "李 2024", "effect": 0.64, "se": 0.08},
         {"name": "Dubois 2024", "effect": 1.55, "se": 0.22},
     ]},
+    "cif": {"time": [3, 5, 6, 7, 8, 10, 12, 12, 14, 16, 18, 20, 22, 24, 26, 28,
+                      30, 32, 34, 36, 38, 40, 42, 44],
+             "event": [1, 2, 1, 0, 1, 2, 0, 1, 0, 2, 1, 0, 0, 2, 1, 0,
+                       2, 0, 1, 0, 0, 2, 0, 0],
+             "cause_labels": {"1": "复发", "2": "移植相关死亡"},
+             "time_unit": "月"},
     "bland_altman": {"methods": {"新仪器": [5.1, 4.9, 5.3, 5.6, 4.8, 5.2, 5.0, 5.5],
                                  "金标准": [5.0, 5.1, 5.2, 5.4, 5.0, 5.1, 5.2, 5.3]}},
     "pca": {"matrix": [[5.1, 3.5, 1.4, 0.2], [4.9, 3.0, 1.4, 0.2], [6.7, 3.1, 4.4, 1.4],
@@ -1490,6 +1650,40 @@ def validate_extra(chart_type, data):
         _arcs = data.get("arcs")
         if _arcs not in (None, "auto") and not isinstance(_arcs, bool):
             fatal.append("galbraith: arcs 须为 true/false/auto（默认 auto=比率尺度开弧线）")
+    elif chart_type == "cif":
+        t_raw = data.get("time")
+        e_raw = data.get("event")
+        if isinstance(data.get("groups"), dict):
+            fatal.append("cif: 不支持 groups 多臂分组——CIF 按事件原因分层；"
+                         "多臂竞争风险请用 -t km（内置 AJ 自动模式）")
+        elif not isinstance(t_raw, list) or not isinstance(e_raw, list):
+            fatal.append("cif: 需要 'time'+'event' 两个等长数组"
+                         "（0=删失 1=目标事件 ≥2=竞争事件）")
+        else:
+            if len(t_raw) != len(e_raw):
+                fatal.append(f"cif: time 有 {len(t_raw)} 个值但 event 有 "
+                             f"{len(e_raw)} 个 — 长度必须一致")
+            elif not t_raw:
+                fatal.append("cif: 数据为空")
+            else:
+                _bad_t = [i for i, v in enumerate(t_raw)
+                          if not isinstance(v, (int, float)) or isinstance(v, bool)
+                          or v != v or v < 0]
+                if _bad_t:
+                    fatal.append(f"cif: time 第 {_bad_t[:3]} 项非数值/负数")
+                _bad_e = [i for i, v in enumerate(e_raw)
+                          if not isinstance(v, (int, float)) or isinstance(v, bool)
+                          or float(v) != int(v) or v < 0]
+                if _bad_e:
+                    fatal.append(f"cif: event 第 {_bad_e[:3]} 项须为 ≥0 整数编码"
+                                 "（0=删失 1=目标事件 ≥2=竞争事件）")
+                elif not any((not isinstance(v, bool)) and isinstance(v, (int, float))
+                             and v >= 1 for v in e_raw):
+                    fatal.append("cif: 全部为删失（event 全 0）——无法估计累计发生率")
+        _ck = data.get("compare_km")
+        if _ck not in (None, "auto") and not isinstance(_ck, bool):
+            fatal.append("cif: compare_km 须为 true/false/auto"
+                         "（默认 auto=有竞争事件才画参照线）")
     elif chart_type == "bland_altman":
         if ("a" not in data or "b" not in data) and not isinstance(data.get("methods"), dict):
             fatal.append("bland_altman: 需要 'a'+'b' 数组或 'methods' 两个系列")
@@ -1534,6 +1728,15 @@ def alt_extra(chart_type, data, title=""):
         n = len(data.get("studies", data.get("effects", [])) or [])
         return (f"{t}Galbraith 径向图，{n} 个研究按精度（1/SE）与标准化效应排布，"
                 "过原点直线为固定效应合并，±1.96 平行带覆盖同质研究，带外即离群/异质性嫌疑。")
+    if chart_type == "cif":
+        ev = data.get("event") or []
+        _nc = sum(1 for v in ev if isinstance(v, (int, float))
+                  and not isinstance(v, bool) and v == 1)
+        _nx = sum(1 for v in ev if isinstance(v, (int, float))
+                  and not isinstance(v, bool) and v >= 2)
+        return (f"{t}竞争风险累计发生率图（Aalen-Johansen）：{len(ev)} 名受试者"
+                f"（目标事件 {_nc}、竞争事件 {_nx}），各事件原因一条累计发生率阶梯曲线，"
+                "虚线为 1−KM 朴素对照（竞争事件当删失，系统性高估）。")
     if chart_type == "bland_altman":
         a = data.get("a") or (data.get("methods") or {}).get(list(data.get("methods", {}))[0], [])
         return f"{t}Bland-Altman 一致性图，{len(a)} 对测量的差值-均值散点，含均值差线与 95% 一致性界线。"
@@ -1584,6 +1787,8 @@ def make_caption(chart_type, data, title=""):
                    "Funnel plot: study effects vs SE, dashed pseudo-95% CI bounds, vertical line = DL pooled estimate."),
         "galbraith": ("Galbraith 径向图：横轴精度 1/SE、纵轴标准化效应，过原点直线为固定效应合并，±1.96 平行带外的研究提示离群/异质性。",
                       "Galbraith radial plot: precision (1/SE) vs standardized effect; regression through origin = pooled fixed effect; studies outside the ±1.96 band suggest heterogeneity or outliers."),
+        "cif": ("累计发生率图（Aalen-Johansen）：各事件原因一条阶梯曲线；虚线为 1−KM 朴素估计（竞争事件当删失，系统性高估目标事件风险）。",
+                "Cumulative incidence curves by cause (Aalen-Johansen); dashed = naive 1−KM reference (competing events censored; systematically overestimates the target event)."),
         "bland_altman": ("Bland-Altman 图：横轴两法均值、纵轴差值；实线=均值差，虚线=95% 一致性界值。",
                          "Bland-Altman plot: mean vs difference; solid = mean difference, dashed = 95% limits of agreement."),
         "pca": ("PCA 得分图（PC1×PC2，标准化后），椭圆为各组均值±2SD，箭头为载荷前 5 特征。",

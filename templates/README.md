@@ -1,6 +1,6 @@
 # 模板库（v2.6 全图型覆盖）
 
-36 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注说明，**覆盖全部 36 种图型**（v5.5 增 subgroup，v5.6 增 galbraith）。用法：
+37 个端到端模板 = 场景数据 JSON + 推荐命令 + 图注说明，**覆盖全部 37 种图型**（v5.6 增 galbraith，v5.7 增 cif）。用法：
 
 ```bash
 cp templates/01-meta-forest.json my_data.json
@@ -29,7 +29,7 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | 15-lab-trend-dual-axis | 双轴指标趋势 | dual_axis | 左右轴各一系列 |
 | 16-study-design-diagram | 研究设计/CONSORT | diagram | blocks+arrows 定位 |
 
-## 图型速查模板（按图型命名，覆盖其余 12 种）
+## 图型速查模板（按图型命名，覆盖其余 21 种）
 
 | 模板 | 图型 | 模板 | 图型 |
 |---|---|---|---|
@@ -42,7 +42,8 @@ python3 scripts/gen_figure.py -t forest -d my_data.json -o forest.pdf --theme ok
 | dumbbell.json | dumbbell 哑铃图（v5.1） | calibration.json | calibration 校准曲线（v5.2） |
 | dca.json | dca 决策曲线（v5.2） | nomogram.json | nomogram 列线图（v5.3） |
 | rcs.json | rcs 非线性剂量反应（v5.4） | subgroup.json | subgroup 亚组森林图（v5.5） |
-| galbraith.json | galbraith Galbraith 径向图（v5.6） | volcano.json | volcano 火山图 |
+| galbraith.json | galbraith Galbraith 径向图（v5.6） | cif.json | cif 竞争风险累计发生率（v5.7） |
+| volcano.json | volcano 火山图 | | |
 
 > v2.6 起模板与图型一一对应（v4.9 增 raincloud）；不确定用哪个图型可对数据跑
 > `python3 scripts/gen_figure.py --suggest -d 你的数据.json`。

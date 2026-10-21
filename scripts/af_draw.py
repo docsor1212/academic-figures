@@ -950,7 +950,8 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
             _cn_src = data.get("cause_names") if isinstance(data, dict) else None
             _cause_names = _cn_src if isinstance(_cn_src, dict) else {}
             print("[auto] km: 检测到竞争风险事件编码（≥2）——切换 Aalen-Johansen "
-                  "累计发生率曲线（每因一条）", file=sys.stderr)
+                  "累计发生率曲线（每因一条）；单队列建议改用专用图型 -t cif"
+                  "（含 1−KM 高估对照虚线与统计报告）", file=sys.stderr)
             for i, gname in enumerate(group_names):
                 if gname not in raw_groups:
                     continue
