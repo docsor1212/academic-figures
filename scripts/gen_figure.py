@@ -356,6 +356,12 @@ def suggest_chart_type(data):
         if isinstance(first, list) and first and isinstance(first[0], (list, tuple)) \
                 and len(first[0]) == 2:
             recs.append((94, "km", "groups mapped to [time, survival] step pairs"))
+    _ev = data.get("event")
+    if isinstance(data.get("time"), list) and isinstance(_ev, list) and \
+            any((isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 2)
+                for v in _ev):
+        recs.append((96, "cif", "time+event with competing-risk codes (≥2) — "
+                     "cumulative incidence (Aalen-Johansen)"))
     if {"estimates", "ci_low", "ci_high"} <= keys:
         recs.append((93, "forest", "effect estimates with CI bounds"))
     if isinstance(data.get("matrix"), list):
@@ -2296,6 +2302,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="academic-figures：一条命令生成投稿级学术图表",
         epilog="场景速查：基线表对比 -t bar --stats auto ｜ KM 生存 -t km（逐例数据自动风险表）"
+               "｜ 竞争风险 -t cif（Aalen-Johansen+1−KM 高估对照）"
                "｜ 诊断 ROC -t roc --compare ｜ 预测模型四件套 -t roc/calibration/dca/nomogram"
                "｜ Meta 森林+漏斗+径向 -t forest/funnel/galbraith ｜ 亚组森林 -t subgroup"
                "｜ 组学 -t volcano/-t cluster_heatmap ｜ 多面板 -t composite（share_y 统一尺度）"
@@ -2317,6 +2324,8 @@ def main():
                              "'glm-brand' = 品牌视觉（信号黄对比强化+无网格+同系深色斜纹，v3.3.1）")
     parser.add_argument("--list-themes", action="store_true",
                         help="列出全部配色主题（含色卡预览）后退出")
+    parser.add_argument("--list-types", action="store_true",
+                        help="列出全部图型（权威清单，每行一个）后退出")
     parser.add_argument("--theme-swatch", default=None, metavar="THEME",
                         help="渲染某主题的色卡预览图后退出")
     parser.add_argument("--demo", action="store_true",
@@ -2528,6 +2537,11 @@ def main():
 
     if args.list_themes:
         cmd_list_themes()
+        sys.exit(0)
+
+    if args.list_types:
+        # 权威图型清单出口（v5.7）：MCP/外部脚本动态消费，杜绝硬编码清单漂移
+        print("\n".join(sorted(GENERATORS)))
         sys.exit(0)
 
     if args.theme_swatch:

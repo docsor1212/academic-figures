@@ -51,10 +51,13 @@ try:
 except ImportError:  # pragma: no cover - 无 fastmcp 时仅暴露 impl（可测试）
     _MCP_OK = False
 
-CHARTS = ["bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar", "box",
-          "violin", "paired", "scatter", "line", "dual_axis", "heatmap",
-          "cluster_heatmap", "forest", "km", "roc", "venn", "bland_altman",
-          "pca", "funnel", "composite", "diagram", "prisma", "slope"]
+CHARTS = ["bar", "bland_altman", "box", "boxplot", "calibration", "cif",
+          "cluster_heatmap", "composite", "dca", "diagram", "dual_axis",
+          "dumbbell", "forest", "funnel", "galbraith", "grouped_bar", "hbar",
+          "heatmap", "horizontal_bar", "km", "line", "nomogram", "paired",
+          "pca", "prisma", "raincloud", "rcs", "ridgeline", "roc", "scatter",
+          "slope", "stacked_bar", "subgroup", "survival", "swimmer", "upset",
+          "venn", "violin", "volcano", "waterfall"]
 MAX_DATA_BYTES = 2_000_000     # G5: 数据上限（与 Pro 对齐）
 MAX_DPI, MIN_DPI = 600, 72
 PREVIEW_DPI_MAX = 150          # 回传预览上限（600dpi 成品只落盘不回传）
@@ -111,13 +114,33 @@ def _build_cmd(chart, inp, out, dpi, options, fmt):
     return cmd
 
 
-def _run_engine(cmd):
+def _run_engine(cmd, timeout=None):
     try:
         p = subprocess.run(cmd, capture_output=True, text=True,
-                           timeout=RENDER_TIMEOUT, encoding="utf-8", errors="replace")
+                           timeout=timeout or RENDER_TIMEOUT, encoding="utf-8",
+                           errors="replace")
         return p.returncode, (p.stdout or ""), (p.stderr or "")
     except subprocess.TimeoutExpired:
         return 5, "", f"ERROR: 渲染超时（{RENDER_TIMEOUT}s 上限，引擎看门狗未及触发）"
+
+
+def _refresh_charts_from_engine():
+    """v5.7 机制化：以引擎 `--list-types` 注册表为准刷新 CHARTS（杜绝清单漂移——
+    此前硬编码清单已落后引擎十余个图型）。引擎不可达/输出异常时保留内置清单。"""
+    global CHARTS
+    try:
+        # 独立短超时（审计 P2）：引擎 import 挂死时不得拖住服务启动
+        code, so, _se = _run_engine([sys.executable, GEN, "--list-types"],
+                                    timeout=30)
+        if code == 0:
+            ts = sorted({x.strip() for x in (so or "").splitlines() if x.strip()})
+            if len(ts) >= 10:
+                CHARTS = ts
+    except Exception:
+        pass  # 回退内置清单（上面 CHARTS 初值，与 v5.7 注册表逐字对齐）
+
+
+_refresh_charts_from_engine()
 
 
 def render_chart_impl(chart: str, data: str, options: dict = None,

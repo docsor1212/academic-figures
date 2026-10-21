@@ -42,6 +42,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | pca | ≤200 特征列；groups 可选 |
 | funnel | `--egger`（≥3 研究） |
 | galbraith | 数据同 funnel（studies name/effect/se，效应 log 尺度）；≥3 研究；`est_label`=OR/HR/RR 默认画效应量弧线、MD/SMD 自动关（v5.6） |
+| cif | `time`+`event` 两等长数组（0=删失 1=目标事件 ≥2=竞争编号）；`cause_labels`/`percent`/`time_unit`/`compare_km`（auto=有竞争才画 1−KM 对照）；单队列，多臂用 km（v5.7） |
 | composite | panels 内除 composite/diagram/upset 外任意图型；不可嵌套 |
 | volcano | log2fc+pvalue 数组；fc_cut/p_cut/top 数据键；阈值线+Top 标注 |
 | slope | 两时点 [左值, 右值]；`panel_labels`/`left_floor` 等 + `--peak-label` 峰值注记（v4.2） |

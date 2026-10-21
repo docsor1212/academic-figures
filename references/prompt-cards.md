@@ -115,3 +115,12 @@
 
 **应产出**：`--suggest -d meta.json` → 漏斗(90)+Galbraith(85)；`--explain funnel`；`--wizard`
 **验收点**：推荐理由里说明数据形态匹配；explain 给出必填/可选字段；wizard 产出可跑命令。
+
+## 卡13 竞争风险生存数据（审稿人挑「KM 高估」时）
+
+**对智能体说**：
+
+> 我的生存数据里有竞争事件（一部分患者还没等目标事件发生就先死亡了）。数据是 `examples/realworld/hematology_mgus_cif.json`（time=随访月数，event：0=删失 1=进展 2=死亡）。请用 `-t cif` 画竞争风险累计发生率：实线按事件原因分解，叠加 1−KM 虚线对照显示高估幅度；跑完把 stderr 里的末点 CIF 和高估百分点报给我，并提醒我在论文里改用 CIF 口径。
+
+**应产出**：`python3 scripts/gen_figure.py -t cif -d examples/realworld/hematology_mgus_cif.json -o cif.png --cjk`（可加 `--verify`）
+**验收点**：stderr 报 n/目标事件/竞争事件/删失计数与「高估 +X.X 个百分点」；图例为各原因名（cause_labels）；多臂分组数据智能体会指路 `-t km`。
