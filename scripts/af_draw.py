@@ -4656,7 +4656,7 @@ _SUGGEST_TYPE_ZH = {
     "upset": "UpSet 交集图", "raincloud": "雨云图", "slope": "斜率图",
     "volcano": "火山图", "swimmer": "游泳图", "waterfall": "瀑布图",
     "ridgeline": "山脊图", "dumbbell": "哑铃图",
-    "calibration": "校准曲线", "dca": "决策曲线",
+    "calibration": "校准曲线", "dca": "决策曲线", "rmst": "RMST 限制平均生存时间",
 }
 
 

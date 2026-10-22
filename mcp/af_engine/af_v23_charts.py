@@ -1565,10 +1565,130 @@ def gen_cluster_heatmap(data, ax, theme, cjk_fp, **kwargs):
 
 # ── 注册表 ────────────────────────────────────────────────────────────
 
+def gen_rmst(data, ax, theme, cjk_fp, **kwargs):
+    """RMST 限制平均生存时间图（阶梯 S 曲线+τ 截断阴影 AUC+两臂差值推断；
+    v5.9 第 38 种图型）。
+
+    PH 假设不成立/曲线交叉时，单一 Cox HR 会掩盖时变效应——RMST(τ)=∫₀^τ S(u)du
+    给出「到 τ 时刻平均生存多久」的绝对差，临床可解释且不依赖比例风险假设。
+    数据：groups={组名: [[时间,事件(1/0)],...]}（恰好两臂，契约同 km）；
+    可选 tau（截断时间；缺省=最小最大随访之半并显著告知）、time_unit。
+    stderr 报告每臂 RMST(95%CI)+ΔRMST 差值（Greenwood 方差，SE=√(V₁+V₂)，
+    正态近似 p）；随访不足 τ 的臂平尾外推并显著标注。多臂分组请用 -t km。"""
+    has_cjk = None
+    try:
+        from af_shared import has_cjk as _has_cjk
+        has_cjk = _has_cjk
+    except ImportError:
+        pass
+
+    def _fatal(msg):
+        raise ValueError(f"rmst: {msg}")
+
+    groups = data.get("groups", data.get("series", {}))
+    if not isinstance(groups, dict) or len(groups) != 2:
+        _fatal("需要 groups 恰好两个组（{组名: [[时间,事件(1/0)],...]}）——"
+               "RMST 是两臂对比工具，多臂请拆分或用 -t km")
+    names = list(groups.keys())
+    for gname in names:
+        pairs = groups[gname]
+        if not isinstance(pairs, (list, tuple)) or len(pairs) < 5:
+            _fatal(f"组「{gname}」至少需要 5 例 [时间,事件] 对（当前 {len(pairs) if isinstance(pairs, list) else '非数组'}）")
+        for p in pairs:
+            if not (isinstance(p, (list, tuple)) and len(p) >= 2
+                    and all(isinstance(x, (int, float)) for x in p[:2])):
+                _fatal(f"组「{gname}」存在非 [时间,事件] 数值对")
+
+    time_unit = str(data.get("time_unit", "天"))
+    t_all, e_all, a_all = [], [], []
+    for i, gname in enumerate(names):
+        for p in groups[gname]:
+            t_all.append(float(p[0]))
+            e_all.append(float(p[1]))
+            a_all.append(float(i))
+    tau = kwargs.get("rmst_tau") or data.get("tau")
+    tau_auto = False
+    if tau in (None, "", "auto"):
+        mx = min(max(float(p[0]) for p in groups[g]) for g in names)
+        tau = mx / 2.0
+        tau_auto = True
+    tau = float(tau)
+    if tau <= 0:
+        _fatal(f"τ 须为正数（收到：{tau}）")
+
+    res = st.rmst_analysis(t_all, e_all, a_all, tau)
+    g_res = {g["name"]: g for g in res["groups"]}
+
+    def _fmt(v):
+        return f"{v:.0f}" if abs(v - round(v)) < 1e-9 else f"{v:.1f}"
+
+    # ── 曲线（阶梯，裁剪到 τ；阴影=RMST 视觉面积）──
+    for i, gname in enumerate(names):
+        c = theme["colors"][i % len(theme["colors"])]
+        pairs = sorted(([float(p[0]), float(p[1])] for p in groups[gname]))
+        t_seq, s_seq, _cn = st.km_estimate([p[0] for p in pairs], [p[1] for p in pairs])
+        keep = t_seq <= tau
+        ts = list(t_seq[keep]) + ([tau] if t_seq[keep][-1] < tau else [])
+        ss = list(s_seq[keep]) + ([s_seq[keep][-1]] * (1 if ts[-1] == tau and t_seq[keep][-1] < tau else 0))
+        ax.step(ts, ss, where="post", color=c, linewidth=2, label=gname, zorder=3)
+        ax.fill_between(ts, ss, 0, step="post", color=c, alpha=0.15, zorder=2)
+
+    ax.axvline(tau, color="#8A8A8A", linestyle="--", linewidth=1.2, zorder=1)
+    ax.set_xlim(0, tau * 1.06)                      # 右留白：τ 线不贴边
+    ax.set_ylim(-0.02, 1.14)                        # 顶部预留带：τ 标签与注释框分层（视觉门 10-23）
+    ax.text(tau, 1.10, f"τ={_fmt(tau)}{time_unit}", ha="center", va="bottom",
+            fontsize=theme["font_size"] - 1,
+            fontproperties=cjk_fp if cjk_fp and (not has_cjk or has_cjk(f"τ{_fmt(tau)}{time_unit}")) else None)
+
+    # ── 注释框：每臂 RMST(95%CI) + ΔRMST ──
+    gr = res["groups"]
+    box = [f"RMST（τ={_fmt(tau)}{time_unit}）"]
+    for g, nm in zip(gr, names):
+        ex = "，平尾外推" if g["extrapolated"] else ""
+        box.append(f"{nm}: {_fmt(g['rmst'])}（95%CI {_fmt(g['ci_low'])}~{_fmt(g['ci_high'])}）{ex}")
+    if res["difference"]:
+        dd = res["difference"]
+        p_disp = f"P={dd['p']:.3f}" if dd["p"] >= 0.001 else "P<0.001"
+        box.append(f"ΔRMST（{dd['arm_hi']}−{dd['arm_ref']}）= {_fmt(dd['diff'])} {time_unit}")
+        box.append(f"（95%CI {_fmt(dd['ci_low'])}~{_fmt(dd['ci_high'])}，{p_disp}）")
+    if tau_auto:
+        box.append("τ 自动=最小最大随访之半（--rmst-tau 可指定）")
+    fp = cjk_fp if cjk_fp else None
+    ax.text(0.98, 0.90, "\n".join(box), transform=ax.transAxes, ha="right", va="top",
+            fontsize=theme["font_size"] - 1, linespacing=1.5,
+            bbox=dict(boxstyle="round,pad=0.5", facecolor="#FBF7EF",
+                      edgecolor=theme["colors"][0], linewidth=1.2, alpha=0.95),
+            fontproperties=fp if fp and (not has_cjk or has_cjk("\n".join(box))) else None)
+
+    ax.set_xlabel(f"时间（{time_unit}）", fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp else None)
+    ax.set_ylabel("生存概率", fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp else None)
+    ax.grid(True, alpha=0.3, linewidth=0.6)
+    ax.legend(loc="lower left", fontsize=theme["font_size"] - 1, framealpha=0.9)
+
+    # ── stderr 报告 ──
+    print(f"rmst: τ={_fmt(tau)}{time_unit}" + ("（自动=最小最大随访之半）" if tau_auto else ""),
+          file=sys.stderr)
+    for g, nm in zip(gr, names):
+        cov = f"，随访覆盖 {g['coverage'] * 100:.0f}%" + ("，⚠ 平尾外推" if g["extrapolated"] else "")
+        print(f"  {nm}: RMST={_fmt(g['rmst'])}{time_unit}"
+              f"（95%CI {_fmt(g['ci_low'])}~{_fmt(g['ci_high'])}，n={g['n']}，事件={g['n_events']}{cov}）",
+              file=sys.stderr)
+    if res["difference"]:
+        dd = res["difference"]
+        print(f"  ΔRMST（{dd['arm_hi']}−{dd['arm_ref']}）={_fmt(dd['diff'])}{time_unit}"
+              f"（95%CI {_fmt(dd['ci_low'])}~{_fmt(dd['ci_high'])}），Z={dd['z']:.3f}，"
+              + (f"P={dd['p']:.3f}" if dd["p"] >= 0.001 else "P<0.001"), file=sys.stderr)
+    print("  提示：RMST 不依赖比例风险假设；τ 为临床预设的截断时间，报告中应说明选取依据。",
+          file=sys.stderr)
+
+
 EXTRA_GENERATORS = {
     "funnel": gen_funnel,
     "galbraith": gen_galbraith,
     "cif": gen_cif,
+    "rmst": gen_rmst,
     "bland_altman": gen_bland_altman,
     "pca": gen_pca,
     "paired": gen_paired,

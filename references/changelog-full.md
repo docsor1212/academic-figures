@@ -12,6 +12,18 @@
 
 ## Version History
 
+## 5.9.0 — 2026-10-23
+
+rmst 限制平均生存时间（第 38 图型）：每臂 RMST(95%CI)=KM 阶梯积分到 τ
+（Greenwood 型方差 Var=Σ(RMST(τ)−RMST(t_j))²·d_j/(Y_j(Y_j−d_j))，Y−d=0 项
+跳过），两臂 ΔRMST 差值 CI（SE=√(V₁+V₂)，正态近似 p=erfc(|Z|/√2)）。
+数据契约同 km（groups 原始对，恰好两臂）；--rmst-tau 或自动 τ；随访不足
+平尾外推+覆盖率标注。守卫：τ 正数、两臂、组≥5 对（渲染层）、时间非负。
+金标：手算 6 点恒等式（RMST 2.0/7-3，Var 2/9 与 8/27）+独立循环第二实现
++colon 真实队列 619 例全表。双实现对拍逮住两个出厂前 bug：①方差循环未按
+τ 截断（混入 t>τ 垃圾项）②未排序输入事件表错位（unique first_idx 与
+reduceat 顺序）。渲染：阶梯 S 曲线+阴影 AUC+τ 竖线+推断注释框。
+
 ## 5.8.0 — 2026-10-23
 
 `subgroup --stats cox` 一键亚组拟合：逐层 Cox HR(95%CI,p)（Efron 核）+似然比

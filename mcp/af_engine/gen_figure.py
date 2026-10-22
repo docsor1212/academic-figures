@@ -1438,15 +1438,16 @@ def validate_data(data, chart_type):
         if isinstance(events, list) and events and _len(events) != _len(estimates):
             warns.append(f"forest: {_len(events)} 行事件数据但 {_len(estimates)} 个效应值 — events/total 可能错位")
 
-    # ── KM: groups (list of [t, s] pairs) OR time + survival ──
-    elif chart_type in ("km", "survival"):
+    # ── KM/RMST: groups (list of [t, s] pairs) OR time + survival ──
+    elif chart_type in ("km", "survival", "rmst"):
+        _pfx = "rmst" if chart_type == "rmst" else "km"
         groups = data.get("groups", data.get("series", {}))
         has_time = _nonempty_list(data.get("time", []))
         if isinstance(groups, dict) and groups and all(isinstance(v, (list, tuple)) and v and all(isinstance(p, (list, tuple)) and _len(p) >= 2 for p in v) for v in groups.values()):
             for gname, pairs in groups.items():
                 times = [p[0] for p in pairs if _is_number(p[0])]
                 if len(times) >= 2 and any(times[i] > times[i + 1] for i in range(len(times) - 1)):
-                    warns.append(f"km: 组 '{gname}' 时间点未升序 — 拟合前已自动排序，曲线不受影响")
+                    warns.append(f"{_pfx}: 组 '{gname}' 时间点未升序 — 拟合前已自动排序，曲线不受影响")
         elif has_time and isinstance(data.get("survival"), dict):
             surv = data["survival"]
             fatal += _check_series_dict(surv, "survival", req_nonempty=False)
@@ -1461,13 +1462,13 @@ def validate_data(data, chart_type):
             _keys_l = {str(k).strip().lower() for k in groups}
             if _keys_l & _long_keys:
                 fatal.append(
-                    "km: 检测到长表结构（time/event/group 各占一列，一行记录一名患者）—"
+                    f"{_pfx}: 检测到长表结构（time/event/group 各占一列，一行记录一名患者）—"
                     "这种表无法直接画生存曲线。请转成 JSON："
                     '{"groups": {"组名": [[时间, 事件(1=事件/0=删失), ...]], ...}}，'
                     "每组一个数组；格式详见 references/data-formats.md")
             else:
                 fatal.append(
-                    "km: groups 的每个值必须是 [时间, 事件(1/0)] 成对列表，当前是普通数值数组 —"
+                    f"{_pfx}: groups 的每个值必须是 [时间, 事件(1/0)] 成对列表，当前是普通数值数组 —"
                     '请改为 {"组名": [[12, 1], [24, 0], ...]}，或改用 time+survival 两个数组')
         elif not isinstance(groups, dict) or not groups:
             fatal.append("km 需要 'groups'（{组名: [[t, s], ...]}）或 'time'+'survival' 数组 — 都没找到")
@@ -2502,7 +2503,7 @@ def main():
     parser = argparse.ArgumentParser(
         description="academic-figures：一条命令生成投稿级学术图表",
         epilog="场景速查：基线表对比 -t bar --stats auto ｜ KM 生存 -t km（逐例数据自动风险表）"
-               "｜ 竞争风险 -t cif（Aalen-Johansen+1−KM 高估对照）"
+               "｜ 竞争风险 -t cif（Aalen-Johansen+1−KM 高估对照）｜ RMST -t rmst（τ 截断平均生存+差值推断）"
                "｜ 诊断 ROC -t roc --compare ｜ 预测模型四件套 -t roc/calibration/dca/nomogram"
                "｜ Meta 森林+漏斗+径向 -t forest/funnel/galbraith ｜ 亚组森林 -t subgroup（原始数据一键拟合加 --stats cox）"
                "｜ 组学 -t volcano/-t cluster_heatmap ｜ 多面板 -t composite（share_y 统一尺度）"
@@ -2619,6 +2620,8 @@ def main():
     parser.add_argument("--cut", action="append", default=[],
                         help="--stats cox × -t subgroup：数值列二分，格式 名@阈值（可多次）"
                              "——自动按 <阈值/≥阈值 分层")
+    parser.add_argument("--rmst-tau", default=None,
+                        help="-t rmst：截断时间 τ（时间单位；缺省=最小最大随访之半并显著告知）")
     parser.add_argument("--cox-cols", default=None,
                         help="--stats cox 时协变量列（逗号分隔，默认除时间/事件外全部数值列；"
                              "顺序即森林图行序）")
@@ -3123,6 +3126,7 @@ def main():
         "egger": getattr(args, "egger", False),
         "area_mode": getattr(args, "area", False),
         "risk_table": km_risk,
+        "rmst_tau": getattr(args, "rmst_tau", None),
         "risk_axes": risk_axes if km_risk else None,
         "risk_times": getattr(args, "risk_times", None),
         "auto_cjk_hdr": bool(args.cjk) and args.type in ("km", "survival"),
@@ -3404,7 +3408,7 @@ def main():
 # ── A1(v2.8)：渲染看门狗（v2.10：退出码分级与异常诊断拆至 af_diagnostics.py）──
 
 _WD_BASE_BUDGET = {
-    "cluster_heatmap": 240, "composite": 180, "pca": 120, "km": 120,
+    "cluster_heatmap": 240, "composite": 180, "pca": 120, "km": 120, "rmst": 120,
     "forest": 90, "venn": 90, "prisma": 60,
 }
 _WD_DEFAULT_BUDGET = 90.0

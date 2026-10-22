@@ -99,6 +99,15 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig10 --pub-ready \
 `--pub-ready` 一条命令=--verify 门禁+色盲安全主题+pdf/png 双格式+复跑交付包 `<输出>.repro/`｜
 `--journal cn-core` 中文核心预设（自动 CJK+字号下限把守）｜复跑包给审稿人=数字可逐项对账。
 
+## 卡12b 生存疗效对比（RMST，PH 违背/曲线交叉时）
+
+```bash
+python3 scripts/gen_figure.py -t rmst -d rmst.json -o fig12b.pdf --cjk --verify
+```
+
+`groups={组名: [[时间,事件(1/0)],...]}` 恰好两臂｜`tau` 缺省自动（最小最大随访之半，`--rmst-tau` 钉临床 τ）｜注释框报每臂 RMST(95%CI)与 ΔRMST 差值（Greenwood 方差）｜
+> 适用：PH 检验提示违背或曲线交叉时，单一 HR 会掩盖时变效应——RMST 给绝对差。
+
 ## 卡13 疗效亚组分析（亚组森林图+P 交互）
 
 > v5.8 快捷方式：手里是原始逐例数据？跳过手拼 JSON——`-t subgroup --stats cox -d raw.csv --treatment trt --subgroup-vars celltype --cut age@60` 一步出图（引擎拟合，stderr 报全表）。

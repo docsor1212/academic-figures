@@ -960,3 +960,113 @@ def cox_subgroup_analysis(times, events, trt, groups_spec, adjust=None):
             "method": ("HR(95%CI)=Cox 比例风险（Efron 核）；P 交互=似然比检验"
                        "（含/不含 trt×层指示项的 2Δloglik，χ²，df=层−1）"
                        + (f"；调整协变量：{'、'.join(adj_names)}" if adj_names else ""))}
+
+
+def rmst_analysis(times, events, arm, tau):
+    """限制平均生存时间 RMST(τ)（v5.9，第 38 图型统计核）：曲线下面积+
+    Greenwood 型方差+两臂差值置信区间。
+
+    times/events：逐例序列（event 0/1）；arm：二分类数组（参照=排序较小者，
+    文本按首现序）；tau：截断时间 τ>0（超过最大随访时平尾外推并在返回中标注）。
+    返回 dict(groups=[{name,n,n_events,rmst,ci_low,ci_high,var,coverage,extrapolated}],
+             difference={arm_hi,arm_ref,diff,se,ci_low,ci_high,z,p} 或 None,
+             tau, method)。异常一律 ValueError(中文)。
+    公式：RMST=∫₀^τ S(u)du（阶梯积分）；Var=Σ_{t_j≤τ}(RMST(τ)−RMST(t_j))²·
+    d_j/(Y_j(Y_j−d_j))（Y−d=0 项跳过——S 已为 0，分子恒 0）；差值
+    SE=√(V₁+V₂)（组间独立），p=erfc(|Z|/√2)。"""
+    import math
+    t = np.asarray(times, dtype=float)
+    e = np.asarray(events, dtype=float)
+    a = np.asarray(arm)
+    if not (len(t) == len(e) == len(a)):
+        raise ValueError(f"rmst: time/event/arm 行数不一致：{len(t)}/{len(e)}/{len(a)}")
+    if len(t) == 0:
+        raise ValueError("rmst: 数据为空")
+    tau = float(tau)
+    if not (tau > 0) or not np.isfinite(tau):
+        raise ValueError(f"rmst: τ 须为正数（收到：{tau}）")
+    if np.any(~np.isfinite(t)) or np.any(t < 0):
+        raise ValueError("rmst: time 含负数/非数值")
+    if np.any(~np.isin(e, (0, 1))):
+        raise ValueError("rmst: event 必须为 0/1")
+    try:
+        uq = sorted(set(a.tolist()))
+    except TypeError:
+        seen, order = set(), []
+        for v in a.tolist():
+            if v not in seen:
+                seen.add(v)
+                order.append(v)
+        uq = order
+    labels = [str(int(x)) if isinstance(x, float) and float(x).is_integer() else str(x)
+              for x in uq]
+    if len(uq) != 2:
+        raise ValueError(f"rmst: arm 须恰好两个取值（现有 {len(uq)} 个）")
+
+    def _group_rmst(mask):
+        tt, ee = t[mask], e[mask]
+        # ⛔先排序再 reduceat：np.unique 的 first_idx 是原数组下标，未排序输入
+        # 会配出垃圾事件表（10-23 TestV50900 未排序合成数据抓出；km_estimate 本尊有 argsort）
+        order = np.argsort(tt, kind="stable")
+        tt, ee = tt[order], ee[order]
+        ut, first_idx, counts = np.unique(tt, return_index=True, return_counts=True)
+        d = np.add.reduceat(ee, first_idx).astype(float)
+        Y = len(tt) - np.concatenate(([0], np.cumsum(counts)[:-1])).astype(float)
+        ev_mask = d > 0
+        et = ut[ev_mask]                      # 事件时间
+        dE, YE = d[ev_mask], Y[ev_mask]
+        s_steps = np.ones(len(ut))
+        s_steps[ev_mask] = 1.0 - dE / YE
+        surv = np.cumprod(s_steps)            # 每唯一时间的 S
+        t_seq = np.concatenate(([0.0], ut))   # 阶梯（where=post）
+        s_seq = np.concatenate(([1.0], surv))
+
+        def _rmst(T):
+            """∫₀^T S(u)du，阶梯左闭右开：S(t_j) 延续到下一时间点。"""
+            if T <= 0:
+                return 0.0
+            total, prev_t, prev_s = 0.0, 0.0, 1.0
+            for tj, sj in zip(t_seq[1:], s_seq[1:]):
+                if tj >= T:
+                    break
+                total += prev_s * (min(tj, T) - prev_t)
+                prev_t, prev_s = tj, sj
+            total += prev_s * (T - prev_t)
+            return total
+
+        rmst = _rmst(tau)
+        var = 0.0
+        for tj, dj, yj in zip(et, dE, YE):
+            if tj > tau:
+                break                          # ⛔τ 截断：t_j>τ 的项不在方差公式内（10-23 双实现对拍抓出）
+            den = yj * (yj - dj)
+            if den <= 0:
+                continue                       # S 已降 0，分子恒 0
+            var += (_rmst(tau) - _rmst(tj)) ** 2 * dj / den
+        t_max = float(tt.max()) if len(tt) else 0.0
+        z = 1.959963984540054                  # 95% 双侧
+        lo, hi = max(0.0, rmst - z * math.sqrt(var)), min(tau, rmst + z * math.sqrt(var))
+        return {"n": int(len(tt)), "n_events": int(ee.sum()), "rmst": float(rmst),
+                "var": float(var), "ci_low": float(lo), "ci_high": float(hi),
+                "coverage": round(min(1.0, t_max / tau), 4) if tau else 1.0,
+                "extrapolated": bool(t_max < tau),
+                "_t_seq": t_seq, "_s_seq": s_seq}
+
+    m0 = a == uq[0]
+    g0, g1 = _group_rmst(m0), _group_rmst(~m0)
+    z975 = 1.959963984540054
+    diff = None
+    g0_out = {k: v for k, v in g0.items() if not k.startswith("_")}
+    g1_out = {k: v for k, v in g1.items() if not k.startswith("_")}
+    se = math.sqrt(g0["var"] + g1["var"])
+    if se > 0:
+        dd = g0["rmst"] - g1["rmst"]
+        zz = dd / se
+        diff = {"arm_hi": labels[1], "arm_ref": labels[0], "diff": float(dd),
+                "se": float(se), "ci_low": float(dd - z975 * se),
+                "ci_high": float(dd + z975 * se), "z": float(zz),
+                "p": float(math.erfc(abs(zz) / math.sqrt(2)))}
+    return {"groups": [{**g0_out, "name": labels[0]}, {**g1_out, "name": labels[1]}],
+            "difference": diff, "tau": tau,
+            "method": ("RMST=∫₀^τ S(u)du 阶梯积分；Var=Greenwood 型 Σ(RMST(τ)−RMST(t_j))²·"
+                       "d_j/(Y_j(Y_j−d_j))；差值 SE=√(V₁+V₂)，p=正态近似")}

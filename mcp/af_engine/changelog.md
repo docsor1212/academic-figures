@@ -10,7 +10,7 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
+| v5.9.0 | 2026-10-23 | 新图型#38：`rmst`限制平均生存时间（每臂 RMST(95%CI)+ΔRMST 差值 CI；τ 截断回归锁+colon 619 例金标）+生存触发词扩充 || v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
 | v5.7.1 | 2026-10-21 | 修复 galbraith 弧线读数原子性（不可判读弧线整条省略）+弧线/读数一一配对测试锁 |
 | v5.7.0 | 2026-10-21 | 新图型#37：`cif`竞争风险累计发生率（Aalen-Johansen+1−KM 高估对照）+反模式集中页 antipatterns.md+Galbraith 弧线读数密度放宽 |
 | v5.6.1 | 2026-10-20 | 修复 galbraith 深分支崩溃（>12 研究+离群标注相邻）+研究名避让算法升级（纵向 8 档+横向镜像，密集区零叠印） |
@@ -37,6 +37,32 @@
 
 
 ### English
+
+## 5.9.0 — 2026-10-23
+
+Restricted mean survival time (`-t rmst`, chart #38): per-arm RMST(95%CI) =
+step-integral of the KM curve to τ with Greenwood-type variance; ΔRMST
+difference CI for two arms (SE=√(V₁+V₂), normal-approx p). Data contract =
+km raw pairs (`groups`; exactly two arms); `--rmst-tau` pins τ, default
+auto = half of min-max follow-up (announced); short-follow-up arms flagged
+as flat-tail extrapolation with coverage %. Gold-locked on the colon real
+cohort (R survival public data, 619 subjects): RMST 1308.2 vs 1220.1 days,
+Δ=88.1 (95%CI 10.5~165.6). Battery additions caught two pre-release bugs:
+variance loop not truncated at τ, and unsorted-input event-table corruption
+(np.unique first_idx vs reduceat ordering).
+
+### 中文
+
+## 5.9.0 — 2026-10-23
+
+rmst 限制平均生存时间（第 38 图型）：每臂 RMST(95%CI)=KM 阶梯积分到 τ
+（Greenwood 型方差），两臂 ΔRMST 差值置信区间（SE=√(V₁+V₂)，正态近似 p）。
+数据契约同 km 原始对（恰好两臂）；`--rmst-tau` 钉 τ，缺省自动=最小最大
+随访之半（显著告知）；随访不足 τ 平尾外推并标注覆盖率。colon 真实队列
+（R survival 公开数据 619 例）金标：RMST 1308.2 vs 1220.1 天，Δ=88.1
+（95%CI 10.5~165.6）。电池新增逮住两个出厂前 bug：方差循环未按 τ 截断、
+未排序输入的事件表错位（np.unique first_idx 与 reduceat 顺序）。
+
 
 ## 5.8.0 — 2026-10-23
 
