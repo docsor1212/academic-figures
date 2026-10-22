@@ -10,6 +10,9 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
+| v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
+| v5.7.1 | 2026-10-21 | 修复 galbraith 弧线读数原子性（不可判读弧线整条省略）+弧线/读数一一配对测试锁 |
+| v5.7.0 | 2026-10-21 | 新图型#37：`cif`竞争风险累计发生率（Aalen-Johansen+1−KM 高估对照）+反模式集中页 antipatterns.md+Galbraith 弧线读数密度放宽 |
 | v5.6.1 | 2026-10-20 | 修复 galbraith 深分支崩溃（>12 研究+离群标注相邻）+研究名避让算法升级（纵向 8 档+横向镜像，密集区零叠印） |
 | v5.6.0 | 2026-10-20 | 新图型#36：`galbraith`Galbraith 径向图（Meta 异质性可视化）+composite `share_y` 共享尺度自动统一+提示词卡片文档 |
 | v5.5.0 | 2026-10-19 | 新图型#35：`subgroup`亚组分析森林图 |
@@ -35,7 +38,67 @@
 
 ### English
 
+## 5.8.0 — 2026-10-23
+
+One-command subgroup analysis: `-t subgroup --stats cox` fits per-layer Cox
+HR(95%CI,p) + likelihood-ratio P-interaction + Overall diamond from raw
+per-subject data (JSON time/event or CSV). Flags: `--subgroup-vars`
+(categorical columns, 2-8 levels, text levels keep data appearance order /
+numeric sorted), `--treatment` (binary arm; auto-detects trt/treatment/arm),
+`--cut name@threshold` (bin a continuous column; auto-included as subgroup),
+`--cox-cols` (adjusted models). Layer fits require n≥10; guards raise Chinese
+errors (confounded treatment/subgroup, >8 levels, multi-arm treatment).
+Gold-locked against the veteran real cohort (R survival public data,
+tests/fixtures/veteran.csv): full table pinned — born from a real factory
+incident where a hand-built prep script swapped layer labels (the lock now
+catches that class at the gate). ADR-0001 filed for staged af_draw/gen_figure
+split; GitHub Actions CI workflow; line budget 3400→3600 (with rollback plan).
+
+### 中文
+
+## 5.8.0 — 2026-10-23
+
+一键亚组分析：`-t subgroup --stats cox` 从原始逐例数据（JSON time/event 或
+CSV）直接产出逐层 Cox HR(95%CI,p)+似然比 P 交互+Overall 菱形。旗标：
+`--subgroup-vars`（类目列，2~8 层；文本层保数据出现序/数值层排序）、
+`--treatment`（二分类处理臂；自动探测 trt/treatment/arm）、`--cut 名@阈值`
+（连续列二分，自动纳入亚组）、`--cox-cols`（调整模型）。层内 n≥10 守卫；
+混淆/超层/多臂等一律中文报错。veteran 真实队列（R survival 公开数据，
+tests/fixtures/veteran.csv）全表金标锁死——源起真实出厂事故：人手制备脚本
+把层标签贴反，此类错误从此在闸门被拦。另立 ADR-0001（af_draw/gen_figure
+分刀拆解）+ GitHub Actions CI + 行预算 3400→3600（附回收计划）。
+
+
 ## Version History
+
+## 5.7.0 — 2026-10-21
+
+  - **New chart type #37: `cif` — competing-risk cumulative incidence
+    (Aalen-Johansen)**: per-cause CIF step curves; dashed 1−KM naive reference
+    shows how treating competing events as censored overestimates the target
+    event (on a real Mayo Clinic mgus2 cohort of 1384 subjects the gap is
+    +45.5 percentage points). Long-format `time`+`event` integer codes
+    (0=censored, 1=target event, ≥2=competing), `cause_labels`, `percent`,
+    `time_unit`, `compare_km` (auto = draw the reference only when competing
+    events exist); stderr reports event counts, end-of-follow-up CIF per
+    cause and the overestimation in percentage points. Single cohort —
+    multi-arm data is routed to `-t km` (built-in AJ auto mode since v3.7,
+    which now also points to the dedicated chart). Real-world example:
+    `examples/realworld/hematology_mgus_cif.json`.
+  - **Centralized anti-patterns page**: `references/antipatterns.md` — one
+    page of what NOT to do (wrong chart for the data, data-prep traps,
+    flag conflicts, statistical misreads, export mistakes), each entry with
+    consequence + fix + cross-links into faq/pitfalls/limits; linked from
+    SKILL.md/SKILL_ZH.md routing tables.
+  - **Galbraith polish**: arc-label density relaxed (min spacing 10%→7.5% of
+    the axis span, collision detection still guards glyphs) + a small
+    no-effect reference label (`OR=1` on ratio scales, `差值=0` otherwise).
+  - **Mechanism: `--list-types`** prints the authoritative chart registry
+    (one per line); `mcp/server.py` now refreshes its chart list from the
+    engine at startup (fallback list aligned with the v5.7 registry — the
+    hardcoded list had drifted a dozen charts behind).
+  - `--suggest` now recommends `cif` (score 96) when `time`+`event` contains
+    competing-risk codes; scenario quick-reference in CLI help updated.
 
 ## 5.6.1 — 2026-10-20
 
@@ -75,25 +138,6 @@
     routes forest/funnel/galbraith.
   - Test-suite hygiene mechanism: verbatim `_command` tests now redirect
     `-o` to temp dirs (no more render artifacts in the repo trunk).
-
-## 5.5.0 — 2026-10-19
-
-  - **New chart type #35: `subgroup` — subgroup analysis forest**: per-level
-    estimate squares + 95%CI whiskers, P-interaction per variable on the
-    subgroup header row, Overall diamond at the bottom, right-side est (95% CI)
-    and P columns (significant values accented). JSON: `subgroups=[{name,
-    p_interaction?, levels=[{name, est, ci_low, ci_high, n?, p?}]}]` (1-12
-    variables × 2-8 levels) + optional `overall`; `est_label` picks the
-    no-effect line (HR/OR/RR=1, MD/SMD=0); `log_x` defaults to ratio scale
-    with plain log ticks. Visualizes your fitted subgroup model — the engine
-    does not fit.
-  - **FAQ discoverability**: top-of-SKILL pointer and section-nav entry for
-    `references/faq.md`.
-  - **Boundaries-first ordering**: Capabilities & Boundaries now sits right
-    after the section nav (before Quick Start) in both SKILL docs.
-  - **Domestic install channels documented first** in README: SkillHub /
-    ModelScope mirror / setup_env mirror fallback; GitHub demoted to the
-    international option.
 
 ## 5.4.0 — 2026-10-18
 
@@ -155,6 +199,27 @@
 
 ## 版本历史
 
+### v5.7.0（2026-10-21）
+
+- **新图型 #37：`cif` 竞争风险累计发生率（Aalen-Johansen）**：实线按事件原因分解
+  CIF 阶梯曲线；1−KM 朴素对照虚线（竞争事件当删失）直观显示高估幅度——真实
+  Mayo Clinic mgus2 队列（1384 例）实测高估 +45.5 个百分点。长表 `time`+`event`
+  整数编码（0=删失 1=目标事件 ≥2=竞争事件）、`cause_labels`/`percent`/
+  `time_unit`/`compare_km`（auto=有竞争事件才画对照）；stderr 报告事件计数、
+  末点各因 CIF 与高估百分点。单队列按原因分层，多臂分组指路 `-t km`
+  （v3.7 起 AJ 自动模式同步加引导语）。真实数据示例：
+  `examples/realworld/hematology_mgus_cif.json`。
+- **反模式集中页**：`references/antipatterns.md`——「应避免用法」一页看全
+  （选图不当/数据准备/参数冲突/统计解释/导出投稿五类，每条=后果+正确做法+
+  交叉链接 faq/pitfalls/limits）；SKILL.md/SKILL_ZH.md 路由表直达。
+- **Galbraith 打磨**：弧线读数密度放宽（最小间距轴跨度 10%→7.5%，碰撞检测
+  继续兜底）+ 无效应参考线小标（比率尺度 `OR=1`，差值尺度 `差值=0`）。
+- **机制：`--list-types`** 输出权威图型注册表（每行一个）；`mcp/server.py`
+  启动时改为从引擎动态刷新图型清单（回退清单与 v5.7 注册表逐字对齐——
+  原硬编码清单已落后引擎十余图型）。
+- `--suggest` 对含竞争风险编码的 time+event 推荐 cif（96 分）；CLI 帮助
+  场景速查更新。
+
 ### v5.6.1（2026-10-20）
 
 - **修复 galbraith 深分支崩溃**：研究数>12 且多个离群标注相邻时，避让的
@@ -182,17 +247,6 @@
 - **CLI 帮助场景速查**（epilog）+向导 Meta 行路由 forest/funnel/galbraith 三件套。
 - 测试卫生机制化：逐字执行 `_command` 的测试统一把 `-o` 重定向到临时目录
   （渲染产物不再落 trunk，哨兵泄漏教训进机制）。
-
-### v5.5.0（2026-10-19）
-
-- **新图型 #35：`subgroup` 亚组分析森林图**：逐层效应方块+95%CI、亚组标题
-  行报 P 交互、底部 Overall 菱形、右侧 est(95%CI)/P 双列（显著值红色）。
-  `subgroups=[{name, p_interaction?, levels=[...]}]`（1~12×2~8）+`overall`
-  可选；`est_label` 定无效线；`log_x` 默认比率对数轴+平实刻度。只可视化
-  已拟合亚组模型（引擎不拟合）。
-- **FAQ 可发现性**：SKILL 顶部指针+章节导航条目。
-- **边界前置**：能力与边界章节移至章节导航之后（双语）。
-- **国内安装通路前置**：README 安装节 SkillHub/魔搭/setup_env 镜像优先。
 
 ### v5.4.0（2026-10-18）
 

@@ -356,6 +356,12 @@ def suggest_chart_type(data):
         if isinstance(first, list) and first and isinstance(first[0], (list, tuple)) \
                 and len(first[0]) == 2:
             recs.append((94, "km", "groups mapped to [time, survival] step pairs"))
+    _ev = data.get("event")
+    if isinstance(data.get("time"), list) and isinstance(_ev, list) and \
+            any((isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 2)
+                for v in _ev):
+        recs.append((96, "cif", "time+event with competing-risk codes (≥2) — "
+                     "cumulative incidence (Aalen-Johansen)"))
     if {"estimates", "ci_low", "ci_high"} <= keys:
         recs.append((93, "forest", "effect estimates with CI bounds"))
     if isinstance(data.get("matrix"), list):
@@ -1169,7 +1175,8 @@ def _doctor_report(args, data):
     combos = [
         (args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin", "raincloud"),
          f"--stats {args.stats} 仅 box/violin/raincloud 生效"),
-        (args.stats == "cox" and args.type != "forest", "--stats cox 仅 forest 生效"),
+        (args.stats == "cox" and args.type not in ("forest", "subgroup"),
+        "--stats cox 仅 forest/subgroup 生效"),
         (bool(args.compare) and args.type != "roc", "--compare 仅 roc 生效"),
         (bool(args.egger) and args.type != "funnel", "--egger 仅 funnel 生效"),
         (bool(args.hatch) and args.type not in ("bar", "grouped_bar", "hbar",
@@ -2292,12 +2299,212 @@ def _run_cox_forest(args):
     }
 
 
+
+def _run_cox_subgroup(args):
+    """v5.8：--stats cox × -t subgroup —— 原始逐例生存数据一键亚组分析。
+    逐层 Cox HR(95%CI,p)（处理臂 vs 参照臂）+ 似然比 P 交互 + Overall 菱形；
+    --cox-cols 可选调整协变量（进入全部模型）。数据格式同 --stats cox：
+    JSON {"time":[...],"event":[...],其余=列} 或 CSV（--cox-time/--cox-event 改列名）。
+    需 --subgroup-vars 名1,名2（类目列，或 --cut 名@阈值 二分数值列）。
+    边界：引擎只做亚组拟合并可视化；亚组变量选择与层定义由研究者决定。"""
+    import csv as _csv
+    from collections import OrderedDict
+
+    path = args.data
+    if not path or not os.path.exists(path):
+        print(f"ERROR: 找不到数据文件：{path}", file=sys.stderr)
+        sys.exit(1)
+
+    def _fatal(msg):
+        print(f"ERROR: {msg}", file=sys.stderr)
+        sys.exit(1)
+
+    ext = os.path.splitext(path)[1].lower()
+    time_col, event_col = args.cox_time, args.cox_event
+    cols = OrderedDict()
+    if ext == ".json":
+        try:
+            with open(path, encoding="utf-8-sig") as fh:
+                d = json.load(fh)
+        except Exception as exc:
+            _fatal(f"JSON 解析失败：{exc}")
+        if not isinstance(d, dict) or "time" not in d or "event" not in d:
+            _fatal("数据 JSON 必须包含 time 与 event 两个数组（逐例一行）")
+        cols["time"] = d["time"]
+        cols["event"] = d["event"]
+        src_cols = d.get("covariates") if isinstance(d.get("covariates"), dict) else \
+            {k: v for k, v in d.items() if k not in ("time", "event")}
+        cols.update(src_cols or {})
+    elif ext in (".csv", ".tsv", ".txt"):
+        delim = "\t" if ext == ".tsv" else ","
+        try:
+            with open(path, encoding="utf-8-sig", newline="") as fh:
+                rows = list(_csv.DictReader(fh, delimiter=delim))
+        except Exception as exc:
+            _fatal(f"CSV 解析失败：{exc}")
+        if not rows:
+            _fatal("CSV 为空")
+        headers = list(rows[0].keys())
+        for need in (time_col, event_col):
+            if need not in headers:
+                _fatal(f"CSV 缺少必需列「{need}」（现有列：{'、'.join(headers)}）。"
+                       "可用 --cox-time/--cox-event 指定列名")
+        for h in headers:
+            cols[h] = [r[h] for r in rows]
+    else:
+        _fatal("--stats cox（subgroup）支持 .json / .csv / .tsv 原始逐例数据；"
+               "已有 est/p 的亚组 JSON 不要加 --stats cox")
+
+    def _as_float(seq):
+        try:
+            return [float(v) for v in seq]
+        except (TypeError, ValueError):
+            return None
+
+    try:
+        times = [float(v) for v in cols[time_col]]
+        events = [float(v) for v in cols[event_col]]
+    except (TypeError, ValueError):
+        _fatal("time/event 列存在非数值内容")
+    if _afstats is None:
+        _fatal("统计模块 af_v23_stats 加载失败")
+    n = len(times)
+
+    # ── 处理臂：--treatment 或常见名自动探测 ──
+    tname = args.treatment
+    if not tname:
+        for cand in ("trt", "treatment", "arm", "group", "exposure", "处理", "暴露"):
+            if cand in cols:
+                tname = cand
+                print(f"处理臂自动探测：{cand}（可用 --treatment 指定）", file=sys.stderr)
+                break
+    if not tname:
+        _fatal("未找到处理臂列——用 --treatment 列名指定（二分类：试验/对照）")
+    if tname not in cols:
+        _fatal(f"--treatment 列「{tname}」不存在（现有列：{'、'.join(list(cols)[:8])}…）")
+    t_raw = cols[tname]
+    t_num = _as_float(t_raw)
+    if t_num is not None:
+        uniq = sorted(set(t_num))
+        if len(uniq) != 2:
+            _fatal(f"处理臂「{tname}」须恰好两个取值（现有 {len(uniq)} 个）。"
+                   "多臂请先二分（试验 vs 对照），或用类目文本列")
+        ref_v, hi_v = uniq[0], uniq[-1]
+        ref_s = str(int(ref_v)) if float(ref_v).is_integer() else str(ref_v)
+        hi_s = str(int(hi_v)) if float(hi_v).is_integer() else str(hi_v)
+        trt_bin = [1.0 if v == hi_v else 0.0 for v in t_num]
+    else:
+        seen, order = set(), []
+        for v in t_raw:
+            s = str(v).strip()
+            if s not in seen:
+                seen.add(s)
+                order.append(s)
+        if len(order) != 2:
+            _fatal(f"处理臂「{tname}」须恰好两个取值（现有 {len(order)} 个）")
+        ref_s, hi_s = order[0], order[1]
+        trt_bin = [0.0 if str(v).strip() == ref_s else 1.0 for v in t_raw]
+    print(f"处理臂：{hi_s}（编码 1）vs {ref_s}（参照 0）", file=sys.stderr)
+
+    # ── 调整协变量 --cox-cols（可选，须数值列）──
+    adjust = {}
+    if args.cox_cols:
+        for c in (x.strip() for x in str(args.cox_cols).split(",") if x.strip()):
+            if c in (time_col, event_col, tname):
+                continue
+            if c not in cols:
+                _fatal(f"--cox-cols 指定了不存在的列：{c}")
+            fv = _as_float(cols[c])
+            if fv is None:
+                _fatal(f"调整协变量「{c}」含非数值——请先数值化")
+            adjust[c] = fv
+
+    # ── 亚组变量：--cut 名@阈值 二分 + --subgroup-vars 类目列 ──
+    cuts = {}
+    for spec in (args.cut or []):
+        if "@" not in spec:
+            _fatal(f"--cut 格式应为 名@阈值（收到：{spec}）")
+        cname, thr_s = spec.split("@", 1)
+        try:
+            thr = float(thr_s)
+        except ValueError:
+            _fatal(f"--cut 阈值须为数字（收到：{spec}）")
+        if cname not in cols:
+            _fatal(f"--cut 列「{cname}」不存在")
+        fv = _as_float(cols[cname])
+        if fv is None:
+            _fatal(f"--cut 列「{cname}」含非数值——只能二分数值列")
+        lab_lo, lab_hi = (f"＜{thr_s}", f"≥{thr_s}")
+        cuts[cname] = ([lab_lo if v < thr else lab_hi for v in fv], lab_lo, lab_hi)
+        print(f"--cut：{cname} → {lab_lo}（<{thr_s}）/ {lab_hi}（≥{thr_s}）", file=sys.stderr)
+
+    if not args.subgroup_vars:
+        _fatal("一键亚组分析需要 --subgroup-vars 名1,名2（类目列名，逗号分隔；"
+               "连续数值列先用 --cut 名@阈值 二分）。例：--subgroup-vars celltype,prior --cut age@60")
+    groups_spec = []
+    for gname in (x.strip() for x in str(args.subgroup_vars).split(",") if x.strip()):
+        if gname in cuts:
+            groups_spec.append((gname, cuts[gname][0]))
+            continue
+        if gname not in cols:
+            _fatal(f"--subgroup-vars 列「{gname}」不存在（现有列：{'、'.join(list(cols)[:8])}…）")
+        if gname == tname:
+            _fatal("处理臂列不能同时作为亚组变量")
+        raw = [str(v).strip() for v in cols[gname]]
+        fv = _as_float(raw)
+        if fv is not None and len(set(fv)) > 8:
+            _fatal(f"亚组变量「{gname}」是连续数值（{len(set(fv))} 个不同值）——"
+                   f"请先 --cut {gname}@阈值 二分")
+        if fv is not None and all(float(v).is_integer() for v in set(fv)):
+            raw = [str(int(float(v))) for v in cols[gname]]
+        groups_spec.append((gname, raw))
+    for cname, (vals, _lo, _hi) in cuts.items():   # --cut 声明即纳入（用户切了就是要用）
+        if cname not in {g[0] for g in groups_spec}:
+            groups_spec.append((cname, vals))
+
+    try:
+        res = _afstats.cox_subgroup_analysis(times, events, trt_bin, groups_spec,
+                                             adjust=adjust or None)
+    except ValueError as exc:
+        _fatal(str(exc))
+
+    def _r2(x):
+        return round(float(x), 2)
+
+    out = {
+        "est_label": "HR",
+        "x_label": f"HR（{hi_s} vs {ref_s}，95% CI）",
+        "subgroups": [{"name": g["name"],
+                       "p_interaction": round(float(g["p_interaction"]), 3),
+                       "levels": [{"name": lv["name"], "n": int(lv["n"]),
+                                   "est": _r2(lv["est"]), "ci_low": _r2(lv["ci_low"]),
+                                   "ci_high": _r2(lv["ci_high"]),
+                                   "p": round(float(lv["p"]), 4)} for lv in g["levels"]]}
+                      for g in res["subgroups"]],
+        "overall": {"est": _r2(res["overall"]["est"]), "ci_low": _r2(res["overall"]["ci_low"]),
+                    "ci_high": _r2(res["overall"]["ci_high"]),
+                    "p": round(float(res["overall"]["p"]), 4), "n": int(res["overall"]["n"])},
+        "_method": (f"--stats cox 一键亚组拟合（v5.8）：{res['method']}。数据={os.path.basename(path)}，"
+                    f"n={n}；引擎只做亚组拟合并可视化，亚组变量选择与层定义由研究者决定"),
+    }
+    print(f"亚组 Cox（Efron 核）n={n}：总体 HR={out['overall']['est']}"
+          f"（{out['overall']['ci_low']}~{out['overall']['ci_high']}）p={out['overall']['p']}",
+          file=sys.stderr)
+    for g in out["subgroups"]:
+        lv = "；".join(f"{l['name']}:{l['est']}({l['ci_low']}~{l['ci_high']},n={l['n']})"
+                       for l in g["levels"])
+        print(f"  {g['name']}（P 交互={g['p_interaction']}）{lv}", file=sys.stderr)
+    print("提示：层定义/变量取舍由研究者决定；亚组结论以交互检验为准，不看层内 p 值。",
+          file=sys.stderr)
+    return out
+
 def main():
     parser = argparse.ArgumentParser(
         description="academic-figures：一条命令生成投稿级学术图表",
         epilog="场景速查：基线表对比 -t bar --stats auto ｜ KM 生存 -t km（逐例数据自动风险表）"
+               "｜ 竞争风险 -t cif（Aalen-Johansen+1−KM 高估对照）"
                "｜ 诊断 ROC -t roc --compare ｜ 预测模型四件套 -t roc/calibration/dca/nomogram"
-               "｜ Meta 森林+漏斗+径向 -t forest/funnel/galbraith ｜ 亚组森林 -t subgroup"
+               "｜ Meta 森林+漏斗+径向 -t forest/funnel/galbraith ｜ 亚组森林 -t subgroup（原始数据一键拟合加 --stats cox）"
                "｜ 组学 -t volcano/-t cluster_heatmap ｜ 多面板 -t composite（share_y 统一尺度）"
                "｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
     parser.add_argument("--type", "-t", choices=list(GENERATORS.keys()),
@@ -2317,6 +2524,8 @@ def main():
                              "'glm-brand' = 品牌视觉（信号黄对比强化+无网格+同系深色斜纹，v3.3.1）")
     parser.add_argument("--list-themes", action="store_true",
                         help="列出全部配色主题（含色卡预览）后退出")
+    parser.add_argument("--list-types", action="store_true",
+                        help="列出全部图型（权威清单，每行一个）后退出")
     parser.add_argument("--theme-swatch", default=None, metavar="THEME",
                         help="渲染某主题的色卡预览图后退出")
     parser.add_argument("--demo", action="store_true",
@@ -2402,6 +2611,14 @@ def main():
                         help="--stats cox 时生存时间列名（默认 time）")
     parser.add_argument("--cox-event", default="event",
                         help="--stats cox 时事件列名（默认 event；0=删失 1=事件）")
+    parser.add_argument("--subgroup-vars", default=None,
+                        help="--stats cox × -t subgroup：亚组变量列（逗号分隔，各 2~8 层；"
+                             "连续数值列先用 --cut 二分）")
+    parser.add_argument("--treatment", default=None,
+                        help="--stats cox：处理臂列名（二分类；默认自动探测 trt/treatment/arm 等）")
+    parser.add_argument("--cut", action="append", default=[],
+                        help="--stats cox × -t subgroup：数值列二分，格式 名@阈值（可多次）"
+                             "——自动按 <阈值/≥阈值 分层")
     parser.add_argument("--cox-cols", default=None,
                         help="--stats cox 时协变量列（逗号分隔，默认除时间/事件外全部数值列；"
                              "顺序即森林图行序）")
@@ -2528,6 +2745,11 @@ def main():
 
     if args.list_themes:
         cmd_list_themes()
+        sys.exit(0)
+
+    if args.list_types:
+        # 权威图型清单出口（v5.7）：MCP/外部脚本动态消费，杜绝硬编码清单漂移
+        print("\n".join(sorted(GENERATORS)))
         sys.exit(0)
 
     if args.theme_swatch:
@@ -2698,14 +2920,16 @@ def main():
         print(f"画幅预设 {args.size}：figsize {w_in:.2f}x{theme['figsize'][1]:.2f}in"
               f"（宽度不变，高度按比例）", file=sys.stderr)
     if args.stats == "cox":
-        if args.type != "forest":
+        if args.type == "forest":
+            data = _run_cox_forest(args)
+        elif args.type == "subgroup":
+            data = _run_cox_subgroup(args)
+        else:
             # v4.5 R2-3：互斥策略统一——参数不适用=[ignored] 显式告知继续（与 auto/multi 同口径）
-            print("[ignored] --stats cox（仅 forest 生效）对 "
+            print("[ignored] --stats cox（仅 forest/subgroup 生效）对 "
                   f"{args.type} 不适用，本次渲染已忽略", file=sys.stderr)
             args.stats = None
             data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
-        else:
-            data = _run_cox_forest(args)
     else:
         data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
 
