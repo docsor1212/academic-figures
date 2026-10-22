@@ -1,7 +1,7 @@
 {
   "_chart_type": "subgroup",
   "_command": "python3 scripts/gen_figure.py -t subgroup -d templates/subgroup.json -o subgroup.png --cjk",
-  "_note": "场景：免疫治疗 vs 化疗的 PFS 亚组分析（模拟 Cox 亚组输出，n=218）。三个亚组变量（年龄/性别/PD-L1 表达）各两层：方块=层效应估计（实心=层内 P<0.05），横线=95%CI，右侧 est(CI) 与 P 列；亚组标题行右侧报 P interaction（PD-L1 交互显著=疗效随表达状态异质）；底部 Overall 菱形=总效应。est/p 来自你拟合的亚组模型（引擎不拟合）；报告口径：交互检验用多因素模型含交互项，逐层检验不代替交互检验。",
+  "_note": "场景：免疫治疗 vs 化疗的 PFS 亚组分析（模拟 Cox 亚组输出，n=218）。三个亚组变量（年龄/性别/PD-L1 表达）各两层：方块=层效应估计（实心=层内 P<0.05），横线=95%CI，右侧 est(CI) 与 P 列；亚组标题行右侧报 P interaction（PD-L1 交互显著=疗效随表达状态异质）；底部 Overall 菱形=总效应。est/p 来自你拟合的亚组模型（引擎不拟合；原始数据可 `--stats cox` 一键拟合，v5.8）；报告口径：交互检验用多因素模型含交互项，逐层检验不代替交互检验。",
   "subgroups": [
     {
       "name": "年龄",

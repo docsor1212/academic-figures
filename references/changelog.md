@@ -10,6 +10,8 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
+| v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
+| v5.7.1 | 2026-10-21 | 修复 galbraith 弧线读数原子性（不可判读弧线整条省略）+弧线/读数一一配对测试锁 |
 | v5.7.0 | 2026-10-21 | 新图型#37：`cif`竞争风险累计发生率（Aalen-Johansen+1−KM 高估对照）+反模式集中页 antipatterns.md+Galbraith 弧线读数密度放宽 |
 | v5.6.1 | 2026-10-20 | 修复 galbraith 深分支崩溃（>12 研究+离群标注相邻）+研究名避让算法升级（纵向 8 档+横向镜像，密集区零叠印） |
 | v5.6.0 | 2026-10-20 | 新图型#36：`galbraith`Galbraith 径向图（Meta 异质性可视化）+composite `share_y` 共享尺度自动统一+提示词卡片文档 |
@@ -35,6 +37,37 @@
 
 
 ### English
+
+## 5.8.0 — 2026-10-23
+
+One-command subgroup analysis: `-t subgroup --stats cox` fits per-layer Cox
+HR(95%CI,p) + likelihood-ratio P-interaction + Overall diamond from raw
+per-subject data (JSON time/event or CSV). Flags: `--subgroup-vars`
+(categorical columns, 2-8 levels, text levels keep data appearance order /
+numeric sorted), `--treatment` (binary arm; auto-detects trt/treatment/arm),
+`--cut name@threshold` (bin a continuous column; auto-included as subgroup),
+`--cox-cols` (adjusted models). Layer fits require n≥10; guards raise Chinese
+errors (confounded treatment/subgroup, >8 levels, multi-arm treatment).
+Gold-locked against the veteran real cohort (R survival public data,
+tests/fixtures/veteran.csv): full table pinned — born from a real factory
+incident where a hand-built prep script swapped layer labels (the lock now
+catches that class at the gate). ADR-0001 filed for staged af_draw/gen_figure
+split; GitHub Actions CI workflow; line budget 3400→3600 (with rollback plan).
+
+### 中文
+
+## 5.8.0 — 2026-10-23
+
+一键亚组分析：`-t subgroup --stats cox` 从原始逐例数据（JSON time/event 或
+CSV）直接产出逐层 Cox HR(95%CI,p)+似然比 P 交互+Overall 菱形。旗标：
+`--subgroup-vars`（类目列，2~8 层；文本层保数据出现序/数值层排序）、
+`--treatment`（二分类处理臂；自动探测 trt/treatment/arm）、`--cut 名@阈值`
+（连续列二分，自动纳入亚组）、`--cox-cols`（调整模型）。层内 n≥10 守卫；
+混淆/超层/多臂等一律中文报错。veteran 真实队列（R survival 公开数据，
+tests/fixtures/veteran.csv）全表金标锁死——源起真实出厂事故：人手制备脚本
+把层标签贴反，此类错误从此在闸门被拦。另立 ADR-0001（af_draw/gen_figure
+分刀拆解）+ GitHub Actions CI + 行预算 3400→3600（附回收计划）。
+
 
 ## Version History
 

@@ -2546,8 +2546,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.7.1", self.zh)
-        self.assertIn("version: 5.7.1", self.en)
+        self.assertIn("version: 5.8.0", self.zh)
+        self.assertIn("version: 5.8.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2642,8 +2642,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.7.1", self.zh)
-        self.assertIn("version: 5.7.1", self.en)
+        self.assertIn("version: 5.8.0", self.zh)
+        self.assertIn("version: 5.8.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.7.1", self.zh)
-        self.assertIn("version: 5.7.1", self.en)
+        self.assertIn("version: 5.8.0", self.zh)
+        self.assertIn("version: 5.8.0", self.en)
 
 
 
@@ -2742,7 +2742,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.7.1", zh)
+        self.assertIn("version: 5.8.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2911,7 +2911,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.7.1", t, name)
+            self.assertIn("version: 5.8.0", t, name)
 
 
 
@@ -3000,7 +3000,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.7.1", t, name)
+            self.assertIn("version: 5.8.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3119,7 +3119,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.7.1", t, name)
+            self.assertIn("version: 5.8.0", t, name)
 
 
 
@@ -3186,7 +3186,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.7.1", t, name)
+            self.assertIn("version: 5.8.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3503,7 +3503,9 @@ class TestV40000(unittest.TestCase):
         # 主文件瘦身断言（模块化第四刀实效）
         gf_lines = sum(1 for _ in open(os.path.join(root, "scripts", "gen_figure.py"),
                                        encoding="utf-8"))
-        self.assertLess(gf_lines, 3400, f"gen_figure.py 应 <3400 行（当前 {gf_lines}）")
+        # v5.8.0 松绑 3400→3600：subgroup --stats cox 一键亚组拟合入列；
+        # 拆分计划见 docs/ADR-0001（af_draw/gen_figure 巨石模块分阶段拆解）
+        self.assertLess(gf_lines, 3600, f"gen_figure.py 应 <3600 行（当前 {gf_lines}）")
 
     def test_subtitle_source_flags_render(self):
         with tempfile.TemporaryDirectory() as td:
@@ -5686,6 +5688,137 @@ class TestV50700(unittest.TestCase):
                              f"弧线({n_arc})与读数({n_rr})必须一一配对")
         finally:
             plt.close(fig)
+
+
+
+class TestV50800(unittest.TestCase):
+    """v5.8.0：subgroup --stats cox 一键亚组拟合（逐层 Cox HR+似然比 P 交互+Overall）。
+    金标=veteran 真实队列（R survival 公开数据，tests/fixtures/veteran.csv）——
+    含 ep35 制备脚本标签-掩膜对调事故的回归锁（层名-层值-层 n 全钉死）。"""
+
+    @classmethod
+    def _cli(cls, extra, out):
+        cmd = [sys.executable, GEN, "-t", "subgroup", "--stats", "cox", "-o", out, "--cjk",
+               "-d", os.path.join(SCRIPT_DIR, "..", "tests", "fixtures", "veteran.csv"),
+               "--cox-event", "status", "--treatment", "trt"] + extra
+        return subprocess.run(cmd, capture_output=True, text=True)
+
+    def test_veteran_golden_full_table(self):
+        """veteran 全表金标：总体/四组 P 交互/层 est-n 逐项钉死（ep35 标签对调事故回归锁）。"""
+        out = os.path.join(tempfile.mkdtemp(), "sg_gold.png")
+        r = self._cli(["--subgroup-vars", "celltype,prior", "--cut", "age@60",
+                       "--cut", "karno@50"], out)
+        self.assertEqual(r.returncode, 0, r.stderr[-600:])
+        self.assertTrue(os.path.exists(out))
+        # 总体
+        self.assertIn("总体 HR=1.02（0.71~1.45）p=0.9218", r.stderr)
+        # P 交互四组（似然比，与 ep35 制备脚本同核）
+        self.assertIn("celltype（P 交互=0.042）", r.stderr)
+        self.assertIn("prior（P 交互=0.087）", r.stderr)
+        self.assertIn("age（P 交互=0.239）", r.stderr)
+        self.assertIn("karno（P 交互=0.024）", r.stderr)   # --cut karno@50 即 ＜50/≥50 切法
+        # 层值+层 n（标签-掩膜对调事故锁：n 必须与层名对得上）
+        self.assertIn("squamous:0.54(0.25~1.18,n=35)", r.stderr)
+        self.assertIn("large:1.54(0.69~3.41,n=27)", r.stderr)
+        self.assertIn("≥60:1.17(0.75~1.82,n=84)", r.stderr)
+        self.assertIn("＜60:0.79(0.43~1.45,n=53)", r.stderr)
+        self.assertIn("≥50:0.87(0.57~1.33,n=99)", r.stderr)
+        self.assertIn("＜50:1.35(0.67~2.73,n=38)", r.stderr)
+
+    def test_synthetic_hr_and_interaction_identities(self):
+        """合成恒等式：指数生存已知 HR≈2；无交互构造 p>0.05；强交互构造 p<0.01。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_v23_stats as st
+        rng = np.random.default_rng(58)
+        n = 900
+
+        def sim(lam_trt, lam_ctl):
+            t, e, trt = [], [], []
+            for i in range(n):
+                arm = i % 2
+                lam = lam_trt if arm else lam_ctl
+                t.append(float(rng.exponential(1.0 / lam)))
+                e.append(1)
+                trt.append(float(arm))
+            return np.array(t), np.array(e), np.array(trt, dtype=float)
+
+        t, e, trt = sim(2.0, 1.0)                       # HR 真值=2
+        grp = np.repeat([0, 1], n // 2)                  # 组=块状（与臂 i%2 独立）
+        r = st.cox_subgroup_analysis(t, e, trt, [("A", grp)])
+        self.assertAlmostEqual(r["overall"]["est"], 2.0, delta=0.3)
+        # 无交互：两层层内 HR 都≈2 → P 交互应不显著
+        self.assertGreater(r["subgroups"][0]["p_interaction"], 0.05)
+        # 强交互：层 0 无效应（HR=1），层 1 强效应（HR=3）
+        lam = np.where(np.repeat(np.array([0, 1]), n // 2) == 0, 1.0, 1.0)
+        hr_layer = np.repeat([1.0, 3.0], n // 2)
+        t2 = np.where(trt == 1, rng.exponential(1.0 / (1.0 * hr_layer)),
+                      rng.exponential(1.0, size=n))   # ⛔标量参数只抽一个值（size 必须显式）
+        r2 = st.cox_subgroup_analysis(t2, e, trt, [("B", grp)])
+        self.assertLess(r2["subgroups"][0]["p_interaction"], 0.01)
+        self.assertAlmostEqual(r2["subgroups"][0]["levels"][0]["est"], 1.0, delta=0.3)
+        self.assertGreater(r2["subgroups"][0]["levels"][1]["est"], 2.0)
+
+    def test_label_order_rule(self):
+        """层序规则：文本层=数据出现序（尊重临床/因子惯例），数值层=数值序。"""
+        sys.path.insert(0, SCRIPT_DIR)
+        import af_v23_stats as st
+        rng = np.random.default_rng(7)
+        t = np.abs(rng.normal(5, 2, 120)) + 0.1
+        e = np.ones(120)
+        trt = np.tile([0.0, 1.0], 60)
+        # 文本：故意让 "乙" 先出现
+        g = np.array(["乙"] * 60 + ["甲"] * 60)
+        r = st.cox_subgroup_analysis(t, e, trt, [("组", g)])
+        self.assertEqual([lv["name"] for lv in r["subgroups"][0]["levels"]], ["乙", "甲"])
+        gn = np.repeat([3, 1], 60)                       # 块状：层内 trt 仍交替
+        r2 = st.cox_subgroup_analysis(t, e, trt, [("分档", gn)])
+        self.assertEqual([lv["name"] for lv in r2["subgroups"][0]["levels"]], ["1", "3"])
+
+    def test_guards_chinese_messages(self):
+        """守卫路径：缺参/连续列/多臂/小层/处理臂兼任亚组——中文报错一一对应。"""
+        out = os.path.join(tempfile.mkdtemp(), "x.png")
+        r = self._cli([], out)                                   # 缺 --subgroup-vars
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--subgroup-vars", r.stderr)
+        r = self._cli(["--subgroup-vars", "karno"], out)         # 连续列未 cut
+        self.assertIn("--cut", r.stderr)
+        r = self._cli(["--subgroup-vars", "celltype", "--treatment", "celltype"], out)
+        self.assertIn("处理臂", r.stderr)
+        # 三取值处理臂
+        import csv as _csv
+        fixture = os.path.join(SCRIPT_DIR, "..", "tests", "fixtures", "veteran.csv")
+        rows = list(_csv.DictReader(open(fixture, encoding="utf-8")))
+        rows[0]["trt"] = "9"
+        p3 = fixture + ".tmp3.csv"
+        with open(p3, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(rows)
+        r = subprocess.run([sys.executable, GEN, "-t", "subgroup", "--stats", "cox",
+                            "-o", out, "-d", p3, "--cox-event", "status",
+                            "--treatment", "trt", "--subgroup-vars", "celltype"],
+                           capture_output=True, text=True)
+        os.remove(p3)
+        self.assertIn("两个取值", r.stderr)
+        rows[0]["trt"] = "1"                             # 还原：小层夹具不带三臂变异
+        # 小层（两臂混合抽样 27 行：celltype 各层必 <10 例）
+        p4 = fixture + ".tmp4.csv"
+        mixed = []
+        for ct in ("squamous", "smallcell", "adeno", "large"):
+            for arm in ("1", "2"):
+                mixed += [r for r in rows if r["trt"] == arm and r["celltype"] == ct][:4]
+        # 每病理层 8 例（<10）；四层齐全（≥2 层先过层数守卫）
+        with open(p4, "w", newline="", encoding="utf-8") as fh:
+            w = _csv.DictWriter(fh, fieldnames=list(rows[0].keys()))
+            w.writeheader()
+            w.writerows(mixed)
+        r = subprocess.run([sys.executable, GEN, "-t", "subgroup", "--stats", "cox",
+                            "-o", out, "-d", p4, "--cox-event", "status",
+                            "--treatment", "trt", "--subgroup-vars", "celltype"],
+                           capture_output=True, text=True)
+        os.remove(p4)
+        self.assertIn("至少约 10 例", r.stderr)
+
 
 
 if __name__ == "__main__":

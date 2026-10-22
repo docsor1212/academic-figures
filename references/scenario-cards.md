@@ -101,6 +101,8 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig10 --pub-ready \
 
 ## 卡13 疗效亚组分析（亚组森林图+P 交互）
 
+> v5.8 快捷方式：手里是原始逐例数据？跳过手拼 JSON——`-t subgroup --stats cox -d raw.csv --treatment trt --subgroup-vars celltype --cut age@60` 一步出图（引擎拟合，stderr 报全表）。
+
 ```bash
 python3 scripts/gen_figure.py -t subgroup -d subgroups.json -o fig13.pdf --cjk --verify
 ```

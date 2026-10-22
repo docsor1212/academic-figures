@@ -833,3 +833,130 @@ def bootstrap_median_ci(values, n_boot=None, seed=20260925):
     meds = np.median(vals[idx], axis=1)
     lo, hi = np.percentile(meds, [2.5, 97.5])
     return med, float(lo), float(hi)
+
+
+def cox_subgroup_analysis(times, events, trt, groups_spec, adjust=None):
+    """亚组分析一键拟合（v5.8）：逐层 Cox HR(95%CI,p) + 似然比 P 交互 + 总体效应。
+
+    times/events：逐例一维数组（time>0，event 0/1）；trt：二分类处理/暴露
+    （恰好两个取值，参照=排序较小者）；groups_spec：[(组名, 取值序列)]，
+    每个亚组变量 2~8 层（自动去重排序，数值序/字典序，层内 n≥10）；
+    adjust：{协变量名: 数值数组}（可选，进入全部模型=调整亚组分析）。
+    P 交互=似然比检验：M0=trt+层指示+调整项，M1=再加 trt×层指示；
+    2Δloglik~χ²（df=层-1）；需 scipy（--stats 系列已声明的可选依赖）。
+    返回 dict(subgroups=[{name,p_interaction,levels=[{name,n,est,ci_low,ci_high,p}]}],
+             overall={est,ci_low,ci_high,p,n,n_events},
+             treatment={ref,hi}, method=str)。
+    边界：仅拟合 trt（+调整项）的亚组效应，不做变量筛选/PH 修正。
+    异常一律 ValueError(中文)。"""
+    import math
+    t = np.asarray(times, dtype=float)
+    e = np.asarray(events, dtype=float)
+    tv = np.asarray(trt)
+    if t.ndim != 1 or not (len(t) == len(e) == len(tv)):
+        raise ValueError(f"time/event/trt 行数不一致：{len(t)}/{len(e)}/{len(tv)}")
+    if (t <= 0).any():
+        raise ValueError("time 存在非正数——生存时间必须 >0")
+    if not np.isin(e, (0, 1)).all():
+        raise ValueError("event 必须为 0/1（0=删失，1=事件）")
+    uniq = sorted(set(str(v) for v in tv))
+    if len(uniq) != 2:
+        raise ValueError(f"处理变量须恰好两个取值（现有 {len(uniq)} 个：{'、'.join(uniq[:6])}）。"
+                         "多臂请先二分（试验 vs 对照）")
+    # 数值型按数值序排（1<2），避免字典序把 10 排到 2 前
+    try:
+        fvals = sorted(float(v) for v in uniq)
+        if all(abs(float(v) - f) < 1e-12 for v, f in zip(uniq, fvals)):
+            uniq = uniq  # 顺序已正确
+    except (TypeError, ValueError):
+        pass
+    try:
+        order = sorted(range(2), key=lambda i: float(uniq[i]))
+        ref_s, hi_s = uniq[order[0]], uniq[order[1]]
+    except (TypeError, ValueError):
+        ref_s, hi_s = uniq[0], uniq[1]
+    ref_mask = np.array([str(v) == ref_s for v in tv])
+    trt_bin = (~ref_mask).astype(float)
+    adj = {}
+    if adjust:
+        for k, v in adjust.items():
+            av = np.asarray(v, dtype=float)
+            if av.ndim != 1 or len(av) != len(t):
+                raise ValueError(f"调整协变量「{k}」长度与样本不一致")
+            if not np.isfinite(av).all():
+                raise ValueError(f"调整协变量「{k}」存在非数值/缺失——请先清洗")
+            adj[str(k)] = av
+    adj_names = list(adj.keys())
+
+    def _fit_model(mask, with_interaction=False, dums=None):
+        cols = [trt_bin[mask]]
+        if dums is not None:
+            cols.extend([d[mask] for d in dums])
+            if with_interaction:
+                cols.extend([d[mask] * trt_bin[mask] for d in dums])
+        cols.extend([adj[n][mask] for n in adj_names])
+        X = np.column_stack(cols)
+        names = ["trt"] + ([f"g{i}" for i in range(len(dums))] if dums is not None else []) \
+            + ([f"i{i}" for i in range(len(dums))] if with_interaction and dums is not None else []) \
+            + adj_names
+        return coxph_fit(t[mask], e[mask], X, names)
+
+    def _scalar(fit, key):
+        v = fit[key]
+        return float(v[0] if isinstance(v, np.ndarray) and v.ndim else v)
+
+    dums_all = None
+    overall = _fit_model(np.ones(len(t), dtype=bool))
+    ov = {"est": _scalar(overall, "hr"), "ci_low": _scalar(overall, "hr_low"),
+          "ci_high": _scalar(overall, "hr_high"), "p": _scalar(overall, "p"),
+          "n": int(overall["n"]), "n_events": int(overall["n_events"])}
+
+    try:
+        from scipy.stats import chi2 as _chi2
+    except ImportError:
+        raise ValueError("P 交互似然比检验需要 scipy（--stats 系列可选依赖）：pip install scipy")
+
+    subgroups = []
+    for g_name, g_vals in groups_spec:
+        gv = np.asarray(g_vals)
+        if gv.ndim != 1 or len(gv) != len(t):
+            raise ValueError(f"亚组变量「{g_name}」长度与样本不一致")
+        if all(not isinstance(x, str) for x in gv.tolist()):
+            levels = sorted(set(gv.tolist()))          # 数值层：数值序
+        else:                                           # 文本层：数据出现顺序（尊重临床/因子惯例）
+            seen, lv_ordered = set(), []
+            for x in gv.tolist():
+                if x not in seen:
+                    seen.add(x)
+                    lv_ordered.append(x)
+            levels = lv_ordered
+        labels = [str(int(x)) if isinstance(x, float) and float(x).is_integer()
+                  and abs(x) < 1e15 else str(x) for x in levels]
+        if not (2 <= len(levels) <= 8):
+            raise ValueError(f"亚组变量「{g_name}」{len(levels)} 层（{labels[:5]}…）——"
+                             "须 2~8 层；连续变量请先二分（如 --cut 变量@阈值）")
+        for x in levels:
+            n_lv = int((gv == x).sum())
+            if n_lv < 10:
+                raise ValueError(f"亚组变量「{g_name}」层「{x}」仅 {n_lv} 例——"
+                                 "Cox 每层至少约 10 例（建议合并层或加大样本）")
+        dums = [(gv == x).astype(float) for x in levels[1:]]
+        lv_out = []
+        for x, lab in zip(levels, labels):
+            m = gv == x
+            f = _fit_model(m)
+            lv_out.append({"name": lab, "n": int(f["n"]),
+                           "est": _scalar(f, "hr"), "ci_low": _scalar(f, "hr_low"),
+                           "ci_high": _scalar(f, "hr_high"), "p": _scalar(f, "p")})
+        m0 = _fit_model(np.ones(len(t), dtype=bool), dums=dums)
+        m1 = _fit_model(np.ones(len(t), dtype=bool), dums=dums, with_interaction=True)
+        stat = max(0.0, 2.0 * (m1["loglik"] - m0["loglik"]))
+        df = len(levels) - 1
+        p_int = float(_chi2.sf(stat, df))
+        subgroups.append({"name": str(g_name), "p_interaction": p_int, "levels": lv_out})
+
+    return {"subgroups": subgroups, "overall": ov,
+            "treatment": {"ref": ref_s, "hi": hi_s},
+            "method": ("HR(95%CI)=Cox 比例风险（Efron 核）；P 交互=似然比检验"
+                       "（含/不含 trt×层指示项的 2Δloglik，χ²，df=层−1）"
+                       + (f"；调整协变量：{'、'.join(adj_names)}" if adj_names else ""))}

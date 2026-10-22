@@ -12,6 +12,19 @@
 
 ## Version History
 
+## 5.8.0 — 2026-10-23
+
+`subgroup --stats cox` 一键亚组拟合：逐层 Cox HR(95%CI,p)（Efron 核）+似然比
+P 交互（含/不含 trt×层指示项的 2Δloglik，χ²，df=层−1）+Overall。旗标
+--subgroup-vars/--treatment/--cut/--cox-cols。守卫：层内 n≥10、2~8 层、处理臂
+恰两取值（数值/文本双分支）、处理臂不得兼任亚组、连续列须 --cut。文本层
+保数据出现序（尊重临床因子惯例）、数值层排序。veteran 真实队列全表金标
+（tests/fixtures/veteran.csv）：总体 HR=1.02(0.71~1.45) p=0.9218；四组 P 交互
+0.042/0.087/0.239/0.024；层值层 n 逐项钉死。**出厂事故渊源**：v5.8 开发中抓出
+第①期教学视频制备脚本标签-掩膜对调（var=(age<60) 时键 0=var==0=≥60），
+本版金标即为此类错误的一票否决闸。附 ADR-0001 巨石拆解计划 + GitHub
+Actions CI + 行预算守卫 3400→3600。
+
 ## 5.6.1 — 2026-10-20
 
   - **Fix: galbraith deep-branch crash** — with >12 studies and adjacent
