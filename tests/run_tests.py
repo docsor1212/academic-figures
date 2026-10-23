@@ -2547,8 +2547,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.9.0", self.zh)
-        self.assertIn("version: 5.9.0", self.en)
+        self.assertIn("version: 5.9.2", self.zh)
+        self.assertIn("version: 5.9.2", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2643,8 +2643,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.9.0", self.zh)
-        self.assertIn("version: 5.9.0", self.en)
+        self.assertIn("version: 5.9.2", self.zh)
+        self.assertIn("version: 5.9.2", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.9.0", self.zh)
-        self.assertIn("version: 5.9.0", self.en)
+        self.assertIn("version: 5.9.2", self.zh)
+        self.assertIn("version: 5.9.2", self.en)
 
 
 
@@ -2743,7 +2743,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.9.0", zh)
+        self.assertIn("version: 5.9.2", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2912,7 +2912,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.9.0", t, name)
+            self.assertIn("version: 5.9.2", t, name)
 
 
 
@@ -3001,7 +3001,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.9.0", t, name)
+            self.assertIn("version: 5.9.2", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3120,7 +3120,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.9.0", t, name)
+            self.assertIn("version: 5.9.2", t, name)
 
 
 
@@ -3187,7 +3187,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.9.0", t, name)
+            self.assertIn("version: 5.9.2", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -5950,6 +5950,50 @@ class TestV50900(unittest.TestCase):
         self.assertIn("Lev+5FU: RMST=1308.2天（95%CI 1253.6~1362.7，n=304，事件=123", r.stderr)
         self.assertIn("Obs: RMST=1220.1天（95%CI 1165.0~1275.2，n=315，事件=168", r.stderr)
         self.assertIn("ΔRMST（1−0）=88.1天（95%CI 10.5~165.6），Z=2.226，P=0.026", r.stderr)
+
+
+
+
+class TestV59100(unittest.TestCase):
+    """v5.9.1：cif cause_labels 键↔标签一致性守卫（10-24 全谱审计——ep35 标签
+    对调同类的唯一键间接映射点补防：错码一票否决、缺标软提示默认名）。"""
+
+    BASE = {"time": [3, 5, 6, 7, 8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30,
+                     32, 34, 36, 38, 40, 42, 44, 46],
+            "event": [1, 2, 1, 0, 1, 2, 0, 1, 0, 2, 1, 0, 0, 2, 1, 0, 2, 0, 1, 0,
+                      0, 2, 0, 1],
+            "time_unit": "月"}
+
+    def _run(self, labels):
+        d = dict(self.BASE)
+        d["cause_labels"] = labels
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False,
+                                         encoding="utf-8") as fh:
+            json.dump(d, fh, ensure_ascii=False)
+            dj = fh.name
+        out = os.path.join(tempfile.mkdtemp(), "cif.png")
+        r = subprocess.run([sys.executable, GEN, "-t", "cif", "-d", dj, "-o", out,
+                            "--cjk"], capture_output=True, text=True)
+        os.remove(dj)
+        return r
+
+    def test_wrong_code_fatal(self):
+        """cause_labels 引用数据中不存在的码 → exit 3 + 可搜索中文报错。"""
+        r = self._run({"1": "复发", "3": "写错的码"})
+        self.assertEqual(r.returncode, 3, r.stderr[-400:])
+        self.assertIn("不存在的事件码 3", r.stderr)
+        self.assertIn("码与含义写反", r.stderr)
+
+    def test_missing_label_soft_note(self):
+        """在场的竞争码未给标签 → exit 0 + stderr 默认名提示。"""
+        r = self._run({})
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        self.assertIn("竞争事件码 2 未给 cause_labels", r.stderr)
+        self.assertIn("原因2", r.stderr)
+
+    def test_valid_labels_pass(self):
+        r = self._run({"1": "复发", "2": "移植相关死亡"})
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
 
 
 

@@ -387,6 +387,20 @@ def gen_cif(data, ax, theme, cjk_fp, **kwargs):
         raise ValueError("cif: 全部为删失（event 全 0）——无法估计累计发生率")
 
     cause_labels = data.get("cause_labels") if isinstance(data.get("cause_labels"), dict) else {}
+    # ⛔键↔标签一致性守卫（10-24 全谱审计：ep35 标签对调同类——唯一的键间接映射点）
+    _codes_in_data = {int(x) for x in e_raw if isinstance(x, (int, float)) and int(x) >= 1}
+    for _k in cause_labels:
+        try:
+            _kc = int(_k)
+        except (TypeError, ValueError):
+            raise ValueError(f"cif: cause_labels 键「{_k}」不是整数事件码（合法：1=目标事件，≥2=竞争事件）")
+        if _kc not in _codes_in_data:
+            raise ValueError(f"cif: cause_labels 引用了数据中不存在的事件码 {_kc}"
+                             f"（数据里实际出现的码：{sorted(_codes_in_data)}）——"
+                             "八成是码与含义写反了，请核对 event 列编码")
+    for _c in sorted(_codes_in_data):
+        if _c >= 2 and str(_c) not in {str(k) for k in cause_labels}:
+            print(f"cif: 竞争事件码 {_c} 未给 cause_labels，图例将用默认名「原因{_c}」", file=sys.stderr)
     compare_mode = data.get("compare_km", "auto")
     percent = bool(data.get("percent"))
     unit = str(data.get("time_unit") or "")

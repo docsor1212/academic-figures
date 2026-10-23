@@ -10,7 +10,7 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| v5.9.0 | 2026-10-23 | 新图型#38：`rmst`限制平均生存时间（每臂 RMST(95%CI)+ΔRMST 差值 CI；τ 截断回归锁+colon 619 例金标）+生存触发词扩充 || v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
+| v5.9.2 | 2026-10-24 | 发布卫生：移除误入 5.9.1 包的内部发布清单文档（无代码变化，5.9.0/5.9.1 功能不变） || v5.9.1 | 2026-10-24 | cif `cause_labels` 键一致性守卫（引用不存在的码=exit 3 中文报错；缺标软提示）——标签对调类错误全谱封堵 || v5.9.0 | 2026-10-23 | 新图型#38：`rmst`限制平均生存时间（每臂 RMST(95%CI)+ΔRMST 差值 CI；τ 截断回归锁+colon 619 例金标）+生存触发词扩充 || v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
 | v5.7.1 | 2026-10-21 | 修复 galbraith 弧线读数原子性（不可判读弧线整条省略）+弧线/读数一一配对测试锁 |
 | v5.7.0 | 2026-10-21 | 新图型#37：`cif`竞争风险累计发生率（Aalen-Johansen+1−KM 高估对照）+反模式集中页 antipatterns.md+Galbraith 弧线读数密度放宽 |
 | v5.6.1 | 2026-10-20 | 修复 galbraith 深分支崩溃（>12 研究+离群标注相邻）+研究名避让算法升级（纵向 8 档+横向镜像，密集区零叠印） |
@@ -38,7 +38,38 @@
 
 ### English
 
-## 5.9.0 — 2026-10-23
+## 5.9.2 — 2026-10-24
+
+Release hygiene: an internal release-checklist document was accidentally
+included in the 5.9.1 package; this version removes it. No code changes —
+5.9.0/5.9.1 features unchanged.
+
+### 中文
+
+## 5.9.2 — 2026-10-24
+
+发布卫生：内部发布清单文档误入 5.9.1 包，本版移除。无代码变化，
+5.9.0/5.9.1 功能不变。
+
+ — 2026-10-24
+
+cif `cause_labels` key-consistency guard: a label referencing an event code
+absent from the data now fails with a searchable Chinese error (exit 3,
+"码与含义写反" hint) instead of silently mislabeling; competing codes without
+labels fall back to default naming with a stderr notice. Full-spectrum closure
+of the label-swap class audit (10-24) — the only key→name indirection point in
+the engine is now guarded.
+
+### 中文
+
+## 5.9.1 — 2026-10-24
+
+cif `cause_labels` 键一致性守卫：引用数据中不存在的事件码 → exit 3 可搜索
+中文报错（提示「码与含义写反」），不再静默错标；在场的竞争码未给标签 →
+默认名+stderr 提示。标签对调类错误全谱审计（10-24）的收口——引擎唯一的
+键→名间接映射点已设防。
+
+ — 2026-10-23
 
 Restricted mean survival time (`-t rmst`, chart #38): per-arm RMST(95%CI) =
 step-integral of the KM curve to τ with Greenwood-type variance; ΔRMST
