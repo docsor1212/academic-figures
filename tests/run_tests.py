@@ -2547,8 +2547,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 5.9.2", self.zh)
-        self.assertIn("version: 5.9.2", self.en)
+        self.assertIn("version: 6.0.0", self.zh)
+        self.assertIn("version: 6.0.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2643,8 +2643,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 5.9.2", self.zh)
-        self.assertIn("version: 5.9.2", self.en)
+        self.assertIn("version: 6.0.0", self.zh)
+        self.assertIn("version: 6.0.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 5.9.2", self.zh)
-        self.assertIn("version: 5.9.2", self.en)
+        self.assertIn("version: 6.0.0", self.zh)
+        self.assertIn("version: 6.0.0", self.en)
 
 
 
@@ -2743,7 +2743,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 5.9.2", zh)
+        self.assertIn("version: 6.0.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2912,7 +2912,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.9.2", t, name)
+            self.assertIn("version: 6.0.0", t, name)
 
 
 
@@ -3001,7 +3001,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.9.2", t, name)
+            self.assertIn("version: 6.0.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3120,7 +3120,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.9.2", t, name)
+            self.assertIn("version: 6.0.0", t, name)
 
 
 
@@ -3187,7 +3187,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 5.9.2", t, name)
+            self.assertIn("version: 6.0.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -5994,6 +5994,82 @@ class TestV59100(unittest.TestCase):
     def test_valid_labels_pass(self):
         r = self._run({"1": "复发", "2": "移植相关死亡"})
         self.assertEqual(r.returncode, 0, r.stderr[-400:])
+
+
+
+
+class TestV60000(unittest.TestCase):
+    """v6.0.0：CSV 误差列约定（官方评测点名 CSV 不支持误差棒的机制根治）——
+    X_se/X_sem/X_sd/X_err 后缀列自动配对主列转 errors 契约；X_sd+X_n →
+    SEM=sd/√n；孤儿/行数不符告警保留；--csv-no-errors 逃生门。"""
+
+    def _csv(self, content, name="err.csv"):
+        p = os.path.join(tempfile.mkdtemp(), name)
+        with open(p, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        return p
+
+    def _run(self, p, extra=()):
+        out = os.path.join(tempfile.mkdtemp(), "b.png")
+        r = subprocess.run([sys.executable, GEN, "-t", "bar", "-d", p, "-o", out,
+                            "--cjk"] + list(extra), capture_output=True, text=True)
+        return r
+
+    def test_sem_pairing_and_errors_contract(self):
+        """X_sem → errors 契约 + 误差列不再画成柱 + stderr 识别行。"""
+        p = self._csv("组,评分,评分_sem\nA,7.2,0.4\nB,8.1,0.6\nC,6.5,0.3\n")
+        sys.path.insert(0, SCRIPT_DIR)
+        import gen_figure as gf
+        d = gf.load_data(p, chart_type="bar")
+        self.assertEqual(d["errors"], {"评分": [0.4, 0.6, 0.3]})
+        self.assertNotIn("评分_sem", d["series"])
+        r = self._run(p)
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertIn("CSV 误差列识别：评分_sem → 评分（±1SEM）", r.stderr)
+
+    def test_sd_plus_n_to_sem(self):
+        """X_sd+X_n → SEM=sd/√n 数值级断言。"""
+        p = self._csv("组,活力,活力_sd,活力_n\nA,72.5,8.4,36\nB,61.3,9.1,49\n")
+        sys.path.insert(0, SCRIPT_DIR)
+        import gen_figure as gf
+        d = gf.load_data(p, chart_type="bar")
+        import math
+        self.assertAlmostEqual(d["errors"]["活力"][0], 8.4 / 6, places=12)
+        self.assertAlmostEqual(d["errors"]["活力"][1], 9.1 / 7, places=12)
+        self.assertNotIn("活力_n", d["series"])
+        r = self._run(p)
+        self.assertIn("SD+标本量→SEM=sd/√n", r.stderr)
+
+    def test_orphan_and_mismatch_warnings(self):
+        """孤儿列/行数不符 → 告警 + 按普通数据列保留。"""
+        p = self._csv("组,评分,孤儿_sem\nA,7.2,0.4\nB,8.1,0.6\n")
+        sys.path.insert(0, SCRIPT_DIR)
+        import gen_figure as gf
+        d = gf.load_data(p, chart_type="bar")
+        self.assertIn("孤儿_sem", d["series"])      # 保留为普通列
+        self.assertNotIn("errors", d)
+        r = self._run(p)
+        self.assertIn("找不到主列「孤儿」", r.stderr)
+
+    def test_escape_hatch(self):
+        """--csv-no-errors：后缀列按普通数据画，零识别输出。"""
+        p = self._csv("组,评分,评分_sem\nA,7.2,0.4\nB,8.1,0.6\n")
+        r = self._run(p, ["--csv-no-errors"])
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertNotIn("CSV 误差列识别", r.stderr)
+        sys.path.insert(0, SCRIPT_DIR)
+        import gen_figure as gf
+        d = gf.load_data(p, chart_type="bar", csv_errors=False)
+        self.assertIn("评分_sem", d["series"])
+
+    def test_plain_csv_unchanged(self):
+        """无后缀常规 CSV：产出结构零变化（防误伤回归锁）。"""
+        p = self._csv("组,甲,乙\nA,1.0,2.0\nB,3.0,4.0\n")
+        sys.path.insert(0, SCRIPT_DIR)
+        import gen_figure as gf
+        d = gf.load_data(p, chart_type="bar")
+        self.assertEqual(d["series"], {"甲": [1.0, 3.0], "乙": [2.0, 4.0]})
+        self.assertNotIn("errors", d)
 
 
 

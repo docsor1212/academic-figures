@@ -824,7 +824,7 @@ def _read_excel(path, sheet=None):
     return headers, rows
 
 
-def load_data(path, chart_type=None, sheet=None):
+def load_data(path, chart_type=None, sheet=None, csv_errors=True):
     """Load data from JSON, CSV or Excel (.xlsx/.xls). Returns dict with structure info.
 
     For CSV/Excel, chart_type is used to auto-convert long-format data:
@@ -877,6 +877,48 @@ def load_data(path, chart_type=None, sheet=None):
         # Sync labels with valid rows
         labels = [rows[ri][0] for ri in good_rows if ri < len(rows)]
         result = {"labels": labels, "series": series}
+
+        # ── v6.0.0：CSV 误差列约定——X_se/X_sem/X_sd/X_err 配对主列 X（官方评测
+        # 点名 CSV 不支持误差棒的机制根治）。配对成功→不画成柱、转 errors 契约；
+        # X_sd + X_n → SEM=sd/√n；孤儿列告警保留；--csv-no-errors 逃生门。
+        if csv_errors and series:
+            import re as _re
+            _err_cols, _n_cols = {}, {}
+            for k in list(series.keys()):
+                m = _re.match(r"^(.*)_(sem|se|sd|err)$", str(k), _re.I)
+                if m:
+                    _err_cols[m.group(1)] = (k, m.group(2).lower())
+                elif _re.match(r"^(.*)_n$", str(k), _re.I):
+                    _n_cols[_re.match(r"^(.*)_n$", str(k), _re.I).group(1)] = k
+            errors, notes = {}, []
+            for base, (col, kind) in sorted(_err_cols.items()):
+                if base not in series:
+                    print(f"CSV 误差列告警：「{col}」找不到主列「{base}」——按普通数据列处理",
+                          file=sys.stderr)
+                    continue
+                if len(series[col]) != len(series[base]):
+                    print(f"CSV 误差列告警：「{col}」与主列「{base}」行数不一致——按普通数据列处理",
+                          file=sys.stderr)
+                    continue
+                vals = series[col]
+                if kind == "sd" and base in _n_cols:
+                    nn = series[_n_cols[base]]
+                    import math as _m
+                    if len(nn) == len(vals) and all(v > 0 for v in nn):
+                        vals = [v / _m.sqrt(n) for v, n in zip(vals, nn)]
+                        notes.append(f"{_n_cols[base]}+{col} → {base}（SD+标本量→SEM=sd/√n）")
+                        del series[_n_cols[base]]
+                    else:
+                        notes.append(f"{col} → {base}（±1SD；{_n_cols[base]} 行数不符/含非正值，未转 SEM）")
+                else:
+                    _lab = "SEM" if kind in ("sem", "se") else ("SD" if kind == "sd" else "误差值")
+                    notes.append(f"{col} → {base}（±1{_lab}）")
+                errors[base] = vals
+                del series[col]
+            if errors:
+                result["errors"] = errors
+                print("CSV 误差列识别：" + "；".join(notes)
+                      + "（--csv-no-errors 可关闭，把误差列按普通数据画）", file=sys.stderr)
 
         # Long-format conversion for scatter (C1 real fix)
         if chart_type == 'scatter' and series:
@@ -2622,6 +2664,8 @@ def main():
                              "——自动按 <阈值/≥阈值 分层")
     parser.add_argument("--rmst-tau", default=None,
                         help="-t rmst：截断时间 τ（时间单位；缺省=最小最大随访之半并显著告知）")
+    parser.add_argument("--csv-no-errors", action="store_true",
+                        help="关闭 CSV 误差列自动识别（X_se/X_sem/X_sd/X_err 后缀列按普通数据列画）")
     parser.add_argument("--cox-cols", default=None,
                         help="--stats cox 时协变量列（逗号分隔，默认除时间/事件外全部数值列；"
                              "顺序即森林图行序）")
@@ -2932,9 +2976,11 @@ def main():
             print("[ignored] --stats cox（仅 forest/subgroup 生效）对 "
                   f"{args.type} 不适用，本次渲染已忽略", file=sys.stderr)
             args.stats = None
-            data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
+            data = load_data(args.data, chart_type=args.type, sheet=args.sheet,
+                         csv_errors=not getattr(args, 'csv_no_errors', False))
     else:
-        data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
+        data = load_data(args.data, chart_type=args.type, sheet=args.sheet,
+                         csv_errors=not getattr(args, 'csv_no_errors', False))
 
     # ── A4(v2.8)+v3.1：cluster_heatmap 降采样（确定性等距采样；校验前执行）──
     # v3.1：行数>3000 且未给 --downsample 时自动采样到 2000 行并显著告知

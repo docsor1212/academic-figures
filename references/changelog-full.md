@@ -12,6 +12,15 @@
 
 ## Version History
 
+## 6.0.0 — 2026-10-24
+
+CSV 误差列约定：X_se/X_sem/X_sd/X_err 后缀列（大小写不敏感）自动配对主列
+X → errors 契约（bar 族误差棒），误差列不再误画成柱；X_sd+X_n → SEM=sd/√n
+自动换算并在 stderr 注明口径；孤儿列/行数不符 → 中文告警+按普通数据保留；
+--csv-no-errors 逃生门。官方评测（10-24，均分 4.867）summary 点名
+「CSV 模式不支持误差棒」的机制根治。版本 major 进位（红线 4：minor 到 9
+进 major）。电池 TestV60000 五态锁（sem 配对/sd+n 换算/孤儿/逃生门/零变化）。
+
 ## 5.9.2 — 2026-10-24
 
 发布卫生：内部发布清单文档（docs/RELEASE_CHECKLIST.md，含内部工具名与

@@ -10,7 +10,7 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| v5.9.2 | 2026-10-24 | 发布卫生：移除误入 5.9.1 包的内部发布清单文档（无代码变化，5.9.0/5.9.1 功能不变） || v5.9.1 | 2026-10-24 | cif `cause_labels` 键一致性守卫（引用不存在的码=exit 3 中文报错；缺标软提示）——标签对调类错误全谱封堵 || v5.9.0 | 2026-10-23 | 新图型#38：`rmst`限制平均生存时间（每臂 RMST(95%CI)+ΔRMST 差值 CI；τ 截断回归锁+colon 619 例金标）+生存触发词扩充 || v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
+| v6.0.0 | 2026-10-24 | CSV 误差列约定：`X_se/X_sem/X_sd/X_err` 后缀列自动配对主列画误差棒（`X_sd+X_n`→SEM），`--csv-no-errors` 逃生门 || v5.9.2 | 2026-10-24 | 发布卫生：移除误入 5.9.1 包的内部发布清单文档（无代码变化，5.9.0/5.9.1 功能不变） || v5.9.1 | 2026-10-24 | cif `cause_labels` 键一致性守卫（引用不存在的码=exit 3 中文报错；缺标软提示）——标签对调类错误全谱封堵 || v5.9.0 | 2026-10-23 | 新图型#38：`rmst`限制平均生存时间（每臂 RMST(95%CI)+ΔRMST 差值 CI；τ 截断回归锁+colon 619 例金标）+生存触发词扩充 || v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
 | v5.7.1 | 2026-10-21 | 修复 galbraith 弧线读数原子性（不可判读弧线整条省略）+弧线/读数一一配对测试锁 |
 | v5.7.0 | 2026-10-21 | 新图型#37：`cif`竞争风险累计发生率（Aalen-Johansen+1−KM 高估对照）+反模式集中页 antipatterns.md+Galbraith 弧线读数密度放宽 |
 | v5.6.1 | 2026-10-20 | 修复 galbraith 深分支崩溃（>12 研究+离群标注相邻）+研究名避让算法升级（纵向 8 档+横向镜像，密集区零叠印） |
@@ -38,7 +38,28 @@
 
 ### English
 
-## 5.9.2 — 2026-10-24
+## 6.0.0 — 2026-10-24
+
+CSV error-bar convention (official evaluation named gap, closed): a column
+named `X_se`/`X_sem`/`X_sd`/`X_err` (case-insensitive) is auto-paired with its
+base column `X` and drawn as an error bar instead of a bar; `X_sd` plus an
+`X_n` column converts to SEM = sd/√n (stated in stderr). Orphan/mismatched
+suffix columns warn and stay as plain data; `--csv-no-errors` opts out.
+Plain CSVs with no suffixed columns are byte-for-byte unchanged (regression
+lock). Works for every chart type that consumes CSV series (bar family first
+class).
+
+### 中文
+
+## 6.0.0 — 2026-10-24
+
+CSV 误差列约定（官方评测点名缺口收口）：列名 `X_se/X_sem/X_sd/X_err`
+（大小写不敏感）自动配对主列 X——不再被画成柱，转为误差棒；`X_sd` 搭配
+`X_n` 列自动换算 SEM=sd/√n（stderr 注明口径）。孤儿列/行数不符告警并按
+普通数据保留；`--csv-no-errors` 一键关闭。无后缀常规 CSV 产出零变化
+（回归锁）。CSV series 图型通用（柱状族一等公民）。
+
+ — 2026-10-24
 
 Release hygiene: an internal release-checklist document was accidentally
 included in the 5.9.1 package; this version removes it. No code changes —
