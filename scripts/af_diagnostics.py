@@ -120,7 +120,8 @@ _KNOWN_DATA_FIELDS = [
   "points", "est", "ci_lo", "ci_hi", "ref", "log_y", "hline_at", "hist", "benefit_shade",
   "subgroups", "levels", "p_interaction", "p", "overall", "est_label", "log_x",
   "arcs", "share_y",
-  "cause_labels", "compare_km", "percent", "time_unit", "y_max"
+  "cause_labels", "compare_km", "percent", "time_unit", "y_max",
+  "domains", "judgements", "title"
 ]
 
 

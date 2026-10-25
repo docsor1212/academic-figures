@@ -12,6 +12,17 @@
 
 ## Version History
 
+## 6.1.1 — 2026-10-26
+
+rob 判定扩展：Very high/critical→极高档（深红 V）；Unclear/unclear risk→
+顾虑档；堆叠序 L→S→H→VH→NI；图例只列在场类别（修循环变量泄漏——
+present 判定误用外层循环残留的域键 k，只扫最后一个域）；图例下移
+（bbox -0.14→-0.28）避开旋转域标签；domains/judgements/title 入
+_KNOWN_DATA_FIELDS 白名单。三个官方工具真实数据示例随包：
+evidence_rob1_cochrane_rct（9×7）、evidence_robins_nonrandomized（10×7
+含 VH）、evidence_quadas_diagnostic（12×4）。三图经逐格矩阵审核
+（9×8=72、10×8=80、12×5=60 全格 diff=0）+摘要条像素核验。
+
 ## 6.1.0 — 2026-10-26
 
 rob 偏倚风险交通灯图（第 39 图型）：studies=[{name, judgements}]（2~50 项），

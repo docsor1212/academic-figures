@@ -1735,13 +1735,16 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
 
     _MAP = {}
     for codes, code in ((("low", "l", "低风险", "低"), "L"),
-                        (("some concerns", "someconcerns", "s", "有一定顾虑", "中等", "顾虑"), "S"),
+                        (("some concerns", "someconcerns", "s", "有一定顾虑", "中等", "顾虑",
+                          "unclear", "unclear risk", "不明确", "风险不明确"), "S"),
                         (("high", "h", "高风险", "高"), "H"),
+                        (("very high", "veryhigh", "v", "critical", "极高风险", "极高", "危急"), "VH"),
                         (("no information", "noinformation", "ni", "n", "无信息", "未知", "不清楚"), "NI")):
         for c in codes:
             _MAP[c] = code
-    _COLOR = {"L": "#1F7A4D", "S": "#E8A020", "H": "#B23434", "NI": "#9AA0A6"}
-    _LETTER = {"L": "L", "S": "S", "H": "H", "NI": "?"}
+    # 固定语义配色：绿=低/琥珀=顾虑（含旧工具 Unclear）/红=高/深红=极高(VH)/灰=无信息
+    _COLOR = {"L": "#1F7A4D", "S": "#E8A020", "H": "#B23434", "VH": "#6E1414", "NI": "#9AA0A6"}
+    _LETTER = {"L": "L", "S": "S", "H": "H", "VH": "V", "NI": "?"}
 
     def _norm(v):
         if v is None:
@@ -1761,7 +1764,8 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
             code = _norm(j[k])
             if code is None:
                 _fatal(f"研究「{s['name']}」域「{k}」判定值「{j[k]}」无法识别——"
-                       "合法：Low/L/低风险、Some concerns/S/有一定顾虑、High/H/高风险、No information/NI/无信息")
+                       "合法：Low/L/低风险、Some concerns/S/有一定顾虑（含 Unclear）、High/H/高风险、"
+                       "Very high/V/极高风险、No information/NI/无信息")
             row[k] = code
         if has_overall:
             code = _norm(j.get("Overall"))
@@ -1771,7 +1775,7 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
         rows.append((str(s["name"]), row))
 
     # ── 摘要计数（Overall 不入摘要——robvis 惯例；等权占比）──
-    counts = {k: {"L": 0, "S": 0, "H": 0, "NI": 0} for k in dkeys}
+    counts = {k: {"L": 0, "S": 0, "H": 0, "VH": 0, "NI": 0} for k in dkeys}
     for _, row in rows:
         for k in dkeys:
             counts[k][row[k]] += 1
@@ -1805,7 +1809,7 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
                 color="#C9C2B4", linewidth=1.0, zorder=1)
 
     # 摘要条（加权占比；Low 贴基线向上堆叠）
-    order = ["L", "H", "S", "NI"]                  # 自基线向上：低、高、顾虑、无信息
+    order = ["L", "S", "H", "VH", "NI"]            # 自基线向上：低、顾虑、高、极高、无信息
     base = y_sum1
     htot = y_sum1 - y_sum0
     for ci, k in enumerate(dkeys):
@@ -1818,7 +1822,7 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
                    color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
             cum += h
     if has_overall:
-        oc = {"L": 0, "S": 0, "H": 0, "NI": 0}
+        oc = {"L": 0, "S": 0, "H": 0, "VH": 0, "NI": 0}
         for _, row in rows:
             oc[row["Overall"]] += 1
         cum = 0.0
@@ -1847,13 +1851,17 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
     for sp in ("top", "right", "left"):
         ax.spines[sp].set_visible(False)
 
+    _LB = {"L": "低风险 Low", "S": "顾虑/Unclear", "H": "高风险 High",
+           "VH": "极高风险 Very high", "NI": "无信息 No information"}
+    # ⛔勿用外层循环变量 k（泄漏=只查最后一个域，图例漏档事故 10-26）：显式全域扫描
+    present = [c for c in ("L", "S", "H", "VH", "NI")
+               if any(row[dk] == c for _, row in rows for dk in dkeys)
+               or (has_overall and any(row["Overall"] == c for _, row in rows))]
     handles = [_mp.Patch(facecolor=_COLOR[c], edgecolor="white",
-                         label=lb) for c, lb in
-               (("L", "低风险 Low"), ("S", "有一定顾虑 Some concerns"),
-                ("H", "高风险 High"), ("NI", "无信息 No information"))]
+                         label=_LB[c]) for c in present]
     # 图例放图下方外侧（robvis 惯例；bbox_inches='tight' 会完整收入，且不遮摘要条）
     leg = ax.legend(handles=handles, loc="upper center",
-                    bbox_to_anchor=(0.5, -0.14), fontsize=theme["font_size"] - 2,
+                    bbox_to_anchor=(0.5, -0.28), fontsize=theme["font_size"] - 2,
                     framealpha=0.95, ncol=4)
     if cjk_fp:
         try:
@@ -1869,10 +1877,11 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
           + ("（含 Overall 列，未计入摘要）" if has_overall else ""), file=sys.stderr)
     for ci, k in enumerate(dkeys):
         c = counts[k]
-        pr = {code: c[code] / n * 100 for code in ("L", "S", "H", "NI")}
+        pr = {code: c[code] / n * 100 for code in ("L", "S", "H", "VH", "NI")}
         lab = dict(doms)[k]
         print(f"  {lab}: 低 {pr['L']:.0f}%（{c['L']}）｜顾虑 {pr['S']:.0f}%（{c['S']}）"
-              f"｜高 {pr['H']:.0f}%（{c['H']}）｜无信息 {pr['NI']:.0f}%（{c['NI']}）",
+              f"｜高 {pr['H']:.0f}%（{c['H']}）｜极高 {pr['VH']:.0f}%（{c['VH']}）"
+              f"｜无信息 {pr['NI']:.0f}%（{c['NI']}）",
               file=sys.stderr)
     print("  提示：判定应来自预设的 ROB2/ROBINS-I/QUADAS-2 工具与两人独立评估；",
           file=sys.stderr)
