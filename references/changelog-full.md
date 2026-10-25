@@ -12,6 +12,19 @@
 
 ## Version History
 
+## 6.1.0 — 2026-10-26
+
+rob 偏倚风险交通灯图（第 39 图型）：studies=[{name, judgements}]（2~50 项），
+domains 可选（缺省取自首研究键序，2~12 域），判定同义词表（Low/L/低风险、
+Some concerns/S/有一定顾虑、High/H/高风险、No information/NI/无信息——大小写
+不敏感）；未知判定值/缺域一律中文报错。渲染：单轴双区（上=交通灯网格
+scatter 圆点+字母兜底，下=各域摘要占比条；Overall 列分隔线+不入摘要）；
+图例图下方外侧（bbox tight 完整收入，不遮摘要条——视觉门首轮逮住右下图例
+遮挡后改位）。配色固定语义（绿/琥珀/红/灰，与主题无关）。能力矩阵三层表进
+双语 SKILL 正文；--suggest 两条新规则（rob 结构/原始生存长表→一键亚组）。
+真实示例 evidence_rob2_metformin（robvis 包 data_rob2，9 研究×5 域+Overall，
+McGuinness & Higgins 2019）。金标：各域计数逐项锁+守卫三态+CLI e2e。
+
 ## 6.0.0 — 2026-10-24
 
 CSV 误差列约定：X_se/X_sem/X_sd/X_err 后缀列（大小写不敏感）自动配对主列

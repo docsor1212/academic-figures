@@ -342,6 +342,17 @@ def suggest_chart_type(data):
     keys = set(data.keys())
     if "records_identified" in keys or "studies_included" in keys:
         recs.append((98, "prisma", "PRISMA flow fields (records_identified / studies_included)"))
+    if isinstance(data.get("studies"), list) and data.get("studies") \
+            and isinstance(data["studies"][0], dict) \
+            and isinstance(data["studies"][0].get("judgements"), dict):
+        recs.append((95, "rob", "studies[] with per-domain judgements (risk of bias traffic light)"))
+    _sk = {str(k).strip().lower() for k in data.get("series", {}) or {}}
+    if isinstance(data.get("time"), list) and isinstance(data.get("event"), list) \
+            and isinstance(data.get("group"), list):
+        recs.append((90, "subgroup", "long-format time/event/group lists → -t subgroup --stats cox (one-command fit)"))
+    elif {"event", "status"} & _sk:
+        # event/status 指示列=生存数据强信号（首列 time 常被 labels 吸收，故不要求 time 在 series）
+        recs.append((90, "subgroup", "event indicator column → survival family; -t subgroup --stats cox = one-command fit"))
     if "blocks" in keys and "arrows" in keys:
         recs.append((96, "diagram", "blocks + arrows structure"))
     if "panels" in keys:
@@ -2549,7 +2560,7 @@ def main():
                "｜ 诊断 ROC -t roc --compare ｜ 预测模型四件套 -t roc/calibration/dca/nomogram"
                "｜ Meta 森林+漏斗+径向 -t forest/funnel/galbraith ｜ 亚组森林 -t subgroup（原始数据一键拟合加 --stats cox）"
                "｜ 组学 -t volcano/-t cluster_heatmap ｜ 多面板 -t composite（share_y 统一尺度）"
-               "｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
+               "｜ 偏倚风险 -t rob（robvis 同款交通灯）｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
     parser.add_argument("--type", "-t", choices=list(GENERATORS.keys()),
                         help="图型（如 bar/box/violin/km/roc/forest/prisma，--demo 可看菜单）")
     parser.add_argument("--data", "-d", help="输入数据文件（.json / .csv / .tsv / .xlsx）")
@@ -3454,7 +3465,7 @@ def main():
 # ── A1(v2.8)：渲染看门狗（v2.10：退出码分级与异常诊断拆至 af_diagnostics.py）──
 
 _WD_BASE_BUDGET = {
-    "cluster_heatmap": 240, "composite": 180, "pca": 120, "km": 120, "rmst": 120,
+    "cluster_heatmap": 240, "composite": 180, "pca": 120, "km": 120, "rmst": 120, "rob": 120,
     "forest": 90, "venn": 90, "prisma": 60,
 }
 _WD_DEFAULT_BUDGET = 90.0

@@ -157,6 +157,7 @@ CHART_NOTES = {
                  "pr_cut=-30/pd_cut=20 阈值虚线、sort=desc|input；--show-values 柱端数值；"
                  "着色未给 group 时按阈值分桶（缓解蓝/稳定灰/进展橙）。",
     "galbraith": "galbraith: Galbraith 径向图（Meta 异质性，漏斗图姊妹图）；JSON 同 funnel（studies name/effect/se，效应取 log 值）；est_label=OR/HR/RR 默认画效应量弧线，MD/SMD 自动关；stderr 报固定效应 b/DL 合并/I²/离群名单。",
+    "rob": "rob: 偏倚风险交通灯图（v6.1，第 39 种图型；robvis 同款）；JSON 需 studies=[{name, judgements:{域: 判定}}]（2~50 项，判定 Low/Some concerns/High/No information 中英均可），domains 可选（缺省取自首研究键序），weights 可选各域摘要权重；Overall 列只入网格不入摘要；stderr 报各域加权占比。真实示例 examples/realworld/evidence_rob2_metformin.json。",
     "cif": "cif: 竞争风险累计发生率（Aalen-Johansen）；JSON 需 time+event 两等长数组（0=删失 1=目标事件 ≥2=竞争事件编号），cause_labels 命名各因、time_unit 时间单位；compare_km（auto=有竞争事件才画）叠加 1−KM 高估对照虚线，percent 百分轴；多臂分组请用 -t km。",
 }
 

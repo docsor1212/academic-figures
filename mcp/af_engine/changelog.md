@@ -10,7 +10,7 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| v6.0.0 | 2026-10-24 | CSV 误差列约定：`X_se/X_sem/X_sd/X_err` 后缀列自动配对主列画误差棒（`X_sd+X_n`→SEM），`--csv-no-errors` 逃生门 || v5.9.2 | 2026-10-24 | 发布卫生：移除误入 5.9.1 包的内部发布清单文档（无代码变化，5.9.0/5.9.1 功能不变） || v5.9.1 | 2026-10-24 | cif `cause_labels` 键一致性守卫（引用不存在的码=exit 3 中文报错；缺标软提示）——标签对调类错误全谱封堵 || v5.9.0 | 2026-10-23 | 新图型#38：`rmst`限制平均生存时间（每臂 RMST(95%CI)+ΔRMST 差值 CI；τ 截断回归锁+colon 619 例金标）+生存触发词扩充 || v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
+| v6.1.0 | 2026-10-26 | 新图型#39：`rob`偏倚风险交通灯图（robvis 同款；判定中英双语；Overall 不入摘要）+「谁拟合谁可视化」能力矩阵+--suggest 识别原始生存长表 || v6.0.0 | 2026-10-24 | CSV 误差列约定：`X_se/X_sem/X_sd/X_err` 后缀列自动配对主列画误差棒（`X_sd+X_n`→SEM），`--csv-no-errors` 逃生门 || v5.9.2 | 2026-10-24 | 发布卫生：移除误入 5.9.1 包的内部发布清单文档（无代码变化，5.9.0/5.9.1 功能不变） || v5.9.1 | 2026-10-24 | cif `cause_labels` 键一致性守卫（引用不存在的码=exit 3 中文报错；缺标软提示）——标签对调类错误全谱封堵 || v5.9.0 | 2026-10-23 | 新图型#38：`rmst`限制平均生存时间（每臂 RMST(95%CI)+ΔRMST 差值 CI；τ 截断回归锁+colon 619 例金标）+生存触发词扩充 || v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
 | v5.7.1 | 2026-10-21 | 修复 galbraith 弧线读数原子性（不可判读弧线整条省略）+弧线/读数一一配对测试锁 |
 | v5.7.0 | 2026-10-21 | 新图型#37：`cif`竞争风险累计发生率（Aalen-Johansen+1−KM 高估对照）+反模式集中页 antipatterns.md+Galbraith 弧线读数密度放宽 |
 | v5.6.1 | 2026-10-20 | 修复 galbraith 深分支崩溃（>12 研究+离群标注相邻）+研究名避让算法升级（纵向 8 档+横向镜像，密集区零叠印） |
@@ -38,7 +38,32 @@
 
 ### English
 
-## 6.0.0 — 2026-10-24
+## 6.1.0 — 2026-10-26
+
+Risk-of-bias traffic-light chart (`-t rob`, #39, robvis-style): studies×domains
+grid with Low/Some concerns/High/No information circles (EN or 中文 synonyms
+accepted), summary proportion bars per domain, Overall column shown in the
+grid but excluded from summary (robvis convention); fixed semantic colours
+(green/amber/red/gray) independent of theme. Plus a "who fits, who visualizes"
+capability matrix in SKILL (three tiers: engine fits+tests / descriptive /
+visualize your fitted output — clarifies that `subgroup --stats cox` DOES fit,
+nomogram/rcs remain visualize-only), and `--suggest` now recognises rob
+structures and raw time/event/group long-format (points to one-command
+subgroup fitting). Real example from the robvis package dataset (9 studies).
+
+### 中文
+
+## 6.1.0 — 2026-10-26
+
+偏倚风险交通灯图（`-t rob`，第 39 图型，robvis 同款）：研究×域网格（判定
+Low/Some concerns/High/No information，中英同义词均可），各域摘要占比条；
+Overall 列入网格不入摘要（robvis 惯例）；配色固定语义（绿/琥珀/红/灰）。
+另将「谁拟合、谁可视化」三层能力矩阵写入 SKILL 正文（引擎拟合+检验/描述性/
+可视化你已拟合的输出——明确 `subgroup --stats cox` 即引擎拟合、nomogram/rcs
+仍为可视化路径），--suggest 新增 rob 结构与原始 time/event/group 长表识别
+（指向一键亚组拟合）。真实示例=robvis 包数据（9 项研究）。
+
+ — 2026-10-24
 
 CSV error-bar convention (official evaluation named gap, closed): a column
 named `X_se`/`X_sem`/`X_sd`/`X_err` (case-insensitive) is auto-paired with its

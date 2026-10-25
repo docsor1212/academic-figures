@@ -1698,11 +1698,193 @@ def gen_rmst(data, ax, theme, cjk_fp, **kwargs):
           file=sys.stderr)
 
 
+def gen_rob(data, ax, theme, cjk_fp, **kwargs):
+    """偏倚风险交通灯图（Risk of Bias traffic light；v6.1 第 39 种图型，robvis 同款）。
+
+    系统综述/Meta 分析的纳入研究方法学质量可视化：左=研究×域交通灯网格
+    （圆点着色：低风险/有顾虑/高风险/无信息），右下=加权摘要条（各域占比，
+    Overall 列只入网格不入摘要——robvis 惯例）。数据：
+      studies=[{name, judgements:{域键: 判定}}...]（2~50 项），
+      domains=["D1",...] 或 [{key,label}...]（2~12 域；缺省=取自首个研究的键序），
+      title 可选。摘要条=各域判定占比（robvis 默认等权，无自定权重语义）。
+    判定取值（大小写/中英不敏感）：Low/L/低风险/低；Some concerns/S/有一定顾虑/中等；
+    High/H/高风险/高；No information/NI/N/无信息/未知。配色固定语义
+    （绿=低/琥珀=顾虑/红=高/灰=无信息），与主题无关。"""
+    import matplotlib.patches as _mp
+
+    def _fatal(msg):
+        raise ValueError(f"rob: {msg}")
+
+    studies = data.get("studies")
+    if not isinstance(studies, list) or not (2 <= len(studies) <= 50):
+        _fatal("需要 studies（2~50 个 {name, judgements} 对象）")
+    dom_spec = data.get("domains")
+    if dom_spec is None:
+        dom_spec = [k for k in studies[0].get("judgements", {}) if k != "Overall"]
+    doms = []
+    for d in dom_spec:
+        if isinstance(d, str):
+            doms.append((d, d))
+        elif isinstance(d, dict) and d.get("key"):
+            doms.append((str(d["key"]), str(d.get("label", d["key"]))))
+        else:
+            _fatal(f"domains 每项须为字符串或 {{key,label}}（收到：{d!r}）")
+    if not (2 <= len(doms) <= 12):
+        _fatal(f"需要 2~12 个偏倚域（当前 {len(doms)}）")
+    dkeys = [k for k, _ in doms]
+
+    _MAP = {}
+    for codes, code in ((("low", "l", "低风险", "低"), "L"),
+                        (("some concerns", "someconcerns", "s", "有一定顾虑", "中等", "顾虑"), "S"),
+                        (("high", "h", "高风险", "高"), "H"),
+                        (("no information", "noinformation", "ni", "n", "无信息", "未知", "不清楚"), "NI")):
+        for c in codes:
+            _MAP[c] = code
+    _COLOR = {"L": "#1F7A4D", "S": "#E8A020", "H": "#B23434", "NI": "#9AA0A6"}
+    _LETTER = {"L": "L", "S": "S", "H": "H", "NI": "?"}
+
+    def _norm(v):
+        if v is None:
+            return None
+        return _MAP.get(str(v).strip().lower())
+
+    has_overall = any("Overall" in s.get("judgements", {}) for s in studies)
+    rows = []
+    for s in studies:
+        if not isinstance(s, dict) or not s.get("name") or not isinstance(s.get("judgements"), dict):
+            _fatal("studies 每项须为含 name 与 judgements 的对象")
+        j = s["judgements"]
+        row = {}
+        for k in dkeys:
+            if k not in j:
+                _fatal(f"研究「{s['name']}」缺少域「{k}」的判定——所有研究须覆盖全部域")
+            code = _norm(j[k])
+            if code is None:
+                _fatal(f"研究「{s['name']}」域「{k}」判定值「{j[k]}」无法识别——"
+                       "合法：Low/L/低风险、Some concerns/S/有一定顾虑、High/H/高风险、No information/NI/无信息")
+            row[k] = code
+        if has_overall:
+            code = _norm(j.get("Overall"))
+            if code is None:
+                _fatal(f"研究「{s['name']}」Overall 判定值无法识别")
+            row["Overall"] = code
+        rows.append((str(s["name"]), row))
+
+    # ── 摘要计数（Overall 不入摘要——robvis 惯例；等权占比）──
+    counts = {k: {"L": 0, "S": 0, "H": 0, "NI": 0} for k in dkeys}
+    for _, row in rows:
+        for k in dkeys:
+            counts[k][row[k]] += 1
+
+    # ── 布局：上=交通灯网格，下=加权摘要条（共享域 x 轴）──
+    n = len(rows)
+    x_overall = len(dkeys) - 1 + 0.7 if has_overall else None
+    ax.set_xlim(-0.55, (x_overall if has_overall else len(dkeys) - 1) + 0.55)
+    ax.set_ylim(-1.9, n - 0.4)
+    # 手排：研究 i（0 起）→ y=i（顶部=0，ylim 反向）；摘要区在网格下方
+    y_sum0, y_sum1 = n + 0.35, n + 1.45          # 摘要条带
+    ax.set_ylim(n + 1.9, -0.7)                    # 顶大底小：研究 1 在最上
+    for i, (name, row) in enumerate(rows):
+        for ci, k in enumerate(dkeys):
+            code = row[k]
+            ax.scatter(ci, i, s=300, c=_COLOR[code], edgecolors="white",
+                       linewidths=1.6, zorder=3)
+            ax.text(ci, i, _LETTER[code], ha="center", va="center",
+                    fontsize=theme["font_size"] - 3, color="white",
+                    fontweight="bold", zorder=4)
+        if has_overall:
+            code = row["Overall"]
+            xo = x_overall
+            ax.scatter(xo, i, s=300, c=_COLOR[code], edgecolors="white",
+                       linewidths=1.6, zorder=3)
+            ax.text(xo, i, _LETTER[code], ha="center", va="center",
+                    fontsize=theme["font_size"] - 3, color="white",
+                    fontweight="bold", zorder=4)
+    if has_overall:
+        ax.plot([x_overall - 0.35, x_overall - 0.35], [-0.55, n - 0.55],
+                color="#C9C2B4", linewidth=1.0, zorder=1)
+
+    # 摘要条（加权占比；Low 贴基线向上堆叠）
+    order = ["L", "H", "S", "NI"]                  # 自基线向上：低、高、顾虑、无信息
+    base = y_sum1
+    htot = y_sum1 - y_sum0
+    for ci, k in enumerate(dkeys):
+        cum = 0.0
+        for code in order:
+            h = counts[k][code] / n * htot         # 占比×条带高
+            if h <= 0:
+                continue
+            ax.bar(ci, h, bottom=base - cum - h, width=0.62,
+                   color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
+            cum += h
+    if has_overall:
+        oc = {"L": 0, "S": 0, "H": 0, "NI": 0}
+        for _, row in rows:
+            oc[row["Overall"]] += 1
+        cum = 0.0
+        for code in order:
+            h = oc[code] / n * htot
+            if h <= 0:
+                continue
+            ax.bar(x_overall, h, bottom=base - cum - h, width=0.62,
+                   color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
+            cum += h
+
+    ax.axhline(y_sum1, color="#8A8A8A", linewidth=1.0, xmin=0.0,
+               xmax=1.0, zorder=2)
+    # 坐标轴
+    ax.set_yticks(list(range(n)))
+    ax.set_yticklabels([nm for nm, _ in rows], fontsize=theme["font_size"] - 1,
+                       fontproperties=cjk_fp if cjk_fp else None)
+    xticks = list(range(len(dkeys))) + ([x_overall] if has_overall else [])
+    xlabels = [lab for _, lab in doms] + (["Overall 总体"] if has_overall else [])
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xlabels, fontsize=theme["font_size"] - 2, rotation=18,
+                       ha="right", fontproperties=cjk_fp if cjk_fp else None)
+    ax.set_xticks([x + 0.5 for x in range(len(dkeys) - 1)], minor=True)
+    ax.grid(True, axis="x", which="minor", alpha=0.25, linewidth=0.5)
+    ax.tick_params(axis="y", length=0)
+    for sp in ("top", "right", "left"):
+        ax.spines[sp].set_visible(False)
+
+    handles = [_mp.Patch(facecolor=_COLOR[c], edgecolor="white",
+                         label=lb) for c, lb in
+               (("L", "低风险 Low"), ("S", "有一定顾虑 Some concerns"),
+                ("H", "高风险 High"), ("NI", "无信息 No information"))]
+    # 图例放图下方外侧（robvis 惯例；bbox_inches='tight' 会完整收入，且不遮摘要条）
+    leg = ax.legend(handles=handles, loc="upper center",
+                    bbox_to_anchor=(0.5, -0.14), fontsize=theme["font_size"] - 2,
+                    framealpha=0.95, ncol=4)
+    if cjk_fp:
+        try:
+            leg.set_prop(cjk_fp)
+        except Exception:
+            pass
+    ttl = str(data.get("title") or "偏倚风险图 Risk of Bias（交通灯）")
+    ax.set_title(ttl, fontsize=theme["font_size"] + 1,
+                 fontproperties=cjk_fp if cjk_fp and _has_cjk(ttl) else None)
+
+    # ── stderr 报告 ──
+    print(f"rob: {n} 项研究 × {len(dkeys)} 个偏倚域"
+          + ("（含 Overall 列，未计入摘要）" if has_overall else ""), file=sys.stderr)
+    for ci, k in enumerate(dkeys):
+        c = counts[k]
+        pr = {code: c[code] / n * 100 for code in ("L", "S", "H", "NI")}
+        lab = dict(doms)[k]
+        print(f"  {lab}: 低 {pr['L']:.0f}%（{c['L']}）｜顾虑 {pr['S']:.0f}%（{c['S']}）"
+              f"｜高 {pr['H']:.0f}%（{c['H']}）｜无信息 {pr['NI']:.0f}%（{c['NI']}）",
+              file=sys.stderr)
+    print("  提示：判定应来自预设的 ROB2/ROBINS-I/QUADAS-2 工具与两人独立评估；",
+          file=sys.stderr)
+
+
+
 EXTRA_GENERATORS = {
     "funnel": gen_funnel,
     "galbraith": gen_galbraith,
     "cif": gen_cif,
     "rmst": gen_rmst,
+    "rob": gen_rob,
     "bland_altman": gen_bland_altman,
     "pca": gen_pca,
     "paired": gen_paired,
