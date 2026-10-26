@@ -39,6 +39,15 @@ import matplotlib.pyplot as plt  # noqa: E402
 SCRIPT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "scripts"))
 sys.path.insert(0, SCRIPT_DIR)
 
+# ── 镜像环境自适应（CI=GitHub 公开镜像）：SKILL_ZH.md / references/pitfalls.md 按
+#    sync_github 平台规则不入公开库——依赖它们的正本完整性锁仅在完整 trunk 环境跑，
+#    镜像上自动跳过（透明报告 skipped，不算失败）。v6.2.0 CI 首轮事故固化。 ──
+MIRROR_MODE = any(
+    not os.path.exists(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", _f))
+    for _f in ("SKILL_ZH.md", os.path.join("references", "pitfalls.md")))
+_MIRROR_SKIP = ("GitHub 公开镜像无 SKILL_ZH.md/pitfalls.md（平台规则排除）；"
+                "正本完整性锁仅在完整 trunk 环境跑")
+
 import gen_figure  # noqa: E402
 import gen_legend  # noqa: E402
 import audit_pdf  # noqa: E402
@@ -947,6 +956,8 @@ class TestV220LayoutFixes(unittest.TestCase):
         plt.close(fig)
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV220Features(unittest.TestCase):
     """v2.2: journal presets 9, xlsx input, --stats auto, --alt, templates."""
 
@@ -2228,6 +2239,8 @@ class TestA3Stability(unittest.TestCase):
 
 
 # ── v2.8.0 B1：文档图型计数与代码注册表一致性守门 ──────────────────────────
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV280DocCount(unittest.TestCase):
     """B1(v2.8)：全部在售文档「N 种图表 / N 种图型 / N chart types」必须等于
     代码注册表去纯别名后的图型数。起因：v2.7.0 官方评测抓到 SKILL_ZH 写
@@ -2519,6 +2532,8 @@ class TestV280Help(unittest.TestCase):
 
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV20900DocsAndAdvisories(unittest.TestCase):
     """v2.9.0：边界收拢（limits §六/§七）、独立快速入门、预判 advisory、KeyError 纠错。"""
 
@@ -2597,6 +2612,8 @@ class TestV290FieldNearMiss(unittest.TestCase):
 
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV30000Docs(unittest.TestCase):
     """v3.0.0：类别列、速查卡、行内警示、模块拆分。"""
 
@@ -2701,6 +2718,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV30100(unittest.TestCase):
     """v3.1.0：--quick 一键出图 + 自动降采样 + 文档口径。"""
 
@@ -2752,6 +2771,8 @@ class TestV30100(unittest.TestCase):
 
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV3200(unittest.TestCase):
     """v3.2.0：自动行为透明化 + 安全声明 + FAQ 扩充。"""
 
@@ -2855,6 +2876,8 @@ class TestV3700(unittest.TestCase):
 
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV30300(unittest.TestCase):
     """v3.3.0：frontmatter 冒号炸弹防御 + README 官方化。"""
 
@@ -2917,6 +2940,8 @@ class TestV30300(unittest.TestCase):
 
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV30400(unittest.TestCase):
     """v3.4.0：直接标注 + 标题层级 + Pro 透传。"""
 
@@ -3069,6 +3094,8 @@ class TestV3500(unittest.TestCase):
 
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV30600(unittest.TestCase):
     """v3.6.0：静默忽略显式化 + CSV 误差棒前置 + 历史披露。"""
 
@@ -3125,6 +3152,8 @@ class TestV30600(unittest.TestCase):
 
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV30800(unittest.TestCase):
     """v3.8.0：--pub-ready 一键投稿包 + 中位数 bootstrap CI。"""
 
@@ -3304,6 +3333,8 @@ class TestV30900(unittest.TestCase):
             self.assertIn("doctor 参数/环境体检", r.stderr)
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV30910(unittest.TestCase):
     """v3.9.1 文档准确性热修回归锁。"""
 
@@ -5157,6 +5188,8 @@ class TestV50400(unittest.TestCase):
         self.assertGreaterEqual(n, 34, f"注册表图型数: {n}")
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV50500(unittest.TestCase):
     """v5.5.0：subgroup 亚组分析森林图（第 35）+ FAQ 可发现性 + 边界前置。"""
 
@@ -5428,6 +5461,8 @@ class TestV50600(unittest.TestCase):
             self.assertIn(fld, _KNOWN_DATA_FIELDS, f"新字段 {fld} 须进白名单（铁律#1）")
 
 
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV50700(unittest.TestCase):
     """v5.7.0：cif 竞争风险累计发生率（第 37 种图型，Aalen-Johansen+1−KM 高估对照）
     + 反模式集中页 antipatterns.md + Galbraith 弧线密度放宽/无效应线小标
