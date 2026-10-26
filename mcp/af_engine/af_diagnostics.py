@@ -152,7 +152,8 @@ def _diagnose_exception(e):
                     break
         if why:
             tips.append(why)
-        tips.append("重跑一次（瞬态问题已支持自动重试）")
+        tips.append("瞬态失败（超时/内存）会自动重试（--retries）；"
+                      "反复失败请核对数据与参数")
         return zh, f"{qual}: {e}", tips[:3]
     except Exception:
         return "未知错误", repr(e), ["重试一次", "核对数据格式", "见文档 FAQ"]

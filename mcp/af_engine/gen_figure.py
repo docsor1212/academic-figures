@@ -31,6 +31,7 @@ import numpy as np
 
 # v3.0.0 模块化：wizard 与异常诊断系统拆至独立模块（原名在此命名空间可用）
 from af_wizard import _run_wizard
+from af_resilience import spawn_retry as _spawn_retry, wd_scale as _wd_scale  # v6.2.0
 from af_diagnostics import (_EXIT_DATA_CLASSES, _EXIT_ENV_CLASSES,
                             _classify_exit_code, _diagnose_exception,
                             _print_v3_error, _EXC_ZH_V3, _DIAG_PATTERNS,
@@ -2653,7 +2654,10 @@ def main():
                              "输出 HR[95%%CI] 森林图+系数表+PH 假设近似检验")
     parser.add_argument("--timeout", type=float, default=None,
                         help="渲染看门狗预算（秒）：超时强制中断并给中文建议（exit 5）；"
-                             "0=禁用；默认按图型与数据量自适应（30~1800s）")
+                             "0=禁用自适应预算（保留硬保险）；默认自适应 30~1800s")
+    parser.add_argument("--retries", type=int, default=1, metavar="N",
+                        help="瞬时失败自动重试次数：看门狗超时/内存耗尽时自动重跑（每代"
+                             "预算放宽 ×1.5）；重叠/数据等确定性错误不重试；0=关闭；默认 1")
     parser.add_argument("--downsample", type=int, default=None, metavar="N",
                         help="cluster_heatmap 行数超过 N 时等距采样到 N 行（确定性采样）")
     parser.add_argument("--size", default=None,
@@ -3075,10 +3079,20 @@ def main():
             sys.exit(1)
     if getattr(args, "doctor", False):
         _doctor_report(args, data)
-    # ── A1(v2.8)：看门狗武装（--timeout 覆盖自适应预算；0=禁用）──
+    # ── A1(v2.8)：看门狗武装（--timeout 覆盖自适应预算）──
+    # v6.2.0：0=禁用自适应预算但保留硬保险；负数报错；重试上限全局登记（含子进程继承）
+    os.environ["AF_RETRIES_MAX"] = str(max(0, int(getattr(args, "retries", 1))))
     if args.timeout is None or args.timeout > 0:
         _watchdog_arm(args.type, data,
                       budget=None if args.timeout is None else float(args.timeout))
+    elif args.timeout == 0:
+        print(f"WARNING: 自适应看门狗已禁用（--timeout 0）——保留 {_WD_HARD_CAP:.0f}s "
+              f"硬保险防无限挂起（AF_NO_WATCHDOG=1 可完全关闭）", file=sys.stderr)
+        _watchdog_arm(args.type, data, budget=_WD_HARD_CAP)
+    else:
+        print(f"ERROR: --timeout 不接受负数（{args.timeout:g}）；禁用自适应预算请用 "
+              f"--timeout 0（保留硬保险）", file=sys.stderr)
+        sys.exit(1)
     cjk_fp = None
     # Auto-detect: scan displayable text for CJK chars
     def _scan_cjk(obj):
@@ -3470,6 +3484,7 @@ _WD_BASE_BUDGET = {
 }
 _WD_DEFAULT_BUDGET = 90.0
 _WD_MIN, _WD_MAX = 30.0, 1800.0
+_WD_HARD_CAP = 7200.0  # --timeout 0（禁用自适应预算）时的硬保险，防无限挂起；不随重试放宽
 
 
 def _wd_estimate_rows(data):
@@ -3494,11 +3509,20 @@ def _wd_estimate_rows(data):
     return 0
 
 
+def _wd_scale(budget):
+    """v6.2.0：重试代看门狗预算放宽（AF_WD_BUDGET_SCALE=1.5^N，由重试层写入）。"""
+    try:
+        s = float(os.environ.get("AF_WD_BUDGET_SCALE", "1") or 1)
+    except ValueError:
+        s = 1.0
+    return budget * (s if s >= 1.0 else 1.0)
+
+
 def _wd_budget_for(chart_type, data):
     rows = _wd_estimate_rows(data)
     base = _WD_BASE_BUDGET.get(chart_type, _WD_DEFAULT_BUDGET)
     factor = 1.0 + min(3.0, rows / 2000.0)
-    return max(_WD_MIN, min(_WD_MAX, base * factor))
+    return _wd_scale(max(_WD_MIN, min(_WD_MAX, base * factor)))
 
 
 def _watchdog_arm(chart_type, data, budget=None):
@@ -3509,6 +3533,8 @@ def _watchdog_arm(chart_type, data, budget=None):
         return None
     if budget is None:
         budget = _wd_budget_for(chart_type, data)
+    elif budget != _WD_HARD_CAP:
+        budget = _wd_scale(budget)  # v6.2.0：显式预算在重试代同样放宽；硬保险除外
     start = time.time()
     main_t = threading.main_thread()
 
@@ -3524,12 +3550,14 @@ def _watchdog_arm(chart_type, data, budget=None):
         print("建议2: 调大预算 --timeout 600；或本图禁用看门狗 --timeout 0",
               file=sys.stderr)
         print("建议3: composite 面板过多时拆成多图分别渲染", file=sys.stderr)
-        os._exit(5)
+        rc = _spawn_retry(5)  # v6.2.0：超时=资源类瞬时失败，预算放宽后自动重跑
+        os._exit(5 if rc is None else rc)
 
     def _monitor():
         warned = set()
+        step = min(1.0, max(0.05, budget / 10.0))  # v6.2.0：预算<1s 时步长跟随，保证精度
         while True:
-            time.sleep(1.0)
+            time.sleep(step)
             if not main_t.is_alive():
                 return
             el = time.time() - start
@@ -3553,7 +3581,11 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n已中断", file=sys.stderr)
         sys.exit(130)
-    except SystemExit:
+    except SystemExit as e:
+        code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        rc = _spawn_retry(code)  # v6.2.0：内存类瞬时失败（exit 6）自动重试
+        if rc is not None:
+            sys.exit(rc)
         raise
     except (ValueError, KeyError, FileNotFoundError, json.JSONDecodeError) as e:
         if os.environ.get("AF_DEBUG"):

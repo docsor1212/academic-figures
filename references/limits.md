@@ -128,7 +128,7 @@
 | `--journal` × `--width` | journal 预设锁定宽度，`--width` 被覆盖（`--height` 仍生效） | 要自定义尺寸就不加 `--journal` |
 | PDF 重叠检测 | 仅 PDF 输出有意义，且**必须显式 `--verify`**（发现重叠→退出码 2，不落盘）；不加则不做像素级检查 | 投稿 PDF 一律加 `--verify` |
 | 默认 DPI | 线条图 600、照片类 300（`--dpi` 72–600 覆盖） | 期刊成品保持默认即可 |
-| 渲染看门狗 | 默认自适应 30–1800s；`--timeout N` 覆盖，`--timeout 0` 禁用 | 超大图适当调大 |
+| 渲染看门狗 | 默认自适应 30–1800s；`--timeout N` 覆盖；`--timeout 0` 禁用自适应预算（保留 7200s 硬保险，负数报错）；瞬时失败自动重试 `--retries N`（默认 1，仅超时/内存） | 超大图适当调大；重试对确定性错误不生效 |
 | journal × theme | `--journal nejm/lancet/science/nature` 未显式 `--theme` 时自动联动同款配色 | 显式 `--theme` 优先 |
 | `--stats multi` × `auto` | 互斥（multi 优先）；两组数据用 auto（multi 需 ≥3 组） | 两组比较选 auto |
 | `--order` | 显式列表须恰好覆盖全部标签（多/少/重复=exit 1）；significance 列索引自动改写；box/violin 重排系列键 | 类别有天然顺序（时间点/剂量）时显式列表 |

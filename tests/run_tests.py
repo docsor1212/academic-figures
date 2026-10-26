@@ -2547,8 +2547,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 6.1.1", self.zh)
-        self.assertIn("version: 6.1.1", self.en)
+        self.assertIn("version: 6.2.0", self.zh)
+        self.assertIn("version: 6.2.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2643,8 +2643,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 6.1.1", self.zh)
-        self.assertIn("version: 6.1.1", self.en)
+        self.assertIn("version: 6.2.0", self.zh)
+        self.assertIn("version: 6.2.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 6.1.1", self.zh)
-        self.assertIn("version: 6.1.1", self.en)
+        self.assertIn("version: 6.2.0", self.zh)
+        self.assertIn("version: 6.2.0", self.en)
 
 
 
@@ -2743,7 +2743,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 6.1.1", zh)
+        self.assertIn("version: 6.2.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2912,7 +2912,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.1.1", t, name)
+            self.assertIn("version: 6.2.0", t, name)
 
 
 
@@ -3001,7 +3001,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.1.1", t, name)
+            self.assertIn("version: 6.2.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3120,7 +3120,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.1.1", t, name)
+            self.assertIn("version: 6.2.0", t, name)
 
 
 
@@ -3187,7 +3187,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.1.1", t, name)
+            self.assertIn("version: 6.2.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6196,6 +6196,111 @@ class TestV61100(unittest.TestCase):
         self.assertIn("无法识别", r.stderr)
 
 
+
+
+
+class TestV62000(unittest.TestCase):
+    """v6.2.0：稳定性双修——瞬时失败自动重试（--retries）+ --timeout 0 硬保险。
+    另含看门狗小预算精度修复（_monitor 步长跟随预算，<1s 预算此前永不触发）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp()
+        cls.data = os.path.join(cls.tmp, "bar.json")
+        with open(cls.data, "w", encoding="utf-8") as f:
+            json.dump({"title": "稳定性探针", "x_label": "组别", "y_label": "数值",
+                       "labels": ["W1", "W2", "W3", "W4", "W5"],
+                       "series": {"对照": [10.2, 11.1, 10.8, 11.3, 10.9],
+                                  "处理": [13.8, 14.2, 13.5, 14.6, 14.1]}},
+                      f, ensure_ascii=False)
+
+    def _run(self, *extra, out="o.png", data=None):
+        p = os.path.join(self.tmp, out)
+        r = subprocess.run([sys.executable, GEN, "-t", "bar",
+                            "-d", data or self.data, "-o", p, *extra],
+                           capture_output=True, text=True, timeout=300)
+        return r, p
+
+    def test_retry_success_transparent(self):
+        """极小预算逼出超时→自动重试链最终成功：exit 0+stderr 透明记录+与一次成功逐字节一致。"""
+        r, p = self._run("--timeout", "0.2", "--retries", "5", out="retry_ok.png")
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        self.assertIn("——自动重试第", r.stderr)
+        self.assertTrue(os.path.exists(p) and os.path.getsize(p) > 10000)
+        r1, p1 = self._run(out="once.png")
+        self.assertEqual(r1.returncode, 0, r1.stderr[-400:])
+        self.assertNotIn("——自动重试第", r1.stderr)
+        with open(p, "rb") as a, open(p1, "rb") as b:
+            self.assertEqual(a.read(), b.read(), "重试成功输出必须与一次成功输出逐字节一致")
+
+    def test_retries_zero_disables(self):
+        """--retries 0：超时单代失败 exit 5，无重试。"""
+        r, _ = self._run("--timeout", "0.1", "--retries", "0", out="r0.png")
+        self.assertEqual(r.returncode, 5, r.stderr[-300:])
+        self.assertNotIn("——自动重试第", r.stderr)
+
+    def test_retries_exhausted_exact_count(self):
+        """重试用尽：仍 exit 5，重试次数恰为 --retries 值。"""
+        r, _ = self._run("--timeout", "0.1", "--retries", "1", out="r1.png")
+        self.assertEqual(r.returncode, 5, r.stderr[-300:])
+        self.assertEqual(r.stderr.count("——自动重试第"), 1)
+
+    def test_deterministic_errors_never_retry(self):
+        """确定性数据错误（exit 3）不重试：--retries 3 也只跑一代。"""
+        bad = os.path.join(self.tmp, "bad.json")
+        with open(bad, "w", encoding="utf-8") as f:
+            json.dump({"title": "x", "series": {"对照": [10.2, 11.1, 10.8]}},
+                      f, ensure_ascii=False)
+        r, _ = self._run("--retries", "3", out="bad.png", data=bad)
+        self.assertEqual(r.returncode, 3, r.stderr[-300:])
+        self.assertNotIn("——自动重试第", r.stderr)
+
+    def test_timeout_negative_rejected(self):
+        """负数预算 exit 1 并给出准确指引。"""
+        r, _ = self._run("--timeout", "-5", out="neg.png")
+        self.assertEqual(r.returncode, 1, r.stderr[-300:])
+        self.assertIn("不接受负数", r.stderr)
+        self.assertIn("--timeout 0", r.stderr)
+
+    def test_timeout_zero_keeps_hard_cap(self):
+        """--timeout 0：禁用自适应预算但硬保险武装（警告+渲染成功）。"""
+        r, p = self._run("--timeout", "0", out="hard.png")
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        self.assertIn("硬保险", r.stderr)
+        self.assertTrue(os.path.exists(p))
+
+    def test_retries_flag_documented(self):
+        """--retries 进 CLI help（中文描述完整）。"""
+        r = subprocess.run([sys.executable, GEN, "--help"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("--retries", r.stdout)
+        self.assertIn("瞬时失败", r.stdout)
+
+    def test_mcp_mirror_import_closure(self):
+        """mcp 镜像依赖闭包：gen_figure 本地 import 的每个 af_* 模块在镜像中都存在。
+        （v6.2.0 事故固化：af_resilience 新增后未进 sync 清单，MCP 侧 import 断链，
+        全量测试绿也抓不到——tests 不跑镜像 import。）"""
+        import re as _re
+        src = open(os.path.join(SCRIPT_DIR, "gen_figure.py"), encoding="utf-8").read()
+        deps = set(_re.findall(r"^from (af_\w+) import", src, _re.M))
+        deps |= set(_re.findall(r"^import (af_\w+)", src, _re.M))
+        self.assertTrue(deps, "应至少解析出一个本地依赖")
+        mirror = os.path.join(SCRIPT_DIR, "..", "mcp", "af_engine")
+        for d in sorted(deps):
+            self.assertTrue(os.path.exists(os.path.join(mirror, d + ".py")),
+                            f"mcp 镜像缺 {d}.py —— 同步进 mcp/sync_engine.sh FILES 清单")
+        sync = open(os.path.join(SCRIPT_DIR, "..", "mcp", "sync_engine.sh"),
+                    encoding="utf-8").read()
+        for d in sorted(deps):
+            self.assertIn(d + ".py", sync,
+                          f"sync_engine.sh FILES 清单缺 {d}.py —— 镜像将随版本漂移")
+
+    def test_diagnostics_advice_matches_mechanism(self):
+        """错误诊断建议与机制一致：不再保留无机制时代的「重跑一次」空头指引。"""
+        src = open(os.path.join(SCRIPT_DIR, "af_diagnostics.py"), encoding="utf-8").read()
+        self.assertNotIn("重跑一次（瞬态问题已支持自动重试）", src)
+        self.assertIn("瞬态失败（超时/内存）会自动重试", src)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
