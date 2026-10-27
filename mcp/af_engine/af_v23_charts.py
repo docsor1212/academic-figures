@@ -1888,9 +1888,221 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
 
 
 
+
+# ── labbe L'Abbé 图（v6.3 第 40 种图型，Meta 四件套收官：forest/funnel/galbraith/labbe） ──
+
+def gen_labbe(data, ax, theme, cjk_fp, **kwargs):
+    """L'Abbé 图（处理组 vs 对照组事件率散点，Meta 分析效应直观化）。
+
+    x=对照组事件率，y=处理组事件率；对角线 y=x 为无效应线（RR=1），
+    DL 随机效应合并 RR 参考线 y=RR·x；点面积 ∝ 研究权重（1/方差）——
+    一眼看出：点在对角线上=处理无效，上方=有害，下方=有益，离合并线远者=异质性嫌疑。
+    数据: {"studies": [{"name": "...", "events_t": n, "n_t": n,
+                        "events_c": n, "n_c": n}, ...]}
+    （处理/对照组事件数与样本总数，2×2 四格表）
+    选项: est_measure（RR/OR，默认 RR——logOR 尺度下参考线非线性，RR 版最直观）、
+    show_labels（bool，默认 <=12 全标注）。
+    """
+    studies = data.get("studies", None)
+    if not studies or not isinstance(studies, list):
+        raise ValueError("labbe: 需要 'studies' 数组，每项含 name/events_t/n_t/events_c/n_c（2×2 四格表）")
+    names, et, nt, ec, nc = [], [], [], [], []
+    for i, s in enumerate(studies):
+        for k, arr in (("events_t", et), ("n_t", nt), ("events_c", ec), ("n_c", nc)):
+            v = s.get(k)
+            if v is None or not isinstance(v, (int, float)) or v < 0:
+                raise ValueError(f"labbe: 研究 {i+1}（{s.get('name', '?')}）的 {k} 非法（须为非负数）")
+            arr.append(float(v))
+        names.append(str(s.get("name", f"研究{i+1}")))
+    et, nt, ec, nc = map(np.asarray, (et, nt, ec, nc))
+    bad = (nt <= 0) | (nc <= 0) | (et > nt) | (ec > nc)
+    if bad.any():
+        i = int(np.where(bad)[0][0])
+        raise ValueError(f"labbe: 研究 {i+1}（{names[i]}）四格表非法（事件数不得超过总数，n 须为正）")
+    if len(et) < 3:
+        raise ValueError("labbe: 至少需要 3 个研究（两点定不了线，三点才有异质性信息）")
+    zero = (ec == 0) | (et == 0)
+    if zero.all():
+        raise ValueError("labbe: 全部研究的事件率均为 0 或对照全零——无法定义效应方向")
+    if zero.any():
+        _warn(f"labbe: {int(zero.sum())} 个研究含零事件格（事件率 0），无法取 log 参与合并，已从合并统计剔除（点仍绘出）")
+
+    measure = str(data.get("est_measure") or "RR").upper()
+    if measure not in ("RR", "OR"):
+        raise ValueError("labbe: est_measure 仅支持 RR/OR")
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 2)
+    c_main = theme["colors"][0]
+    pt = et / nt          # 处理组事件率
+    pc = ec / nc          # 对照组事件率
+
+    # DL 随机效应合并（log 尺度；零格研究剔除）
+    keep = ~zero
+    rr_line = None
+    pooled = None
+    if keep.any():
+        if measure == "RR":
+            es = np.log(pt[keep] / pc[keep])
+        else:
+            a, b_ = et[keep], nt[keep] - et[keep]
+            c_, d_ = ec[keep], nc[keep] - ec[keep]
+            es = np.log((a + 0.5) / (b_ + 0.5) / ((c_ + 0.5) / (d_ + 0.5)))
+        v = 1.0 / et[keep] - 1.0 / nt[keep] + 1.0 / ec[keep] - 1.0 / nc[keep]
+        v = np.maximum(v, 1e-8)
+        ses = np.sqrt(v)
+        pooled = st.dl_pool(es, ses)
+        rr = float(np.exp(pooled["pooled"]))
+        lo = float(np.exp(pooled["pooled"] - 1.96 * pooled["se"]))
+        hi = float(np.exp(pooled["pooled"] + 1.96 * pooled["se"]))
+        hi_cap = min(hi, 1.05 * float(max(pc.max(), pt.max())))
+
+    hi_ax = 1.08 * float(max(pc.max(), pt.max()))
+    ax.plot([0, hi_ax], [0, hi_ax], color="#888888", lw=1.2, ls="--", zorder=2)
+    _rl = "无效应线（RR=1）" if measure == "RR" else "无效应线（OR=1）"
+    import matplotlib.patheffects as _pe
+    _stroke = [_pe.withStroke(linewidth=2.2, foreground="white")]
+    ax.annotate(_rl, (0.055 * hi_ax, 0.055 * hi_ax), ha="left", va="top",
+                xytext=(0, -8), textcoords="offset points", fontsize=fs_s,
+                color="#999999", path_effects=_stroke, zorder=2)
+    if pooled is not None:
+        xg = np.linspace(1e-4, hi_ax, 64)
+        ax.plot(xg, rr * xg, color=c_main, lw=1.6, zorder=3,
+                label=f"合并 {measure}={rr:.2f}（{lo:.2f}~{min(hi, 99):.2f}，随机效应）")
+
+    # 点面积 ∝ 研究权重（1/方差归一到 [30, 320]）
+    var = np.maximum(1.0 / np.maximum(et, 1) - 1.0 / nt + 1.0 / np.maximum(ec, 1) - 1.0 / nc, 1e-8)
+    w = 1.0 / var
+    sizes = 30 + 290 * (w / w.max())
+    ax.scatter(pc, pt, s=sizes, color=c_main, alpha=0.75,
+               edgecolor="#333333", linewidth=0.9, zorder=4)
+
+    show_all = data.get("show_labels")
+    show_all = (len(names) <= 12) if show_all is None else bool(show_all)
+    # 标注朝向=远离合并线的方向（上方点标上侧、下方点标下侧）——
+    # v6.3.0 视觉验收三轮教训：反着放（朝线）必压线割线（UK-1 三轮残留即此因）
+    _rr_eff = rr if pooled is not None else 1.0
+    _above = pt > _rr_eff * pc
+    _diff = np.abs(pt - _rr_eff * pc)              # 点到合并线走廊的距离
+    _on_line = _diff < 0.012   # 骑线点（RR 贴合并线走廊）
+    _anns = []
+    for i, nm in enumerate(names):
+        if show_all:
+            _fp = cjk_fp if cjk_fp and _has_cjk(nm) else None
+            if _on_line[i]:
+                continue  # 骑线点由下方专用引线循环处理
+            if abs(pt[i] - pc[i]) < 0.02:
+                # 两线夹缝点（贴无效应对角线）：上下都是参考线——引线横向左拉到空白
+                _a = ax.annotate(nm, (pc[i], pt[i]), textcoords="offset points",
+                                 xytext=(-26, 14), ha="right", va="bottom",
+                                 fontsize=fs_s, color="#555555", fontproperties=_fp,
+                                 path_effects=_stroke, zorder=6,
+                                 arrowprops=dict(arrowstyle="-", lw=0.8,
+                                                 color="#AAAAAA", shrinkA=1, shrinkB=3))
+                _anns.append((_a, False, nm, float(pc[i]), float(pt[i]),
+                              (-26, 14), "right", fs_s, "#555555", _fp, True))
+                continue
+            if _above[i]:
+                _off, _va = ((8, 14), "bottom") if _diff[i] < 0.025 else ((8, 6), "bottom")
+            else:
+                _off, _va = ((8, -16), "top") if _diff[i] < 0.025 else ((8, -11), "top")
+            _a = ax.annotate(nm, (pc[i], pt[i]), textcoords="offset points",
+                             xytext=_off, ha="left", va=_va, fontsize=fs_s,
+                             color="#555555", fontproperties=_fp,
+                             path_effects=_stroke, zorder=6)
+            _anns.append((_a, False, nm, float(pc[i]), float(pt[i]),
+                          _off, "left", fs_s, "#555555", _fp, False))
+    for i, nm in enumerate(names):
+        if show_all and _on_line[i]:
+            _fp = cjk_fp if cjk_fp and _has_cjk(nm) else None
+            _sx, _sy = ((44, 10) if i % 2 == 0 else (44, -18))  # 奇偶交替，双骑线簇错位
+            _a = ax.annotate(nm, (pc[i], pt[i]), textcoords="offset points",
+                             xytext=(_sx, _sy), ha="left",
+                             va="bottom" if _sy > 0 else "top",
+                             fontsize=fs_s, color="#555555", fontproperties=_fp,
+                             path_effects=_stroke, zorder=6,
+                             arrowprops=dict(arrowstyle="-", lw=0.8,
+                                             color="#AAAAAA", shrinkA=1, shrinkB=3))
+            _anns.append((_a, False, nm, float(pc[i]), float(pt[i]),
+                          (_sx, _sy), "left", fs_s, "#555555", _fp, True))
+    # 紧凑避让（L'Abbé 专用）：小步长候选贴点重试，禁 declutter 大阶梯
+    # （600dpi 下 132pt 阶梯=大幅数据位移→标注悬空，v6.3.0 首轮视觉验收抓出）
+    _dropped = 0
+    if len(_anns) >= 2:
+        import matplotlib.patheffects as _pe2
+        _st2 = [_pe2.withStroke(linewidth=2.2, foreground="white")]
+        _fig = ax.figure
+        _fig.canvas.draw()
+        _rend = _fig.canvas.get_renderer()
+        _placed = []
+        for _a, _out, _nm, _xi, _zi, (_dx, _dy), _ha, _fs, _col, _fp, *_lead in _anns:
+            _leader = _lead[0] if _lead else False
+            _bb = _a.get_window_extent(_rend).expanded(1.10, 1.30)
+            if not any(_bb.overlaps(_p) for _p in _placed):
+                _placed.append(_bb)
+                continue
+            _a.remove()
+            _va0 = "top" if _dy < 0 else "bottom"
+            if _leader:
+                _cands = ()  # 引线项重试仍走引线（贴位=回撞线/邻簇，v6 教训）
+            else:
+                _cands = (( _dx + 4, _dy), (_dx - 14, _dy), (_dx, _dy + (10 if _dy < 0 else -10)),
+                          (_dx, _dy + (16 if _dy < 0 else -16)), (-_dx - 4, _dy))
+            _a2 = None
+            for _ox, _oy in _cands:
+                _t = ax.annotate(_nm, (_xi, _zi), textcoords="offset points",
+                                 xytext=(_ox, _oy), ha="left", va=_va0,
+                                 fontsize=_fs, color=_col, fontproperties=_fp,
+                                 path_effects=_st2, zorder=6)
+                _bt = _t.get_window_extent(_rend).expanded(1.10, 1.30)
+                if not any(_bt.overlaps(_p) for _p in _placed):
+                    _a2 = _t
+                    _placed.append(_bt)
+                    break
+                _t.remove()
+            if _a2 is None:
+                # 引线兜底（v6.3.0 视觉验收多轮教训：簇集点贴位候选会耗尽，
+                # 直接省略=研究缺标注；远置+细引线=不悬空且脱离合并线/邻簇）
+                for _ox, _oy in ((18, 40), (44, 8), (-20, 36), (16, -42),
+                                 (-44, 10), (-44, -16), (44, -32), (8, 52)):
+                    _t = ax.annotate(_nm, (_xi, _zi), textcoords="offset points",
+                                     xytext=(_ox, _oy), ha="left",
+                                     va="bottom" if _oy > 0 else "top",
+                                     fontsize=_fs, color=_col, fontproperties=_fp,
+                                     path_effects=_st2, zorder=6,
+                                     arrowprops=dict(arrowstyle="-", lw=0.8,
+                                                     color="#AAAAAA",
+                                                     shrinkA=1, shrinkB=3))
+                    _bt = _t.get_window_extent(_rend).expanded(1.10, 1.30)
+                    if not any(_bt.overlaps(_p) for _p in _placed):
+                        _a2 = _t
+                        _placed.append(_bt)
+                        break
+                    _t.remove()
+            if _a2 is None:
+                _dropped += 1
+    if _dropped:
+        _warn(f"labbe: {_dropped} 个研究名与相邻标注叠印已省略（数据点仍在图上）")
+
+    ax.set_xlim(0, hi_ax)
+    ax.set_ylim(0, hi_ax)
+    ax.set_aspect("equal", adjustable="box")  # 等比例（对角线视觉 45°；xlim/ylim 已显式同域）
+    xl = str(data.get("x_label") or "对照组事件率")
+    yl = str(data.get("y_label") or "处理组事件率")
+    ax.set_xlabel(xl, fontproperties=cjk_fp if cjk_fp and _has_cjk(xl) else None)
+    ax.set_ylabel(yl, fontproperties=cjk_fp if cjk_fp and _has_cjk(yl) else None)
+    if ax.get_legend_handles_labels()[1]:
+        ax.legend(fontsize=fs - 1, loc="upper left", framealpha=0.9, prop=cjk_fp)
+    if pooled is not None:
+        _warn(f"labbe: DL 随机效应合并 {measure}={rr:.4g}（95%CI {lo:.3g}~{hi:.3g}），"
+              f"异质性 I²={pooled['i2']:.0f}%，P_het={pooled['p_het']:.3g}"
+              f"（合并含 {int(keep.sum())}/{len(et)} 个研究）")
+    return None
+
 EXTRA_GENERATORS = {
     "funnel": gen_funnel,
     "galbraith": gen_galbraith,
+    "labbe": gen_labbe,
     "cif": gen_cif,
     "rmst": gen_rmst,
     "rob": gen_rob,

@@ -347,6 +347,8 @@ def suggest_chart_type(data):
             and isinstance(data["studies"][0], dict) \
             and isinstance(data["studies"][0].get("judgements"), dict):
         recs.append((95, "rob", "studies[] with per-domain judgements (risk of bias traffic light)"))
+    _s0 = (data.get("studies") or [None])[0]
+    if isinstance(_s0, dict) and "events_t" in _s0: recs.append((95, "labbe", "studies[] with 2x2 events_t/n_t/events_c/n_c (L'Abbé plot; funnel needs effect/se instead)"))
     _sk = {str(k).strip().lower() for k in data.get("series", {}) or {}}
     if isinstance(data.get("time"), list) and isinstance(data.get("event"), list) \
             and isinstance(data.get("group"), list):
@@ -3079,15 +3081,13 @@ def main():
             sys.exit(1)
     if getattr(args, "doctor", False):
         _doctor_report(args, data)
-    # ── A1(v2.8)：看门狗武装（--timeout 覆盖自适应预算）──
-    # v6.2.0：0=禁用自适应预算但保留硬保险；负数报错；重试上限全局登记（含子进程继承）
+    # ── A1(v2.8) 看门狗武装 ── v6.2.0：0=禁用自适应预算留硬保险；负数报错；重试上限全局登记
     os.environ["AF_RETRIES_MAX"] = str(max(0, int(getattr(args, "retries", 1))))
     if args.timeout is None or args.timeout > 0:
         _watchdog_arm(args.type, data,
                       budget=None if args.timeout is None else float(args.timeout))
     elif args.timeout == 0:
-        print(f"WARNING: 自适应看门狗已禁用（--timeout 0）——保留 {_WD_HARD_CAP:.0f}s "
-              f"硬保险防无限挂起（AF_NO_WATCHDOG=1 可完全关闭）", file=sys.stderr)
+        print(f"WARNING: 自适应看门狗已禁用（--timeout 0）——保留 {_WD_HARD_CAP:.0f}s 硬保险防无限挂起（AF_NO_WATCHDOG=1 可完全关闭）", file=sys.stderr)
         _watchdog_arm(args.type, data, budget=_WD_HARD_CAP)
     else:
         print(f"ERROR: --timeout 不接受负数（{args.timeout:g}）；禁用自适应预算请用 "
@@ -3550,8 +3550,8 @@ def _watchdog_arm(chart_type, data, budget=None):
         print("建议2: 调大预算 --timeout 600；或本图禁用看门狗 --timeout 0",
               file=sys.stderr)
         print("建议3: composite 面板过多时拆成多图分别渲染", file=sys.stderr)
-        rc = _spawn_retry(5)  # v6.2.0：超时=资源类瞬时失败，预算放宽后自动重跑
-        os._exit(5 if rc is None else rc)
+        rc = _spawn_retry(5)
+        os._exit(5 if rc is None else rc)  # rc=重试进程最终退出码；None=未重试按 5
 
     def _monitor():
         warned = set()

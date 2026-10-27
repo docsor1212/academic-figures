@@ -1140,7 +1140,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 39, f"expected 39 templates (+rob v6.1), got {len(jsons)}")
+        self.assertEqual(len(jsons), 40, f"expected 40 templates (+labbe v6.3), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2562,8 +2562,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 6.2.0", self.zh)
-        self.assertIn("version: 6.2.0", self.en)
+        self.assertIn("version: 6.3.0", self.zh)
+        self.assertIn("version: 6.3.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2660,8 +2660,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 6.2.0", self.zh)
-        self.assertIn("version: 6.2.0", self.en)
+        self.assertIn("version: 6.3.0", self.zh)
+        self.assertIn("version: 6.3.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2694,8 +2694,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 6.2.0", self.zh)
-        self.assertIn("version: 6.2.0", self.en)
+        self.assertIn("version: 6.3.0", self.zh)
+        self.assertIn("version: 6.3.0", self.en)
 
 
 
@@ -2762,7 +2762,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 6.2.0", zh)
+        self.assertIn("version: 6.3.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2904,7 +2904,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "39 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "40 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2935,7 +2935,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.2.0", t, name)
+            self.assertIn("version: 6.3.0", t, name)
 
 
 
@@ -3026,7 +3026,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.2.0", t, name)
+            self.assertIn("version: 6.3.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3147,7 +3147,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.2.0", t, name)
+            self.assertIn("version: 6.3.0", t, name)
 
 
 
@@ -3216,7 +3216,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.2.0", t, name)
+            self.assertIn("version: 6.3.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4047,8 +4047,8 @@ class TestV47000(unittest.TestCase):
         rw = os.path.join(base, "examples", "realworld")
         self.assertTrue(os.path.isdir(rw), "examples/realworld/ 缺失")
         rws = sorted(os.listdir(rw))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 17,
-                         f"realworld 示例应 17 个: {rws}")
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 18,
+                         f"realworld 示例应 18 个: {rws}")
 
 
 class TestV48000(unittest.TestCase):
@@ -4921,7 +4921,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 39)
+        self.assertEqual(len(jsons), 40)
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5452,9 +5452,9 @@ class TestV50600(unittest.TestCase):
         """计数锁收口：模板 37 / realworld 12 / 新字段白名单（v5.7 起 cif+mgus2 入列）。"""
         root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
-        self.assertEqual(len(tpls), 39, f"模板应 39 个: {len(tpls)}")
+        self.assertEqual(len(tpls), 40, f"模板应 40 个: {len(tpls)}")
         rws = os.listdir(os.path.join(root, "examples", "realworld"))
-        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 17,
+        self.assertEqual(len([x for x in rws if x.endswith(".json")]), 18,
                          f"realworld 应 14 个: {rws}")
         from af_diagnostics import _KNOWN_DATA_FIELDS
         for fld in ("arcs", "share_y", "est_label"):
@@ -5681,15 +5681,15 @@ class TestV50700(unittest.TestCase):
         """v5.7.0 计数锁：38 模板/注册表≥38/README 38 chart types/realworld 13（v5.9 +rmst/+colon）。"""
         root = os.path.join(SCRIPT_DIR, "..")
         jsons = glob.glob(os.path.join(root, "templates", "*.json"))
-        self.assertEqual(len(jsons), 39, f"templates 应 39: {len(jsons)}")
+        self.assertEqual(len(jsons), 40, f"templates 应 40: {len(jsons)}")
         sys.path.insert(0, SCRIPT_DIR)
         import gen_figure
-        self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 39)
+        self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 40)
         readme = io.open(os.path.join(root, "README.md"), encoding="utf-8").read()
-        self.assertIn("39 chart types", readme)
+        self.assertIn("40 chart types", readme)
         rws = [x for x in os.listdir(os.path.join(root, "examples", "realworld"))
                if x.endswith(".json")]
-        self.assertEqual(len(rws), 17, f"realworld 应 17: {rws}")
+        self.assertEqual(len(rws), 18, f"realworld 应 18: {rws}")
         from af_diagnostics import _KNOWN_DATA_FIELDS
         for fld in ("cause_labels", "compare_km", "percent", "time_unit", "y_max"):
             self.assertIn(fld, _KNOWN_DATA_FIELDS, f"cif 字段 {fld} 须进白名单")
@@ -6337,6 +6337,82 @@ class TestV62000(unittest.TestCase):
         self.assertNotIn("重跑一次（瞬态问题已支持自动重试）", src)
         self.assertIn("瞬态失败（超时/内存）会自动重试", src)
 
+class TestV63000(unittest.TestCase):
+    """v6.3.0：L'Abbé 图 #40（Meta 四件套收官）——Fleiss 1993 阿司匹林 7 RCT 金标
+    （DL RR 与独立实现逐位互拍+MH OR 复现文献 ≈0.90）+骑线/夹缝点引线标注机制。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rw = os.path.join(SCRIPT_DIR, "..", "examples", "realworld",
+                              "cardio_fleiss93_aspirin_labbe.json")
+        cls.tpl = os.path.join(SCRIPT_DIR, "..", "templates", "labbe.json")
+
+    def _run(self, data, *extra):
+        out = os.path.join(tempfile.mkdtemp(), "labbe.png")
+        return subprocess.run([sys.executable, GEN, "-t", "labbe", "-d", data,
+                               "-o", out, "--cjk", *extra],
+                              capture_output=True, text=True, timeout=300)
+
+    def test_fleiss93_golden(self):
+        """Fleiss93 金标：渲染成功+DL 合并 RR=0.873/I²=40%（独立实现逐位互拍锚）。"""
+        r = self._run(self.rw)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        self.assertIn("RR=0.873", r.stderr)
+        self.assertIn("0.764", r.stderr)
+        self.assertIn("I²=40%", r.stderr)
+
+    def test_template_renders(self):
+        """模板渲染成功（40 号模板）。"""
+        r = self._run(self.tpl)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+
+    def test_or_measure(self):
+        """est_measure=OR 合法渲染（stdout 诊断走 OR 口径）。"""
+        import json as _json
+        base = _json.load(open(self.rw, encoding="utf-8"))
+        base["est_measure"] = "OR"
+        p = os.path.join(tempfile.mkdtemp(), "or.json")
+        _json.dump(base, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+        r = self._run(p)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        self.assertIn("OR=", r.stderr)
+
+    def test_schema_bad_cell_fatal(self):
+        """四格表非法（事件数>总数）→ exit 3 中文报错。"""
+        import json as _json
+        base = _json.load(open(self.rw, encoding="utf-8"))
+        base["studies"][0]["events_t"] = 9999
+        p = os.path.join(tempfile.mkdtemp(), "bad.json")
+        _json.dump(base, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+        r = self._run(p)
+        self.assertEqual(r.returncode, 3, r.stderr[-300:])
+        self.assertIn("四格表非法", r.stderr)
+
+    def test_min_studies(self):
+        """2 个研究 → exit 3（至少 3 个才有异质性信息）。"""
+        import json as _json
+        base = _json.load(open(self.rw, encoding="utf-8"))
+        base["studies"] = base["studies"][:2]
+        p = os.path.join(tempfile.mkdtemp(), "two.json")
+        _json.dump(base, open(p, "w", encoding="utf-8"), ensure_ascii=False)
+        r = self._run(p)
+        self.assertEqual(r.returncode, 3, r.stderr[-300:])
+        self.assertIn("至少需要 3 个", r.stderr)
+
+    def test_suggest_recognises_2x2(self):
+        """--suggest：studies[] 含 events_t 四格表 → 推荐 labbe。"""
+        import json as _json
+        base = _json.load(open(self.rw, encoding="utf-8"))
+        recs = gen_figure.suggest_chart_type(base)
+        types = [tp for _, tp, _ in recs]
+        self.assertIn("labbe", types, f"suggest 未识别 2×2 四格表: {recs}")
+
+    def test_no_false_field_warning(self):
+        """est_measure/show_labels 已入白名单——渲染无假字段告警。"""
+        r = self._run(self.rw)
+        self.assertEqual(r.returncode, 0)
+        self.assertNotIn("不是有效字段", r.stderr)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
-

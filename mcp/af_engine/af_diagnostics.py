@@ -122,6 +122,7 @@ _KNOWN_DATA_FIELDS = [
   "arcs", "share_y",
   "cause_labels", "compare_km", "percent", "time_unit", "y_max",
   "domains", "judgements", "title"
+    "events_t", "n_t", "events_c", "n_c", "est_measure", "show_labels",
 ]
 
 
