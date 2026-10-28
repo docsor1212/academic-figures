@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 6.4.0
+version: 6.4.1
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 6.4.0
+  version: 6.4.1
   date: 2026-10-29
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -398,7 +398,7 @@ Code layout: `scripts/gen_figure.py` (main, 37 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v6.4.0** `--debug` structured failure sidecar (`<output>.debug.json`: input fingerprint / field mapping / diagnosis — programmatic troubleshooting; success renders emit nothing) + doc-density guard locks; **v6.3.0** L'Abbé plot (`-t labbe`, chart #40, meta quartet complete; leader-line labels; Fleiss 1993 gold lock). Older releases: see changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v6.4.1** KM 统计框标签动态降级（CI 不可估不标 95%CI；p 与显著性加分隔）+镜像测试自适应补漏；**v6.4.0** `--debug` structured failure sidecar (`<output>.debug.json`: input fingerprint / field mapping / diagnosis — programmatic troubleshooting; success renders emit nothing) + doc-density guard locks; **v6.3.0** L'Abbé plot (`-t labbe`, chart #40, meta quartet complete; leader-line labels; Fleiss 1993 gold lock). Older releases: see changelog.
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 

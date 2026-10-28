@@ -1019,6 +1019,7 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
 
     # ── 自动中位生存（原始数据组；用户传 median_survival 仍画竖线，互不冲突）──
     median_notes = []
+    _med_ci = [0, 0]  # v6.4.0：[带CI组数, 显示数值组数]——CI 缺失时标签须降级
     if kwargs.get("median_auto", True) and raw_groups and _afstats is not None:
         for gname in group_names:
             if gname not in raw_groups or (median_survival and gname in median_survival):
@@ -1036,13 +1037,16 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
             else:
                 if clo is not None and chi_ is not None:
                     median_notes.append(f"{gname}: {med:g}（{clo:g}~{chi_:g}）")
+                    _med_ci[0] += 1
                 else:
                     median_notes.append(f"{gname}: {med:g}")
+                _med_ci[1] += 1
                 if median_survival is None:
                     median_survival = {}
                 median_survival.setdefault(gname, med)
         if median_notes:
-            print("km: 自动中位生存（95%CI）：" + "；".join(median_notes), file=sys.stderr)
+            _ml = "中位生存（95%CI）" if _med_ci[1] > 0 and _med_ci[0] == _med_ci[1] else "中位生存"
+            print("km: 自动" + _ml + "：" + "；".join(median_notes), file=sys.stderr)
         if log_rank is not None:
             method = log_rank.get("method", "log-rank")
             p_val = log_rank.get("p")
@@ -1052,14 +1056,16 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
                 p_val = 1.0
             p_str = f"p = {p_val:.3f}" if p_val >= 0.001 else "p < 0.001"
             sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "NS"
-            _box_lines = [f"{method} {p_str}{sig}"]
+            _box_lines = [f"{method} {p_str} {sig}" if sig else f"{method} {p_str}"]
             if median_notes:
-                _box_lines.append("中位生存（95%CI）")
+                _ml = "中位生存（95%CI）" if _med_ci[1] > 0 and _med_ci[0] == _med_ci[1] else "中位生存"
+                _box_lines.append(_ml)
                 _box_lines += median_notes[:4]
             _km_note_box(ax, "\n".join(_box_lines), cjk_fp)
             median_notes = []
         if median_notes:
-            _km_note_box(ax, "中位生存（95%CI）\n" + "\n".join(median_notes[:4]), cjk_fp)
+            _ml = "中位生存（95%CI）" if _med_ci[1] > 0 and _med_ci[0] == _med_ci[1] else "中位生存"
+            _km_note_box(ax, _ml + "\n" + "\n".join(median_notes[:4]), cjk_fp)
 
     # ── 风险表（自动计算；独立坐标轴与主图共享 x 轴）──
     rendered = False
