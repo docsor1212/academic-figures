@@ -2562,8 +2562,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 6.3.0", self.zh)
-        self.assertIn("version: 6.3.0", self.en)
+        self.assertIn("version: 6.4.0", self.zh)
+        self.assertIn("version: 6.4.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2660,8 +2660,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 6.3.0", self.zh)
-        self.assertIn("version: 6.3.0", self.en)
+        self.assertIn("version: 6.4.0", self.zh)
+        self.assertIn("version: 6.4.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2694,8 +2694,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 6.3.0", self.zh)
-        self.assertIn("version: 6.3.0", self.en)
+        self.assertIn("version: 6.4.0", self.zh)
+        self.assertIn("version: 6.4.0", self.en)
 
 
 
@@ -2762,7 +2762,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 6.3.0", zh)
+        self.assertIn("version: 6.4.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2935,7 +2935,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.3.0", t, name)
+            self.assertIn("version: 6.4.0", t, name)
 
 
 
@@ -3026,7 +3026,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.3.0", t, name)
+            self.assertIn("version: 6.4.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3147,7 +3147,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.3.0", t, name)
+            self.assertIn("version: 6.4.0", t, name)
 
 
 
@@ -3216,7 +3216,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.3.0", t, name)
+            self.assertIn("version: 6.4.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6412,6 +6412,73 @@ class TestV63000(unittest.TestCase):
         r = self._run(self.rw)
         self.assertEqual(r.returncode, 0)
         self.assertNotIn("不是有效字段", r.stderr)
+
+
+class TestV64000(unittest.TestCase):
+    """v6.4.0：--debug 结构化失败诊断侧车（评测建议②落地）+ SKILL 体积守卫锁
+    （progressive 4.5 根因=文档膨胀的机制化防回潮）。"""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.bad = os.path.join(self.tmp, "bad.json")
+        with open(self.bad, "w", encoding="utf-8") as f:
+            f.write('{"title":"x","series":{"对照":[10.2,11.1,10.8]}}')
+        self.good = os.path.join(self.tmp, "good.json")
+        with open(self.good, "w", encoding="utf-8") as f:
+            json.dump({"labels": ["A", "B"], "series": {"S1": [1, 2], "S2": [3, 4]}}, f)
+
+    def _run(self, data, out, *extra):
+        return subprocess.run([sys.executable, GEN, "-t", "bar", "-d", data,
+                               "-o", os.path.join(self.tmp, out), "--retries", "0", *extra],
+                              capture_output=True, text=True, timeout=300)
+
+    def test_debug_sidecar_on_failure(self):
+        """失败+--debug → <output>.debug.json（schema/字段映射/诊断/异常分类）。"""
+        r = self._run(self.bad, "dbg.png", "--debug")
+        self.assertEqual(r.returncode, 3, r.stderr[-300:])
+        side = os.path.join(self.tmp, "dbg.png.debug.json")
+        self.assertTrue(os.path.exists(side), "侧车未生成")
+        rep = json.load(open(side, encoding="utf-8"))
+        self.assertEqual(rep["schema"], "af-debug/1")
+        self.assertEqual(rep["chart_type"], "bar")
+        self.assertEqual(rep["fields_seen"], ["title", "series"])
+        self.assertIn("exception", rep)
+        self.assertIn("diagnosis", rep)
+        self.assertIn("input", rep)
+
+    def test_no_sidecar_without_flag(self):
+        """失败但未加 --debug → 不产出侧车（默认行为零变化）。"""
+        r = self._run(self.bad, "nodbg.png")
+        self.assertEqual(r.returncode, 3)
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "nodbg.png.debug.json")))
+
+    def test_no_sidecar_on_success(self):
+        """成功渲染即使加 --debug 也不产出侧车。"""
+        r = self._run(self.good, "ok.png", "--debug")
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertFalse(os.path.exists(os.path.join(self.tmp, "ok.png.debug.json")))
+
+    def test_debug_flag_documented(self):
+        """--debug 进 CLI help。"""
+        r = subprocess.run([sys.executable, GEN, "--help"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("--debug", r.stdout)
+        self.assertIn("诊断侧车", r.stdout)
+
+    def test_skill_size_guard(self):
+        """体积守卫锁：SKILL 双语 ≤33000 字节 + 近期版本行 ≤700 字符
+        （progressive 失分根因=文档膨胀；此锁防任何版本悄悄发胖）。"""
+        for fname in ("SKILL.md", "SKILL_ZH.md"):
+            p = os.path.join(SCRIPT_DIR, "..", fname)
+            raw = open(p, "rb").read()
+            self.assertLessEqual(len(raw), 33000, f"{fname} {len(raw)}B 超 33000 守卫线")
+            recent = [l for l in raw.decode("utf-8").splitlines()
+                      if l.startswith(("Full bilingual history:", "完整双语版本历史见"))]
+            self.assertEqual(len(recent), 1, f"{fname} 近期行缺失或重复")
+            self.assertLessEqual(len(recent[0]), 700,
+                                 f"{fname} 近期版本行 {len(recent[0])} 字符超 700 "
+                                 "（历史堆砌→下沉 changelog.md）")
 
 
 if __name__ == "__main__":

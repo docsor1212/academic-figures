@@ -32,6 +32,8 @@ import numpy as np
 # v3.0.0 模块化：wizard 与异常诊断系统拆至独立模块（原名在此命名空间可用）
 from af_wizard import _run_wizard
 from af_resilience import spawn_retry as _spawn_retry, wd_scale as _wd_scale  # v6.2.0
+from af_diagnostics import write_debug_report as _write_debug_report
+_LAST_ARGS = None  # v6.4.0 --debug：main 局部 args 登记模块级，__main__ 异常层读
 from af_diagnostics import (_EXIT_DATA_CLASSES, _EXIT_ENV_CLASSES,
                             _classify_exit_code, _diagnose_exception,
                             _print_v3_error, _EXC_ZH_V3, _DIAG_PATTERNS,
@@ -2657,9 +2659,11 @@ def main():
     parser.add_argument("--timeout", type=float, default=None,
                         help="渲染看门狗预算（秒）：超时强制中断并给中文建议（exit 5）；"
                              "0=禁用自适应预算（保留硬保险）；默认自适应 30~1800s")
+    parser.add_argument("--debug", action="store_true",
+                        help="渲染失败时输出结构化诊断侧车 <output>.debug.json（输入指纹/字段"
+                             "映射/异常分类/修复建议，供程序化排障）；成功渲染不产出")
     parser.add_argument("--retries", type=int, default=1, metavar="N",
-                        help="瞬时失败自动重试次数：看门狗超时/内存耗尽时自动重跑（每代"
-                             "预算放宽 ×1.5）；重叠/数据等确定性错误不重试；0=关闭；默认 1")
+                        help="瞬时失败自动重试次数：看门狗超时/内存耗尽自动重跑（每代预算放宽 ×1.5）；确定性错误不重试；0=关闭；默认 1")
     parser.add_argument("--downsample", type=int, default=None, metavar="N",
                         help="cluster_heatmap 行数超过 N 时等距采样到 N 行（确定性采样）")
     parser.add_argument("--size", default=None,
@@ -3082,6 +3086,7 @@ def main():
     if getattr(args, "doctor", False):
         _doctor_report(args, data)
     # ── A1(v2.8) 看门狗武装 ── v6.2.0：0=禁用自适应预算留硬保险；负数报错；重试上限全局登记
+    global _LAST_ARGS; _LAST_ARGS = args
     os.environ["AF_RETRIES_MAX"] = str(max(0, int(getattr(args, "retries", 1))))
     if args.timeout is None or args.timeout > 0:
         _watchdog_arm(args.type, data,
@@ -3090,8 +3095,7 @@ def main():
         print(f"WARNING: 自适应看门狗已禁用（--timeout 0）——保留 {_WD_HARD_CAP:.0f}s 硬保险防无限挂起（AF_NO_WATCHDOG=1 可完全关闭）", file=sys.stderr)
         _watchdog_arm(args.type, data, budget=_WD_HARD_CAP)
     else:
-        print(f"ERROR: --timeout 不接受负数（{args.timeout:g}）；禁用自适应预算请用 "
-              f"--timeout 0（保留硬保险）", file=sys.stderr)
+        print(f"ERROR: --timeout 不接受负数（{args.timeout:g}）；禁用自适应预算请用 --timeout 0（保留硬保险）", file=sys.stderr)
         sys.exit(1)
     cjk_fp = None
     # Auto-detect: scan displayable text for CJK chars
@@ -3583,17 +3587,13 @@ if __name__ == "__main__":
         sys.exit(130)
     except SystemExit as e:
         code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
-        rc = _spawn_retry(code)  # v6.2.0：内存类瞬时失败（exit 6）自动重试
+        rc = _spawn_retry(code)
         if rc is not None:
             sys.exit(rc)
         raise
-    except (ValueError, KeyError, FileNotFoundError, json.JSONDecodeError) as e:
-        if os.environ.get("AF_DEBUG"):
-            raise
-        _print_v3_error(e)
-        sys.exit(_classify_exit_code(e))
-    except Exception as e:  # A2 v3：未知异常 → 中文诊断 + 原文保留 + 针对性建议
+    except Exception as e:  # v3 中文诊断 + v6.4.0 --debug 结构化侧车（两分支行为本相同，去重）
         if os.environ.get("AF_DEBUG"):
             raise  # 维护者/反馈通道：完整 traceback
         _print_v3_error(e)
+        if _LAST_ARGS is not None and getattr(_LAST_ARGS, "debug", False): _write_debug_report(_LAST_ARGS, e, getattr(_LAST_ARGS, "out", None))
         sys.exit(_classify_exit_code(e))

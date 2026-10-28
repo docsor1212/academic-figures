@@ -16,6 +16,14 @@ ROBINS-I 数据完整渲染）；「Unclear」归入顾虑档（ROB1 旧措辞�
 工具真实数据示例（robvis 包：data_rob1 9×7、data_robins_e 10×7 含极高档、
 data_quadas 12×4）；三图经逐格矩阵审核（72/80/60 格 diff=0）。
 
+## 6.1.0 — 2026-10-26
+
+偏倚风险交通灯图（第 39 图型，robvis 同款）：研究×域网格（判定中英同义词
+均可）+各域摘要占比条；Overall 列入网格不入摘要；配色固定语义。另将
+「谁拟合、谁可视化」三层能力矩阵写入双语 SKILL 正文（明确 subgroup
+--stats cox 即引擎拟合、nomogram/rcs 仍为可视化路径），--suggest 新增
+rob 结构与原始 time/event/group 长表识别。真实示例=robvis 包数据（9 项研究）。
+
 ## 6.0.0 — 2026-10-24
 
 CSV 误差列约定（官方评测点名缺口收口）：列名 `X_se/X_sem/X_sd/X_err`
@@ -23,43 +31,6 @@ CSV 误差列约定（官方评测点名缺口收口）：列名 `X_se/X_sem/X_s
 并按普通数据保留；`--csv-no-errors` 逃生门；无后缀常规 CSV 零变化。
 
 > 本文件为完整双语版本历史；主文档只保留最近三个版本。
-
-## English
-
-## Version History
-
-## 6.1.1 — 2026-10-26
-
-rob 判定扩展：Very high/critical→极高档（深红 V）；Unclear/unclear risk→
-顾虑档；堆叠序 L→S→H→VH→NI；图例只列在场类别（修循环变量泄漏——
-present 判定误用外层循环残留的域键 k，只扫最后一个域）；图例下移
-（bbox -0.14→-0.28）避开旋转域标签；domains/judgements/title 入
-_KNOWN_DATA_FIELDS 白名单。三个官方工具真实数据示例随包：
-evidence_rob1_cochrane_rct（9×7）、evidence_robins_nonrandomized（10×7
-含 VH）、evidence_quadas_diagnostic（12×4）。三图经逐格矩阵审核
-（9×8=72、10×8=80、12×5=60 全格 diff=0）+摘要条像素核验。
-
-## 6.1.0 — 2026-10-26
-
-rob 偏倚风险交通灯图（第 39 图型）：studies=[{name, judgements}]（2~50 项），
-domains 可选（缺省取自首研究键序，2~12 域），判定同义词表（Low/L/低风险、
-Some concerns/S/有一定顾虑、High/H/高风险、No information/NI/无信息——大小写
-不敏感）；未知判定值/缺域一律中文报错。渲染：单轴双区（上=交通灯网格
-scatter 圆点+字母兜底，下=各域摘要占比条；Overall 列分隔线+不入摘要）；
-图例图下方外侧（bbox tight 完整收入，不遮摘要条——视觉门首轮逮住右下图例
-遮挡后改位）。配色固定语义（绿/琥珀/红/灰，与主题无关）。能力矩阵三层表进
-双语 SKILL 正文；--suggest 两条新规则（rob 结构/原始生存长表→一键亚组）。
-真实示例 evidence_rob2_metformin（robvis 包 data_rob2，9 研究×5 域+Overall，
-McGuinness & Higgins 2019）。金标：各域计数逐项锁+守卫三态+CLI e2e。
-
-## 6.0.0 — 2026-10-24
-
-CSV 误差列约定：X_se/X_sem/X_sd/X_err 后缀列（大小写不敏感）自动配对主列
-X → errors 契约（bar 族误差棒），误差列不再误画成柱；X_sd+X_n → SEM=sd/√n
-自动换算并在 stderr 注明口径；孤儿列/行数不符 → 中文告警+按普通数据保留；
---csv-no-errors 逃生门。官方评测（10-24，均分 4.867）summary 点名
-「CSV 模式不支持误差棒」的机制根治。版本 major 进位（红线 4：minor 到 9
-进 major）。电池 TestV60000 五态锁（sem 配对/sd+n 换算/孤儿/逃生门/零变化）。
 
 ## 5.9.2 — 2026-10-24
 
@@ -99,6 +70,41 @@ P 交互（含/不含 trt×层指示项的 2Δloglik，χ²，df=层−1）+Over
 第①期教学视频制备脚本标签-掩膜对调（var=(age<60) 时键 0=var==0=≥60），
 本版金标即为此类错误的一票否决闸。附 ADR-0001 巨石拆解计划 + GitHub
 Actions CI + 行预算守卫 3400→3600。
+
+## 5.7.1 — 2026-10-21
+
+galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整条弧线保留=无读数
+噪声——修为弧线与读数一同省略，并加「Arc 数==读数数」配对测试锁。
+（本节为后补整理：5.7.1 发布时的 changelog 详情漏写，内容依据发版归档记忆恢复。）
+
+## 5.7.0 — 2026-10-21
+
+  - **New chart type #37: `cif` — competing-risk cumulative incidence
+    (Aalen-Johansen)**: per-cause CIF step curves; dashed 1−KM naive reference
+    shows how treating competing events as censored overestimates the target
+    event (on a real Mayo Clinic mgus2 cohort of 1384 subjects the gap is
+    +45.5 percentage points). Long-format `time`+`event` integer codes
+    (0=censored, 1=target event, ≥2=competing), `cause_labels`, `percent`,
+    `time_unit`, `compare_km` (auto = draw the reference only when competing
+    events exist); stderr reports event counts, end-of-follow-up CIF per
+    cause and the overestimation in percentage points. Single cohort —
+    multi-arm data is routed to `-t km` (built-in AJ auto mode since v3.7,
+    which now also points to the dedicated chart). Real-world example:
+    `examples/realworld/hematology_mgus_cif.json`.
+  - **Centralized anti-patterns page**: `references/antipatterns.md` — one
+    page of what NOT to do (wrong chart for the data, data-prep traps,
+    flag conflicts, statistical misreads, export mistakes), each entry with
+    consequence + fix + cross-links into faq/pitfalls/limits; linked from
+    SKILL.md/SKILL_ZH.md routing tables.
+  - **Galbraith polish**: arc-label density relaxed (min spacing 10%→7.5% of
+    the axis span, collision detection still guards glyphs) + a small
+    no-effect reference label (`OR=1` on ratio scales, `差值=0` otherwise).
+  - **Mechanism: `--list-types`** prints the authoritative chart registry
+    (one per line); `mcp/server.py` now refreshes its chart list from the
+    engine at startup (fallback list aligned with the v5.7 registry — the
+    hardcoded list had drifted a dozen charts behind).
+  - `--suggest` now recommends `cif` (score 96) when `time`+`event` contains
+    competing-risk codes; scenario quick-reference in CLI help updated.
 
 ## 5.6.1 — 2026-10-20
 
@@ -347,7 +353,6 @@ Actions CI + 行预算守卫 3400→3600。
     render, suggest routing, zero-variance degradation); template lock 26→27;
     suite at 335 green.
 
-
 ## 4.8.0 — 2026-10-10
 
   - **New chart type #26: `waterfall` — oncology best-response waterfall**: one
@@ -387,7 +392,6 @@ Actions CI + 行预算守卫 3400→3600。
     line, no-false-warning lock, --alt content lock, threshold-equality +
     NaN lock, 26-patient label-survival lock); realworld lock 3→4; suite at
     329 green.
-
 
 ## 4.7.0 — 2026-10-09
 
@@ -434,7 +438,6 @@ Actions CI + 行预算守卫 3400→3600。
   - Tests: +TestV47000 (upset E2E render, validate fatals, registry count 25,
     demo-data render, suggest routing, composite-panel rejection, new reference
     docs present); template count lock 24→25; suite at 318 green.
-
 
 ## 4.6.0 — 2026-10-08
 
@@ -931,6 +934,10 @@ Actions CI + 行预算守卫 3400→3600。
 - **v1.2.0** (2026-05-16) — Added version metadata, requires declaration, negative triggers, file structure docs
 - **v1.1.0** — Added auto CJK detection, CSV long-format auto-conversion, empty data validation
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
+
+## English
+
+## Version History
 
 ## 中文
 
