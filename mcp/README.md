@@ -1,6 +1,6 @@
 # academic-figures-mcp
 
-23 种投稿级学术图型的 MCP Server（FastMCP）：bar/line/km（含竞争风险）/forest/roc/slope/composite/prisma…，
+40 种投稿级学术图型的 MCP Server（FastMCP，数量随引擎注册表自动增长）：bar/line/km（含竞争风险）/forest/roc/slope/composite/prisma…，
 本地确定性渲染（同输入同字节）、中文零配置、数据校验+渲染看门狗+退出码语义全继承自
 [academic-figures](https://github.com/docsor1212/academic-figures) 引擎。
 
@@ -39,7 +39,7 @@ Codex：`codex mcp add academic-figures -- uvx --from "git+https://github.com/do
 
 | tool | 说明 |
 |---|---|
-| `render_chart` | 全图型渲染（随引擎注册表，当前 27 种）：`chart` + `data`（JSON/CSV 文本）+ `options`（title/subtitle/source/xlabel/ylabel/theme/journal/column/verify/peak_label/summary…）+ `dpi`（72–600）+ `fmt`；回预览 base64 + 成品落盘路径；重叠检出返回 `overlap_detected`（修复机制，不交付） |
+| `render_chart` | 全图型渲染（随引擎注册表，当前 40 种）：`chart` + `data`（JSON/CSV 文本）+ `options`（title/subtitle/source/xlabel/ylabel/theme/journal/column/verify/peak_label/summary…）+ `dpi`（72–600）+ `fmt`；回预览 base64 + 成品落盘路径；重叠检出返回 `overlap_detected`（修复机制，不交付） |
 | `suggest_chart` | 数据驱动图型推荐 |
 | `doctor` | 渲染前参数/环境体检（只体检不渲染） |
 

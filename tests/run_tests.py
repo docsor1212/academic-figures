@@ -2248,6 +2248,8 @@ class TestV280DocCount(unittest.TestCase):
 
     _ALIASES = {"horizontal_bar", "boxplot", "survival"}  # 纯别名，不计为独立图型
     _DOC_FILES = ["SKILL.md", "SKILL_ZH.md",
+                  os.path.join("mcp", "README.md"),
+                  os.path.join("references", "cheatsheet.md"),
                   os.path.join("templates", "README.md"),
                   os.path.join("references", "limits.md"),
                   os.path.join("references", "faq.md"),
@@ -2262,7 +2264,7 @@ class TestV280DocCount(unittest.TestCase):
         n = len(gen_figure.GENERATORS) - len(self._ALIASES)
         self.assertGreaterEqual(n, 22, f"注册表图型数异常减少: {n}")
         root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
-        pat = re.compile(r"(\d+)\s*(?:种图表|种图型|chart types)")
+        pat = re.compile(r"(\d+)\s*(?:种图表|种图型|种投稿级学术图型|chart types)")
         claims, bad = [], []
         for rel in self._DOC_FILES:
             p = os.path.join(root, rel)
@@ -2562,8 +2564,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 6.4.1", self.zh)
-        self.assertIn("version: 6.4.1", self.en)
+        self.assertIn("version: 6.5.0", self.zh)
+        self.assertIn("version: 6.5.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2660,8 +2662,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 6.4.1", self.zh)
-        self.assertIn("version: 6.4.1", self.en)
+        self.assertIn("version: 6.5.0", self.zh)
+        self.assertIn("version: 6.5.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2694,8 +2696,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 6.4.1", self.zh)
-        self.assertIn("version: 6.4.1", self.en)
+        self.assertIn("version: 6.5.0", self.zh)
+        self.assertIn("version: 6.5.0", self.en)
 
 
 
@@ -2762,7 +2764,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 6.4.1", zh)
+        self.assertIn("version: 6.5.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2935,7 +2937,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.4.1", t, name)
+            self.assertIn("version: 6.5.0", t, name)
 
 
 
@@ -3026,7 +3028,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.4.1", t, name)
+            self.assertIn("version: 6.5.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3147,7 +3149,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.4.1", t, name)
+            self.assertIn("version: 6.5.0", t, name)
 
 
 
@@ -3216,7 +3218,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.4.1", t, name)
+            self.assertIn("version: 6.5.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6467,6 +6469,19 @@ class TestV64000(unittest.TestCase):
         self.assertEqual(r.returncode, 0)
         self.assertIn("--debug", r.stdout)
         self.assertIn("诊断侧车", r.stdout)
+
+    def test_engine_header_version_sync(self):
+        """gen_figure.py 顶部注释版本必须与 SKILL 版本一致（评测 accuracy 4.5 点名
+        「代码顶部版本注释仍显示 2.0.0」——此前 bump 从不触碰头注释）。"""
+        import re as _re
+        src = open(os.path.join(SCRIPT_DIR, "gen_figure.py"), encoding="utf-8").read()
+        m = _re.search(r"academic-figures v([\d.]+):", src)
+        self.assertIsNotNone(m, "gen_figure 顶部注释无版本号")
+        sk = open(os.path.join(SCRIPT_DIR, "..", "SKILL.md"), encoding="utf-8").read()
+        sv = _re.search(r"version: ([\d.]+)", sk)
+        self.assertIsNotNone(sv)
+        self.assertEqual(m.group(1), sv.group(1),
+                         f"引擎头注释 {m.group(1)} != SKILL {sv.group(1)}")
 
     def test_skill_size_guard(self):
         """体积守卫锁：SKILL 双语 ≤33000 字节 + 近期版本行 ≤700 字符

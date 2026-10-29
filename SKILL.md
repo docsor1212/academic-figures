@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 6.4.1
+version: 6.5.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,8 +37,8 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 6.4.1
-  date: 2026-10-29
+  version: 6.5.0
+  date: 2026-10-30
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -375,8 +375,10 @@ announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir de
 | Your task (30 seconds to the right doc) | Read |
 |------------------------------------------|------|
 | First time / not sure which chart | `references/quickstart.md` |
-| One-page command skeleton for all 37 types | `references/cheatsheet.md` |
+| One-page command skeleton for all 40 types | `references/cheatsheet.md` |
 | Copy-paste scenario cards (13 complete workflows) | `references/scenario-cards.md` |
+| Rendered gallery (real-data examples, 150dpi + reproducible JSON) | `examples/gallery/` |
+
 | Paste-ready agent prompts (13 cards: 对智能体说 → command → acceptance checks) | `references/prompt-cards.md` |
 | JSON/CSV/Excel schema for a type | `references/data-formats.md` |
 | "Why did it error / what does exit 3 mean" | `references/faq.md` |
