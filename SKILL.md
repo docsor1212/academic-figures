@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 6.5.0
+version: 6.6.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 6.5.0
+  version: 6.6.0
   date: 2026-10-30
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -67,7 +67,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 
 | Capability | What it does | What it does NOT / boundary | Where to look |
 |------------|--------------|------------------------------|---------------|
-| Chart engine | 37 types, one command, 600dpi; byte-deterministic output | No interactive exploration (static files only); no 3-D plots | Chart Types ↑ |
+| Chart engine | 40 types, one command, 600dpi; byte-deterministic output | No interactive exploration (static files only); no 3-D plots | Chart Types ↑ |
 | Prediction-model eval | calibration: binned values in [0,1]; dca: thresholds strictly ascending in open (0,1), 1-6 models; nomogram: 1-12 variables, 1-3 outcome scales; rcs: ≥5 fitted-spline grid points; subgroup: 1-12 variables × 2-8 levels; cif: time+event integer codes (0/1/2+), single cohort | No auto-binning; nomogram/rcs visualize your fitted model (no fitting); subgroup too — or `--stats cox` one-command auto-fit (per-layer Cox HR + LR P-interaction, Efron core, v5.8); cif has no multi-arm groups (use `-t km`) | Chart Types ↑ |
 | Chart picking | `--suggest` (auto), `--wizard` (guided), `--quick` (auto-pick+render), `--explain TYPE` | Suggestions are structural heuristics — confirm the statistical meaning yourself | quickstart.md |
 | Stats | KM risk table/log-rank/median CI; Cox (Efron+PH); ROC DeLong; bootstrap CI; Egger | No Bayesian methods; no sample-size/power calculation | advanced.md |
@@ -392,7 +392,7 @@ announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir de
 | Call from Python | `references/python-api.md` |
 | Version history | `references/changelog.md` (version index + last-3 details; full archive in `references/changelog-full.md`) |
 
-Code layout: `scripts/gen_figure.py` (main, 37 types) + `gen_legend.py` (journal legends) +
+Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal legends) +
 `audit_pdf.py` (font gate) + `verify_overlap_pixel.py` (overlap verifier) + `setup_env.py` +
 `journal/*.json` (9 presets, named above); `templates/` (37, each with a `_command`), `examples/`
 (incl. `realworld/`), `tests/run_tests.py` (full suite). Remaining references:
@@ -400,7 +400,7 @@ Code layout: `scripts/gen_figure.py` (main, 37 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v6.4.1** KM 统计框标签动态降级（CI 不可估不标 95%CI；p 与显著性加分隔）+镜像测试自适应补漏；**v6.4.0** `--debug` structured failure sidecar (`<output>.debug.json`: input fingerprint / field mapping / diagnosis — programmatic troubleshooting; success renders emit nothing) + doc-density guard locks; **v6.3.0** L'Abbé plot (`-t labbe`, chart #40, meta quartet complete; leader-line labels; Fleiss 1993 gold lock). Older releases: see changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v6.6.0** consistency sweep round 2 (MCP server.py header & submission doc 23→40, SKILL file-index 37→40, quickstart 36→40; `silent-ignore` claims in limits.md corrected to the actual `[ignored]` behaviour — count guard now scans 14 live docs incl. bare `types` wording); **v6.5.0** doc-count unification (30/37/40 → 40; MCP README 23-vs-27 contradiction; engine header version test-locked) + `examples/gallery/` real-data visual samples. Older: see changelog.
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 

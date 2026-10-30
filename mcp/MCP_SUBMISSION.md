@@ -8,7 +8,7 @@
 - publisher: SorSor（SkillHub 发布者，academic-figures 等技能作者）
 - homepage: https://github.com/docsor1212/academic-figures/tree/main/mcp
 - sourceUrl: https://github.com/docsor1212/academic-figures
-- summary: 通过 MCP Server 用一条指令渲染 23 种投稿级学术图表（bar/line/KM 生存曲线含竞争风险/森林图/ROC/slope 斜率图/composite 多面板/PRISMA 2020 等），内置数据校验、渲染看门狗、像素级重叠门禁与中文诊断；本地确定性渲染（同输入同字节）、零密钥零遥测；支持 9 种期刊预设与色盲安全配色。适配论文写作、投稿出图、科研数据可视化场景。
+- summary: 通过 MCP Server 用一条指令渲染 40 种投稿级学术图表（bar/line/KM 生存曲线含竞争风险/森林图/ROC/slope 斜率图/composite 多面板/PRISMA 2020 等），内置数据校验、渲染看门狗、像素级重叠门禁与中文诊断；本地确定性渲染（同输入同字节）、零密钥零遥测；支持 9 种期刊预设与色盲安全配色。适配论文写作、投稿出图、科研数据可视化场景。
 - category: 学术科研（或"开发者工具"，按平台分类）
 - 安装提示词：`安装 academic-figures-mcp：uvx --from "git+https://github.com/docsor1212/academic-figures#subdirectory=mcp" academic-figures-mcp`
 

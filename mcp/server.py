@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""academic-figures MCP server (v1.0.0) — 23 种学术图型经 FastMCP 暴露。
+"""academic-figures MCP server — 40 种学术图型（随引擎注册表）经 FastMCP 暴露。
 
 运行（分发形态）:
     uvx --from "git+https://github.com/docsor1212/academic-figures#subdirectory=mcp" academic-figures-mcp
@@ -261,7 +261,7 @@ if _MCP_OK:
     @mcp.tool
     def render_chart(chart: str, data: str, options: dict = None,
                      dpi: int = 150, fmt: str = "png") -> dict:
-        """渲染一张投稿级学术图表。23 种图型（bar/line/km/forest/roc/slope/composite/prisma…，
+        """渲染一张投稿级学术图表。40 种图型（bar/line/km/forest/roc/slope/composite/prisma…，
         见 capability_matrix 资源）。data=JSON 对象字符串或 CSV 文本；options 可传
         title/subtitle/source/xlabel/ylabel/theme/journal/column/verify/peak_label/summary 等；
         返回 150dpi 内预览 base64 + 成品文件路径（默认 png，fmt=pdf 走矢量+重叠门禁）。"""

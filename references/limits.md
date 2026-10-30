@@ -66,11 +66,11 @@
 | `--egger` | 仅 funnel（≥3 研究） | 其他图型 → `[ignored]` 显式告知 |
 | `--no-risk-table` / `--risk-times` | 仅 km（原始 `[时间,事件]` 格式） | 预计算曲线格式时 stderr 提示 |
 | `--hatch` | bar 系（bar/grouped_bar/hbar/stacked_bar） | 其他图型 → `[ignored]` 显式告知 |
-| `--cmap` / `--vmin` / `--vmax` | heatmap / cluster_heatmap | 静默忽略 |
-| `--trend` / `--no-trend` | scatter | 静默忽略 |
+| `--cmap` / `--vmin` / `--vmax` | heatmap / cluster_heatmap | [ignored] 显式告知（stderr 提示，不静默） |
+| `--trend` / `--no-trend` | scatter | [ignored] 显式告知（stderr 提示，不静默） |
 | `--sheet` | 仅 `--data *.xlsx` | CSV/JSON → `[ignored]` 显式告知 |
-| `--show-ratio` / `--ratio-base` | grouped_bar | 静默忽略 |
-| `--lang zh` | prisma（中文标准措辞版） | 静默忽略 |
+| `--show-ratio` / `--ratio-base` | grouped_bar | [ignored] 显式告知（stderr 提示，不静默） |
+| `--lang zh` | prisma（中文标准措辞版） | [ignored] 显式告知（stderr 提示，不静默） |
 | `--horizontal` | bar（等同 hbar） | — |
 | `--annotate "x,y:文字"` | 所有图型（组合图自动选面板） | 坐标越界/类别不匹配 → 中文报错 exit 1 |
 | `--legend-loc` / `--legend-outside` | 有图例的图型；组合图 outside=共享图例 | 无图例时 stderr 提示未生效 |
