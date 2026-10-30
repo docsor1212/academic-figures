@@ -6268,8 +6268,23 @@ class TestV62000(unittest.TestCase):
         return r, p
 
     def test_retry_success_transparent(self):
-        """极小预算逼出超时→自动重试链最终成功：exit 0+stderr 透明记录+与一次成功逐字节一致。"""
-        r, p = self._run("--timeout", "0.2", "--retries", "5", out="retry_ok.png")
+        """注入延迟逼出超时→自动重试链最终成功：exit 0+stderr 透明记录+与一次成功逐字节一致。
+        （AF_TEST_RENDER_DELAY=0.6：代 0-2 预算 0.2/0.3/0.45 均 <0.6 必超时，代 3 预算 0.675>0.6 成功——
+        任何机器确定性；此前的绝对秒数预算在快机（GitHub runner）上不触发=CI flaky 根因。）"""
+        import os as _os
+        _env = {**_os.environ, "AF_TEST_RENDER_DELAY": "0.6"}
+        p = os.path.join(self.tmp, "retry_ok.png")
+        r = subprocess.run([sys.executable, GEN, "-t", "bar", "-d", self.data,
+                            "-o", p, "--timeout", "0.2", "--retries", "5"],
+                           capture_output=True, text=True, timeout=300, env=_env)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        self.assertIn("——自动重试第", r.stderr)
+        self.assertTrue(os.path.exists(p) and os.path.getsize(p) > 10000)
+        r1, p1 = self._run(out="once.png")
+        self.assertEqual(r1.returncode, 0, r1.stderr[-400:])
+        self.assertNotIn("——自动重试第", r1.stderr)
+        with open(p, "rb") as a, open(p1, "rb") as b:
+            self.assertEqual(a.read(), b.read(), "重试成功输出必须与一次成功输出逐字节一致")
         self.assertEqual(r.returncode, 0, r.stderr[-400:])
         self.assertIn("——自动重试第", r.stderr)
         self.assertTrue(os.path.exists(p) and os.path.getsize(p) > 10000)
@@ -6281,13 +6296,27 @@ class TestV62000(unittest.TestCase):
 
     def test_retries_zero_disables(self):
         """--retries 0：超时单代失败 exit 5，无重试。"""
-        r, _ = self._run("--timeout", "0.1", "--retries", "0", out="r0.png")
+        import os as _os
+        _env = {**_os.environ, "AF_TEST_RENDER_DELAY": "0.6"}
+        p = os.path.join(self.tmp, "r0.png")
+        r = subprocess.run([sys.executable, GEN, "-t", "bar", "-d", self.data,
+                            "-o", p, "--timeout", "0.1", "--retries", "0"],
+                           capture_output=True, text=True, timeout=300, env=_env)
+        self.assertEqual(r.returncode, 5, r.stderr[-300:])
+        self.assertNotIn("——自动重试第", r.stderr)
         self.assertEqual(r.returncode, 5, r.stderr[-300:])
         self.assertNotIn("——自动重试第", r.stderr)
 
     def test_retries_exhausted_exact_count(self):
         """重试用尽：仍 exit 5，重试次数恰为 --retries 值。"""
-        r, _ = self._run("--timeout", "0.1", "--retries", "1", out="r1.png")
+        import os as _os
+        _env = {**_os.environ, "AF_TEST_RENDER_DELAY": "0.6"}
+        p = os.path.join(self.tmp, "r1.png")
+        r = subprocess.run([sys.executable, GEN, "-t", "bar", "-d", self.data,
+                            "-o", p, "--timeout", "0.1", "--retries", "1"],
+                           capture_output=True, text=True, timeout=300, env=_env)
+        self.assertEqual(r.returncode, 5, r.stderr[-300:])
+        self.assertEqual(r.stderr.count("——自动重试第"), 1)
         self.assertEqual(r.returncode, 5, r.stderr[-300:])
         self.assertEqual(r.stderr.count("——自动重试第"), 1)
 

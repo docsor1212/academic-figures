@@ -2657,11 +2657,9 @@ def main():
                              "cox=仅 forest：原始逐例生存数据自动拟合多因素 Cox 比例风险模型，"
                              "输出 HR[95%%CI] 森林图+系数表+PH 假设近似检验")
     parser.add_argument("--timeout", type=float, default=None,
-                        help="渲染看门狗预算（秒）：超时强制中断并给中文建议（exit 5）；"
-                             "0=禁用自适应预算（保留硬保险）；默认自适应 30~1800s")
+                        help="渲染看门狗预算（秒）：超时强制中断并给中文建议（exit 5）；0=禁用自适应预算（保留硬保险）；默认自适应 30~1800s")
     parser.add_argument("--debug", action="store_true",
-                        help="渲染失败时输出结构化诊断侧车 <output>.debug.json（输入指纹/字段"
-                             "映射/异常分类/修复建议，供程序化排障）；成功渲染不产出")
+                        help="渲染失败时输出结构化诊断侧车 <output>.debug.json（输入指纹/字段映射/异常分类/修复建议，供程序化排障）；成功渲染不产出")
     parser.add_argument("--retries", type=int, default=1, metavar="N",
                         help="瞬时失败自动重试次数：看门狗超时/内存耗尽自动重跑（每代预算放宽 ×1.5）；确定性错误不重试；0=关闭；默认 1")
     parser.add_argument("--downsample", type=int, default=None, metavar="N",
@@ -3097,6 +3095,7 @@ def main():
     else:
         print(f"ERROR: --timeout 不接受负数（{args.timeout:g}）；禁用自适应预算请用 --timeout 0（保留硬保险）", file=sys.stderr)
         sys.exit(1)
+    if os.environ.get("AF_TEST_RENDER_DELAY"): time.sleep(float(os.environ["AF_TEST_RENDER_DELAY"]))  # 维护者钩子（武装后=计入预算窗口）：重试链测试确定性化
     cjk_fp = None
     # Auto-detect: scan displayable text for CJK chars
     def _scan_cjk(obj):
