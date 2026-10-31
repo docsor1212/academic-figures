@@ -2273,7 +2273,7 @@ class TestV280DocCount(unittest.TestCase):
         n = len(gen_figure.GENERATORS) - len(self._ALIASES)
         self.assertGreaterEqual(n, 22, f"注册表图型数异常减少: {n}")
         root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
-        pat = re.compile(r"(\d+)\s*(?:种图表|种图型|种学术图型|种投稿级学术图型|种投稿级学术图表|chart types|types, one command)")
+        pat = re.compile(r"(\d+)[\s-]*(?:种图表|种图型|种学术图型|种投稿级学术图型|种投稿级学术图表|chart-types|chart types|types, one command)")
         claims, bad = [], []
         for rel in self._DOC_FILES:
             p = os.path.join(root, rel)
@@ -2573,8 +2573,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 6.6.0", self.zh)
-        self.assertIn("version: 6.6.0", self.en)
+        self.assertIn("version: 6.7.0", self.zh)
+        self.assertIn("version: 6.7.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2671,8 +2671,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 6.6.0", self.zh)
-        self.assertIn("version: 6.6.0", self.en)
+        self.assertIn("version: 6.7.0", self.zh)
+        self.assertIn("version: 6.7.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2705,8 +2705,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 6.6.0", self.zh)
-        self.assertIn("version: 6.6.0", self.en)
+        self.assertIn("version: 6.7.0", self.zh)
+        self.assertIn("version: 6.7.0", self.en)
 
 
 
@@ -2773,7 +2773,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 6.6.0", zh)
+        self.assertIn("version: 6.7.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2946,7 +2946,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.6.0", t, name)
+            self.assertIn("version: 6.7.0", t, name)
 
 
 
@@ -3037,7 +3037,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.6.0", t, name)
+            self.assertIn("version: 6.7.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3158,7 +3158,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.6.0", t, name)
+            self.assertIn("version: 6.7.0", t, name)
 
 
 
@@ -3227,7 +3227,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.6.0", t, name)
+            self.assertIn("version: 6.7.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6521,6 +6521,41 @@ class TestV64000(unittest.TestCase):
         self.assertEqual(m.group(1), sv.group(1),
                          f"引擎头注释 {m.group(1)} != SKILL {sv.group(1)}")
 
+    def test_readme_badge_matches_test_count(self):
+        """README 测试徽章数字必须等于 run_tests.py 的 def test_ 计数（评测 accuracy 4.5
+        点名「文档计数过期」——徽章每版手改必漏，自此动态锁死，发版随测试数自动对账）。"""
+        import re as _re
+        src = open(os.path.join(SCRIPT_DIR, "..", "tests", "run_tests.py"), encoding="utf-8").read()
+        n_tests = len(_re.findall(r"^    def test_", src, _re.M))
+        self.assertGreater(n_tests, 400)
+        rd = open(os.path.join(SCRIPT_DIR, "..", "README.md"), encoding="utf-8").read()
+        m = _re.search(r"badge/tests-(\d+)%20pass", rd)
+        self.assertIsNotNone(m, "README 徽章缺失")
+        self.assertEqual(int(m.group(1)), n_tests,
+                         f"README 徽章 {m.group(1)} != 实际测试数 {n_tests}（更新徽章）")
+
+    def test_skill_no_stale_37(self):
+        """SKILL 双语禁残留「37」计数（评测 accuracy 4.5 点名「仍残留 37 种」；
+        近期版本行内含修改历史描述「37→40」豁免）。"""
+        for fname in ("SKILL.md", "SKILL_ZH.md"):
+            txt = open(os.path.join(SCRIPT_DIR, "..", fname), encoding="utf-8").read()
+            lines = [l for l in txt.splitlines()
+                     if not l.startswith(("Full bilingual history:", "完整双语版本历史见"))]
+            body = "\n".join(lines)
+            hits = [l.strip()[:90] for l in body.splitlines() if "37" in l]
+            self.assertEqual(hits, [], f"{fname} 残留 37：{hits}")
+
+    def test_python_version_consistent(self):
+        """Python 最低版本口径统一（评测 accuracy 4.5 点名「FAQ 与 README 版本要求不同」）：
+        FAQ/README/frontmatter 必须同以 3.8 为最低线。"""
+        faq = open(os.path.join(SCRIPT_DIR, "..", "references", "faq.md"), encoding="utf-8").read()
+        rd = open(os.path.join(SCRIPT_DIR, "..", "README.md"), encoding="utf-8").read()
+        self.assertNotIn("Python 3.9+", faq)
+        self.assertIn("Python 3.8+", faq)
+        self.assertIn("Python-3.8%2B", rd)
+        sk = open(os.path.join(SCRIPT_DIR, "..", "SKILL.md"), encoding="utf-8").read()
+        self.assertIn('python: ">=3.8"', sk)
+
     def test_no_silent_ignore_claims(self):
         """活文档禁「静默忽略」行为描述（v3.6 起实为 [ignored] 显式告知；
         评测 accuracy 4.6 点名「无效参数被描述为静默忽略」——描述与行为必须一致）。"""
@@ -6545,6 +6580,63 @@ class TestV64000(unittest.TestCase):
             self.assertLessEqual(len(recent[0]), 700,
                                  f"{fname} 近期版本行 {len(recent[0])} 字符超 700 "
                                  "（历史堆砌→下沉 changelog.md）")
+
+
+class TestV67000(unittest.TestCase):
+    """v6.7.0：--list-flags 旗标域查询（usability「参数组合需查文档」的一命令出口）
+    + 评测 accuracy/structure 4.5 点名收口（37 残留/gallery 死链/Python 版本/表格挤压）的回归锁。"""
+
+    def test_list_flags_km(self):
+        """km：专属旗标在列+域外旗标 [ignored] 预告+通用旗标。"""
+        r = subprocess.run([sys.executable, GEN, "--list-flags", "km"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertIn("--risk-times", r.stdout)
+        self.assertIn("--no-median", r.stdout)
+        self.assertIn("域外", r.stdout)
+        self.assertIn("[ignored]", r.stdout)
+        self.assertIn("--egger[funnel]", r.stdout)
+
+    def test_list_flags_alias_and_unknown(self):
+        """别名可达（survival→km）+ 未知图型 exit 1 中文指引。"""
+        r = subprocess.run([sys.executable, GEN, "--list-flags", "survival"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0)
+        self.assertIn("图型 survival", r.stdout)
+        r2 = subprocess.run([sys.executable, GEN, "--list-flags", "nosuch"],
+                            capture_output=True, text=True, timeout=60)
+        self.assertEqual(r2.returncode, 1)
+        self.assertIn("--list-types", r2.stderr)
+
+    def test_list_flags_overview(self):
+        """无参数=全图型速览（含注册表全量旗标）。"""
+        r = subprocess.run([sys.executable, GEN, "--list-flags"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertIn("--stats: box/violin/forest", r.stdout)
+        self.assertIn("--rmst-tau: rmst", r.stdout)
+
+    def test_flag_registry_self_consistent(self):
+        """注册表自洽：域内图型全是真实图型；旗标全部存在于 argparse——防漂移。"""
+        import sys as _sys
+        _sys.path.insert(0, SCRIPT_DIR)
+        import af_shared as _sh
+        real = set(gen_figure.GENERATORS)
+        canon = {"horizontal_bar": "hbar", "boxplot": "box", "survival": "km"}
+        for f, (dom, _n) in _sh._FLAG_DOMAINS.items():
+            for tp in dom:
+                self.assertIn(tp, real, f"{f} 域内含非注册图型 {tp}")
+        src = open(os.path.join(SCRIPT_DIR, "gen_figure.py"), encoding="utf-8").read()
+        for f in _sh._FLAG_DOMAINS:
+            self.assertIn(f'"{f}"', src, f"注册表旗标 {f} 不在 argparse")
+        for a, c in canon.items():
+            self.assertIn(c, real)
+
+    def test_help_documents_list_flags(self):
+        """--list-flags 进 usage。"""
+        r = subprocess.run([sys.executable, GEN, "--help"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertIn("--list-flags", r.stdout)
 
 
 if __name__ == "__main__":

@@ -217,3 +217,72 @@ DEMO_DATA = {
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"], "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]}, "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
     "prisma": {"records_identified": 128, "duplicates_removed": 23, "records_excluded": 61, "reports_not_retrieved": 3, "exclusion_reasons": {"人群不符": 5, "干预不符": 7, "数据不可用": 4}, "studies_included": 25},
 }
+
+
+# ── v6.7.0：旗标域注册表（--list-flags 数据源；与 limits.md 冲突表同源对齐） ──
+# 域内=旗标对该图型生效；域外=传了会被 [ignored] 显式告知或拒绝（见 limits §〇/§二）。
+_FLAG_DOMAINS = {
+    "--stats": (("box", "violin", "forest"), "box/violin=auto|multi；forest=cox"),
+    "--compare": (("roc",), None),
+    "--egger": (("funnel",), None),
+    "--hatch": (("bar", "grouped_bar", "stacked_bar", "hbar"), "bar 系"),
+    "--order": (("bar", "grouped_bar", "stacked_bar", "hbar", "line", "scatter"), "按族"),
+    "--normalize": (("line",), "line 系"),
+    "--peak-label": (("line",), None),
+    "--cmap": (("heatmap", "cluster_heatmap"), None),
+    "--vmin": (("heatmap", "cluster_heatmap"), None),
+    "--vmax": (("heatmap", "cluster_heatmap"), None),
+    "--trend": (("scatter",), None),
+    "--show-ratio": (("grouped_bar",), None),
+    "--ratio-base": (("grouped_bar",), None),
+    "--downsample": (("cluster_heatmap",), None),
+    "--rmst-tau": (("rmst",), None),
+    "--cox-time": (("forest",), None),
+    "--cox-event": (("forest",), None),
+    "--cox-cols": (("forest",), None),
+    "--subgroup-vars": (("subgroup",), None),
+    "--treatment": (("subgroup",), None),
+    "--cut": (("subgroup",), None),
+    "--no-risk-table": (("km",), None),
+    "--risk-times": (("km",), None),
+    "--no-median": (("km",), None),
+}
+_FLAGS_UNIVERSAL = ("--title --xlabel --ylabel --subtitle --source --style --theme --journal "
+                    "--column --size --width --height --dpi --format --multi-format --cjk "
+                    "--legend/--no-legend --legend-loc --legend-outside --show-values --summary "
+                    "--verify --doctor --audit --repro --pub-ready --timeout --retries --debug "
+                    "--explain --suggest --list-types --list-themes --batch --pipeline")
+
+
+_ALIAS_TO_CANON = {"horizontal_bar": "hbar", "boxplot": "box", "survival": "km"}
+
+
+def list_flags_query(chart_type, valid_types):
+    """--list-flags：输出某图型的专属旗标（域内）与域外旗标（[ignored] 预告）。
+
+    chart_type=None 时输出全图型专属旗标速览；未知图型抛 ValueError（调用方 exit 1）。
+    valid_types=引擎注册表清单（GENerators 键），由调用方传入避免循环依赖。"""
+    if chart_type is None:
+        lines = ["各图型专属旗标（通用旗标对所有图型可用：" + _FLAGS_UNIVERSAL + "）："]
+        for f, (dom, note) in _FLAG_DOMAINS.items():
+            lines.append(f"  {f}: {'/'.join(dom)}" + (f"（{note}）" if note else ""))
+        return "\n".join(lines)
+    canon = _ALIAS_TO_CANON.get(chart_type, chart_type)
+    if chart_type not in valid_types:
+        raise ValueError(f"未知图型 '{chart_type}'——用 --list-types 查看全部图型")
+    mine, others = [], []
+    for f, (dom, note) in _FLAG_DOMAINS.items():
+        if canon in dom:
+            mine.append(f + (f"（{note}）" if note else ""))
+        else:
+            others.append(f"{f}[{'/'.join(dom)}]")
+    lines = [f"图型 {chart_type} 的旗标域：",
+             f"  专属/生效：{' '.join(mine) if mine else '（无专属旗标）'}",
+             "  域外（传入会被 [ignored] 显式告知，不生效）：",
+             f"    {' '.join(others)}",
+             f"  通用旗标：{_FLAGS_UNIVERSAL}"]
+    return "\n".join(lines)
+
+
+
+_FLAG_CHART_TYPES = tuple({t for dom, _ in _FLAG_DOMAINS.values() for t in dom})

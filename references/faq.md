@@ -18,7 +18,7 @@
 ## 安装与环境
 
 **Q：需要装什么？**
-Python 3.9+ 和 matplotlib/numpy/scipy。跑一次 `python3 scripts/setup_env.py` 自动配齐并检测中文字体。
+Python 3.8+ 和 matplotlib/numpy/scipy。跑一次 `python3 scripts/setup_env.py` 自动配齐并检测中文字体。
 
 **Q：中文显示成方框？**
 `--cjk` 自动探测系统字体；仍不行用 `--cjk-font /path/to/字体.ttf` 指定。`--journal cma/cn-core` 会自动开中文，无需手动加。

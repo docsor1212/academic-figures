@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v6.6.0: Publication-quality academic figure generator.
+academic-figures v6.7.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -48,7 +48,7 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
 
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
 from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID,
-                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA)
+                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query)
 from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
                      pairwise_vs_first, draw_bootstrap_brackets,
                      annotate_bootstrap_stats, draw_stat_brackets,
@@ -2583,6 +2583,7 @@ def main():
                              "'glm-brand' = 品牌视觉（信号黄对比强化+无网格+同系深色斜纹，v3.3.1）")
     parser.add_argument("--list-themes", action="store_true",
                         help="列出全部配色主题（含色卡预览）后退出")
+    parser.add_argument("--list-flags", nargs="?", const="", default=None, metavar="TYPE", help="查询某图型旗标域（专属+域外[ignored] 预告）；无参数=全图型速览")
     parser.add_argument("--list-types", action="store_true",
                         help="列出全部图型（权威清单，每行一个）后退出")
     parser.add_argument("--theme-swatch", default=None, metavar="THEME",
@@ -2651,11 +2652,7 @@ def main():
     parser.add_argument("--show-ratio", action="store_true", help="分组柱上标注倍率（如 4.96x）")
     parser.add_argument("--ratio-base", type=int, default=0, help="倍率计算的基准系列序号（默认 0）")
     parser.add_argument("--stats", default=None, choices=["auto", "multi", "cox", "bootstrap"],
-                        help="box/violin 自动显著性标注：auto=各组 vs 第一组（Shapiro 定正态→"
-                             "Welch t / Mann-Whitney U）；multi=全两两（正态→ANOVA+Tukey，"
-                             "否则 Kruskal-Wallis+Dunn+Hochberg）。括号+星号自动绘制。"
-                             "cox=仅 forest：原始逐例生存数据自动拟合多因素 Cox 比例风险模型，"
-                             "输出 HR[95%%CI] 森林图+系数表+PH 假设近似检验")
+                        help="box/violin 自动显著性标注：auto=各组 vs 第一组（Shapiro 定正态→Welch t / Mann-Whitney U）；multi=全两两（正态→ANOVA+Tukey，否则 KW+Dunn+Hochberg）；cox=仅 forest：原始逐例生存数据自动拟合多因素 Cox，输出 HR[95%%CI] 森林图+系数表+PH 检验。括号+星号自动绘制")
     parser.add_argument("--timeout", type=float, default=None,
                         help="渲染看门狗预算（秒）：超时强制中断并给中文建议（exit 5）；0=禁用自适应预算（保留硬保险）；默认自适应 30~1800s")
     parser.add_argument("--debug", action="store_true",
@@ -2816,6 +2813,10 @@ def main():
     if args.list_types:
         # 权威图型清单出口（v5.7）：MCP/外部脚本动态消费，杜绝硬编码清单漂移
         print("\n".join(sorted(GENERATORS)))
+        sys.exit(0)
+    if args.list_flags is not None:
+        try: print(list_flags_query(args.list_flags.strip() or None, sorted(GENERATORS)))
+        except ValueError as e: print(f"ERROR: {e}", file=sys.stderr); sys.exit(1)
         sys.exit(0)
 
     if args.theme_swatch:
@@ -3095,7 +3096,7 @@ def main():
     else:
         print(f"ERROR: --timeout 不接受负数（{args.timeout:g}）；禁用自适应预算请用 --timeout 0（保留硬保险）", file=sys.stderr)
         sys.exit(1)
-    if os.environ.get("AF_TEST_RENDER_DELAY"): time.sleep(float(os.environ["AF_TEST_RENDER_DELAY"]))  # 维护者钩子（武装后=计入预算窗口）：重试链测试确定性化
+    if os.environ.get("AF_TEST_RENDER_DELAY") and os.environ.get("AF_RETRY_N", "0") == "0": time.sleep(float(os.environ["AF_TEST_RENDER_DELAY"]))  # 维护者钩子：仅首代延迟（确定性超时）——重试代恢复真实行为，防 savefig 中杀（6.7.0 逐字节锁逮）
     cjk_fp = None
     # Auto-detect: scan displayable text for CJK chars
     def _scan_cjk(obj):
