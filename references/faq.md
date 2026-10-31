@@ -28,8 +28,8 @@ Python 3.8+ 和 matplotlib/numpy/scipy。跑一次 `python3 scripts/setup_env.py
 
 ## 数据与格式
 
-**Q：CSV 能画哪些图？误差棒为什么报错？**
-CSV 适合 bar/line/box/scatter 等常规图。误差棒、显著性等复杂字段是 JSON 专属——CSV 不支持（报错会提示改用 JSON）。
+**Q：CSV 能画哪些图？误差棒怎么加？**
+CSV 适合 bar/line/box/scatter 等常规图。误差棒 v6.0 起 CSV 直接支持：主列旁加后缀列即可（`weight` 配 `weight_sd`/`weight_se`/`weight_sem`/`weight_err`，自动配对画误差棒；`weight_sd`+`weight_n` 自动换算 SEM）；显著性标记仍是 JSON 专属（`significance` 字段）。
 
 **Q：KM 生存数据报「检测到长表结构」？**
 你的表是 time/event/group 各占一列（一行记录一名患者），这种长表画不了生存曲线。请转成分组格式：
@@ -150,7 +150,7 @@ v3.1 起不会——自动等距采样到 2000 行并显著告知（`AUTO-DOWNSA
 可指定其他行数。
 
 **Q：CSV 能带误差棒吗？**
-不能——JSON 的 `errors` 字段才支持。详见 data-formats.md 的 JSON/CSV 能力对照表。
+能——v6.0 起 CSV 后缀列自动配对：主列 `weight` 旁放 `weight_sd`/`weight_se`/`weight_sem`/`weight_err` 即自动画误差棒（`weight_sd`+`weight_n` 自动换算 SEM；`--csv-no-errors` 可关闭识别）。JSON 的 `errors` 对象写法仍可用。详见 data-formats.md 的 JSON/CSV 能力对照表。
 
 **Q：投稿一键出图怎么做？**
 `--pub-ready`（v3.8）：一条 flag 自动展开 `--verify`（PDF 重叠门禁）+ 色盲安全主题 + pdf,png

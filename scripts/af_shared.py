@@ -124,40 +124,40 @@ CHART_NOTES = {
              "多标签共现）；JSON sets 为元素列表（自动求交并）；top_n 展示前 N 个交集"
              "（默认 12，取 1~50）、sort=size|degree、min_size 过滤小交集；标题放 JSON "
              "title 字段；未展示交集只计入 stderr 事实行。",
-    "raincloud": "raincloud: 雨云图（v4.9，第 27 种图型；分布三合一：KDE 半小提琴云+箱线五数概括+"
+    "raincloud": "raincloud: 雨云图（v4.9，第 27 号图型；分布三合一：KDE 半小提琴云+箱线五数概括+"
                  "抖动原始点雨）；schema 同 violin；--stats 通用；jitter(0~0.3)/cloud_scale(0~2.0，0=藏云)；零方差/单点组云退化并告知。",
-    "dumbbell": "dumbbell: 哑铃图（v5.1，第 30 种图型；每行两点 from→to+连接线，横向形态，"
+    "dumbbell": "dumbbell: 哑铃图（v5.1，第 30 号图型；每行两点 from→to+连接线，横向形态，"
                  "强调逐条目差距）；JSON from/to 必填等长、labels 可选、from_label/to_label 图例名；"
                  "sort=gap|input|to；show_values/show_gap 可选；严格两时点，>2 用 slope/line。",
-    "calibration": "calibration: 校准曲线（v5.2，第 31 种图型；临床预测模型三件套之一，与 ROC/DCA 同生态）；"
+    "calibration": "calibration: 校准曲线（v5.2，第 31 号图型；临床预测模型三件套之一，与 ROC/DCA 同生态）；"
                    "JSON bins=[{predicted,observed,n?,ci_lo?,ci_hi?}] 或 predicted/observed 平行数组；"
                    "hl_p 标注 Hosmer-Lemeshow p；smooth=true 插值参考线；等比坐标+理想对角线。",
-    "dca": "dca: 决策曲线分析（v5.2，第 32 种图型；净收益 vs 阈值概率）；JSON thresholds 严格升序"
+    "dca": "dca: 决策曲线分析（v5.2，第 32 号图型；净收益 vs 阈值概率）；JSON thresholds 严格升序"
            "(0,1)+models=[{name,net_benefit}]（1~6 个）；prevalence 画理论全部干预线或 treat_all "
            "显式数组；show_none 默认画不干预 0 线；净收益定义 Vickers。",
-    "nomogram": "nomogram: 列线图（v5.3，第 33 种图型；预测模型查表尺：变量计分→Total Points→结局概率）；"
+    "nomogram": "nomogram: 列线图（v5.3，第 33 号图型；预测模型查表尺：变量计分→Total Points→结局概率）；"
                 "JSON variables=[{name,ticks[2~12],labels?,points_at?}]（points_at 缺省线性 0~100）+outcome_scales="
                 "[{label,ticks,points_at}]（1~3，总积分口径）；total_points_max 可选；引擎只可视化不拟合，"
                 "points 请来自已拟合模型（R rms::nomogram 等）。",
-    "rcs": "rcs: 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 种图型）；JSON points=[{value,est,ci_lo,ci_hi}]"
+    "rcs": "rcs: 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 号图型）；JSON points=[{value,est,ci_lo,ci_hi}]"
            "（≥5 网格点，来自已拟合样条模型，引擎不拟合）；ref 参照值、log_y 默认对数轴（HR/OR）、"
            "hline_at 覆盖参照水平、hist=false 关底部 rug；曲线偏离参照水平=存在非线性关联。",
-    "subgroup": "subgroup: 亚组分析森林图（v5.5，第 35 种图型；各层效应+P 交互一图呈现）；"
+    "subgroup": "subgroup: 亚组分析森林图（v5.5，第 35 号图型；各层效应+P 交互一图呈现）；"
                 "JSON subgroups=[{name,p_interaction?,levels=[{name,est,ci_low,ci_high,n?,p?}]}]"
                 "（1~12 组×2~8 层）+overall 可选（底部菱形）；est_label 定无效线（HR/OR/RR=1，MD/SMD=0）；"
                 "log_x 默认 true；引擎只可视化不拟合。",
-    "ridgeline": "ridgeline: 山脊图/joyplot（v5.0，第 29 种图型；多组 KDE 密度纵向堆叠部分重叠，"
+    "ridgeline": "ridgeline: 山脊图/joyplot（v5.0，第 29 号图型；多组 KDE 密度纵向堆叠部分重叠，"
                  "一屏看分布逐组移动/变形）；schema 同 violin（labels+datasets）；overlap(0~0.95) "
                  "调重叠、sort=median 按中位数排；单值组退化为标记线并告知。",
-    "swimmer": "swimmer: 游泳图（v4.10，第 28 种图型；临床试验逐例时长）；JSON end 必填（>0，单位自定）、"
+    "swimmer": "swimmer: 游泳图（v4.10，第 28 号图型；临床试验逐例时长）；JSON end 必填（>0，单位自定）、"
                "start/names/group 可选（RECIST 类别着色同 waterfall）、milestones 里程碑圆点（可晚于条端）、"
                "ongoing 端部箭头（持续中）、ref_lines 地标虚线；sort=duration|input。",
-    "waterfall": "waterfall: 肿瘤缓解瀑布图（v4.8，第 26 种图型；每例自基线最佳变化%）；"
+    "waterfall": "waterfall: 肿瘤缓解瀑布图（v4.8，第 26 号图型；每例自基线最佳变化%）；"
                  "JSON change 必填（缩小为负）、names/group 可选（RECIST 类别着色+图例）、"
                  "pr_cut=-30/pd_cut=20 阈值虚线、sort=desc|input；--show-values 柱端数值；"
                  "着色未给 group 时按阈值分桶（缓解蓝/稳定灰/进展橙）。",
     "galbraith": "galbraith: Galbraith 径向图（Meta 异质性，漏斗图姊妹图）；JSON 同 funnel（studies name/effect/se，效应取 log 值）；est_label=OR/HR/RR 默认画效应量弧线，MD/SMD 自动关；stderr 报固定效应 b/DL 合并/I²/离群名单。",
-    "rob": "rob: 偏倚风险交通灯图（v6.1，第 39 种图型；robvis 同款）；JSON 需 studies=[{name, judgements:{域: 判定}}]（2~50 项，判定 Low/Some concerns/High/No information 中英均可），domains 可选（缺省取自首研究键序），weights 可选各域摘要权重；Overall 列只入网格不入摘要；stderr 报各域加权占比。真实示例 examples/realworld/evidence_rob2_metformin.json。",
+    "rob": "rob: 偏倚风险交通灯图（v6.1，第 39 号图型；robvis 同款）；JSON 需 studies=[{name, judgements:{域: 判定}}]（2~50 项，判定 Low/Some concerns/High/No information 中英均可），domains 可选（缺省取自首研究键序），weights 可选各域摘要权重；Overall 列只入网格不入摘要；stderr 报各域加权占比。真实示例 examples/realworld/evidence_rob2_metformin.json。",
     "cif": "cif: 竞争风险累计发生率（Aalen-Johansen）；JSON 需 time+event 两等长数组（0=删失 1=目标事件 ≥2=竞争事件编号），cause_labels 命名各因、time_unit 时间单位；compare_km（auto=有竞争事件才画）叠加 1−KM 高估对照虚线，percent 百分轴；多臂分组请用 -t km。",
 }
 

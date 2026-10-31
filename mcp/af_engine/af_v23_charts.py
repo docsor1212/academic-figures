@@ -117,7 +117,7 @@ def _meta_studies(data, tname, hint=""):
     return names, es, ses
 
 
-# ── galbraith Galbraith 径向图（v5.6 第 36 种图型，漏斗图姊妹图） ─────
+# ── galbraith Galbraith 径向图（v5.6 第 36 号图型，漏斗图姊妹图） ─────
 
 _RATIO_LABELS = ("OR", "HR", "RR")
 
@@ -219,7 +219,7 @@ def _declutter_annotations(ax, anns):
 
 
 def gen_galbraith(data, ax, theme, cjk_fp, **kwargs):
-    """Galbraith 径向图（Meta 异质性可视化，漏斗图姊妹图；v5.6 第 36 种图型）。
+    """Galbraith 径向图（Meta 异质性可视化，漏斗图姊妹图；v5.6 第 36 号图型）。
 
     x=精度 1/SE，y=标准化效应 effect/SE；过原点固定效应回归线斜率 b=合并效应，
     ±1.96 平行带=同质区，带外研究=异质性/离群嫌疑（stderr 逐个报名+红圈高亮）。
@@ -327,7 +327,7 @@ def gen_galbraith(data, ax, theme, cjk_fp, **kwargs):
     return None
 
 
-# ── cif 竞争风险累计发生率（v5.7 第 37 种图型；Aalen-Johansen） ────────
+# ── cif 竞争风险累计发生率（v5.7 第 37 号图型；Aalen-Johansen） ────────
 
 def _naive_one_minus_km(times, events, target=1):
     """1−KM 朴素估计（竞争事件当删失）——高估参照线。
@@ -339,7 +339,7 @@ def _naive_one_minus_km(times, events, target=1):
 
 
 def gen_cif(data, ax, theme, cjk_fp, **kwargs):
-    """竞争风险累计发生率图（Aalen-Johansen；v5.7 第 37 种图型）。
+    """竞争风险累计发生率图（Aalen-Johansen；v5.7 第 37 号图型）。
 
     有竞争事件（如死亡）时 1−KM 系统性高估目标事件的累计发生率（审稿高频
     退稿点）——实线按事件原因分解 AJ 累计发生率，compare_km 叠加 1−KM 朴素
@@ -1581,7 +1581,7 @@ def gen_cluster_heatmap(data, ax, theme, cjk_fp, **kwargs):
 
 def gen_rmst(data, ax, theme, cjk_fp, **kwargs):
     """RMST 限制平均生存时间图（阶梯 S 曲线+τ 截断阴影 AUC+两臂差值推断；
-    v5.9 第 38 种图型）。
+    v5.9 第 38 号图型）。
 
     PH 假设不成立/曲线交叉时，单一 Cox HR 会掩盖时变效应——RMST(τ)=∫₀^τ S(u)du
     给出「到 τ 时刻平均生存多久」的绝对差，临床可解释且不依赖比例风险假设。
@@ -1699,7 +1699,7 @@ def gen_rmst(data, ax, theme, cjk_fp, **kwargs):
 
 
 def gen_rob(data, ax, theme, cjk_fp, **kwargs):
-    """偏倚风险交通灯图（Risk of Bias traffic light；v6.1 第 39 种图型，robvis 同款）。
+    """偏倚风险交通灯图（Risk of Bias traffic light；v6.1 第 39 号图型，robvis 同款）。
 
     系统综述/Meta 分析的纳入研究方法学质量可视化：左=研究×域交通灯网格
     （圆点着色：低风险/有顾虑/高风险/无信息），右下=加权摘要条（各域占比，
@@ -1889,7 +1889,7 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
 
 
 
-# ── labbe L'Abbé 图（v6.3 第 40 种图型，Meta 四件套收官：forest/funnel/galbraith/labbe） ──
+# ── labbe L'Abbé 图（v6.3 第 40 号图型，Meta 四件套收官：forest/funnel/galbraith/labbe） ──
 
 def gen_labbe(data, ax, theme, cjk_fp, **kwargs):
     """L'Abbé 图（处理组 vs 对照组事件率散点，Meta 分析效应直观化）。

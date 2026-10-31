@@ -51,13 +51,16 @@ try:
 except ImportError:  # pragma: no cover - 无 fastmcp 时仅暴露 impl（可测试）
     _MCP_OK = False
 
-CHARTS = ["bar", "bland_altman", "box", "boxplot", "calibration", "cif",
-          "cluster_heatmap", "composite", "dca", "diagram", "dual_axis",
-          "dumbbell", "forest", "funnel", "galbraith", "grouped_bar", "hbar",
-          "heatmap", "horizontal_bar", "km", "line", "nomogram", "paired",
-          "pca", "prisma", "raincloud", "rcs", "ridgeline", "roc", "scatter",
-          "slope", "stacked_bar", "subgroup", "survival", "swimmer", "upset",
-          "venn", "violin", "volcano", "waterfall"]
+CHARTS = [
+    "bar", "bland_altman", "box", "boxplot", "calibration",
+    "cif", "cluster_heatmap", "composite", "dca", "diagram",
+    "dual_axis", "dumbbell", "forest", "funnel", "galbraith",
+    "grouped_bar", "hbar", "heatmap", "horizontal_bar", "km",
+    "labbe", "line", "nomogram", "paired", "pca",
+    "prisma", "raincloud", "rcs", "ridgeline", "rmst",
+    "rob", "roc", "scatter", "slope", "stacked_bar",
+    "subgroup", "survival", "swimmer", "upset", "venn",
+    "violin", "volcano", "waterfall"]
 MAX_DATA_BYTES = 2_000_000     # G5: 数据上限（与 Pro 对齐）
 MAX_DPI, MIN_DPI = 600, 72
 PREVIEW_DPI_MAX = 150          # 回传预览上限（600dpi 成品只落盘不回传）
@@ -141,6 +144,27 @@ def _refresh_charts_from_engine():
 
 
 _refresh_charts_from_engine()
+
+
+def query_capability_impl(chart: str = "") -> dict:
+    """v6.8.0：图型能力查询（动态真值=引擎注册表，防清单/文档漂移）。
+    chart 留空=全图型清单+旗标域速览；指定图型名=该图型专属/域外旗标详情。"""
+    def _q(extra):
+        return _run_engine([sys.executable, GEN] + extra, timeout=60)
+    c1, types_out, e1 = _q(["--list-types"])
+    if c1 != 0 or not types_out.strip():
+        return {"ok": False, "error": f"引擎 --list-types 不可达: {(e1 or '')[:200]}"}
+    charts = sorted({x.strip() for x in types_out.splitlines() if x.strip()})
+    if not chart:
+        c3, fl_all, _e3 = _q(["--list-flags"])
+        return {"ok": True, "chart_count": len(charts), "charts": charts,
+                "flags_overview": fl_all.strip() if c3 == 0 else "(--list-flags 不可达)",
+                "usage": "chart 留空=全图型+旗标域速览；chart=图型名（如 km/labbe）看单图型旗标详情"}
+    if chart not in charts:
+        return {"ok": False, "error": f"未知图型 {chart}", "charts": charts}
+    c2, fl_out, _e2 = _q(["--list-flags", chart])
+    return {"ok": True, "chart": chart, "chart_count": len(charts),
+            "flags": fl_out.strip() if c2 == 0 else "(--list-flags 不可达)"}
 
 
 def render_chart_impl(chart: str, data: str, options: dict = None,
@@ -280,6 +304,13 @@ if _MCP_OK:
     def doctor(chart: str, data: str, options: dict = None) -> dict:
         """渲染前参数/环境体检：组合冲突、数据 schema、依赖、输出目录一次说清（exit 1=有发现）。"""
         return doctor_impl(chart, data, options)
+
+    @mcp.tool
+    def query_capability(chart: str = "") -> dict:
+        """查图型能力面：chart 留空=全注册表清单+每旗标域适用图型速览；
+        指定 chart（如 "km"/"labbe"）=该图型专属旗标+域外旗标（[ignored] 预告）。
+        动态真值=引擎 --list-types / --list-flags。"""
+        return query_capability_impl(chart)
 
     @mcp.resource("capability://matrix")
     def capability_matrix() -> dict:

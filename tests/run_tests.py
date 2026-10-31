@@ -2238,7 +2238,9 @@ class TestA3Stability(unittest.TestCase):
         self.assertEqual(ok, 30)
 
 
-# ── v2.8.0 B1：文档图型计数与代码注册表一致性守门 ──────────────────────────
+# ── v2.8.0 B1：文档图型计数与代码注册表一致性守门 ──
+
+_DOC_COUNT_PAT = re.compile(r"(\d+)[\s-]*(?:种图表|种图型|种学术图型|种投稿级学术图型|种投稿级学术图表|(?:[\w-]+\s+){0,2}chart[\s-]*types?|types, one command)")
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV280DocCount(unittest.TestCase):
@@ -2251,6 +2253,7 @@ class TestV280DocCount(unittest.TestCase):
                   os.path.join("mcp", "README.md"),
                   os.path.join("mcp", "MCP_SUBMISSION.md"),
                   os.path.join("mcp", "server.py"),
+                  os.path.join("mcp", "pyproject.toml"),
                   os.path.join("references", "cheatsheet.md"),
                   os.path.join("references", "quickstart.md"),
                   os.path.join("references", "limits.md"),
@@ -2273,7 +2276,7 @@ class TestV280DocCount(unittest.TestCase):
         n = len(gen_figure.GENERATORS) - len(self._ALIASES)
         self.assertGreaterEqual(n, 22, f"注册表图型数异常减少: {n}")
         root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
-        pat = re.compile(r"(\d+)[\s-]*(?:种图表|种图型|种学术图型|种投稿级学术图型|种投稿级学术图表|chart-types|chart types|types, one command)")
+        pat = _DOC_COUNT_PAT
         claims, bad = [], []
         for rel in self._DOC_FILES:
             p = os.path.join(root, rel)
@@ -2573,8 +2576,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 6.7.0", self.zh)
-        self.assertIn("version: 6.7.0", self.en)
+        self.assertIn("version: 6.8.0", self.zh)
+        self.assertIn("version: 6.8.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2671,8 +2674,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 6.7.0", self.zh)
-        self.assertIn("version: 6.7.0", self.en)
+        self.assertIn("version: 6.8.0", self.zh)
+        self.assertIn("version: 6.8.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2705,8 +2708,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 6.7.0", self.zh)
-        self.assertIn("version: 6.7.0", self.en)
+        self.assertIn("version: 6.8.0", self.zh)
+        self.assertIn("version: 6.8.0", self.en)
 
 
 
@@ -2773,7 +2776,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 6.7.0", zh)
+        self.assertIn("version: 6.8.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2946,7 +2949,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.7.0", t, name)
+            self.assertIn("version: 6.8.0", t, name)
 
 
 
@@ -3037,7 +3040,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.7.0", t, name)
+            self.assertIn("version: 6.8.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3146,7 +3149,7 @@ class TestV30600(unittest.TestCase):
                                 "-o", os.path.join(td, "o.png"), "--dpi", "80"],
                                capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-200:])
-            self.assertIn("CSV 不支持误差棒", r.stderr)
+            self.assertIn("CSV 误差棒 v6.0 起支持后缀列写法", r.stderr)
 
     def test_labreport_disclosure(self):
         root = os.path.dirname(SCRIPT_DIR)
@@ -3158,7 +3161,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.7.0", t, name)
+            self.assertIn("version: 6.8.0", t, name)
 
 
 
@@ -3227,7 +3230,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.7.0", t, name)
+            self.assertIn("version: 6.8.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3653,7 +3656,7 @@ class TestV40100(unittest.TestCase):
 
 
 class TestV42000(unittest.TestCase):
-    """v4.2.0：slope 斜率图（第 23 种图型）+ --peak-label 峰值自动注记。"""
+    """v4.2.0：slope 斜率图（第 23 号图型）+ --peak-label 峰值自动注记。"""
 
     def test_slope_e2e_renders(self):
         with tempfile.TemporaryDirectory() as td:
@@ -3780,7 +3783,7 @@ class TestV43000(unittest.TestCase):
 
 
 class TestV44000(unittest.TestCase):
-    """v4.4.0：volcano 火山图（第 24 种图型，组学差异表达）。"""
+    """v4.4.0：volcano 火山图（第 24 号图型，组学差异表达）。"""
 
     def test_volcano_e2e_renders(self):
         with tempfile.TemporaryDirectory() as td:
@@ -3886,7 +3889,7 @@ class TestV46000(unittest.TestCase):
 
 
 class TestV47000(unittest.TestCase):
-    """v4.7.0：upset 集合交集图（第 25 种图型）+ 场景化指导文档 + 真实科研场景示例。"""
+    """v4.7.0：upset 集合交集图（第 25 号图型）+ 场景化指导文档 + 真实科研场景示例。"""
 
     def test_upset_e2e_renders(self):
         with tempfile.TemporaryDirectory() as td:
@@ -4063,7 +4066,7 @@ class TestV47000(unittest.TestCase):
 
 
 class TestV48000(unittest.TestCase):
-    """v4.8.0：waterfall 肿瘤缓解瀑布图（第 26 种图型，RECIST 着色+阈值线）。"""
+    """v4.8.0：waterfall 肿瘤缓解瀑布图（第 26 号图型，RECIST 着色+阈值线）。"""
 
     def test_waterfall_e2e_group(self):
         """分组（RECIST）模式 E2E：渲染+stderr 事实行。"""
@@ -4251,7 +4254,7 @@ class TestV48000(unittest.TestCase):
 
 
 class TestV49000(unittest.TestCase):
-    """v4.9.0：raincloud 雨云图（第 27 种图型，分布三合一）+ setup_env --fix。"""
+    """v4.9.0：raincloud 雨云图（第 27 号图型，分布三合一）+ setup_env --fix。"""
 
     def test_raincloud_e2e_renders(self):
         with tempfile.TemporaryDirectory() as td:
@@ -4362,7 +4365,7 @@ class TestV49000(unittest.TestCase):
 
 
 class TestV41000(unittest.TestCase):
-    """v4.10.0：swimmer 临床试验游泳图（第 28 种图型，逐例时长+持续箭头+里程碑）。"""
+    """v4.10.0：swimmer 临床试验游泳图（第 28 号图型，逐例时长+持续箭头+里程碑）。"""
 
     def test_swimmer_e2e_group(self):
         """分组（RECIST）模式 E2E：渲染+stderr 事实行。"""
@@ -4555,7 +4558,7 @@ class TestV41000(unittest.TestCase):
 
 
 class TestV50000(unittest.TestCase):
-    """v5.0.0：ridgeline 山脊图（第 29 种图型）+ --audit 数字对账侧车。"""
+    """v5.0.0：ridgeline 山脊图（第 29 号图型）+ --audit 数字对账侧车。"""
 
     def test_ridgeline_e2e(self):
         with tempfile.TemporaryDirectory() as td:
@@ -4664,7 +4667,7 @@ class TestV50000(unittest.TestCase):
 
 
 class TestV50100(unittest.TestCase):
-    """v5.1.0：dumbbell 哑铃图（第 30 种图型）+ --repro 复跑交付包。"""
+    """v5.1.0：dumbbell 哑铃图（第 30 号图型）+ --repro 复跑交付包。"""
 
     def test_dumbbell_e2e(self):
         with tempfile.TemporaryDirectory() as td:
@@ -5289,7 +5292,7 @@ class TestV50500(unittest.TestCase):
 
 
 class TestV50600(unittest.TestCase):
-    """v5.6.0：galbraith Galbraith 径向图（第 36 种图型）+ composite share_y 自动统一
+    """v5.6.0：galbraith Galbraith 径向图（第 36 号图型）+ composite share_y 自动统一
     + prompt-cards 提示词卡片 + changelog 版本索引拆分。"""
 
     GAL_DEMO = {
@@ -5475,7 +5478,7 @@ class TestV50600(unittest.TestCase):
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
 class TestV50700(unittest.TestCase):
-    """v5.7.0：cif 竞争风险累计发生率（第 37 种图型，Aalen-Johansen+1−KM 高估对照）
+    """v5.7.0：cif 竞争风险累计发生率（第 37 号图型，Aalen-Johansen+1−KM 高估对照）
     + 反模式集中页 antipatterns.md + Galbraith 弧线密度放宽/无效应线小标
     + --list-types 权威清单 + MCP 清单机制化。"""
 
@@ -5870,7 +5873,7 @@ class TestV50800(unittest.TestCase):
 
 
 class TestV50900(unittest.TestCase):
-    """v5.9.0：rmst 限制平均生存时间（第 38 种图型）——阶梯积分 RMST+
+    """v5.9.0：rmst 限制平均生存时间（第 38 号图型）——阶梯积分 RMST+
     Greenwood 型方差+两臂差值 CI。含 τ 截断回归锁（10-23 双实现对拍抓出
     方差循环未按 τ 截断的出厂前 bug）+ colon 真实队列金标。"""
 
@@ -6637,6 +6640,114 @@ class TestV67000(unittest.TestCase):
         r = subprocess.run([sys.executable, GEN, "--help"],
                            capture_output=True, text=True, timeout=60)
         self.assertIn("--list-flags", r.stdout)
+
+
+# ── v6.8.0：MCP 能力透明化（评测「注册表缺口」根修锁） ─────────────────────
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
+class TestV68000(unittest.TestCase):
+    """v6.8.0：CHARTS 内置清单快照锁 + query_capability 工具 + CSV 误差文档真相化
+    + 计数守卫英文修饰容忍（评测 477807 五失分项防回潮）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import ast as _ast
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+        with io.open(os.path.join(cls.root, "mcp", "server.py"), encoding="utf-8") as _f:
+            src = _f.read()
+        cls.builtin_charts = None
+        for node in _ast.walk(_ast.parse(src)):
+            if isinstance(node, _ast.Assign) and any(
+                    isinstance(t, _ast.Name) and t.id == "CHARTS" for t in node.targets):
+                if isinstance(node.value, _ast.List):
+                    cls.builtin_charts = [e.value for e in node.value.elts]
+        reg = set(gen_figure.GENERATORS)
+        reg |= set(getattr(gen_figure, "EXTRA_GENERATORS", {}) or {})
+        cls.registry = sorted(reg)
+        sys.path.insert(0, os.path.join(cls.root, "mcp"))
+        try:
+            import server as _srv
+            cls.srv = _srv
+        finally:
+            sys.path.pop(0)
+
+    def test_charts_builtin_matches_registry(self):
+        """内置回退清单必须与引擎注册表逐键一致（v5.7 快照曾缺 labbe/rmst/rob）。"""
+        self.assertIsNotNone(self.builtin_charts, "server.py CHARTS 字面量未解析到")
+        self.assertEqual(sorted(self.builtin_charts), self.registry,
+                         "server.py 内置 CHARTS 与引擎注册表漂移")
+
+    def test_query_capability_overview(self):
+        r = self.srv.query_capability_impl("")
+        self.assertTrue(r.get("ok"), r)
+        self.assertGreaterEqual(r.get("chart_count", 0), 40)
+        self.assertIn("--stats", r.get("flags_overview", ""))
+
+    def test_query_capability_single(self):
+        r = self.srv.query_capability_impl("km")
+        self.assertTrue(r.get("ok"), r)
+        self.assertIn("--risk-times", r.get("flags", ""))
+        bad = self.srv.query_capability_impl("no_such_type")
+        self.assertFalse(bad.get("ok"))
+        self.assertIn("charts", bad)
+
+    def test_guard_regex_covers_english_modifier(self):
+        self.assertIsNotNone(
+            _DOC_COUNT_PAT.search("23 publication-grade academic chart types"))
+        self.assertIsNotNone(_DOC_COUNT_PAT.search("40 chart types"))
+        self.assertIsNone(_DOC_COUNT_PAT.search("see chapter 3 charts"))
+
+    def test_csv_error_docs_truthful(self):
+        with io.open(os.path.join(self.root, "references", "faq.md"), encoding="utf-8") as _f:
+            faq = _f.read()
+        with io.open(os.path.join(self.root, "references", "data-formats.md"), encoding="utf-8") as _f:
+            df = _f.read()
+        self.assertNotIn("误差棒为什么报错", faq)
+        self.assertNotIn("不能——JSON 的 `errors` 字段才支持", faq)
+        self.assertIn("weight_sd", faq)
+        self.assertNotIn("does not support errors", df)
+        self.assertIn("X_se", df)
+        self.assertIn("--csv-no-errors", df)
+
+    def test_single_series_hatch_brand_pixel(self):
+        """glm-brand 单系列 bar 斜纹机械断言（品牌铁律：斜纹非可选项）。"""
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "d.csv")
+            open(p, "w", encoding="utf-8").write("group,value\nA,3.1\nB,4.2\nC,5.3")
+            out = os.path.join(td, "o.png")
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                "-o", out, "--dpi", "80", "--style", "glm-brand"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            from PIL import Image
+            import numpy as _np
+            im = _np.asarray(Image.open(out).convert("RGB"))
+            row = im[int(im.shape[0] * 0.75)]
+            nonwhite = row[(row.astype(int).sum(axis=1) < 720)]
+            uniq = {tuple(px) for px in nonwhite}
+            self.assertGreaterEqual(len(uniq), 2,
+                f"glm-brand 单系列柱内无斜纹（唯一色 {len(uniq)}）")
+
+    def test_show_values_precision_fmt(self):
+        """show-values 精度自适应：随系列小数位（cap3），整数仍整数。"""
+        import af_draw
+        vals = [5.032, 4.661, 5.526]
+        self.assertEqual(af_draw._fmt_series_value(5.032, vals), "5.032")
+        self.assertEqual(af_draw._fmt_series_value(2.5, [2.5, 3.0]), "2.5")
+        self.assertEqual(af_draw._fmt_series_value(5.0, [5.0, 4.2]), "5")
+        self.assertEqual(af_draw._fmt_series_value(1234.5678, [1234.5678]), "1234.568")
+
+    def test_hatch_single_ignored_notice(self):
+        """非品牌主题 --hatch 单系列豁免必须 [ignored] 显式告知（透明化）。"""
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "d.csv")
+            open(p, "w", encoding="utf-8").write("group,value\nA,3.1\nB,4.2\nC,5.3")
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "80",
+                                "--hatch"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("单系列", r.stderr)
 
 
 if __name__ == "__main__":

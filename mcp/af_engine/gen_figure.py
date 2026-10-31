@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v6.7.0: Publication-quality academic figure generator.
+academic-figures v6.8.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -2955,8 +2955,8 @@ def main():
               f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
     if (args.type in ("bar", "grouped_bar") and args.data
             and str(args.data).lower().endswith(".csv")):
-        print("[hint] CSV 不支持误差棒——需要误差棒/显著性标记请改用 JSON 格式"
-              "（errors/significance 字段，见 --explain bar）", file=sys.stderr)
+        print("[hint] CSV 误差棒 v6.0 起支持后缀列写法（如 weight+weight_sd 自动配对；"
+              "--csv-no-errors 关闭识别）", file=sys.stderr)
     if args.journal and getattr(args, "width", None):
         print("[auto] --journal 锁定图宽，--width "
               f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
@@ -3065,8 +3065,8 @@ def main():
             print(f"ERROR: {m}", file=sys.stderr)
         if any("CSV" in m or "csv" in m for m in fatal_msgs) or \
            any("error" in m.lower() and "bar" in m.lower() for m in fatal_msgs):
-            print("HINT: CSV 不支持误差棒 → 改用 JSON 格式（见 --explain bar / 文档 §数据输入）",
-                  file=sys.stderr)
+            print("HINT: CSV 误差棒用后缀列（v6.0 起，weight+weight_sd；见 --explain bar）；"
+                  "JSON 则用 errors 字段", file=sys.stderr)
         sys.exit(1)
     _memory_hint(data, args.type)
     # ── v3.9：--order / --normalize（渲染前数据变换，stderr 透明告知）──

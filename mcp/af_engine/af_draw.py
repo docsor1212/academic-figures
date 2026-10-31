@@ -226,6 +226,21 @@ def annotate_multi_stats(ax, series, positions, theme, chart_type):
 # ── Alt text generation (v2.2, accessibility) ─────────────────────────
 
 
+def _fmt_series_value(v, series_values):
+    """v6.8.0：show-values 数值标签精度自适应（随系列数据小数位，cap 3；整数仍整数）。
+    历史：bar 固定 .1f 曾把 5.032 显示成 5.0（视觉门二轮机械断言抓获）。"""
+    v = float(v)
+    if v.is_integer():
+        return f"{int(v)}"
+
+    def _dec(x):
+        s = f"{float(x):.6f}".rstrip("0")
+        return len(s.split(".")[1]) if "." in s else 0
+
+    nd = min(3, max((_dec(x) for x in series_values), default=1))
+    return f"{v:.{nd}f}"
+
+
 def _hatch_edgecolor(theme, fill_color):
     """斜纹描边色：主题声明 hatch_edge=auto 时用填充同系深色，否则黑色（历史行为）。"""
     if not isinstance(theme, dict) or theme.get("hatch_edge") != "auto":
@@ -295,7 +310,11 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
             _accent = colors[i % len(colors)]
             _muted = to_rgba(_accent, 0.42)
             bar_colors = [_accent if abs(v - _vmax) < 1e-12 else _muted for v in _vals]
-            hatch_val = None  # 单系列斜纹豁免
+            _is_brand = isinstance(theme, dict) and theme.get("hatch_edge") == "auto"
+            if use_hatch and not _is_brand:
+                hatch_val = None  # 单系列斜纹豁免（v3.10：斜纹=系列区分工具；glm-brand 不豁免）
+                print("[ignored] --hatch 单系列已豁免斜纹（系列区分工具；"
+                      "--style glm-brand 不豁免）", file=sys.stderr)
         else:
             bar_colors = colors[i % len(colors)]
         if use_hatch and not (n_series == 1 and hatch_val is None):
@@ -331,7 +350,7 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
         if kwargs.get("show_values", False):
             for j, v in enumerate(values):
                 err = errs[j] if errs and j < len(errs) else 0
-                _fv = f'{int(v)}' if float(v).is_integer() else f'{v:.1f}'
+                _fv = _fmt_series_value(v, values)
                 if horizontal:
                     ax.text(v + err + max(values) * 0.01, x[j] + offset,
                             _fv, ha='left', va='center', fontsize=7,
@@ -1347,7 +1366,7 @@ def _annotate_peak(ax, xs, labels, values, horizontal, theme, cjk_fp, series_nam
 
 
 def gen_slope(data, ax, theme, cjk_fp, **kwargs):
-    """Slope chart（v4.2，第 23 种图型）：两时点比较——每项一条左→右连线，
+    """Slope chart（v4.2，第 23 号图型）：两时点比较——每项一条左→右连线，
     两端直接标注"名称+数值"，最大上升项主题色强调、最大下降项暖橙。
     期刊 pre/post 标准形态（如治疗前后、基线→随访）。
 
@@ -1429,7 +1448,7 @@ def gen_slope(data, ax, theme, cjk_fp, **kwargs):
 
 
 def gen_volcano(data, ax, theme, cjk_fp, **kwargs):
-    """Volcano plot（v4.4，第 24 种图型）：组学差异表达标准形态——
+    """Volcano plot（v4.4，第 24 号图型）：组学差异表达标准形态——
     x=log2(倍数变化)，y=-log10(p 值)；上调暖橙/下调蓝/非显著灰；
     阈值虚线（|log2FC| 与 p）+ 显著性 Top-N 自动名称标注（确定性偏移避让）。
 
@@ -1581,7 +1600,7 @@ def validate_raincloud(data):
 
 
 def gen_raincloud(data, ax, theme, cjk_fp, **kwargs):
-    """Raincloud plot（v4.9，第 27 种图型）：半小提琴（KDE 密度云）+ 箱线（五数概括）
+    """Raincloud plot（v4.9，第 27 号图型）：半小提琴（KDE 密度云）+ 箱线（五数概括）
     + 抖动原始点（雨滴）三合一——分布可视化现代标准形态（Allen et al. 2021），
     box 只给摘要、violin 藏样本、raincloud 全部给出且互不遮挡。
 
@@ -1669,7 +1688,7 @@ def gen_raincloud(data, ax, theme, cjk_fp, **kwargs):
 
 
 def gen_upset(data, ax, theme, cjk_fp, **kwargs):
-    """UpSet 交集图（v4.7，第 25 种图型）：多集合交集可视化——韦恩图（2~4 集合）
+    """UpSet 交集图（v4.7，第 25 号图型）：多集合交集可视化——韦恩图（2~4 集合）
     的标准后继；≥5 集合场景（组学多基因集/多标签共现/多中心入排标准重叠）远优于 venn。
 
     经典三区布局：顶部=交集大小柱（降序，计数直标）；中部=点阵（行=集合、
@@ -1901,7 +1920,7 @@ def validate_waterfall(data):
 
 
 def gen_waterfall(data, ax, theme, cjk_fp, **kwargs):
-    """Waterfall plot（v4.8，第 26 种图型）：肿瘤学最佳缓解瀑布图——每例患者
+    """Waterfall plot（v4.8，第 26 号图型）：肿瘤学最佳缓解瀑布图——每例患者
     自基线最佳肿瘤直径变化百分比，按变化降序（经典形态）排列；
     阈值虚线（PR/PD）+ 类别着色 + 计数事实框（纯计数，零推断）。
 
@@ -2052,7 +2071,7 @@ def reserve_bottom_band(ax, n_rows, top_pad=0.4, band=0.8):
 
 
 def gen_swimmer(data, ax, theme, cjk_fp, **kwargs):
-    """Swimmer plot（v4.10，第 28 种图型）：临床试验游泳图——每例受试者一条横条，
+    """Swimmer plot（v4.10，第 28 号图型）：临床试验游泳图——每例受试者一条横条，
     条长=治疗/随访持续时长，按持续时长降序（经典形态，PharmaSUG/IASLC 惯例）；
     端部箭头=数据截止时仍在治疗/缓解（ongoing），条上空心圆点=里程碑事件时间
     （如首次应答）；类别着色与瀑布图同族（RECIST 规范语义色），地标参考线=竖直
@@ -3311,7 +3330,7 @@ def alt_text_core(chart_type, data, title=""):
 
 
 def gen_ridgeline(data, ax, theme, cjk_fp, **kwargs):
-    """Ridgeline plot（v5.0，第 29 种图型）：山脊图/joyplot——多组 KDE 密度沿纵向
+    """Ridgeline plot（v5.0，第 29 号图型）：山脊图/joyplot——多组 KDE 密度沿纵向
     堆叠、部分重叠，一屏展示"分布如何逐组移动/变形"（时间进程/剂量梯度/分场景
     比较的全景形态；Wehrle & Johnson 经典形态）。画序自底向上（画家算法），
     上排山脊线完整覆盖下排填充。
@@ -3493,7 +3512,7 @@ def write_audit_sidecar(data, chart_type, out_path):
 
 
 def gen_dumbbell(data, ax, theme, cjk_fp, **kwargs):
-    """Dumbbell plot（v5.1，第 30 种图型）：哑铃图——每行两点（from→to）+连接线，
+    """Dumbbell plot（v5.1，第 30 号图型）：哑铃图——每行两点（from→to）+连接线，
     横向形态（发表惯例），强调"逐条目的差距大小"（两时点/两组对照：基线 vs
     随访、男 vs 女、实验 vs 对照；Pew/Lancet 系常用形态）。严格限两时点：
     >2 时点请用 slope/line，配对检验请用 paired。
@@ -3676,7 +3695,7 @@ def _cal_bins(data):
 
 
 def gen_calibration(data, ax, theme, cjk_fp, **kwargs):
-    """calibration 校准曲线（v5.2，第 31 种图型）：临床预测模型三件套之一
+    """calibration 校准曲线（v5.2，第 31 号图型）：临床预测模型三件套之一
     （与 ROC/DCA 同生态）——分箱预测概率 vs 实际观测率 + 理想对角线（虚线），
     等比坐标。JSON: bins=[{predicted,observed,n?,ci_lo?,ci_hi?}] 或
     predicted/observed 平行数组（ci_lo/ci_hi/n 可选平行数组，长度同 predicted）；
@@ -3775,7 +3794,7 @@ def validate_calibration(data):
 
 
 def gen_dca(data, ax, theme, cjk_fp, **kwargs):
-    """dca 决策曲线分析（v5.2，第 32 种图型）：临床预测模型三件套之一——
+    """dca 决策曲线分析（v5.2，第 32 号图型）：临床预测模型三件套之一——
     净收益 vs 阈值概率，各模型与两条参照策略（全部干预/不干预）比较，
     净收益定义 Vickers（每 100 人净真阳性数）。
     JSON: thresholds 严格升序 (0,1) 开区间；models=[{name, net_benefit}] 1~6 个；
@@ -3988,7 +4007,7 @@ def _nom_ticks(var, pts_hi=100.0, name_key="name"):
 
 
 def gen_nomogram(data, ax, theme, cjk_fp, **kwargs):
-    """nomogram 列线图（v5.3，第 33 种图型）：临床预测模型第四件——把多变量
+    """nomogram 列线图（v5.3，第 33 号图型）：临床预测模型第四件——把多变量
     回归模型的贡献转成"查表尺"：各变量刻度→Points(0~100)→Total Points→
     结局概率。引擎只做可视化不拟合：points/points_at 请来自你已拟合的模型
     （R rms::nomogram / Python 统计包输出），方法学口径写入统计方法段。
@@ -4150,7 +4169,7 @@ def validate_nomogram(data):
 # ═══ v5.4：rcs 限制性立方样条曲线（临床回归线，第 34 图型）+ DCA 获益区着色 ═══
 
 def gen_rcs(data, ax, theme, cjk_fp, **kwargs):
-    """rcs 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 种图型）：把已拟合
+    """rcs 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 号图型）：把已拟合
     样条模型的网格结果画成 带置信带的效应曲线（HR/OR 惯例对数轴 + 参照线）。
     JSON: points=[{value, est, ci_lo, ci_hi}]（≥5 点，来自你拟合的 RCS/Cox/
     Logistic 样条输出——引擎只可视化不拟合，方法学口径写入统计方法段）；
@@ -4348,7 +4367,7 @@ def _plain_log_ticks(ax):
 
 
 def gen_subgroup_forest(data, ax, theme, cjk_fp, **kwargs):
-    """subgroup 亚组分析森林图（v5.5，第 35 种图型）：亚组效应 + 交互检验
+    """subgroup 亚组分析森林图（v5.5，第 35 号图型）：亚组效应 + 交互检验
     一图呈现（NEJM/Lancet 风格：左侧亚组行、中间 CI 森林、右侧 est/p 列，
     亚组标题行报 P interaction，底部总效应菱形）。
     JSON: subgroups=[{name, p_interaction?, levels=[{name, est, ci_low, ci_high,
