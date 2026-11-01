@@ -2576,8 +2576,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 6.8.0", self.zh)
-        self.assertIn("version: 6.8.0", self.en)
+        self.assertIn("version: 6.9.0", self.zh)
+        self.assertIn("version: 6.9.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2674,8 +2674,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 6.8.0", self.zh)
-        self.assertIn("version: 6.8.0", self.en)
+        self.assertIn("version: 6.9.0", self.zh)
+        self.assertIn("version: 6.9.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2708,8 +2708,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 6.8.0", self.zh)
-        self.assertIn("version: 6.8.0", self.en)
+        self.assertIn("version: 6.9.0", self.zh)
+        self.assertIn("version: 6.9.0", self.en)
 
 
 
@@ -2776,7 +2776,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 6.8.0", zh)
+        self.assertIn("version: 6.9.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2949,7 +2949,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.8.0", t, name)
+            self.assertIn("version: 6.9.0", t, name)
 
 
 
@@ -3040,7 +3040,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.8.0", t, name)
+            self.assertIn("version: 6.9.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3161,7 +3161,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.8.0", t, name)
+            self.assertIn("version: 6.9.0", t, name)
 
 
 
@@ -3230,7 +3230,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.8.0", t, name)
+            self.assertIn("version: 6.9.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6630,6 +6630,8 @@ class TestV67000(unittest.TestCase):
             for tp in dom:
                 self.assertIn(tp, real, f"{f} 域内含非注册图型 {tp}")
         src = open(os.path.join(SCRIPT_DIR, "gen_figure.py"), encoding="utf-8").read()
+        # v6.9.0：argparse 定义可落 af_shared 封装（gen_figure 行预算拆分），双文件扫描
+        src += open(os.path.join(SCRIPT_DIR, "af_shared.py"), encoding="utf-8").read()
         for f in _sh._FLAG_DOMAINS:
             self.assertIn(f'"{f}"', src, f"注册表旗标 {f} 不在 argparse")
         for a, c in canon.items():
@@ -6748,6 +6750,146 @@ class TestV68000(unittest.TestCase):
                                capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
             self.assertIn("单系列", r.stderr)
+
+
+# ── v6.9.0：sig-bracket 组间显著性括号 + 评测软失分收口防回潮 ──────────────
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
+class TestV69000(unittest.TestCase):
+    """v6.9.0：--sig-bracket（comparisons 任意比较对+分层布局）+ MCP 工具清单锁
+    + README 语言描述 + changelog 当前版本标记 + uvx 本地路线。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import af_draw
+        cls.af_draw = af_draw
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_bracket_layers_no_overlap(self):
+        """分层纯函数：同层区间冲突必被隔开。"""
+        f = self.af_draw.compute_bracket_layers
+        # 全交叉链：每层唯一
+        ls = f([(0, 2), (0, 1), (1, 2)])
+        self.assertEqual(len(set(ls)), 3)
+        # 不相交区间可同层
+        ls = f([(0, 1), (2, 3)])
+        self.assertEqual(ls, [0, 0])
+        # 共享端点（0,1)(1,2) 竖线相撞 → 必须分层
+        ls = f([(0, 1), (1, 2)])
+        self.assertNotEqual(ls[0], ls[1])
+        # span 大的先占低层
+        ls = f([(0, 3), (1, 2)])
+        self.assertEqual(ls[0], 0)
+        self.assertEqual(ls[1], 1)
+
+    def test_bracket_render_bar_smoke(self):
+        """bar + comparisons + --sig-bracket 渲染 exit 0 且 stderr 报告。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "d.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["ctrl", "trt1", "trt2"],
+                "series": {"weight": [5.03, 4.66, 5.53]},
+                "errors": {"weight": [0.58, 0.79, 0.44]},
+                "comparisons": [
+                    {"a": "ctrl", "b": "trt2", "p": 0.049},
+                    {"a": "trt1", "b": "trt2", "p": 0.0031}]}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80",
+                 "--sig-bracket"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[sig-bracket]", r.stderr)
+            self.assertIn("2 组间比较", r.stderr)
+
+    def test_bracket_unknown_group_fatal(self):
+        """comparisons 引用未知组名 → 非零退出（中文诊断）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "d.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["A", "B"],
+                "series": {"v": [1.0, 2.0]},
+                "comparisons": [{"a": "A", "b": "不存在", "p": 0.01}]}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80",
+                 "--sig-bracket"],
+                capture_output=True, text=True, timeout=240)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("未知组名", r.stderr)
+
+    def test_bracket_out_of_domain_ignored(self):
+        """域外图型（line）开 --sig-bracket → [ignored] 显式告知、exit 0。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "d.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["T0", "T1", "T2"],
+                "series": {"v": [1.0, 2.0, 3.0]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "line", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80",
+                 "--sig-bracket"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[ignored] --sig-bracket", r.stderr)
+
+    def test_box_bracket_smoke(self):
+        """box + comparisons 渲染（wrapper 对 box 同样生效）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "d.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["A", "B", "C"],
+                "series": {"A": [1, 2, 2.4, 1.8], "B": [3, 4, 3.6, 4.2],
+                            "C": [5, 6, 5.4, 6.2]},
+                "comparisons": [{"a": "A", "b": "C", "p": 0.004}]}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "box", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80",
+                 "--sig-bracket"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[sig-bracket]", r.stderr)
+
+    def test_flag_domain_registered(self):
+        """--sig-bracket 入旗标域注册表（--list-flags 可见）。"""
+        r = subprocess.run([sys.executable, GEN, "--list-flags"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertIn("--sig-bracket", r.stdout)
+        self.assertIn("box/violin", r.stdout)
+
+    def test_mcp_readme_tools_current(self):
+        """mcp/README 工具表与实现同步（评测：工具列表与更新记录不对应）。"""
+        txt = self._rd(os.path.join("mcp", "README.md"))
+        for tool in ("render_chart", "suggest_chart", "doctor", "query_capability"):
+            self.assertIn("`%s`" % tool, txt)
+        srv = self._rd(os.path.join("mcp", "server.py"))
+        self.assertIn("query_capability_impl", srv)
+
+    def test_readme_language_description(self):
+        """README 中文文档描述与实际分发一致（评测点名纠正）。"""
+        txt = self._rd("README.md")
+        self.assertNotIn("中文文档见 SkillHub 页面", txt)
+        self.assertIn("SKILL_ZH.md", txt)
+
+    def test_changelog_current_version_marker(self):
+        """changelog 索引表标注当前版本（评测：版本历史未突出当前版本）。"""
+        import re as _re
+        txt = self._rd(os.path.join("references", "changelog.md"))
+        sk = self._rd("SKILL.md")
+        ver = _re.search(r"version:\s*([\d.]+)", sk).group(1)
+        self.assertIn("（当前）", txt)
+        m = _re.search(r"\|\s*\*{0,2}v" + _re.escape(ver) + r"（当前）\*{0,2}\s*\|", txt)
+        self.assertIsNotNone(m, f"当前版本 {ver} 行未标（当前）")
+
+    def test_uvx_local_route_documented(self):
+        """mcp/README 有不依赖 GitHub 的本地安装路线（评测：国内网络受阻）。"""
+        txt = self._rd(os.path.join("mcp", "README.md"))
+        self.assertIn("本地安装", txt)
+        self.assertIn("pip install -e", txt)
 
 
 if __name__ == "__main__":

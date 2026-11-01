@@ -149,6 +149,9 @@ v5.6 起在 composite 数据加 `"share_y": true`——同 ylabel 的面板自�
 v3.1 起不会——自动等距采样到 2000 行并显著告知（`AUTO-DOWNSAMPLE`）；`--downsample N`
 可指定其他行数。
 
+**Q：组间比较的星号括号（bracket）怎么画？**
+数据加 `comparisons` 字段+`--sig-bracket`：`{"a":"ctrl","b":"trt2","p":0.049}` 这样一组比较对，自动画分层 bracket+星号（bar/grouped_bar/box/violin）。p 值用你自己跑的检验结果；引擎只可视化不替你选检验。
+
 **Q：CSV 能带误差棒吗？**
 能——v6.0 起 CSV 后缀列自动配对：主列 `weight` 旁放 `weight_sd`/`weight_se`/`weight_sem`/`weight_err` 即自动画误差棒（`weight_sd`+`weight_n` 自动换算 SEM；`--csv-no-errors` 可关闭识别）。JSON 的 `errors` 对象写法仍可用。详见 data-formats.md 的 JSON/CSV 能力对照表。
 

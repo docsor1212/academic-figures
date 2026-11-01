@@ -4669,6 +4669,91 @@ def write_repro_bundle(argv, data, out_path, extra_outputs=None):
 
 
 # v5.2：--suggest 输出双语化（domestic 反馈：辅助输出此前以英文为主）
+# ── v6.9.0 sig-bracket 组间显著性括号 ─────────────────────────────────
+def compute_bracket_layers(pairs):
+    """comparisons 分层布局纯函数：pairs=[(i, j), ...]（组索引对，i<j 自动归一）。
+    经典区间重叠最低层分配（span 长的先放矮层）→ 返回与输入同序的 layer 列表。
+    同层两条 bracket 的 [i,j] 闭区间重叠即视为冲突（共享端点=竖线相撞，也算）。"""
+    idx = sorted(range(len(pairs)), key=lambda k: -(max(pairs[k]) - min(pairs[k])))
+    placed, out = [], [0] * len(pairs)
+    for k in idx:
+        i, j = min(pairs[k]), max(pairs[k])
+        layer = 0
+        while any(pl == layer and not (pj < i or pi > j) for (pi, pj, pl) in placed):
+            layer += 1
+        out[k] = layer
+        placed.append((i, j, layer))
+    return out
+
+
+def _maybe_draw_brackets(data, ax, kwargs, chart_name=None):
+    """GENERATORS wrapper 钩子：--sig-bracket + JSON comparisons → 组间显著性括号。
+    组名经 ax tick 标签映射（bar/box/violin 三族 tick 均为组名）；horizontal 模式
+    暂不支持（[ignored] 告知）；未知组名 raise ValueError（中文诊断）。"""
+    if not kwargs.get("sig_bracket"):
+        return
+    if chart_name is not None and chart_name not in (
+            "bar", "grouped_bar", "box", "violin"):
+        print("[ignored] --sig-bracket 对 " + chart_name + " 不适用（仅 bar/grouped_bar/box/violin）", file=sys.stderr)
+        return
+    comps = data.get("comparisons")
+    if not comps or not isinstance(comps, list):
+        print("[ignored] --sig-bracket 需要数据携带 comparisons 字段"
+              "（示例: [{a:组A, b:组B, p:0.03}, ...]）", file=sys.stderr)
+        return
+    if kwargs.get("horizontal"):
+        print("[ignored] --sig-bracket 暂不支持 horizontal 模式", file=sys.stderr)
+        return
+    ticks = [t.get_text() for t in ax.get_xticklabels()]
+    pos_map = {name: k for k, name in enumerate(ticks) if name}
+    if len(pos_map) < 2:
+        print("[ignored] --sig-bracket 未识别到组名 tick（需 ≥2 组）", file=sys.stderr)
+        return
+    pairs, stars = [], []
+    for c in comps:
+        a, b = c.get("a"), c.get("b")
+        if a not in pos_map or b not in pos_map:
+            raise ValueError(
+                f"comparisons 引用未知组名 {a!r}/{b!r}；有效组名: {sorted(pos_map)}")
+        if a == b:
+            raise ValueError(f"comparisons 的 a/b 不可为同组（{a!r}）")
+        p = c.get("p")
+        if p is None:
+            label = str(c.get("label") or _sig_stars(float(c.get("p", 1.0))))
+        else:
+            label = _sig_stars(float(p))
+        pairs.append((pos_map[a], pos_map[b]))
+        stars.append(label)
+    layers = compute_bracket_layers(pairs)
+    n_layer = max(layers) + 1
+    y0, y1 = ax.get_ylim()
+    span = (y1 - y0) or 1.0
+    step = span * 0.09
+    pad = span * 0.02
+    base = y1 + pad
+    ax.set_ylim(top=base + step * n_layer + pad)
+    width = (max(pos_map.values()) - min(pos_map.values())) / max(len(pos_map) - 1, 1) * 0.12
+    for (i, j), layer, s in zip(pairs, layers, stars):
+        yb = base + step * layer
+        ax.plot([i, i, j, j], [yb, yb + step * 0.32, yb + step * 0.32, yb],
+                color="#333333", linewidth=1.1, clip_on=False, zorder=5)
+        ax.text((i + j) / 2, yb + step * 0.42, s, ha="center", va="bottom",
+                fontsize=9, color="#333333", zorder=5)
+    print(f"[sig-bracket] {len(pairs)} 组间比较 → {n_layer} 层"
+          f"（星号阈值 <0.05/<0.01/<0.001；NS=不显著）", file=sys.stderr)
+
+
+def _wrap_brackets(fn, chart_name=None):
+    def _w(data, ax, theme, cjk_fp, **kwargs):
+        extra = fn(data, ax, theme, cjk_fp, **kwargs)
+        _maybe_draw_brackets(data, ax, kwargs, chart_name)
+        return extra
+    _w.__name__ = fn.__name__
+    _w.__doc__ = fn.__doc__
+    return _w
+
+
+
 _SUGGEST_TYPE_ZH = {
     "bar": "柱状图", "grouped_bar": "分组柱状图", "hbar": "横向条形图",
     "stacked_bar": "堆叠柱状图", "heatmap": "热图", "scatter": "散点图",
@@ -4691,7 +4776,7 @@ def format_suggest_line(idx, score, ctype, why):
     return f"  [{idx}] {ctype:<12} score {score:<3} — {why}" + (f"（{zh}）" if zh else "")
 
 
-GENERATORS = {
+_RAW_GENERATORS = {
     "bar": gen_bar,
     "grouped_bar": gen_bar,
     "hbar": gen_bar,
@@ -4701,6 +4786,7 @@ GENERATORS = {
     "scatter": gen_scatter,
     "line": gen_line,
     "dual_axis": gen_dual_axis,
+
     "box": gen_box,
     "boxplot": gen_box,
     "forest": gen_forest,
@@ -4725,3 +4811,4 @@ GENERATORS = {
     "rcs": gen_rcs,
     "subgroup": gen_subgroup_forest,
 }
+GENERATORS = {k: _wrap_brackets(v, k) for k, v in _RAW_GENERATORS.items()}

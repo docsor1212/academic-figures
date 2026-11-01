@@ -105,6 +105,7 @@ _DIAG_PATTERNS = [
 
 _KNOWN_DATA_FIELDS = [
     "labels", "series", "errors", "significance", "groups", "matrix",
+    "comparisons",
     "row_labels", "col_labels", "rows", "cols", "x_labels", "y_labels",
     "time", "event", "group", "fpr", "tpr", "scores", "name",
     "sets", "counts", "areas", "studies", "effect", "se", "lower", "upper",

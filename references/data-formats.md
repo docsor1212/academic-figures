@@ -40,6 +40,24 @@ B,20.3,18.7
 C,15.2,16.5
 ```
 
+### 组间显著性括号（`comparisons`，v6.9+，`--sig-bracket`）
+
+bar/grouped_bar/box/violin 可携带比较对，`--sig-bracket` 开启后自动画分层 bracket+星号（<0.05 `*`、<0.01 `**`、<0.001 `***`，p≥0.05 显示 `NS`）：
+
+```json
+{
+  "labels": ["ctrl", "trt1", "trt2"],
+  "series": {"weight": [5.03, 4.66, 5.53]},
+  "comparisons": [
+    {"a": "ctrl", "b": "trt2", "p": 0.049},
+    {"a": "trt1", "b": "trt2", "p": 0.0031}
+  ]
+}
+```
+
+`a`/`b` 必须是组名（labels/分组名）；p 值来自你自己的统计分析
+（引擎只做可视化，不替你选检验）；bracket 按区间自动分层防重叠。
+
 Note: since v6.0, CSV supports error bars via suffix columns (`X_se` / `X_sd` / `X_sem` / `X_err` auto-paired with the main column; `X_sd` + `X_n` → SEM). Significance marks remain JSON-only.
 
 ---

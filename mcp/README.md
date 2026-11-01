@@ -9,8 +9,12 @@
 ## 安装
 
 ```bash
-# uvx（git 直跑，推荐）
+# uvx（git 直跑；国内网络不稳时走下方本地安装路线）
 uvx --from "git+https://github.com/docsor1212/academic-figures#subdirectory=mcp" academic-figures-mcp
+
+# 本地安装（不访问 GitHub）：clone 或下载包后——
+#   pip install -e <包目录>/mcp   （pip 可走清华/阿里镜像）
+#   uvx --from <包目录>/mcp academic-figures-mcp
 
 # 或本地路径
 cd academic-figures/mcp && pip install . && academic-figures-mcp
@@ -42,6 +46,7 @@ Codex：`codex mcp add academic-figures -- uvx --from "git+https://github.com/do
 | `render_chart` | 全图型渲染（随引擎注册表，当前 40 种）：`chart` + `data`（JSON/CSV 文本）+ `options`（title/subtitle/source/xlabel/ylabel/theme/journal/column/verify/peak_label/summary…）+ `dpi`（72–600）+ `fmt`；回预览 base64 + 成品落盘路径；重叠检出返回 `overlap_detected`（修复机制，不交付） |
 | `suggest_chart` | 数据驱动图型推荐 |
 | `doctor` | 渲染前参数/环境体检（只体检不渲染） |
+| `query_capability` | 查图型能力面：chart 留空=全注册表+旗标域速览；指定图型=专属/域外旗标详情（动态真值=引擎，防清单漂移） |
 
 Resources：`capability://matrix`（全图型注册表×期刊预设）、`capability://changelog`。
 Prompt：`chart_picker`（选图引导）。

@@ -221,6 +221,13 @@ DEMO_DATA = {
 
 # ── v6.7.0：旗标域注册表（--list-flags 数据源；与 limits.md 冲突表同源对齐） ──
 # 域内=旗标对该图型生效；域外=传了会被 [ignored] 显式告知或拒绝（见 limits §〇/§二）。
+def add_sig_bracket_arg(parser):
+    """
+    v6.9.0：--sig-bracket 旗标注册（封装在 af_shared，gen_figure 行预算零压力）。
+    """
+    parser.add_argument("--sig-bracket", action="store_true",
+                        help="组间显著性括号（bar/grouped_bar/box/violin）：数据携带 comparisons=[{a,b,p}] 时自动画分层 bracket+星号")
+
 _FLAG_DOMAINS = {
     "--stats": (("box", "violin", "forest"), "box/violin=auto|multi；forest=cox"),
     "--compare": (("roc",), None),
@@ -228,6 +235,7 @@ _FLAG_DOMAINS = {
     "--hatch": (("bar", "grouped_bar", "stacked_bar", "hbar"), "bar 系"),
     "--order": (("bar", "grouped_bar", "stacked_bar", "hbar", "line", "scatter"), "按族"),
     "--normalize": (("line",), "line 系"),
+    "--sig-bracket": (("bar", "grouped_bar", "box", "violin"), "组间显著性括号（comparisons 字段）"),
     "--peak-label": (("line",), None),
     "--cmap": (("heatmap", "cluster_heatmap"), None),
     "--vmin": (("heatmap", "cluster_heatmap"), None),
