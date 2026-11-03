@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v6.9.0: Publication-quality academic figure generator.
+academic-figures v7.0.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -35,8 +35,7 @@ from af_resilience import spawn_retry as _spawn_retry, wd_scale as _wd_scale  # 
 from af_diagnostics import write_debug_report as _write_debug_report
 _LAST_ARGS = None  # v6.4.0 --debug：main 局部 args 登记模块级，__main__ 异常层读
 from af_diagnostics import (_EXIT_DATA_CLASSES, _EXIT_ENV_CLASSES,
-                            _classify_exit_code, _diagnose_exception,
-                            _print_v3_error, _EXC_ZH_V3, _DIAG_PATTERNS,
+                            _classify_exit_code, _diagnose_exception, _print_v3_error, _EXC_ZH_V3, _DIAG_PATTERNS,
                             _KNOWN_DATA_FIELDS)
 
 try:
@@ -49,10 +48,9 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
 from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID,
                         _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query,
-                        add_sig_bracket_arg)
+                        add_sig_bracket_arg, add_sig_auto_arg)
 from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
-                     pairwise_vs_first, draw_bootstrap_brackets,
-                     annotate_bootstrap_stats, draw_stat_brackets,
+                     pairwise_vs_first, draw_bootstrap_brackets, annotate_bootstrap_stats, draw_stat_brackets,
                      annotate_auto_stats, annotate_multi_stats, gen_bar,
                      gen_heatmap, gen_scatter, gen_line, gen_box,
                      gen_forest, gen_violin, gen_km, gen_roc, gen_stacked_bar,
@@ -2651,6 +2649,7 @@ def main():
     parser.add_argument("--show-ratio", action="store_true", help="分组柱上标注倍率（如 4.96x）")
     parser.add_argument("--ratio-base", type=int, default=0, help="倍率计算的基准系列序号（默认 0）")
     add_sig_bracket_arg(parser)
+    add_sig_auto_arg(parser)
     parser.add_argument("--stats", default=None, choices=["auto", "multi", "cox", "bootstrap"],
                         help="box/violin 自动显著性标注：auto=各组 vs 第一组（Shapiro 定正态→Welch t / Mann-Whitney U）；multi=全两两（正态→ANOVA+Tukey，否则 KW+Dunn+Hochberg）；cox=仅 forest：原始逐例生存数据自动拟合多因素 Cox，输出 HR[95%%CI] 森林图+系数表+PH 检验。括号+星号自动绘制")
     parser.add_argument("--timeout", type=float, default=None,
@@ -3188,6 +3187,7 @@ def main():
         "vmax": args.vmax,
         "horizontal": args.horizontal or args.type in ("hbar", "horizontal_bar"),
         "hatch": args.hatch, "sig_bracket": getattr(args, "sig_bracket", False),
+        "sig_auto": getattr(args, "sig_auto", False),
         "direct_label": getattr(args, "direct_label", False),
         "alternate": args.alternate,
         "show_ratio": args.show_ratio,

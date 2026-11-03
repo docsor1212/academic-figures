@@ -221,6 +221,13 @@ DEMO_DATA = {
 
 # ── v6.7.0：旗标域注册表（--list-flags 数据源；与 limits.md 冲突表同源对齐） ──
 # 域内=旗标对该图型生效；域外=传了会被 [ignored] 显式告知或拒绝（见 limits §〇/§二）。
+def add_sig_auto_arg(parser):
+    """
+    v7.0.0：--sig-auto 注册（两两全自动检验+bracket；封装在 af_shared 同 sig-bracket）。
+    """
+    parser.add_argument("--sig-auto", action="store_true",
+                        help="全自动组间显著性（box/violin/raincloud）：自动两两检验（Shapiro 判常态 → Welch t / Mann-Whitney U）并画分层 bracket；bar 等聚合图请用 comparisons + --sig-bracket")
+
 def add_sig_bracket_arg(parser):
     """
     v6.9.0：--sig-bracket 旗标注册（封装在 af_shared，gen_figure 行预算零压力）。
@@ -235,6 +242,7 @@ _FLAG_DOMAINS = {
     "--hatch": (("bar", "grouped_bar", "stacked_bar", "hbar"), "bar 系"),
     "--order": (("bar", "grouped_bar", "stacked_bar", "hbar", "line", "scatter"), "按族"),
     "--normalize": (("line",), "line 系"),
+    "--sig-auto": (("box", "violin", "raincloud"), "全自动两两检验+bracket（原始分布数据）"),
     "--sig-bracket": (("bar", "grouped_bar", "box", "violin"), "组间显著性括号（comparisons 字段）"),
     "--peak-label": (("line",), None),
     "--cmap": (("heatmap", "cluster_heatmap"), None),

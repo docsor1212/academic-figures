@@ -60,7 +60,7 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
 
 1. **中文乱码**：加 `--cjk` 自动探测系统中文字体（`--journal cma|cn-core` 自动启用，
    无需再加）；字体缺失先跑 `scripts/setup_env.py`。
-2. **CSV 要误差棒**：CSV 不支持误差棒——改用 JSON 的 `errors` 字段（见 --explain bar）。
+2. **CSV 要误差棒**：v6.0 起 CSV 后缀列直接支持——主列旁加 `weight_sd`/`weight_se`/`weight_err` 即自动配对（`--csv-no-errors` 关闭）；显著性标记仍走 JSON。
 3. **`--journal` 锁宽度**：journal 预设覆盖 `--width`（`--height` 仍生效）；要自定义
    尺寸就别加 `--journal`。
 4. **cluster_heatmap 行数偏大**：>1500 行即建议 `--downsample N` 等距采样（硬上限

@@ -23,7 +23,10 @@ academic-figures-mcp = "server:main"
 
 [tool.setuptools]
 py-modules = ["server"]
-packages = ["af_engine"]
+# af_engine 嵌入副本不随 MCP 子目录分发（引擎随 skill 包根 scripts/ 提供；
+# 开发形态先跑 mcp/sync_engine.sh 生成本地镜像）。独立安装本 MCP 时引擎经
+# server.py 的 ../scripts 回退解析——wheel 不含引擎属如实声明。
+packages = []
 
 [tool.setuptools.package-data]
 af_engine = ["journal/*.json", "changelog.md"]

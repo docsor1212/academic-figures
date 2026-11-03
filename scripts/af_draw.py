@@ -4670,6 +4670,35 @@ def write_repro_bundle(argv, data, out_path, extra_outputs=None):
 
 # v5.2：--suggest 输出双语化（domestic 反馈：辅助输出此前以英文为主）
 # ── v6.9.0 sig-bracket 组间显著性括号 ─────────────────────────────────
+def pairwise_all(series):
+    """v7.0.0 --sig-auto：全部两两比较（itertools.combinations）。
+    Shapiro 常态判定（双组均 p>0.05 → Welch t；否则 Mann-Whitney U）——
+    与 pairwise_vs_first 同构检验家族。返回 [(a, b, p_or_None), ...]。"""
+    from scipy import stats as _st
+    import itertools as _it
+    out = []
+    for a, b in _it.combinations(list(series.keys()), 2):
+        xa = [float(v) for v in series[a] if v is not None]
+        xb = [float(v) for v in series[b] if v is not None]
+        if len(xa) < 2 or len(xb) < 2:
+            out.append((a, b, None))
+            continue
+        try:
+            norm = (_st.shapiro(xa).pvalue > 0.05
+                    and _st.shapiro(xb).pvalue > 0.05)
+        except Exception:
+            norm = False
+        try:
+            if norm:
+                p = float(_st.ttest_ind(xa, xb, equal_var=False).pvalue)
+            else:
+                p = float(_st.mannwhitneyu(xa, xb).pvalue)
+        except Exception:
+            p = None
+        out.append((a, b, p))
+    return out
+
+
 def compute_bracket_layers(pairs):
     """comparisons 分层布局纯函数：pairs=[(i, j), ...]（组索引对，i<j 自动归一）。
     经典区间重叠最低层分配（span 长的先放矮层）→ 返回与输入同序的 layer 列表。
@@ -4690,13 +4719,34 @@ def _maybe_draw_brackets(data, ax, kwargs, chart_name=None):
     """GENERATORS wrapper 钩子：--sig-bracket + JSON comparisons → 组间显著性括号。
     组名经 ax tick 标签映射（bar/box/violin 三族 tick 均为组名）；horizontal 模式
     暂不支持（[ignored] 告知）；未知组名 raise ValueError（中文诊断）。"""
-    if not kwargs.get("sig_bracket"):
+    if not (kwargs.get("sig_bracket") or kwargs.get("sig_auto")):
         return
     if chart_name is not None and chart_name not in (
             "bar", "grouped_bar", "box", "violin"):
         print("[ignored] --sig-bracket 对 " + chart_name + " 不适用（仅 bar/grouped_bar/box/violin）", file=sys.stderr)
         return
     comps = data.get("comparisons")
+    if (not comps or not isinstance(comps, list)) and kwargs.get("sig_auto"):
+        _auto_domains = ("box", "violin", "raincloud")
+        if chart_name not in _auto_domains:
+            print("[ignored] --sig-auto 仅对 box/violin/raincloud 的原始分布数据自动检验；"
+                  "聚合图请改用 comparisons 字段 + --sig-bracket", file=sys.stderr)
+            return
+        _ser = data.get("series") or data.get("groups") or {}
+        if not isinstance(_ser, dict) or len(_ser) < 2:
+            print("[ignored] --sig-auto 需要 ≥2 组原始数据（series/groups）", file=sys.stderr)
+            return
+        try:
+            _pairs = pairwise_all(_ser)
+        except ImportError:
+            print("WARNING: --sig-auto 需要 scipy（pip install scipy）", file=sys.stderr)
+            return
+        comps = [{"a": a, "b": b, "p": p} for (a, b, p) in _pairs if p is not None]
+        _n_ns = sum(1 for (_a, _b, p) in _pairs if p is None)
+        if _n_ns:
+            print(f"WARNING: --sig-auto {_n_ns} 组样本量 <2 无法检验，已跳过", file=sys.stderr)
+        print(f"[sig-auto] 两两检验 {_pairs and len(_pairs)} 对（Shapiro 判常态："
+              "双常态组 Welch t / 否则 Mann-Whitney U）", file=sys.stderr)
     if not comps or not isinstance(comps, list):
         print("[ignored] --sig-bracket 需要数据携带 comparisons 字段"
               "（示例: [{a:组A, b:组B, p:0.03}, ...]）", file=sys.stderr)

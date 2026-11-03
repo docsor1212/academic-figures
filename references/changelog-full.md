@@ -8,6 +8,15 @@
 
 <!-- 6.5.0 详情自 changelog.md 下沉（v6.8.0 发版，最近三版窗口滚动） -->
 
+## 6.9.0 — 2026-11-02
+
+新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠
++bar/grouped_bar/box/violin；分层布局=区间重叠最低层分配，共享端点判撞）
++文档准确性四处收口（MCP 工具清单补 query_capability/README 中文文档描述
+纠正/MCP 安装新增不依赖 GitHub 的本地路线/版本历史标注当前版本）。
+494 项测试。金标=PlantGrowth scipy ttest_ind 真值（NS/*/ ** 三 bracket
+全链机械对拍）。
+
 ## 6.5.0 — 2026-10-30
 
 文档一致性大扫除（准确性审查逐条收口）+ 视觉样例库。

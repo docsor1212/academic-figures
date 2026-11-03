@@ -10,7 +10,9 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| **v6.8.0（当前）** | 2026-10-31 | MCP 新工具 `query_capability`（图型+旗标域动态查询，能力面与引擎注册表零漂移）+CHARTS 内置清单快照锁+CSV 误差能力文档真相化（FAQ/data-formats/引擎 hint 旧表述纠正）+守卫扩容（mcp/pyproject 入扫描+英文修饰容忍）+glm-brand 单系列斜纹补齐+show-values 精度自适应 |
+| v6.9.0 | 2026-11-02 | 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠+bar/grouped_bar/box/violin 四图型）+文档准确性四处收口（MCP 工具清单/README 语言/uvx 本地路线/版本历史当前标记） |
+| **v7.0.0（当前）** | 2026-11-03 | major：新功能 `--sig-auto` 全自动组间显著性（两两自动检验 Shapiro→Welch t / Mann-Whitney U+分层 bracket）+文档可信度大扫除（changelog 补 6.9.0/7.0.0 双节+CSV 误差表述全面清零含 quickstart/SKILL 决策树+README 分发形态如实化+openpyxl 入正式依赖+MCP 包声明如实化） |
+| v6.8.0 | 2026-10-31 | MCP 新工具 `query_capability`（图型+旗标域动态查询，能力面与引擎注册表零漂移）+CHARTS 内置清单快照锁+CSV 误差能力文档真相化（FAQ/data-formats/引擎 hint 旧表述纠正）+守卫扩容（mcp/pyproject 入扫描+英文修饰容忍）+glm-brand 单系列斜纹补齐+show-values 精度自适应 |
 | v6.7.0 | 2026-10-31 | 新功能 `--list-flags [TYPE]` 旗标域查询（专属+域外 [ignored] 预告；注册表与 argparse/图型注册表互锁防漂移）+ 官方点名收口（37 残留×5 含锚链接/gallery JSON 随包索引指针存活/Python 下限统一 3.8/changelog 表格解挤压）+ README 测试徽章动态互锁 |
 | v6.6.0 | 2026-10-30 | 一致性清剿第二轮（评测 accuracy/usability 4.6 点名全修：MCP server.py 头注释与提交文档 23→40、SKILL 索引与代码布局 37→40、quickstart 36→40；limits「静默忽略」纠为实际 [ignored] 行为+机械锁）+计数守卫扩至 14 份活文档含裸 types 口径 |
 | v6.5.0 | 2026-10-30 | 文档一致性大扫除（评测 accuracy 4.5 点名三硬伤全修：图型数 30/37/40 多口径统一 40、MCP 23 vs 27 自相矛盾消除、引擎头注释 v2.0.0→随版）+计数守卫扩展（mcp/README+cheatsheet 入扫描+引擎头注释版本锁）+视觉样例库 examples/gallery（3 例真实数据成品图+可复现 JSON） |
@@ -48,6 +50,33 @@
 | v3.9.0 | 2026-09-30 | `--order` |
 
 ## 最近版本详情 Recent Details
+
+
+## 7.0.0 — 2026-11-03
+
+major：全自动组间显著性 + 文档可信度大扫除：
+
+- **新功能 `--sig-auto`**（box/violin/raincloud）：不传 comparisons 也行——引擎自动
+  两两检验（Shapiro 判常态：双常态组 Welch t，否则 Mann-Whitney U）并画分层
+  bracket+星号。检验家族与 `--stats auto` 一致；聚合图（bar 系）不适用并显式告知
+  （用 comparisons + --sig-bracket 传自己的 p 值）。
+- **文档可信度大扫除**（准确性审查逐条收口）：`quickstart` CSV 误差旧限制残留与
+  SKILL 决策树 JSON-only 提示纠正为 v6.0 后缀列真相；README 分发形态表述如实化
+  （中文版=SkillHub 包 SKILL.md，无独立 SKILL_ZH.md 文件随包）；`openpyxl` 入
+  正式依赖（--sheet Excel 直读自此声明完备）；MCP 子目录 wheel 包声明如实化
+  （引擎随包根 scripts/ 提供，不再虚列 af_engine）。
+- **版本历史补全**：6.9.0 节补写（该版 --sig-bracket 与文档收口，此前发版漏记）。
+
+## 6.9.0 — 2026-11-02
+
+新功能 `--sig-bracket` 组间显著性括号 + 文档准确性收口：
+
+- **`--sig-bracket`**：数据携带 `comparisons=[{a,b,p}]` 任意比较对（p 值来自用户
+  自己的检验，引擎只可视化）即自动画分层 bracket+星号（<0.05/<0.01/<0.001，
+  NS 显式标注）；分层布局按区间重叠最低层分配（span 长的在底层，共享端点判撞）；
+  bar/grouped_bar/box/violin 四图型可用。
+- 文档准确性收口：MCP 工具清单补 `query_capability`、README 中文文档描述纠正、
+  MCP 安装新增不依赖 GitHub 的本地路线、版本历史标注当前版本。
 
 
 ## 6.8.0 — 2026-10-31

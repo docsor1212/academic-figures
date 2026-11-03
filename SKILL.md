@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 6.9.0
+version: 7.0.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 6.9.0
+  version: 7.0.0
   date: 2026-10-31
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -189,7 +189,7 @@ Scan the Category column at a glance; getting-started path in `references/quicks
 ## Chart Decision Tree (compact; full version + getting-started: references/quickstart.md)
 
 ```text
-Group comparison → bar/box/violin/raincloud (full trio view; pre-post → paired; distribution shift across groups → ridgeline; two-point per-row gaps → dumbbell) | Mean±error bars → bar (JSON errors)
+Group comparison → bar/box/violin/raincloud (full trio view; pre-post → paired; distribution shift across groups → ridgeline; two-point per-row gaps → dumbbell) | Mean±error bars → bar (JSON errors, or CSV suffix columns X_se/X_sd — v6.0+)
 Two-column correlation → scatter | Time-to-event → km / forest --stats cox | Diagnosis → roc (--compare)
 Set membership → venn (--area; 5+ sets → upset) | Numeric matrix → heatmap / cluster_heatmap | Sample classes → pca
 Omics differential expression → volcano |

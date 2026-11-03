@@ -2576,8 +2576,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 6.9.0", self.zh)
-        self.assertIn("version: 6.9.0", self.en)
+        self.assertIn("version: 7.0.0", self.zh)
+        self.assertIn("version: 7.0.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2674,8 +2674,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 6.9.0", self.zh)
-        self.assertIn("version: 6.9.0", self.en)
+        self.assertIn("version: 7.0.0", self.zh)
+        self.assertIn("version: 7.0.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2708,8 +2708,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 6.9.0", self.zh)
-        self.assertIn("version: 6.9.0", self.en)
+        self.assertIn("version: 7.0.0", self.zh)
+        self.assertIn("version: 7.0.0", self.en)
 
 
 
@@ -2776,7 +2776,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 6.9.0", zh)
+        self.assertIn("version: 7.0.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2949,7 +2949,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.9.0", t, name)
+            self.assertIn("version: 7.0.0", t, name)
 
 
 
@@ -3040,7 +3040,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.9.0", t, name)
+            self.assertIn("version: 7.0.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3161,7 +3161,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.9.0", t, name)
+            self.assertIn("version: 7.0.0", t, name)
 
 
 
@@ -3230,7 +3230,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 6.9.0", t, name)
+            self.assertIn("version: 7.0.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6890,6 +6890,111 @@ class TestV69000(unittest.TestCase):
         txt = self._rd(os.path.join("mcp", "README.md"))
         self.assertIn("本地安装", txt)
         self.assertIn("pip install -e", txt)
+
+
+# ── v7.0.0：--sig-auto 全自动组间显著性 + 文档可信度防回潮 ─────────────────
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
+class TestV70000(unittest.TestCase):
+    """v7.0.0 major：sig-auto 两两自动检验+文档可信度大扫除锁（评测 480674
+    两处 4.5 实伤全收口防回潮）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        import af_draw
+        cls.af_draw = af_draw
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_pairwise_all_vs_scipy(self):
+        """pairwise_all 输出与 scipy 独立实现逐位对拍（PlantGrowth ctrl/trt1）。"""
+        from scipy import stats as st
+        xa = [4.17, 5.58, 5.18, 6.11, 4.50, 4.61, 5.17, 4.53, 5.33, 5.14]
+        xb = [4.81, 4.17, 4.41, 3.59, 5.87, 3.83, 6.03, 4.89, 4.32, 4.69]
+        res = self.af_draw.pairwise_all({"ctrl": xa, "trt1": xb})
+        self.assertEqual(len(res), 1)
+        a, b, p = res[0]
+        self.assertEqual((a, b), ("ctrl", "trt1"))
+        # 独立复算路径：双组 Shapiro p>0.05（常态）→ 双方都应走 Welch t
+        self.assertGreater(float(st.shapiro(xa).pvalue), 0.05)
+        self.assertGreater(float(st.shapiro(xb).pvalue), 0.05)
+        ref = float(st.ttest_ind(xa, xb, equal_var=False).pvalue)
+        self.assertAlmostEqual(p, ref, places=10)
+
+    def test_sig_auto_box_smoke(self):
+        """box --sig-auto 渲染：stderr 含 [sig-auto]+[sig-bracket] 双报告。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "d.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["ctrl", "trt1", "trt2"],
+                "series": {"ctrl": [4.17, 5.58, 5.18, 6.11, 4.50, 4.61, 5.17, 4.53, 5.33, 5.14],
+                            "trt1": [4.81, 4.17, 4.41, 3.59, 5.87, 3.83, 6.03, 4.89, 4.32, 4.69],
+                            "trt2": [6.31, 5.12, 5.54, 5.50, 5.37, 5.29, 4.92, 6.15, 5.80, 5.26]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "box", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80", "--sig-auto"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[sig-auto]", r.stderr)
+            self.assertIn("[sig-bracket]", r.stderr)
+            self.assertIn("3 组间比较", r.stderr)
+
+    def test_sig_auto_bar_ignored(self):
+        """聚合 bar + --sig-auto → [ignored] 显式告知（auto 域外）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "d.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["A", "B", "C"], "series": {"v": [1.0, 2.0, 3.0]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80", "--sig-auto"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[ignored] --sig-auto", r.stderr)
+
+    def test_changelog_dual_sections(self):
+        """changelog 必含 6.9.0（补写）与 7.0.0 双节（版本历史补全锁）。"""
+        txt = self._rd(os.path.join("references", "changelog.md"))
+        self.assertIn("## 6.9.0 — 2026-11-02", txt)
+        self.assertIn("## 7.0.0 — 2026-11-03", txt)
+        full = self._rd(os.path.join("references", "changelog-full.md"))
+        self.assertIn("## 6.9.0", full)
+
+    def test_quickstart_csv_truth(self):
+        """quickstart CSV 误差表述=v6.0 真相（480674 accuracy 4.5 残留清零锁）。"""
+        txt = self._rd(os.path.join("references", "quickstart.md"))
+        self.assertNotIn("CSV 不支持误差棒", txt)
+        self.assertIn("weight_sd", txt)
+
+    def test_readme_distribution_honest(self):
+        """README 禁「SKILL_ZH.md 随包分发」虚假声明（任何包形态均不携带该文件）。"""
+        txt = self._rd("README.md")
+        self.assertNotIn("SKILL_ZH.md` 随包分发", txt)
+        self.assertNotIn("`SKILL_ZH.md` 随包", txt)
+
+    def test_requirements_openpyxl(self):
+        """openpyxl 入正式依赖（--sheet Excel 直读依赖声明完备）。"""
+        txt = self._rd("requirements.txt")
+        self.assertIn("openpyxl", txt)
+
+    def test_mcp_pyproject_packages_honest(self):
+        """MCP wheel 包声明如实（af_engine 不随子目录分发属事实，不虚列）。"""
+        txt = self._rd(os.path.join("mcp", "pyproject.toml"))
+        self.assertNotIn('packages = ["af_engine"]', txt)
+
+    def test_skill_decision_tree_csv_hint(self):
+        """SKILL 决策树误差棒提示含 CSV 后缀列（JSON-only 提示纠正）。"""
+        txt = self._rd("SKILL.md")
+        self.assertIn("CSV suffix columns", txt)
+
+    def test_sig_auto_domain_registered(self):
+        """--sig-auto 入旗标域注册表（--list-flags 可见）。"""
+        r = subprocess.run([sys.executable, GEN, "--list-flags"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertIn("--sig-auto", r.stdout)
 
 
 if __name__ == "__main__":
