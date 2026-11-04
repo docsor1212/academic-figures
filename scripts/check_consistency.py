@@ -79,12 +79,27 @@ def scan(root):
             ctype = m.group(1).strip("`\"'")
             check_cmd(line, ctype, f"{md}:{i}", domains, hits)
     # 3) CSV 旧口径残留（v6.0 后缀列已实现，禁再说「CSV 不支持误差棒」）
-    for md in docs + ["references/antipatterns.md"]:
+    _STALE = re.compile(
+        r"CSV 不支持误差棒|CSV 不支持 errors|误差棒需 JSON errors 字段"
+        r"|does not support errors|error bars? require JSON")
+    _SCAN_DOCS = docs + ["references/antipatterns.md"]
+    for md in _SCAN_DOCS:
         if not os.path.exists(md):
             continue
         for i, line in enumerate(open(md, encoding="utf-8").read().split("\n"), 1):
-            if re.search(r"CSV 不支持误差棒|CSV 不支持 errors|does not support errors", line):
+            if _STALE.search(line):
                 hits.append(f"{md}:{i}: CSV 误差旧口径残留（v6.0 起后缀列已支持）")
+    # 3b) v7.2.0：引擎源码运行时文案入扫描面（CHART_NOTES 等 --explain 输出
+    # 手写字典是历史漂移重灾区——评测 487323 accuracy 4.5 抓到 af_shared 旧文案）
+    for py in sorted(glob.glob("scripts/*.py")):
+        if os.path.basename(py) == "check_consistency.py":
+            continue  # 本扫描器自身含禁词模式字面量
+        for i, line in enumerate(open(py, encoding="utf-8").read().split("\n"), 1):
+            s = line.strip()
+            if s.startswith("#") or s.startswith('''"""'''):
+                continue  # 注释/docstring 属历史描述，非运行时文案
+            if _STALE.search(line):
+                hits.append(f"{py}:{i}: 引擎文案 CSV 旧口径残留（--explain 运行时输出）")
     return n_cmds, hits
 
 

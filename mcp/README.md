@@ -9,12 +9,12 @@
 ## 安装
 
 ```bash
-# uvx（git 直跑；国内网络不稳时走下方本地安装路线）
-uvx --from "git+https://github.com/docsor1212/academic-figures#subdirectory=mcp" academic-figures-mcp
+# 本地安装（推荐，不访问 GitHub）：clone 或下载包后——
+pip install -e <包目录>/mcp   # pip 可走清华/阿里镜像
+uvx --from <包目录>/mcp academic-figures-mcp
 
-# 本地安装（不访问 GitHub）：clone 或下载包后——
-#   pip install -e <包目录>/mcp   （pip 可走清华/阿里镜像）
-#   uvx --from <包目录>/mcp academic-figures-mcp
+# uvx git 直跑（国际网络备选）：
+uvx --from "git+https://github.com/docsor1212/academic-figures#subdirectory=mcp" academic-figures-mcp
 
 # 或本地路径
 cd academic-figures/mcp && pip install . && academic-figures-mcp

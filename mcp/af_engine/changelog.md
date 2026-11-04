@@ -11,7 +11,8 @@
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
 | v6.9.0 | 2026-11-02 | 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠+bar/grouped_bar/box/violin 四图型）+文档准确性四处收口（MCP 工具清单/README 语言/uvx 本地路线/版本历史当前标记） |
-| **v7.1.0（当前）** | 2026-11-04 | 新工具 `check_consistency.py`（文档与能力注册表自动一致性检查：全部命令载体×旗标域+--verify/PDF 规则+CSV 口径残留——118 条载体对齐，15 处历史混用清零）+域表真值化（--stats 补 raincloud/subgroup）+ADR-0001 状态如实化 |
+| **v7.2.0（当前）** | 2026-11-05 | 一致性扫描器 v2：引擎源码运行时文案入扫描面（CHART_NOTES 等 --explain 输出字典——accuracy 4.5 抓到 bar 文案 CSV 旧口径）+MCP 安装本地优先反转+SKILL 双语/README 视觉样例库 GitHub 直链 |
+| v7.1.0 | 2026-11-04 | 新工具 `check_consistency.py`（文档与能力注册表自动一致性检查：全部命令载体×旗标域+--verify/PDF 规则+CSV 口径残留——118 条载体对齐，15 处历史混用清零）+域表真值化（--stats 补 raincloud/subgroup）+ADR-0001 状态如实化 |
 | v7.0.0 | 2026-11-03 | major：新功能 `--sig-auto` 全自动组间显著性（两两自动检验 Shapiro→Welch t / Mann-Whitney U+分层 bracket）+文档可信度大扫除（changelog 补 6.9.0/7.0.0 双节+CSV 误差表述全面清零含 quickstart/SKILL 决策树+README 分发形态如实化+openpyxl 入正式依赖+MCP 包声明如实化） |
 | v6.8.0 | 2026-10-31 | MCP 新工具 `query_capability`（图型+旗标域动态查询，能力面与引擎注册表零漂移）+CHARTS 内置清单快照锁+CSV 误差能力文档真相化（FAQ/data-formats/引擎 hint 旧表述纠正）+守卫扩容（mcp/pyproject 入扫描+英文修饰容忍）+glm-brand 单系列斜纹补齐+show-values 精度自适应 |
 | v6.7.0 | 2026-10-31 | 新功能 `--list-flags [TYPE]` 旗标域查询（专属+域外 [ignored] 预告；注册表与 argparse/图型注册表互锁防漂移）+ 官方点名收口（37 残留×5 含锚链接/gallery JSON 随包索引指针存活/Python 下限统一 3.8/changelog 表格解挤压）+ README 测试徽章动态互锁 |
@@ -51,6 +52,21 @@
 | v3.9.0 | 2026-09-30 | `--order` |
 
 ## 最近版本详情 Recent Details
+
+
+## 7.2.0 — 2026-11-05
+
+一致性扫描器 v2 + 安装/预览体验收口：
+
+- **扫描面扩到引擎源码**：`check_consistency.py` 自此扫描 `scripts/*.py` 的运行时
+  文案（CHART_NOTES 等 `--explain` 输出字典；注释/docstring 属历史描述豁免）——
+  评测抓到的 `af_shared.py` bar 文案 CSV 旧口径即此类（文档干净而引擎输出仍说
+  「CSV 不支持」，--explain 的一句话与实现脱节）。文案已更新为双通道真相
+  （JSON errors 或 CSV 后缀列 v6.0+）。
+- **MCP 安装本地优先**：mcp/README 安装顺序反转——`pip install -e <包目录>/mcp`
+  （清华/阿里镜像）升为默认推荐，uvx git 直跑降为国际网络备选。
+- **视觉样例库直链**：SKILL 双语能力表与 README 的 gallery 行直挂 GitHub 仓库
+  预览链接（包内为可复现 JSON+命令，成品图在仓库一键可看）。
 
 
 ## 7.1.0 — 2026-11-04

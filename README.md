@@ -9,7 +9,7 @@
 [![Site](https://img.shields.io/badge/Site-docsor.cn-teal)](https://docsor.cn)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![Tests](https://img.shields.io/badge/tests-511%20pass-brightgreen)
+![Tests](https://img.shields.io/badge/tests-515%20pass-brightgreen)
 
 **40 chart types** (bar/slope/volcano/upset set-intersections/oncology waterfall/raincloud/clinical swimmer/ridgeline joyplot/dumbbell gap chart/model calibration curve/decision curve analysis/clinical nomogram/restricted cubic spline/subgroup forest/competing-risk CIF/box/violin/
 scatter/line/heatmap/clustered-heatmap/forest/KM/ROC/venn 4-set ellipse/Bland-Altman/PCA/
@@ -50,11 +50,12 @@ python3 scripts/gen_figure.py -t km -d survival.json -o km.png --cjk
 
 ## Docs
 
+- Rendered gallery previews (real public datasets): github.com/docsor1212/academic-figures/tree/main/examples/gallery
 - Full docs: `SKILL.md` (EN) · 中文版：SkillHub 包的 SKILL.md 即中文版（中文分发不携带独立 SKILL_ZH.md 文件）
 - Getting started: `references/quickstart.md` · One-page cheatsheet:
   `references/cheatsheet.md` · Limits & flag interactions: `references/limits.md`
 - Scenario templates: `templates/` (40, each with a ready-to-run command)
-- Regression suite: `tests/run_tests.py` (511 tests)
+- Regression suite: `tests/run_tests.py` (515 tests)
 
 ## Install
 

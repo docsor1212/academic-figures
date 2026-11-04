@@ -2576,8 +2576,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.1.0", self.zh)
-        self.assertIn("version: 7.1.0", self.en)
+        self.assertIn("version: 7.2.0", self.zh)
+        self.assertIn("version: 7.2.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2674,8 +2674,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.1.0", self.zh)
-        self.assertIn("version: 7.1.0", self.en)
+        self.assertIn("version: 7.2.0", self.zh)
+        self.assertIn("version: 7.2.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2708,8 +2708,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.1.0", self.zh)
-        self.assertIn("version: 7.1.0", self.en)
+        self.assertIn("version: 7.2.0", self.zh)
+        self.assertIn("version: 7.2.0", self.en)
 
 
 
@@ -2776,7 +2776,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.1.0", zh)
+        self.assertIn("version: 7.2.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2949,7 +2949,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.1.0", t, name)
+            self.assertIn("version: 7.2.0", t, name)
 
 
 
@@ -3040,7 +3040,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.1.0", t, name)
+            self.assertIn("version: 7.2.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3161,7 +3161,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.1.0", t, name)
+            self.assertIn("version: 7.2.0", t, name)
 
 
 
@@ -3230,7 +3230,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.1.0", t, name)
+            self.assertIn("version: 7.2.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7075,6 +7075,55 @@ class TestV71000(unittest.TestCase):
             txt = self._rd(doc)
             self.assertNotIn("CSV 不支持 errors", txt)
             self.assertNotIn("CSV cannot carry `errors`/dual-axis", txt)
+
+
+# ── v7.2.0：扫描器 v2（引擎源码文案面）+ 安装/预览体验锁 ───────────────────
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
+class TestV72000(unittest.TestCase):
+    """v7.2.0：评测 487323 accuracy 4.5（af_shared 旧文案）/docQuality 4.5（无图预览）
+    /trust 4.5（GitHub 默认依赖）三实伤机制化防回潮。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_scanner_v2_green_with_source_scan(self):
+        """扫描器含源码扫描面且全绿（af_shared 旧文案修复锁）。"""
+        src = self._rd(os.path.join("scripts", "check_consistency.py"))
+        self.assertIn("scripts/*.py", src)
+        r = subprocess.run(
+            [sys.executable, os.path.join(self.root, "scripts", "check_consistency.py")],
+            capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stdout[-1200:])
+
+    def test_explain_bar_csv_truth(self):
+        """--explain bar 运行时输出=双通道真相（JSON errors 或 CSV 后缀列）。"""
+        r = subprocess.run([sys.executable, GEN, "--explain", "bar"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertNotIn("CSV 不支持", r.stdout + r.stderr)
+        blob = r.stdout + r.stderr
+        self.assertTrue(("后缀列" in blob) or ("suffix" in blob),
+                        "--explain bar 未提及 CSV 后缀列")
+
+    def test_mcp_readme_local_first(self):
+        """mcp/README 安装顺序：本地安装=推荐在先，uvx git 直跑=备选在后。"""
+        txt = self._rd(os.path.join("mcp", "README.md"))
+        li = txt.find("本地安装（推荐，不访问 GitHub）")
+        gi = txt.find("uvx git 直跑（国际网络备选）")
+        self.assertGreater(li, -1)
+        self.assertGreater(gi, -1)
+        self.assertLess(li, gi, "本地安装应在 uvx git 直跑之前")
+
+    def test_gallery_preview_links(self):
+        """SKILL 双语与 README 的 gallery 行挂 GitHub 预览直链。"""
+        link = "github.com/docsor1212/academic-figures/tree/main/examples/gallery"
+        for doc in ("SKILL.md", "SKILL_ZH.md", "README.md"):
+            self.assertIn(link, self._rd(doc), f"{doc} 缺 gallery 直链")
 
 
 if __name__ == "__main__":

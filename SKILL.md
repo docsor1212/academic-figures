@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.1.0
+version: 7.2.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.1.0
+  version: 7.2.0
   date: 2026-10-31
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -378,7 +378,7 @@ announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir de
 | `--list-flags [TYPE]` | Flag-domain query: per-type flags + out-of-domain flags ([ignored] preview); no arg = full overview (v6.7) |
 | One-page command skeleton for all 40 types | `references/cheatsheet.md` |
 | Copy-paste scenario cards (13 complete workflows) | `references/scenario-cards.md` |
-| Real-data gallery (reproducible JSONs + commands; rendered previews on the GitHub repo) | `examples/gallery/` |
+| Real-data gallery (reproducible JSONs + commands; rendered previews: github.com/docsor1212/academic-figures/tree/main/examples/gallery) | `examples/gallery/` |
 
 | Paste-ready agent prompts (13 cards: 对智能体说 → command → acceptance checks) | `references/prompt-cards.md` |
 | JSON/CSV/Excel schema for a type | `references/data-formats.md` |

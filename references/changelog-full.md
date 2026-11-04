@@ -8,6 +8,15 @@
 
 <!-- 6.5.0 详情自 changelog.md 下沉（v6.8.0 发版，最近三版窗口滚动） -->
 
+## 7.1.0 — 2026-11-04
+
+新工具 `scripts/check_consistency.py`：文档与能力注册表自动一致性检查
+（118 条命令载体×旗标域表+--verify/PDF 规则+CSV 口径扫描；exit 1 发车闸）。
+首跑清出 15 处历史混用（9 模板 --verify+PNG/prompt-cards --stats auto 误用/
+域表 --stats 真值化+raincloud+subgroup/antipatterns+SKILL 双语 CSV/ADR
+Proposed→Partially adopted）。511 项测试。金标=DRS retinopathy KM
+（R survival 394 眼两臂，新数据集）。
+
 ## 7.0.0 — 2026-11-03
 
 major：新功能 `--sig-auto` 全自动组间显著性（box/violin/raincloud 自动两两
