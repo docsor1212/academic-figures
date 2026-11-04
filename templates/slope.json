@@ -1,5 +1,5 @@
 {
-  "_command": "python3 scripts/gen_figure.py -t slope -d templates/slope.json -o slope.png --cjk --verify",
+  "_command": "python3 scripts/gen_figure.py -t slope -d templates/slope.json -o slope.png --cjk",
   "left_label": "基线（T0）",
   "right_label": "12 周（T1）",
   "items": {

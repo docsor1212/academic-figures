@@ -236,7 +236,8 @@ def add_sig_bracket_arg(parser):
                         help="组间显著性括号（bar/grouped_bar/box/violin）：数据携带 comparisons=[{a,b,p}] 时自动画分层 bracket+星号")
 
 _FLAG_DOMAINS = {
-    "--stats": (("box", "violin", "forest"), "box/violin=auto|multi；forest=cox"),
+    "--stats": (("box", "violin", "raincloud", "forest", "subgroup"),
+                "box/violin/raincloud=auto|multi|bootstrap；forest/subgroup=cox"),
     "--compare": (("roc",), None),
     "--egger": (("funnel",), None),
     "--hatch": (("bar", "grouped_bar", "stacked_bar", "hbar"), "bar 系"),

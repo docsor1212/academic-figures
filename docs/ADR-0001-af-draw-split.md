@@ -1,6 +1,6 @@
 # ADR-0001：af_draw / gen_figure 巨石模块分阶段拆解
 
-- 状态：Proposed（v5.8.0 立项，未动刀）
+- 状态：Partially adopted（v6.2.0 af_resilience / v6.5.0 af_shared / v6.9.0 GENERATORS wrapper 通路已落地；af_draw 渲染层与 gen_figure 编排仍在拆分推进中，行预算锁 <3600 与 sync_engine 镜像门禁随本 ADR 约束执行）
 - 日期：2026-10-23
 - 决策人：主理人（用户）；执笔：ZCode 会话
 

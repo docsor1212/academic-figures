@@ -2576,8 +2576,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.0.0", self.zh)
-        self.assertIn("version: 7.0.0", self.en)
+        self.assertIn("version: 7.1.0", self.zh)
+        self.assertIn("version: 7.1.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2674,8 +2674,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.0.0", self.zh)
-        self.assertIn("version: 7.0.0", self.en)
+        self.assertIn("version: 7.1.0", self.zh)
+        self.assertIn("version: 7.1.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2708,8 +2708,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.0.0", self.zh)
-        self.assertIn("version: 7.0.0", self.en)
+        self.assertIn("version: 7.1.0", self.zh)
+        self.assertIn("version: 7.1.0", self.en)
 
 
 
@@ -2776,7 +2776,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.0.0", zh)
+        self.assertIn("version: 7.1.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2949,7 +2949,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.0.0", t, name)
+            self.assertIn("version: 7.1.0", t, name)
 
 
 
@@ -3040,7 +3040,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.0.0", t, name)
+            self.assertIn("version: 7.1.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3161,7 +3161,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.0.0", t, name)
+            self.assertIn("version: 7.1.0", t, name)
 
 
 
@@ -3230,7 +3230,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.0.0", t, name)
+            self.assertIn("version: 7.1.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6616,7 +6616,7 @@ class TestV67000(unittest.TestCase):
         r = subprocess.run([sys.executable, GEN, "--list-flags"],
                            capture_output=True, text=True, timeout=60)
         self.assertEqual(r.returncode, 0, r.stderr[-300:])
-        self.assertIn("--stats: box/violin/forest", r.stdout)
+        self.assertIn("--stats: box/violin/raincloud/forest/subgroup", r.stdout)
         self.assertIn("--rmst-tau: rmst", r.stdout)
 
     def test_flag_registry_self_consistent(self):
@@ -6995,6 +6995,86 @@ class TestV70000(unittest.TestCase):
         r = subprocess.run([sys.executable, GEN, "--list-flags"],
                            capture_output=True, text=True, timeout=60)
         self.assertIn("--sig-auto", r.stdout)
+
+
+# ── v7.1.0：命令一致性扫描器 + 域表真值 + 文档如实锁 ───────────────────────
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
+class TestV71000(unittest.TestCase):
+    """v7.1.0：check_consistency 全绿锁（评测 486104 func 4.5 主指控机制化防回潮）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_consistency_scanner_green(self):
+        """118 条命令载体全对齐 + CSV 口径零残留（有发现即 FAIL）。"""
+        r = subprocess.run(
+            [sys.executable, os.path.join(self.root, "scripts", "check_consistency.py")],
+            capture_output=True, text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, r.stdout[-1500:])
+        self.assertIn("CONSISTENCY OK", r.stdout)
+
+    def test_stats_domain_truthful(self):
+        """--stats 域表与参数门禁一致（raincloud=auto 域、subgroup=cox 域）。"""
+        import ast as _ast
+        src = self._rd(os.path.join("scripts", "af_shared.py"))
+        for node in _ast.walk(_ast.parse(src)):
+            if isinstance(node, _ast.Assign) and any(
+                    isinstance(x, _ast.Name) and x.id == "_FLAG_DOMAINS" for x in node.targets):
+                dom = _ast.literal_eval(node.value)
+                types, note = dom["--stats"]
+                self.assertIn("raincloud", types)
+                self.assertIn("subgroup", types)
+                self.assertIn("forest", types)
+                break
+        else:
+            self.fail("_FLAG_DOMAINS 未解析到")
+        r = subprocess.run([sys.executable, GEN, "--list-flags"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertIn("--sig-bracket", r.stdout)
+
+    def test_template_commands_clean(self):
+        """模板/realworld 命令：PNG 输出不得带 --verify（扫描器子断言硬锁）。"""
+        import json as _json
+        for tf in sorted(glob.glob(os.path.join(self.root, "templates", "*.json"))) + \
+                sorted(glob.glob(os.path.join(self.root, "examples", "realworld", "*.json"))):
+            d = _json.load(open(tf, encoding="utf-8"))
+            cmd = d.get("_command", "")
+            mo = re.search(r"-o\s+(\S+)", cmd)
+            ext = os.path.splitext(mo.group(1))[1] if mo else ""
+            if ext and ext != ".pdf":
+                self.assertNotIn("--verify", cmd,
+                                 f"{os.path.basename(tf)}: PNG 输出带 --verify")
+
+    def test_antipatterns_csv_truth(self):
+        """反模式页 CSV 表述=v6.0 真相。"""
+        txt = self._rd(os.path.join("references", "antipatterns.md"))
+        self.assertNotIn("CSV 不支持 errors 字段", txt)
+        self.assertIn("后缀列", txt)
+
+    def test_adr_status_factual(self):
+        """ADR-0001 状态如实（拆分已部分落地）。"""
+        txt = self._rd(os.path.join("docs", "ADR-0001-af-draw-split.md"))
+        self.assertNotIn("未动刀", txt)
+        self.assertIn("Partially adopted", txt)
+
+    def test_prompt_cards_bar_example_honest(self):
+        """提示词卡 bar 示例不再混用 --stats auto/--verify（正确通道指路）。"""
+        txt = self._rd(os.path.join("references", "prompt-cards.md"))
+        self.assertNotIn("-t bar -d baseline.json -o fig1.png --stats auto", txt)
+        self.assertIn("--sig-bracket", txt)
+
+    def test_skill_boundary_table_csv(self):
+        """SKILL 双语能力表 CSV 表述含后缀列真相。"""
+        for doc in ("SKILL.md", "SKILL_ZH.md"):
+            txt = self._rd(doc)
+            self.assertNotIn("CSV 不支持 errors", txt)
+            self.assertNotIn("CSV cannot carry `errors`/dual-axis", txt)
 
 
 if __name__ == "__main__":

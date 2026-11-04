@@ -11,7 +11,8 @@
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
 | v6.9.0 | 2026-11-02 | 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠+bar/grouped_bar/box/violin 四图型）+文档准确性四处收口（MCP 工具清单/README 语言/uvx 本地路线/版本历史当前标记） |
-| **v7.0.0（当前）** | 2026-11-03 | major：新功能 `--sig-auto` 全自动组间显著性（两两自动检验 Shapiro→Welch t / Mann-Whitney U+分层 bracket）+文档可信度大扫除（changelog 补 6.9.0/7.0.0 双节+CSV 误差表述全面清零含 quickstart/SKILL 决策树+README 分发形态如实化+openpyxl 入正式依赖+MCP 包声明如实化） |
+| **v7.1.0（当前）** | 2026-11-04 | 新工具 `check_consistency.py`（文档与能力注册表自动一致性检查：全部命令载体×旗标域+--verify/PDF 规则+CSV 口径残留——118 条载体对齐，15 处历史混用清零）+域表真值化（--stats 补 raincloud/subgroup）+ADR-0001 状态如实化 |
+| v7.0.0 | 2026-11-03 | major：新功能 `--sig-auto` 全自动组间显著性（两两自动检验 Shapiro→Welch t / Mann-Whitney U+分层 bracket）+文档可信度大扫除（changelog 补 6.9.0/7.0.0 双节+CSV 误差表述全面清零含 quickstart/SKILL 决策树+README 分发形态如实化+openpyxl 入正式依赖+MCP 包声明如实化） |
 | v6.8.0 | 2026-10-31 | MCP 新工具 `query_capability`（图型+旗标域动态查询，能力面与引擎注册表零漂移）+CHARTS 内置清单快照锁+CSV 误差能力文档真相化（FAQ/data-formats/引擎 hint 旧表述纠正）+守卫扩容（mcp/pyproject 入扫描+英文修饰容忍）+glm-brand 单系列斜纹补齐+show-values 精度自适应 |
 | v6.7.0 | 2026-10-31 | 新功能 `--list-flags [TYPE]` 旗标域查询（专属+域外 [ignored] 预告；注册表与 argparse/图型注册表互锁防漂移）+ 官方点名收口（37 残留×5 含锚链接/gallery JSON 随包索引指针存活/Python 下限统一 3.8/changelog 表格解挤压）+ README 测试徽章动态互锁 |
 | v6.6.0 | 2026-10-30 | 一致性清剿第二轮（评测 accuracy/usability 4.6 点名全修：MCP server.py 头注释与提交文档 23→40、SKILL 索引与代码布局 37→40、quickstart 36→40；limits「静默忽略」纠为实际 [ignored] 行为+机械锁）+计数守卫扩至 14 份活文档含裸 types 口径 |
@@ -50,6 +51,23 @@
 | v3.9.0 | 2026-09-30 | `--order` |
 
 ## 最近版本详情 Recent Details
+
+
+## 7.1.0 — 2026-11-04
+
+命令一致性与文档可信度继续收口（自动一致性检查机制化）：
+
+- **新工具 `scripts/check_consistency.py`**：全部命令载体（模板/真实场景 `_command` +
+  文档代码块共 118 条）× 能力注册表（旗标域表 + `--verify` 仅 PDF 规则）逐条校验，
+  另扫 CSV 误差旧口径残留——有发现 exit 1，发车闸直接可挂。本版首跑清出 15 处
+  历史混用：9 处模板/真实场景命令带 `--verify` 却输出 PNG（该门禁仅对 PDF 生效）、
+  提示词卡柱状图示例误用 `--stats auto`（聚合数据不可自动检验——正确通道=
+  `comparisons` + `--sig-bracket`，或原始数据 `-t box --sig-auto`）、反模式页与
+  SKILL 双语能力表的 CSV 表述过时。
+- **域表真值化**：`--stats` 的旗标域补齐 raincloud（auto|multi 合法域，此前域表漏列）
+  与 subgroup（cox 合法域）——`--list-flags` 输出自此与参数门禁完全一致。
+- **ADR-0001 状态如实化**：Proposed→Partially adopted（af_resilience/af_shared/
+  wrapper 通路已落地；af_draw 拆分继续推进）。
 
 
 ## 7.0.0 — 2026-11-03

@@ -19,7 +19,7 @@
 
 | 反模式 | 后果 | 正确做法 | 详见 |
 |---|---|---|---|
-| 误差棒走 CSV | CSV 不支持 errors 字段，静默丢失 | JSON `errors` 字段 | faq §数据与格式 |
+| 误把 errors 对象写进 CSV | `errors` 对象字段是 JSON 专属，CSV 不识别 | CSV 主列+后缀列（`weight_sd`/`weight_se`，v6.0+ 自动配对）或改用 JSON | faq §数据与格式 |
 | KM 预计算生存概率误当逐例数据（或反之） | 曲线数学错误/丢失自动风险表 | 逐例=`{组: [[时间,事件],...]}`；预计算=`time`+`survival`（引擎自动识别并告知） | pitfalls「KM」两条 |
 | 排序后再标注（排序与标注用两份索引） | 标注错位（v5.1 类级铁律） | 排序与标注必须同源索引 | pitfalls 类级铁律章 |
 | groups 数组长度与 x/y 不一致 | 报错或静默错分 | 先对齐长度（v4.5 起有中文报错） | pitfalls「Scatter groups」 |

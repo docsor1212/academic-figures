@@ -1,5 +1,5 @@
 {
-  "_command": "python3 scripts/gen_figure.py -t volcano -d templates/volcano.json -o volcano.png --cjk --verify",
+  "_command": "python3 scripts/gen_figure.py -t volcano -d templates/volcano.json -o volcano.png --cjk",
   "log2fc": [
     -2.3,
     -1.4,

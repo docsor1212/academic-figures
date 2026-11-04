@@ -14,8 +14,8 @@
 
 > 我有一份三组患者基线数据（组别：安慰剂/低剂量/高剂量，各 n≈30，指标：年龄、BMI、收缩压），数据文件 `baseline.csv`（首列组别）。请用 academic-figures 生成期刊投稿级基线特征对比柱状图：自动做组间显著性检验并标星号，黑白云纹区分系列，输出 600dpi PNG + 投稿 PDF，并跑重叠门禁。
 
-**应产出**：`python3 scripts/gen_figure.py -t bar -d baseline.json -o fig1.png --stats auto --hatch --verify --pub-ready`
-**验收点**：显著性星号与组间两两对应；`--verify` 0 退出；pub-ready 包含多格式+复跑包。
+**应产出**：`python3 scripts/gen_figure.py -t bar -d baseline.json -o fig1.png --hatch --pub-ready`
+**验收点**：柱高与组间差异如实呈现；显著性星号——bar 是聚合数据不能自动检验，在 baseline.json 里带 `comparisons` 字段并加 `--sig-bracket`（p 值来自你的检验），或原始逐例数据直接改 `-t box --sig-auto`；pub-ready 包含多格式+复跑包。
 
 ## 卡2 KM 生存曲线（含风险表）
 
@@ -122,5 +122,5 @@
 
 > 我的生存数据里有竞争事件（一部分患者还没等目标事件发生就先死亡了）。数据是 `examples/realworld/hematology_mgus_cif.json`（time=随访月数，event：0=删失 1=进展 2=死亡）。请用 `-t cif` 画竞争风险累计发生率：实线按事件原因分解，叠加 1−KM 虚线对照显示高估幅度；跑完把 stderr 里的末点 CIF 和高估百分点报给我，并提醒我在论文里改用 CIF 口径。
 
-**应产出**：`python3 scripts/gen_figure.py -t cif -d examples/realworld/hematology_mgus_cif.json -o cif.png --cjk`（可加 `--verify`）
+**应产出**：`python3 scripts/gen_figure.py -t cif -d examples/realworld/hematology_mgus_cif.json -o cif.png --cjk`（投稿 PDF 版改 -o cif.pdf 并加 `--verify`——重叠门禁仅对 PDF 生效）
 **验收点**：stderr 报 n/目标事件/竞争事件/删失计数与「高估 +X.X 个百分点」；图例为各原因名（cause_labels）；多臂分组数据智能体会指路 `-t km`。

@@ -8,6 +8,13 @@
 
 <!-- 6.5.0 详情自 changelog.md 下沉（v6.8.0 发版，最近三版窗口滚动） -->
 
+## 7.0.0 — 2026-11-03
+
+major：新功能 `--sig-auto` 全自动组间显著性（box/violin/raincloud 自动两两
+检验 Shapiro→Welch t / Mann-Whitney U+分层 bracket；聚合图 ignored 指路）
++文档可信度大扫除五件（README 分发形态如实化/quickstart+SKILL 决策树 CSV
+真相/openpyxl 依赖/pyproject 如实/版本历史补全）。504 项测试。
+
 ## 6.9.0 — 2026-11-02
 
 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠

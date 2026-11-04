@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.0.0
+version: 7.1.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.0.0
+  version: 7.1.0
   date: 2026-10-31
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -74,7 +74,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 | Journal presets | 9 presets, exact width/font/DPI from author guidelines | `--journal` locks width (`--width` ignored, `--height` OK); Pro-only journals not preset | limits.md §6 |
 | Verification | `--verify` pixel overlap gate (exit 2), `audit_pdf.py` font-size gate | Off unless requested — PDF submission outputs should pass `--verify` explicitly (or `--pub-ready`) | §Verification ↓ |
 | Composite | Multi-panel A+B+C, `span` multi-cell | Panels cannot nest composite/diagram/upset | composite-layouts.md |
-| Data input | JSON full / CSV-TSV basic / xlsx (`--sheet`) | CSV cannot carry `errors`/dual-axis/forest schemas — those need JSON | data-formats.md |
+| Data input | JSON full / CSV-TSV basic + error suffix columns (v6.0+) / xlsx (`--sheet`) | the `errors` object, dual-axis and forest schemas still need JSON (CSV error bars via suffix columns) | data-formats.md |
 | Data volume | cluster_heatmap >3000 rows auto-downsamples (announced) | pca ≤200 feature columns; venn 2-4 sets; paired/bland_altman equal-length pairs | limits.md |
 | CJK | `--cjk` + recursive auto-detect in data | Headless servers need at least one CJK font installed (detect: `setup_env.py`) | pitfalls.md |
 | Watchdog | Adaptive 30-1800s budget; `--timeout` adjusts; auto-degrade on MemoryError; transient failures (timeout/memory) auto-retry via `--retries` | `--timeout 0` disables adaptive budget but keeps a 7200s hard cap | limits.md §7 |
