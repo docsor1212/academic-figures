@@ -90,7 +90,7 @@ def scan(root):
             if _STALE.search(line):
                 hits.append(f"{md}:{i}: CSV 误差旧口径残留（v6.0 起后缀列已支持）")
     # 3b) v7.2.0：引擎源码运行时文案入扫描面（CHART_NOTES 等 --explain 输出
-    # 手写字典是历史漂移重灾区——评测 487323 accuracy 4.5 抓到 af_shared 旧文案）
+    # 手写字典是历史漂移重灾区——v7.2.0 前的准确性审查抓到 af_shared 旧文案）
     for py in sorted(glob.glob("scripts/*.py")):
         if os.path.basename(py) == "check_consistency.py":
             continue  # 本扫描器自身含禁词模式字面量
@@ -100,6 +100,13 @@ def scan(root):
                 continue  # 注释/docstring 属历史描述，非运行时文案
             if _STALE.search(line):
                 hits.append(f"{py}:{i}: 引擎文案 CSV 旧口径残留（--explain 运行时输出）")
+    # 3c) v7.2.1：changelog 主文件（平台详情页展示面）禁评测导向表述
+    # （7.2.0 安全审核未过的直接暴露面；changelog-full 历史档豁免不回改）
+    _EV = re.compile(r"评测抓到|评测点名|官方评测|evaluation-caught")
+    _cl = open("references/changelog.md", encoding="utf-8").read()
+    for i, line in enumerate(_cl.split("\n"), 1):
+        if _EV.search(line):
+            hits.append(f"references/changelog.md:{i}: 评测导向表述（平台详情页展示面禁令）")
     return n_cmds, hits
 
 

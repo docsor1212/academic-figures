@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.2.0: Publication-quality academic figure generator.
+academic-figures v7.2.1: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -892,7 +892,7 @@ def load_data(path, chart_type=None, sheet=None, csv_errors=True):
         result = {"labels": labels, "series": series}
 
         # ── v6.0.0：CSV 误差列约定——X_se/X_sem/X_sd/X_err 配对主列 X（官方评测
-        # 点名 CSV 不支持误差棒的机制根治）。配对成功→不画成柱、转 errors 契约；
+        # 与实现脱节的旧表述机制根治）。配对成功→不画成柱、转 errors 契约；
         # X_sd + X_n → SEM=sd/√n；孤儿列告警保留；--csv-no-errors 逃生门。
         if csv_errors and series:
             import re as _re
