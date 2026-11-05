@@ -1,7 +1,7 @@
 # SkillHub MCP 广场提报文本（备妥待提交；随 cite-holmes-mcp 结果同步动作）
 
 > 字段结构照抄现网 schema（cite-holmes 工单核实）。署名 SorSor（uid 437178）。
-> 提交通道：官方评测问卷（cite-holmes 同通道）。**提交时机：cite-holmes-mcp 收录/反馈落地后**。
+> 提交通道：平台官方问卷（cite-holmes 同通道）。**提交时机：cite-holmes-mcp 收录/反馈落地后**。
 
 - slug: `academic-figures-mcp`
 - name: 学术图表 MCP（Academic Figures）

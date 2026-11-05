@@ -4747,6 +4747,8 @@ def _maybe_draw_brackets(data, ax, kwargs, chart_name=None):
             print(f"WARNING: --sig-auto {_n_ns} 组样本量 <2 无法检验，已跳过", file=sys.stderr)
         print(f"[sig-auto] 两两检验 {_pairs and len(_pairs)} 对（Shapiro 判常态："
               "双常态组 Welch t / 否则 Mann-Whitney U）", file=sys.stderr)
+        print("[sig-auto] 检验假设（样本独立性/随机抽样）请自行确认；"
+              "论文引用时请报告所用检验方法与各组 n", file=sys.stderr)
     if not comps or not isinstance(comps, list):
         print("[ignored] --sig-bracket 需要数据携带 comparisons 字段"
               "（示例: [{a:组A, b:组B, p:0.03}, ...]）", file=sys.stderr)

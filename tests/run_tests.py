@@ -2576,8 +2576,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.2.1", self.zh)
-        self.assertIn("version: 7.2.1", self.en)
+        self.assertIn("version: 7.3.0", self.zh)
+        self.assertIn("version: 7.3.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2674,8 +2674,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.2.1", self.zh)
-        self.assertIn("version: 7.2.1", self.en)
+        self.assertIn("version: 7.3.0", self.zh)
+        self.assertIn("version: 7.3.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2708,8 +2708,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.2.1", self.zh)
-        self.assertIn("version: 7.2.1", self.en)
+        self.assertIn("version: 7.3.0", self.zh)
+        self.assertIn("version: 7.3.0", self.en)
 
 
 
@@ -2776,7 +2776,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.2.1", zh)
+        self.assertIn("version: 7.3.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2949,7 +2949,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.2.1", t, name)
+            self.assertIn("version: 7.3.0", t, name)
 
 
 
@@ -3040,7 +3040,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.2.1", t, name)
+            self.assertIn("version: 7.3.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3161,7 +3161,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.2.1", t, name)
+            self.assertIn("version: 7.3.0", t, name)
 
 
 
@@ -3230,7 +3230,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.2.1", t, name)
+            self.assertIn("version: 7.3.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7124,6 +7124,61 @@ class TestV72000(unittest.TestCase):
         link = "github.com/docsor1212/academic-figures/tree/main/examples/gallery"
         for doc in ("SKILL.md", "SKILL_ZH.md", "README.md"):
             self.assertIn(link, self._rd(doc), f"{doc} 缺 gallery 直链")
+
+
+# ── v7.3.0：包内输出样例（SVG）+ 口径统一 + 统计责任提示 ──────────────────
+
+@unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
+class TestV73000(unittest.TestCase):
+    """v7.3.0：评测 490210 docQuality 4.8（缺输出样例）+accuracy 4.6（口径差异）
+    机制化防回潮。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_gallery_svg_previews_exist(self):
+        """三张 SVG 预览在位（包内可直接查看的输出样例）。"""
+        import glob as _glob
+        svgs = sorted(_glob.glob(os.path.join(self.root, "examples", "gallery", "*_preview.svg")))
+        self.assertGreaterEqual(len(svgs), 3, f"SVG 预览不足: {svgs}")
+        for s in svgs:
+            self.assertGreater(os.path.getsize(s), 20000, s)
+
+    def test_gallery_readme_mentions_svg(self):
+        txt = self._rd(os.path.join("examples", "gallery", "README.md"))
+        self.assertIn("_preview.svg", txt)
+
+    def test_boundary_height_note_complete(self):
+        """三条最常用边界行补 --height 有效（与 limits/quickstart/能力表口径一致）。"""
+        zh = self._rd("SKILL_ZH.md")
+        self.assertIn("`--journal` 会锁定图宽（`--width` 被忽略，`--height` 有效）", zh)
+        en = self._rd("SKILL.md")
+        self.assertIn("still applies", en)
+
+    def test_bar_card_consistent(self):
+        """bar 卡用户话术与应产出自洽（comparisons 前置，不再「自动检验」矛盾）。"""
+        txt = self._rd(os.path.join("references", "prompt-cards.md"))
+        self.assertNotIn("对比柱状图：自动做组间显著性检验", txt)
+        self.assertIn("comparisons", txt)
+
+    def test_sig_auto_responsibility_note(self):
+        """--sig-auto stderr 含统计责任提示（检验假设自行确认）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "d.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["A", "B"],
+                "series": {"A": [1.0, 2.0, 2.4, 1.8], "B": [3.0, 4.0, 3.6, 4.2]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "box", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80", "--sig-auto"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("检验假设", r.stderr)
 
 
 if __name__ == "__main__":

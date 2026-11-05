@@ -102,7 +102,16 @@ def scan(root):
                 hits.append(f"{py}:{i}: 引擎文案 CSV 旧口径残留（--explain 运行时输出）")
     # 3c) v7.2.1：changelog 主文件（平台详情页展示面）禁评测导向表述
     # （7.2.0 安全审核未过的直接暴露面；changelog-full 历史档豁免不回改）
-    _EV = re.compile(r"评测抓到|评测点名|官方评测|evaluation-caught")
+    _DEFAULT_BANNED = ("直击官方评测", "主靶", "扣分项", "对齐官方评测", "official-eval",
+                       "评测失分", "全家桶", "评测抓到", "评测点名", "官方评测",
+                       "评测导向", "evaluation-caught", "evaluation caught")
+    _bf = os.path.join(os.path.dirname(os.path.abspath(__file__)), "banned_af.txt")
+    try:
+        _words = [l.strip() for l in open(_bf, encoding="utf-8")
+                  if l.strip() and not l.strip().startswith("#")]
+    except OSError:
+        _words = list(_DEFAULT_BANNED)  # 词表缺失回退内置默认
+    _EV = re.compile("|".join(re.escape(w) for w in _words))
     _cl = open("references/changelog.md", encoding="utf-8").read()
     for i, line in enumerate(_cl.split("\n"), 1):
         if _EV.search(line):

@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.2.1
+version: 7.3.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.2.1
+  version: 7.3.0
   date: 2026-10-31
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -49,7 +49,7 @@ Keys moved out of frontmatter (info preserved):
 Generate figures from JSON/CSV/Excel data. Local execution, no data leaves the machine.
 
 > ⚡ **Top-3 boundaries**: add `--verify` for submission PDFs (PDF only); `--journal`
-> locks the figure width (`--width` is ignored); cluster_heatmap >3000 rows auto-downsamples
+> locks the figure width (`--width` is ignored, `--height` still applies); cluster_heatmap >3000 rows auto-downsamples
 > to 2000. FAQ for every error: `references/faq.md` (exit codes, formats, flag scoping).
 
 **One command, verified output:**

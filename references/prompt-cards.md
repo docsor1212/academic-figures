@@ -12,7 +12,7 @@
 
 **对智能体说**：
 
-> 我有一份三组患者基线数据（组别：安慰剂/低剂量/高剂量，各 n≈30，指标：年龄、BMI、收缩压），数据文件 `baseline.csv`（首列组别）。请用 academic-figures 生成期刊投稿级基线特征对比柱状图：自动做组间显著性检验并标星号，黑白云纹区分系列，输出 600dpi PNG + 投稿 PDF，并跑重叠门禁。
+> 我有一份三组患者基线数据（组别：安慰剂/低剂量/高剂量，各 n≈30，指标：年龄、BMI、收缩压），数据文件 `baseline.csv`（首列组别）。p 值我已用两组 t 检验算好写进 baseline.json 的 comparisons 字段。请用 academic-figures 生成期刊投稿级基线特征对比柱状图（带组间显著性星号括号），黑白云纹区分系列，输出 600dpi PNG + 投稿 PDF，并跑重叠门禁。
 
 **应产出**：`python3 scripts/gen_figure.py -t bar -d baseline.json -o fig1.png --hatch --pub-ready`
 **验收点**：柱高与组间差异如实呈现；显著性星号——bar 是聚合数据不能自动检验，在 baseline.json 里带 `comparisons` 字段并加 `--sig-bracket`（p 值来自你的检验），或原始逐例数据直接改 `-t box --sig-auto`；pub-ready 包含多格式+复跑包。
