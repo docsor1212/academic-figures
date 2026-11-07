@@ -11,7 +11,8 @@
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
 | v6.9.0 | 2026-11-02 | 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠+bar/grouped_bar/box/violin 四图型）+文档准确性四处收口（MCP 工具清单/README 语言/uvx 本地路线/版本历史当前标记） |
-| **v7.4.0（当前）** | 2026-11-07 | 文档口径统一大扫除：期刊宽度交互与引擎行为三方一致（antipatterns 反向表述纠正）+--stats 适用域五处对齐权威域（box/violin/raincloud×auto|multi|bootstrap、forest/subgroup×cox、域外 [ignored]+exit 0）+tests 自述计数与 examples/README 示例目录对齐包内实际（13 逐图+18 realworld）+修复 --journal×--width 提示重复打印+TestV74000 五项防回潮 |
+| **v7.4.1（当前）** | 2026-11-07 | hotfix：包内测试套件镜像适配（SKILL_ZH 依赖锁自动跳过，修复 7.4.0 包内跑套件报 1 error；引擎零差异）；526 测试 |
+| v7.4.0 | 2026-11-07 | 文档口径统一大扫除：期刊宽度交互与引擎行为三方一致（antipatterns 反向表述纠正）+--stats 适用域五处对齐权威域（box/violin/raincloud×auto|multi|bootstrap、forest/subgroup×cox、域外 [ignored]+exit 0）+tests 自述计数与 examples/README 示例目录对齐包内实际（13 逐图+18 realworld）+修复 --journal×--width 提示重复打印+TestV74000 五项防回潮 |
 | v7.3.0 | 2026-11-06 | 包内输出样例：gallery 三张 SVG 矢量预览随包（可直接查看的生成成品，评测 docQuality「缺输出样例」收口）+SKILL 双语边界行口径补全（--height 有效）+提示词卡 bar 卡话术自洽+--sig-auto 统计责任提示 |
 | v7.2.1 | 2026-11-05 | 发布文案清净化重发（版本详情文案表述未过平台安全审核→中性化+机械锁；代码零差异） |
 | v7.2.0 | 2026-11-05 | 一致性扫描器 v2：引擎源码运行时文案入扫描面（CHART_NOTES 等 --explain 输出字典——accuracy 4.5 抓到 bar 文案 CSV 旧口径）+MCP 安装本地优先反转+SKILL 双语/README 视觉样例库 GitHub 直链 |
@@ -55,6 +56,17 @@
 | v3.9.0 | 2026-09-30 | `--order` |
 
 ## 最近版本详情 Recent Details
+
+
+## 7.4.1 — 2026-11-07
+
+hotfix（引擎代码与 7.4.0 零差异）：
+
+- **包内测试套件镜像适配**：新增的 `--stats` 域一致性锁中，读取 SKILL_ZH.md 的
+  断言在无独立中文文件的分发形态（SkillHub 包/GitHub 公开镜像）下会直接报错——
+  拆分为独立用例并挂镜像自动跳过（正本完整环境仍全量执行）。
+  修复 7.4.0 包内运行测试套件会报 1 个 error 的问题。
+- 测试 525→526（中文档锁拆分为独立用例）。
 
 
 ## 7.4.0 — 2026-11-07

@@ -2576,8 +2576,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.4.0", self.zh)
-        self.assertIn("version: 7.4.0", self.en)
+        self.assertIn("version: 7.4.1", self.zh)
+        self.assertIn("version: 7.4.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2674,8 +2674,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.4.0", self.zh)
-        self.assertIn("version: 7.4.0", self.en)
+        self.assertIn("version: 7.4.1", self.zh)
+        self.assertIn("version: 7.4.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2708,8 +2708,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.4.0", self.zh)
-        self.assertIn("version: 7.4.0", self.en)
+        self.assertIn("version: 7.4.1", self.zh)
+        self.assertIn("version: 7.4.1", self.en)
 
 
 
@@ -2776,7 +2776,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.4.0", zh)
+        self.assertIn("version: 7.4.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2949,7 +2949,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.4.0", t, name)
+            self.assertIn("version: 7.4.1", t, name)
 
 
 
@@ -3040,7 +3040,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.4.0", t, name)
+            self.assertIn("version: 7.4.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3161,7 +3161,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.4.0", t, name)
+            self.assertIn("version: 7.4.1", t, name)
 
 
 
@@ -3230,7 +3230,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.4.0", t, name)
+            self.assertIn("version: 7.4.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7203,8 +7203,9 @@ class TestV74000(unittest.TestCase):
         self.assertIn("[auto]", txt)
 
     def test_stats_scope_docs_synced(self):
-        """--stats 域五处文档=引擎权威域（auto|multi|bootstrap→box/violin/raincloud；
-        cox→forest/subgroup；域外 [ignored]+exit 0 非 fatal）。"""
+        """--stats 域文档=引擎权威域（auto|multi|bootstrap→box/violin/raincloud；
+        cox→forest/subgroup；域外 [ignored]+exit 0 非 fatal）。SKILL_ZH 部分另测
+        （镜像 skip，v7.4.0 曾漏挂致 CI 首红+包内套件报错，v7.4.1 修复）。"""
         en = self._rd("SKILL.md")
         self.assertIn("box/violin/raincloud (`cox`: forest/subgroup)", en)
         self.assertIn("--stats auto\\|multi\\|cox\\|bootstrap", en)
@@ -7214,6 +7215,10 @@ class TestV74000(unittest.TestCase):
         self.assertNotIn("仅 box / violin |", lim)
         self.assertIn("仅 forest / subgroup", lim)
         self.assertNotIn("fatal 校验", lim)
+
+    @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
+    def test_stats_scope_docs_synced_zh(self):
+        """--stats 域 SKILL_ZH 两处=引擎权威域（中文档不在公开镜像，trunk 专用锁）。"""
         zh = self._rd("SKILL_ZH.md")
         self.assertIn("仅 box/violin/raincloud（cox 仅 forest/subgroup）", zh)
         self.assertIn("--stats auto\\|multi\\|cox\\|bootstrap", zh)
