@@ -64,20 +64,31 @@ def scan(root):
         n_cmds += 1
         ctype = d.get("type") or d.get("chart")
         check_cmd(cmd, ctype, os.path.basename(tf), domains, hits)
-    # 2) 文档代码块命令（含 gen_figure 调用的行）
+    # 2) 文档代码块命令（含 gen_figure 调用的行；反斜杠续行跨行聚合——
+    #    v7.1.0 漏网实锤：scenario-cards 卡1 `-t bar ... \` 与 `--stats auto`
+    #    分居两行，单行提取使域检查逃逸（评测 accuracy 4.6 命中））
     docs = sorted(glob.glob("references/*.md")) + ["SKILL.md", "SKILL_ZH.md", "README.md"]
     for md in docs:
         if not os.path.exists(md):
             continue
-        for i, line in enumerate(open(md, encoding="utf-8").read().split("\n"), 1):
+        raw = open(md, encoding="utf-8").read().split("\n")
+        i = 0
+        while i < len(raw):
+            line = raw[i]
             if "gen_figure" not in line:
+                i += 1
                 continue
-            m = re.search(r"-t\s+(\S+)", line)
-            if not m:
-                continue
-            n_cmds += 1
-            ctype = m.group(1).strip("`\"'")
-            check_cmd(line, ctype, f"{md}:{i}", domains, hits)
+            full = line
+            j = i
+            while full.rstrip().endswith("\\") and j + 1 < len(raw):
+                j += 1
+                full = full.rstrip()[:-1] + " " + raw[j]
+            m = re.search(r"-t\s+(\S+)", full)
+            if m:
+                n_cmds += 1
+                ctype = m.group(1).strip("`\"'")
+                check_cmd(full, ctype, f"{md}:{i+1}", domains, hits)
+            i = j + 1
     # 3) CSV 旧口径残留（v6.0 后缀列已实现，禁再说「CSV 不支持误差棒」）
     _STALE = re.compile(
         r"CSV 不支持误差棒|CSV 不支持 errors|误差棒需 JSON errors 字段"

@@ -20,6 +20,7 @@ python3 scripts/gen_figure.py --list-themes
 | 文件 | 命令 | 说明 |
 |------|------|------|
 | example_bar.json | `python3 scripts/gen_figure.py -t bar -d examples/example_bar.json -o fig.png --cjk` | 分组柱状图（药物疗效） |
+| example_arena.json | `python3 scripts/gen_figure.py -t bar -d examples/example_arena.json -o fig.png --show-values --arena "GPT-4"` | 基准对比竞技场图（OSWorld 论文公开数字） |
 | example_box.json | `python3 scripts/gen_figure.py -t box -d examples/example_box.json -o fig.png --cjk` | 组间分布箱线图 |
 | example_composite.json | `python3 scripts/gen_figure.py -t composite -d examples/example_composite.json -o fig.png --cjk` | 多面板组合图 |
 | example_diagram.json | `python3 scripts/gen_figure.py -t diagram -d examples/example_diagram.json -o fig.png --cjk` | 流程示意图（diagram 自管图型） |

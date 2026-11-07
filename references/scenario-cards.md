@@ -9,9 +9,9 @@
 
 ```bash
 python3 scripts/gen_figure.py -t bar -d data.json -o fig1.png \
-  --stats auto --hatch --title "图1 基线特征对比"
+  --sig-bracket --hatch --title "图1 基线特征对比"
 ```
-`-t bar` 柱状图｜`--stats auto` 自动检验并标星号（Shapiro 选 t 或 Mann-Whitney）｜
+`-t bar` 柱状图｜`--sig-bracket` 数据携带 `comparisons:[{a,b,p}]`（p 值你已算好）时自动画分层括号星号——bar 是聚合数据（均值±误差棒），引擎不做自动检验｜
 `--hatch` 黑色斜纹（黑白打印可区分系列）｜数据格式：`{"labels":[组名], "series":{系列: [值]}, "errors":{...}}`。
 变体：分组更细用 `-t grouped_bar --show-ratio`；要看完整分布换 `-t violin`（同 schema）。
 
@@ -136,3 +136,12 @@ python3 scripts/gen_figure.py -t composite -d panels.json -o fig12.pdf --verify 
 ```
 `panels=[{type,data,title,span?}]`，`panel_labels:true` 自动角标｜面板不可嵌套 composite/diagram/upset｜
 同变量跨面板务必同色+同尺度（--doctor 会预检范围悬殊）。
+
+## 卡14 基准对比竞技场图（模型/方法多方案同指标对比）
+
+```bash
+python3 scripts/gen_figure.py -t bar -d arena.json -o fig14.png \
+  --show-values --arena "GPT-4"
+```
+`-t bar` 单系列柱状图｜`--arena` 基准对比竞技场风格：每根柱异质填充（灰实心/橙白斜线/蓝白点纹循环），冠军柱=实心深青绿+柱顶金色皇冠+数值加粗高亮｜`--arena`（无值）自动选最高柱为冠军，`--arena "名称"` 按类别标签指定（如论文方法名）｜仅单系列竖向 bar；多面板对比用 composite 两面板各 bar（share_y 统一尺度）｜
+数据：`{"labels":["模型A","模型B"],"series":{"得分":[分,分]}}`；真实样例见 `examples/example_arena.json`（OSWorld 基准论文公开数字）。

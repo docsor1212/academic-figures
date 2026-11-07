@@ -9,7 +9,7 @@ import sys
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Polygon
 import numpy as np
 
 try:
@@ -262,6 +262,25 @@ def apply_base_style(ax, theme):
     ax.tick_params(labelsize=theme["font_size"] - 1)
 
 
+_ARENA_FILL = ("#9E9E9E", "#E8A33D", "#5B8DB8")   # v7.5 --arena 灰/橙/蓝 基准对比循环
+_ARENA_HATCH = (None, "///", "....")               # 橙=白斜线、蓝=白点纹；冠军=实心深青绿+皇冠
+_ARENA_CHAMP = "#0F8A6D"
+
+
+def _draw_crown(ax, bar, vmax):
+    """v7.5 --arena 冠军皇冠：金色矢量多边形（三尖+底沿），置于柱顶上方
+    （抬升 vmax*0.028 为数值标签让位，防遮挡）。"""
+    cx = bar.get_x() + bar.get_width() / 2.0
+    y0 = bar.get_y() + bar.get_height() + vmax * 0.028
+    s = bar.get_width() * 0.40
+    h = vmax * 0.055
+    pts = [(cx - s, y0 + h * 0.30), (cx - s, y0 + h * 0.95), (cx - s * 0.45, y0 + h * 0.50),
+           (cx, y0 + h * 1.15), (cx + s * 0.45, y0 + h * 0.50), (cx + s, y0 + h * 0.95),
+           (cx + s, y0 + h * 0.30)]
+    ax.add_patch(Polygon(pts, closed=True, facecolor="#F5B301",
+                         edgecolor="#B7791F", linewidth=1.0, zorder=6))
+
+
 def gen_bar(data, ax, theme, cjk_fp, **kwargs):
     """Grouped bar chart with horizontal mode, hatching, error bars, significance, and ratio annotations."""
     labels = data.get("labels", data.get("x", []))
@@ -294,13 +313,40 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                 errs = [errs] * n_groups
 
         hatch_val = HATCH_PATTERNS[i % len(HATCH_PATTERNS)] if use_hatch else None
+        # v7.5 --arena 基准对比竞技场风格（单系列竖向 bar）：per-bar 异质填充循环
+        # （灰实心/橙白斜线/蓝白点纹）+冠军柱实心深青绿+金色皇冠+数值高亮。
+        arena = kwargs.get("arena")
+        _aci = None
+        if arena and n_series == 1:
+            if horizontal:
+                print("[ignored] --arena 仅支持竖向 bar（横向模式本次忽略）", file=sys.stderr)
+                arena = None
+            else:
+                _vals_f = [float(v) for v in values]
+                if str(arena) == "auto":
+                    _aci = max(range(len(_vals_f)), key=lambda k: _vals_f[k])
+                else:
+                    _aci = next((k for k, lb in enumerate(labels)
+                                 if str(lb) == str(arena)), None)
+                    if _aci is None:
+                        print(f"[ignored] --arena {arena} 未匹配类别标签，自动选最高柱",
+                              file=sys.stderr)
+                        _aci = max(range(len(_vals_f)), key=lambda k: _vals_f[k])
+                bar_colors = [_ARENA_CHAMP if k == _aci
+                              else _ARENA_FILL[(k if k < _aci else k - 1) % 3]
+                              for k in range(len(_vals_f))]
+                print(f"[arena] 冠军={labels[_aci]}（--arena）", file=sys.stderr)
+        elif arena:
+            print("[ignored] --arena 仅单系列 bar 生效（多系列已忽略）", file=sys.stderr)
         # v3.10 单系列视觉增强（真金链路反馈"默认出图朴素"）：
         # ①Top-N 强调层级——最大条(含并列)主题主色，其余同色淡化（focus+context）
         # ②斜纹豁免——斜纹是"系列区分"工具，单系列铺满=噪声
         # ③图例抑制——单系列图例=系列名复读（label 不设，图例自然消失）
         _single_enh = (n_series == 1 and len(values) >= 3
                        and not kwargs.get("alternate", False))
-        if kwargs.get("alternate", False) and n_series == 1:
+        if arena and n_series == 1:
+            pass  # --arena：bar_colors 已在上方 arena 块赋值（per-bar 循环+冠军）
+        elif kwargs.get("alternate", False) and n_series == 1:
             # GLM-5.2 blog style: alternate first two theme colors per bar
             bar_colors = [colors[j % 2] for j in range(len(values))]
         elif _single_enh:
@@ -317,7 +363,15 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                       "--style glm-brand 不豁免）", file=sys.stderr)
         else:
             bar_colors = colors[i % len(colors)]
-        if use_hatch and not (n_series == 1 and hatch_val is None):
+        if arena and n_series == 1 and _aci is not None:
+            bars = bar_func(x + offset, values, w, yerr=errs, color=bar_colors,
+                            edgecolor="white",
+                            linewidth=[0.5 if k == _aci else 1.4 for k in range(len(values))],
+                            hatch=[None if k == _aci else _ARENA_HATCH[(k if k < _aci else k - 1) % 3]
+                                   for k in range(len(values))],
+                            capsize=3, error_kw={'linewidth': 1})
+            _draw_crown(ax, bars[_aci], max(float(v) for v in values))
+        elif use_hatch and not (n_series == 1 and hatch_val is None):
             # GLM-5.2 blog style: ALL bars get hatching. glm-brand: 同系深色纹+边
             #（视觉精修）；其他主题保持黑色纹（历史行为）。
             bars = bar_func(x + offset, values, w, yerr=errs,
@@ -351,14 +405,16 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
             for j, v in enumerate(values):
                 err = errs[j] if errs and j < len(errs) else 0
                 _fv = _fmt_series_value(v, values)
+                _champ = bool(arena and n_series == 1 and j == _aci)
+                _vc = _ARENA_CHAMP if _champ else colors[i % len(colors)]
                 if horizontal:
                     ax.text(v + err + max(values) * 0.01, x[j] + offset,
                             _fv, ha='left', va='center', fontsize=7,
-                            color=colors[i % len(colors)])
+                            color=_vc, fontweight='bold' if _champ else 'normal')
                 else:
                     ax.text(x[j] + offset, v + err + max(values) * 0.01,
                             _fv, ha='center', va='bottom', fontsize=7,
-                            color=colors[i % len(colors)])
+                            color=_vc, fontweight='bold' if _champ else 'normal')
 
     # Ratio annotations (e.g., "4.96x" above second series bars)
     if show_ratio and n_series >= 2:

@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.4.1
+version: 7.5.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.4.1
+  version: 7.5.0
   date: 2026-11-07
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -306,6 +306,7 @@ High-frequency flags (full cheatsheet: `references/cheatsheet.md`):
 |------|-------------|
 | `--journal` / `--column` | Journal presets / column layout (⚠ locks width, see above) |
 | `--stats auto\|multi\|cox\|bootstrap` | Significance brackets on box/violin/raincloud / Cox forest; `cox` × `-t subgroup` = one-command subgroup analysis (v5.8: `--subgroup-vars`/`--treatment`/`--cut`) |
+| `--arena [name]` | Benchmark-arena style on single-series bar (v7.5): per-bar fill cycle (solid gray / orange diagonal / blue dots), champion bar in solid teal with golden crown + bold value; bare `--arena` auto-picks the max bar, `--arena "Name"` pins by label |
 | `--order "C,A,B" \| auto` | Reorder categories (bar/box/violin/line; explicit list must cover all labels; auto = descending by value/median) |
 | `--normalize baseline\|pct100` | Normalize: divide by control mean (control = 1) / first point = 100 (bar family/line; error bars rescaled) |
 | `--doctor` | Pre-render parameter/environment check report (omit -o for check-only, exit 1 = findings) |

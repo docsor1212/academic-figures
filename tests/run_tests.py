@@ -752,7 +752,8 @@ class TestDemoAndExampleSchemas(unittest.TestCase):
         if not os.path.isdir(examples_dir):
             self.skipTest("no examples dir")
         canonical = {"dual": "dual_axis", "stacked": "stacked_bar",
-                     "box": "box", "roc": "roc", "km": "km"}
+                     "box": "box", "roc": "roc", "km": "km",
+                     "arena": "bar"}  # v7.5 --arena 是 bar 的风格旗标非独立图型
         for fname in sorted(os.listdir(examples_dir)):
             if not fname.endswith(".json"):
                 continue
@@ -2576,8 +2577,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.4.1", self.zh)
-        self.assertIn("version: 7.4.1", self.en)
+        self.assertIn("version: 7.5.0", self.zh)
+        self.assertIn("version: 7.5.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2674,8 +2675,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.4.1", self.zh)
-        self.assertIn("version: 7.4.1", self.en)
+        self.assertIn("version: 7.5.0", self.zh)
+        self.assertIn("version: 7.5.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2708,8 +2709,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.4.1", self.zh)
-        self.assertIn("version: 7.4.1", self.en)
+        self.assertIn("version: 7.5.0", self.zh)
+        self.assertIn("version: 7.5.0", self.en)
 
 
 
@@ -2776,7 +2777,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.4.1", zh)
+        self.assertIn("version: 7.5.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2949,7 +2950,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.4.1", t, name)
+            self.assertIn("version: 7.5.0", t, name)
 
 
 
@@ -3040,7 +3041,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.4.1", t, name)
+            self.assertIn("version: 7.5.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3161,7 +3162,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.4.1", t, name)
+            self.assertIn("version: 7.5.0", t, name)
 
 
 
@@ -3230,7 +3231,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.4.1", t, name)
+            self.assertIn("version: 7.5.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7258,6 +7259,91 @@ class TestV74000(unittest.TestCase):
         self.assertNotIn(old14, src)
         self.assertNotIn(old38, src)
         self.assertIn("40 模板", src)
+
+
+class TestV75000(unittest.TestCase):
+    """v7.5.0：评测 495090 accuracy 4.6（场景卡 bar×stats auto 矛盾=跨行命令逃逸扫描器）
+    机制化防回潮 + 新功能 --arena 基准对比竞技场风格锁。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_arena_render_and_notice(self):
+        """--arena 单系列 bar：渲染成功+冠军通知；指定标签钉冠军。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "a.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["M1", "M2", "M3"], "series": {"score": [10.0, 25.0, 18.0]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80", "--show-values", "--arena"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[arena] 冠军=M2", r.stderr)
+            r2 = subprocess.run(
+                [sys.executable, GEN, "-t", "bar", "--data", d,
+                 "-o", os.path.join(td, "o2.png"), "--dpi", "80", "--arena", "M3"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r2.returncode, 0, r2.stderr[-300:])
+            self.assertIn("[arena] 冠军=M3", r2.stderr)
+
+    def test_arena_out_of_domain_ignored(self):
+        """--arena 域外（line）显式 [ignored] 告知（不静默）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "l.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["a", "b"], "series": {"s": [1.0, 2.0]}}))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "line", "--data", d,
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80", "--arena"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[ignored]", r.stderr)
+            self.assertIn("--arena", r.stderr)
+
+    def test_scenario_cards_bar_stats_lock(self):
+        """场景卡卡1 bar 命令禁 --stats auto（评测 accuracy 4.6 直伤锁；
+        bar=聚合数据，显著性走 sig-bracket comparisons 通道）。"""
+        txt = self._rd(os.path.join("references", "scenario-cards.md"))
+        self.assertNotIn("--stats auto --hatch", txt)
+        self.assertIn("--sig-bracket --hatch", txt)
+
+    def test_scanner_crossline_join(self):
+        """扫描器跨行命令拼接（反斜杠续行）机制锁：分离两行的域冲突必须命中。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import check_consistency as _cc
+        import tempfile as _tf
+        import shutil as _sh
+        with _tf.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, "references"))
+            os.makedirs(os.path.join(td, "scripts"))
+            _sh.copy(os.path.join(self.root, "scripts", "af_shared.py"),
+                     os.path.join(td, "scripts", "af_shared.py"))
+            io.open(os.path.join(td, "references", "changelog.md"), "w",
+                    encoding="utf-8").write("# changelog\n")
+            io.open(os.path.join(td, "references", "bad.md"), "w", encoding="utf-8").write(
+                "```bash\npython3 scripts/gen_figure.py -t bar -d d.json -o f.png \\\n"
+                "  --stats auto --title x\n```\n")
+            io.open(os.path.join(td, "SKILL.md"), "w", encoding="utf-8").write("version: 0.0.0\n")
+            old_cwd = os.getcwd()
+            try:
+                _n, hits = _cc.scan(td)
+            finally:
+                os.chdir(old_cwd)
+            self.assertTrue(any("--stats" in h and "bar" in h for h in hits),
+                            f"跨行域冲突未命中: {hits}")
+
+    def test_arena_example_osworld(self):
+        """example_arena.json=OSWorld 论文真值（arXiv:2404.07972 Table 5 a11y tree）。"""
+        d = json.loads(self._rd(os.path.join("examples", "example_arena.json")))
+        self.assertEqual(d["series"]["任务成功率(%)"][0], 12.24)   # GPT-4（论文 best）
+        self.assertEqual(d["series"]["任务成功率(%)"][-1], 72.36)  # 人类基线
+        self.assertIn("2404.07972", d["_source"])
 
 
 if __name__ == "__main__":

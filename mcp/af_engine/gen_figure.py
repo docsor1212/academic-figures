@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.4.1: Publication-quality academic figure generator.
+academic-figures v7.5.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -2637,6 +2637,7 @@ def main():
     parser.add_argument("--legend", action="store_true", default=True, help="显示图例")
     parser.add_argument("--no-legend", action="store_true", help="隐藏图例")
     parser.add_argument("--show-values", action="store_true", help="在图元上标注数值")
+    parser.add_argument("--arena", nargs="?", const="auto", default=None, help="基准对比竞技场风格（仅 -t bar 单系列竖向）：per-bar 异质填充+冠军柱高亮+皇冠；--arena 自动选最高柱，--arena \"名称\" 按标签指定")
     parser.add_argument("--trend", action="store_true", default=True, help="显示趋势线（散点图）")
     parser.add_argument("--no-trend", action="store_true", help="隐藏趋势线（散点图）")
     parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）")
@@ -3046,6 +3047,7 @@ def main():
     if getattr(args, "normalize", None) and args.type not in _NORM_CHARTS:
         _ignored.append("--normalize（仅 bar 系/line 生效；分布数据不做均值归一）")
         args.normalize = None
+    if getattr(args, "arena", None) and args.type != "bar": _ignored.append("--arena（仅 -t bar 单系列竖向生效）")
     for _ig in _ignored:
         print(f"[ignored] {_ig} 对 {args.type} 不适用，本次渲染已忽略", file=sys.stderr)
 
@@ -3177,6 +3179,7 @@ def main():
     gen_func = GENERATORS[args.type]
     kwargs = {
         "show_values": args.show_values,
+        "arena": args.arena,
         "trend": args.trend and not args.no_trend,
         "peak_label": getattr(args, "peak_label", False),
         "cmap": args.cmap,
