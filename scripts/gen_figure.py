@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.5.0: Publication-quality academic figure generator.
+academic-figures v7.6.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -46,7 +46,7 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
     _afcharts = None
 
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
-from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID,
+from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _SKETCH_MODE,
                         _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query,
                         add_sig_bracket_arg, add_sig_auto_arg)
 from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
@@ -242,7 +242,7 @@ def resolve_theme(name):
     """Resolve a --theme value to a canonical THEMES key (alias + lenient matching).
     Returns the canonical key, or None if no match."""
     if not name:
-        return "glm"
+        return "glm-brand"  # v7.6 默认=品牌视觉（用户钦定黄蓝双斜线为默认输出）
     key = name.strip().lower()
     if key in THEMES:
         return key
@@ -312,7 +312,7 @@ def cmd_demo(args):
     with open(data_path, "w", encoding="utf-8") as f:
         _json.dump(DEMO_DATA[chart_type], f, ensure_ascii=False)
     cmd = (f"python3 scripts/gen_figure.py -t {chart_type} -d '{data_path}' -o '{out_path}' "
-           f"--theme {args.theme or 'glm'}")
+           f"--theme {args.theme or 'glm-brand'}")
     print(f"\n执行: {cmd}", file=sys.stderr)
     args.type, args.data, args.out = chart_type, data_path, out_path
     return True
@@ -670,8 +670,8 @@ def _degrade_axis(ax, axis, level):
     if not labels:
         return False
     if level == 1 and axis == 'x':
-        if all(l.get_rotation() == 45 for l in labels):
-            return False
+        if _SKETCH_MODE[0] or all(l.get_rotation() == 45 for l in labels):
+            return False  # sketch 手绘风：禁 45°（水平两行=wrap 产物，参考图口径）
         for l in labels:
             l.set_rotation(45)
             l.set_ha('right')
@@ -691,8 +691,8 @@ def _degrade_axis(ax, axis, level):
             l.set_fontsize(max(5, l.get_fontsize() - 1))
         return True
     if level == 4 and axis == 'x':
-        if all(l.get_rotation() == 90 for l in labels):
-            return False
+        if _SKETCH_MODE[0] or all(l.get_rotation() == 90 for l in labels):
+            return False  # sketch 手绘风：禁 90°（宁可缩字不竖排）
         for l in labels:
             l.set_rotation(90)
             l.set_ha('center')
@@ -2574,7 +2574,7 @@ def main():
     parser.add_argument("--ylabel", default="", help="y 轴标签")
     parser.add_argument("--theme", default=None,
                         help="配色主题（默认 glm；--list-themes 查看全部）")
-    parser.add_argument("--style", default=None, choices=["glm-hatch", "nature-clean", "glm-brand"],
+    parser.add_argument("--style", default=None, choices=["glm-hatch", "nature-clean", "glm-brand", "sketch"],
                         help="快捷风格：'glm-hatch' = GLM 黄蓝斜线风（theme glm + --hatch）；"
                              "'nature-clean' = 顶刊版式（Okabe-Ito 配色+去顶右框线+无网格+无框图例，v3.3）；"
                              "'glm-brand' = 品牌视觉（信号黄对比强化+无网格+同系深色斜纹，v3.3.1）")
@@ -2640,11 +2640,9 @@ def main():
     parser.add_argument("--arena", nargs="?", const="auto", default=None, help="基准对比竞技场风格（仅 -t bar 单系列竖向）：per-bar 异质填充+冠军柱高亮+皇冠；--arena 自动选最高柱，--arena \"名称\" 按标签指定")
     parser.add_argument("--trend", action="store_true", default=True, help="显示趋势线（散点图）")
     parser.add_argument("--no-trend", action="store_true", help="隐藏趋势线（散点图）")
-    parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）")
-    parser.add_argument("--vmin", type=float, default=None, help="热图色阶下限")
+    parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）"); parser.add_argument("--vmin", type=float, default=None, help="热图色阶下限")
     parser.add_argument("--vmax", type=float, default=None, help="热图色阶上限")
-    parser.add_argument("--horizontal", action="store_true", help="水平柱状图（即 hbar）")
-    parser.add_argument("--hatch", action="store_true", help="柱体加斜线填充（打印友好）")
+    parser.add_argument("--horizontal", action="store_true", help="水平柱状图（即 hbar）"); parser.add_argument("--hatch", action="store_true", help="柱体加斜线填充（打印友好）")
     parser.add_argument("--alternate", action="store_true",
                         help="GLM 风格：单系列柱子交替前两种主题色")
     parser.add_argument("--show-ratio", action="store_true", help="分组柱上标注倍率（如 4.96x）")
@@ -2897,6 +2895,7 @@ def main():
         args.theme = "glm-brand"
         args.hatch = True
 
+    if args.style == "sketch": from af_draw import apply_sketch_style; apply_sketch_style()  # v7.6 手绘风
     if args.style in ("glm-brand", "nature-clean") and args.type == "line" \
             and not args.legend_loc:
         args.direct_label = True  # 设计语言第二刀：品牌/顶刊风格下 line 默认直接标注
@@ -2939,6 +2938,8 @@ def main():
         sys.exit(1)
 
     theme_key = resolve_theme(args.theme)
+    if theme_key == "glm-brand" and not args.hatch:
+        args.hatch = True  # v7.6 品牌斜纹默认开启（显式 --theme 别名同样生效）
     if not theme_key:
         print(f"ERROR: 未知主题 '{args.theme}'。运行 --list-themes 查看全部配色。", file=sys.stderr)
         sys.exit(1)
@@ -3178,8 +3179,7 @@ def main():
     # Generate
     gen_func = GENERATORS[args.type]
     kwargs = {
-        "show_values": args.show_values,
-        "arena": args.arena,
+        "show_values": args.show_values, "arena": args.arena,
         "trend": args.trend and not args.no_trend,
         "peak_label": getattr(args, "peak_label", False),
         "cmap": args.cmap,
@@ -3240,7 +3240,7 @@ def main():
             title_text = args.title.replace('\\n', '\n')
             _t_pad = 22 if getattr(args, "subtitle", None) else 12
             ax.set_title(title_text, fontsize=theme["font_size"] + 1, fontweight='bold',
-                         pad=_t_pad,
+                         pad=_t_pad, loc=None if _SKETCH_MODE[0] else "center",
                          fontproperties=cjk_fp if cjk_fp and has_cjk(title_text) else None)
         if getattr(args, "summary", False) and not getattr(args, "subtitle", None):
             # v4.1 自动数据摘要副标题：只陈述计数事实（零推断，accuracy 优先）。
@@ -3324,7 +3324,7 @@ def main():
         if cjk_fp is None:
             try:
                 cjk_fp, cjk_name = load_cjk_font(None)
-                if cjk_fp:
+                if cjk_fp and not _SKETCH_MODE[0]:
                     plt.rcParams['font.sans-serif'] = [cjk_name, 'DejaVu Sans']
                     plt.rcParams['axes.unicode_minus'] = False
                     print(f"自动补启用中文字体: {cjk_name}（图内含自动生成的中文标注）",

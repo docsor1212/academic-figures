@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.5.0
+version: 7.6.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.5.0
+  version: 7.6.0
   date: 2026-11-07
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -214,7 +214,8 @@ pitfalls live in **`references/quickstart.md`** (standalone getting-started guid
 
 ## Color Themes
 
-**Default = `glm`** (muted Morandi, colorblind-safe). Submissions: `--theme okabe-ito`
+**Default = `glm-brand`** (signal yellow x deep steel blue, brand hatch on by default).
+Colorblind-safe: `--theme okabe-ito`; also `glm` / `cool` / `nature` / `lancet` / `nejm` / `science` / `conservative`.
 (Nature Methods standard; red-green schemes are a top rejection reason). Palettes: `glm` /
 `okabe-ito` / `cool` (all colorblind-safe); `nature` `lancet` `nejm` `science` `conservative`
 `classic`. `--style glm-hatch` adds print-friendly black hatching; `--style nature-clean` =

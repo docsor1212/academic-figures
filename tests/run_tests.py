@@ -492,8 +492,9 @@ class TestGenLegend(unittest.TestCase):
 
 class TestV201ThemeSystem(unittest.TestCase):
     def test_default_theme_is_glm(self):
-        self.assertEqual(gen_figure.resolve_theme(None), "glm")
-        self.assertEqual(gen_figure.resolve_theme(""), "glm")
+        # v7.6 默认变更为 glm-brand（用户钦定品牌出图）；glm 降为显式主题，别名解析不变
+        self.assertEqual(gen_figure.resolve_theme(None), "glm-brand")
+        self.assertEqual(gen_figure.resolve_theme("glm"), "glm")
 
     def test_classic_alias_kept(self):
         self.assertEqual(gen_figure.resolve_theme("default"), "glm")
@@ -2577,8 +2578,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.5.0", self.zh)
-        self.assertIn("version: 7.5.0", self.en)
+        self.assertIn("version: 7.6.0", self.zh)
+        self.assertIn("version: 7.6.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2675,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.5.0", self.zh)
-        self.assertIn("version: 7.5.0", self.en)
+        self.assertIn("version: 7.6.0", self.zh)
+        self.assertIn("version: 7.6.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2709,8 +2710,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.5.0", self.zh)
-        self.assertIn("version: 7.5.0", self.en)
+        self.assertIn("version: 7.6.0", self.zh)
+        self.assertIn("version: 7.6.0", self.en)
 
 
 
@@ -2777,7 +2778,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.5.0", zh)
+        self.assertIn("version: 7.6.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2950,7 +2951,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.5.0", t, name)
+            self.assertIn("version: 7.6.0", t, name)
 
 
 
@@ -3041,7 +3042,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.5.0", t, name)
+            self.assertIn("version: 7.6.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3162,7 +3163,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.5.0", t, name)
+            self.assertIn("version: 7.6.0", t, name)
 
 
 
@@ -3231,7 +3232,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.5.0", t, name)
+            self.assertIn("version: 7.6.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6747,7 +6748,7 @@ class TestV68000(unittest.TestCase):
             open(p, "w", encoding="utf-8").write("group,value\nA,3.1\nB,4.2\nC,5.3")
             r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
                                 "-o", os.path.join(td, "o.png"), "--dpi", "80",
-                                "--hatch"],
+                                "--theme", "glm", "--hatch"],
                                capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
             self.assertIn("单系列", r.stderr)
@@ -7344,6 +7345,38 @@ class TestV75000(unittest.TestCase):
         self.assertEqual(d["series"]["任务成功率(%)"][0], 12.24)   # GPT-4（论文 best）
         self.assertEqual(d["series"]["任务成功率(%)"][-1], 72.36)  # 人类基线
         self.assertIn("2404.07972", d["_source"])
+
+
+class TestV76000(unittest.TestCase):
+    """v7.6.0：默认出图=品牌视觉（用户钦定黄蓝双斜线为默认输出；此前零参数=glm 朴素
+    默认，其他 agent 按最短路径调用得到朴素图——默认必须是最佳输出）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def test_default_theme_is_brand(self):
+        """resolve_theme(None)=glm-brand 机制锁（引擎默认承担品牌效果，不靠文档引导）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import gen_figure as _g
+        self.assertEqual(_g.resolve_theme(None), "glm-brand")
+        src = io.open(os.path.join(self.root, "scripts", "gen_figure.py"),
+                      encoding="utf-8").read()
+        self.assertIn('return "glm-brand"  # v7.6 默认', src)
+
+    def test_brand_hatch_auto_and_render(self):
+        """glm-brand 主题自动开斜纹（品牌斜纹=组成部分）+零参数真渲染 smoke。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import gen_figure as _g
+        self.assertEqual(_g.resolve_theme("glm-brand"), "glm-brand")
+        with tempfile.TemporaryDirectory() as td:
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar",
+                 "--data", os.path.join(self.root, "examples", "example_bar.json"),
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertTrue(os.path.exists(os.path.join(td, "o.png")))
 
 
 if __name__ == "__main__":

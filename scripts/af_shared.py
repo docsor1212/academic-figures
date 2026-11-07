@@ -8,6 +8,7 @@ import re
 from matplotlib.transforms import BboxBase  # v4.5 P0-1：_ensure_ylabel_clear 依赖（缺失致 KM-ylabel/dual_axis/composite 硬崩溃）
 
 _STYLE_NO_GRID = [False]  # v3.3 --style nature-clean：图型级网格关闭开关
+_SKETCH_MODE = [False]    # v7.6 --style sketch：手绘模式全局旗标（数值黑粗/标签不旋转/皇冠立体）
 
 # v3.0.0 模块化：wizard 与异常诊断系统拆至独立模块（原名在此命名空间可用）
 from af_wizard import _run_wizard

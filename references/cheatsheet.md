@@ -76,7 +76,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | `--area` | 仅 venn 面积比例 |
 | `--alt` / `--caption` | 无障碍描述侧车 / 期刊图注侧车 |
 | `--suggest` / `--wizard` / `--demo` / `--explain T` | 选图三件套与演示 |
-| `--theme NAME` | 配色主题（glm/okabe-ito 色盲安全等 9 套） |
+| `--theme NAME` | 配色主题（默认 glm-brand 品牌；okabe-ito 色盲安全等 9 套） |
 
 ## 三、退出码
 

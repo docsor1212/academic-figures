@@ -4,19 +4,20 @@
 拆分后 gen_figure 主文件保留：参数解析/校验/统计推断/流水线/文档；
 本模块只做绘制。公开名经 gen_figure 再导出，`import gen_figure` 用法不变。
 """
+import os
 import sys
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Polygon
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Polygon, Circle
 import numpy as np
 
 try:
     import af_v23_stats as _afstats
 except ImportError:  # 统计模块不在同目录时降级（标注函数自行判 None 提示）
     _afstats = None
-from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear
+from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear, _SKETCH_MODE
 
 
 def _darken_color(color, factor=0.55):
@@ -262,23 +263,63 @@ def apply_base_style(ax, theme):
     ax.tick_params(labelsize=theme["font_size"] - 1)
 
 
-_ARENA_FILL = ("#9E9E9E", "#E8A33D", "#5B8DB8")   # v7.5 --arena 灰/橙/蓝 基准对比循环
-_ARENA_HATCH = (None, "///", "....")               # 橙=白斜线、蓝=白点纹；冠军=实心深青绿+皇冠
+def apply_sketch_style():
+    """v7.6 --style sketch：手绘风（参考图精髓复刻）。xkcd path effects（线条抖动+
+    手写体 fallback 链）+淡虚线网格+粗白纹；配合立体皇冠与黑粗数值标签。"""
+    plt.xkcd()
+    plt.rcParams["font.family"] = ["Balsamiq Sans", "Comic Neue", "Patrick Hand",
+                                   "Humor Sans", "xkcd", "Comic Sans MS",
+                                   "DejaVu Sans"]  # v7.6.1 粗圆马克笔手写链（Balsamiq=参考图同气质且高辨识）
+    plt.rcParams["axes.grid.axis"] = "y"  # 参考图=仅水平网格
+    plt.rcParams["axes.titlelocation"] = "left"
+    plt.rcParams["axes.titlecolor"] = "#1F4E79"
+    plt.rcParams["axes.titleweight"] = "bold"
+    plt.rcParams["hatch.linewidth"] = 2.2
+    plt.rcParams["axes.grid"] = True
+    plt.rcParams["grid.linestyle"] = "--"
+    plt.rcParams["grid.alpha"] = 0.35
+    plt.rcParams["grid.linewidth"] = 0.7
+    plt.rcParams["axes.axisbelow"] = True  # 网格在柱体下层（参考图口径）
+    _SKETCH_MODE[0] = True
+    os.environ["AF_SKETCH"] = "1"  # detect_cjk_font 子进程感知手绘模式（中文手写字形）
+    print("[style] sketch 手绘模式（xkcd 手绘线+淡虚线网格+粗白纹+黑粗数值+立体皇冠）",
+          file=sys.stderr)
+
+
+_ARENA_FILL = ("#E8A33D", "#5B8DB8", "#9B72C7")   # v7.6.2 数据柱全彩循环（橙斜/蓝点/紫斜）
+_ARENA_HATCH = ("///", "..", "///")               # 白粗纹两种（斜/点）×三彩
+_ARENA_BASE = "#A9B7C6"                            # 参照系柱（人类/基线/随机）=浅蓝灰实心，不占彩循环位
+_ARENA_BASELINE_KW = ("基线", "人类", "随机", "baseline", "human", "random")
 _ARENA_CHAMP = "#0F8A6D"
 
 
-def _draw_crown(ax, bar, vmax):
-    """v7.5 --arena 冠军皇冠：金色矢量多边形（三尖+底沿），置于柱顶上方
-    （抬升 vmax*0.028 为数值标签让位，防遮挡）。"""
+def _labels_short(lb):
+    """v7.6.2 arena stderr 用：标签首行截断。"""
+    return str(lb).split("\n")[0][:12]
+
+
+def _draw_crown(ax, bar, vmax, yspan=None):
+    """v7.6 --arena 立体皇冠（参考图 emoji 皇冠复刻）：五尖冠体+三尖顶圆球
+    +分离底座+双层金+深棕描边。抬升按轴跨度计（低值面板数值不被压）。"""
     cx = bar.get_x() + bar.get_width() / 2.0
-    y0 = bar.get_y() + bar.get_height() + vmax * 0.028
-    s = bar.get_width() * 0.40
-    h = vmax * 0.055
-    pts = [(cx - s, y0 + h * 0.30), (cx - s, y0 + h * 0.95), (cx - s * 0.45, y0 + h * 0.50),
-           (cx, y0 + h * 1.15), (cx + s * 0.45, y0 + h * 0.50), (cx + s, y0 + h * 0.95),
-           (cx + s, y0 + h * 0.30)]
-    ax.add_patch(Polygon(pts, closed=True, facecolor="#F5B301",
-                         edgecolor="#B7791F", linewidth=1.0, zorder=6))
+    _span = yspan if yspan else vmax
+    y0 = bar.get_y() + bar.get_height() + _span * 0.12
+    w = bar.get_width() * 0.52
+    h = _span * 0.075
+    xL, xR = cx - w, cx + w
+    yb = y0 + h * 0.16
+    pts = [(xL, yb), (xL, yb + h * 0.62), (cx - w * 0.5, yb + h * 0.30),
+           (cx, yb + h * 0.95), (cx + w * 0.5, yb + h * 0.30), (xR, yb + h * 0.62),
+           (xR, yb)]
+    ax.add_patch(Polygon(pts, closed=True, facecolor="#F6B72E",
+                         edgecolor="#8A5A16", linewidth=1.6, zorder=7))
+    for fx, fy in ((xL, yb + h * 0.62), (cx, yb + h * 0.95), (xR, yb + h * 0.62)):
+        ax.add_patch(Circle((fx, fy), w * 0.12, facecolor="#FFD34D",
+                            edgecolor="#8A5A16", linewidth=1.2, zorder=8))
+    ax.add_patch(FancyBboxPatch(
+        (xL - w * 0.10, y0), 2 * (w + w * 0.10), h * 0.15,
+        boxstyle="round,pad=0,rounding_size=" + str(w * 0.08),
+        facecolor="#E09E1F", edgecolor="#8A5A16", linewidth=1.4, zorder=9))
 
 
 def gen_bar(data, ax, theme, cjk_fp, **kwargs):
@@ -327,15 +368,23 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                     _aci = max(range(len(_vals_f)), key=lambda k: _vals_f[k])
                 else:
                     _aci = next((k for k, lb in enumerate(labels)
-                                 if str(lb) == str(arena)), None)
+                                 if " ".join(str(lb).split()) == " ".join(str(arena).split())), None)
                     if _aci is None:
                         print(f"[ignored] --arena {arena} 未匹配类别标签，自动选最高柱",
                               file=sys.stderr)
                         _aci = max(range(len(_vals_f)), key=lambda k: _vals_f[k])
-                bar_colors = [_ARENA_CHAMP if k == _aci
-                              else _ARENA_FILL[(k if k < _aci else k - 1) % 3]
-                              for k in range(len(_vals_f))]
-                print(f"[arena] 冠军={labels[_aci]}（--arena）", file=sys.stderr)
+                def _is_base(k):
+                    return any(w in str(labels[k]).lower() for w in _ARENA_BASELINE_KW)
+                _ci = [k for k in range(len(_vals_f)) if k != _aci and not _is_base(k)]
+                bar_colors = []
+                for k in range(len(_vals_f)):
+                    if k == _aci:
+                        bar_colors.append(_ARENA_CHAMP)
+                    elif _is_base(k):
+                        bar_colors.append(_ARENA_BASE)
+                    else:
+                        bar_colors.append(_ARENA_FILL[_ci.index(k) % 3])
+                print(f"[arena] 冠军={_labels_short(labels[_aci])}（--arena）", file=sys.stderr)
         elif arena:
             print("[ignored] --arena 仅单系列 bar 生效（多系列已忽略）", file=sys.stderr)
         # v3.10 单系列视觉增强（真金链路反馈"默认出图朴素"）：
@@ -364,13 +413,17 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
         else:
             bar_colors = colors[i % len(colors)]
         if arena and n_series == 1 and _aci is not None:
-            bars = bar_func(x + offset, values, w, yerr=errs, color=bar_colors,
+            bars = bar_func(x + offset, values, w * 0.78, yerr=errs, color=bar_colors,
                             edgecolor="white",
-                            linewidth=[0.5 if k == _aci else 1.4 for k in range(len(values))],
-                            hatch=[None if k == _aci else _ARENA_HATCH[(k if k < _aci else k - 1) % 3]
+                            linewidth=[0.5 if (k == _aci or any(w in str(labels[k]).lower() for w in _ARENA_BASELINE_KW)) else 1.4 for k in range(len(values))],
+                            hatch=[None if (k == _aci or any(w in str(labels[k]).lower() for w in _ARENA_BASELINE_KW))
+                                   else _ARENA_HATCH[_ci.index(k) % 3]
                                    for k in range(len(values))],
                             capsize=3, error_kw={'linewidth': 1})
-            _draw_crown(ax, bars[_aci], max(float(v) for v in values))
+            _ys = ax.get_ylim()[1] - ax.get_ylim()[0]
+            _draw_crown(ax, bars[_aci], max(float(v) for v in values), yspan=_ys)
+            _top = ax.get_ylim()[1]
+            ax.set_ylim(top=_top + _ys * 0.22)  # 皇冠全域（冠顶=y0+0.178span，0.22 留裕量）
         elif use_hatch and not (n_series == 1 and hatch_val is None):
             # GLM-5.2 blog style: ALL bars get hatching. glm-brand: 同系深色纹+边
             #（视觉精修）；其他主题保持黑色纹（历史行为）。
@@ -406,15 +459,21 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                 err = errs[j] if errs and j < len(errs) else 0
                 _fv = _fmt_series_value(v, values)
                 _champ = bool(arena and n_series == 1 and j == _aci)
-                _vc = _ARENA_CHAMP if _champ else colors[i % len(colors)]
+                if _champ:
+                    _vc, _fw = _ARENA_CHAMP, 'bold'
+                elif _SKETCH_MODE[0]:
+                    _vc, _fw = "#222222", 'bold'  # sketch 手绘风：数值黑粗（参考图口径）
+                else:
+                    _vc, _fw = colors[i % len(colors)], 'bold' if _champ else 'normal'
+                _fs = 10 if _SKETCH_MODE[0] else 7
                 if horizontal:
                     ax.text(v + err + max(values) * 0.01, x[j] + offset,
-                            _fv, ha='left', va='center', fontsize=7,
-                            color=_vc, fontweight='bold' if _champ else 'normal')
+                            _fv, ha='left', va='center', fontsize=_fs,
+                            color=_vc, fontweight=_fw)
                 else:
                     ax.text(x[j] + offset, v + err + max(values) * 0.01,
-                            _fv, ha='center', va='bottom', fontsize=7,
-                            color=_vc, fontweight='bold' if _champ else 'normal')
+                            _fv, ha='center', va='bottom', fontsize=_fs,
+                            color=_vc, fontweight=_fw)
 
     # Ratio annotations (e.g., "4.96x" above second series bars)
     if show_ratio and n_series >= 2:
@@ -470,7 +529,7 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
         ax.invert_yaxis()
     else:
         max_lbl_len = max((len(str(l)) for l in labels), default=0)
-        rotation = 45 if (len(labels) > 8 or max_lbl_len > 12) else 0
+        rotation = 0 if _SKETCH_MODE[0] else (45 if (len(labels) > 8 or max_lbl_len > 12) else 0)
         ax.set_xticks(x)
         ax.set_xticklabels(labels, fontsize=theme["font_size"] - 1,
                            rotation=rotation, ha='right' if rotation else 'center',
@@ -2584,7 +2643,9 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
 
     gs = gridspec.GridSpec(n_rows, n_cols, figure=fig,
                            hspace=0.35, wspace=0.3,
-                           left=0.08, right=0.95, top=0.92, bottom=0.08)
+                           left=0.08, right=0.95,
+                           top=0.72 if data.get("suptitle") else 0.92,
+                           bottom=0.08)
 
     # v4.1 自动面板标签（期刊 A/B/C 规范自动化）："panel_labels": true → 按
     # pos 行序自动加粗 A/B/C…；传数组（如 ["I","II"]）自定义序列；缺省 false
@@ -2635,6 +2696,7 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                           or panel_type in ("hbar", "horizontal_bar"),
             "hatch": panel.get("hatch", False),
             "alternate": panel.get("alternate", False),
+            "arena": panel.get("arena", kwargs.get("arena")),  # v7.5 面板级竞技场风格
             "show_ratio": panel.get("show_ratio", False),
             "cmap": panel.get("cmap", kwargs.get("cmap")),
             "vmin": panel.get("vmin", kwargs.get("vmin")),
@@ -2660,9 +2722,15 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
 
         # Panel-specific labels
         ptitle = panel.get("title", "")
+        psub = panel.get("subtitle", "")
         if ptitle:
-            sub_ax.set_title(ptitle, fontsize=theme["font_size"], fontweight='bold', pad=8,
+            sub_ax.set_title(ptitle, fontsize=theme["font_size"], fontweight='bold',
+                             pad=34 if psub else 8,
                              fontproperties=cjk_fp if cjk_fp and has_cjk(ptitle) else None)
+        if psub:
+            sub_ax.text(0.5, 1.02, psub, transform=sub_ax.transAxes, ha='center',
+                        va='bottom', fontsize=theme["font_size"] - 2, color="#9A9A9A",
+                        fontproperties=cjk_fp if cjk_fp and has_cjk(psub) else None)
         if panel.get("xlabel"):
             sub_ax.set_xlabel(panel["xlabel"], fontsize=theme["font_size"] - 1,
                               fontproperties=cjk_fp if cjk_fp and has_cjk(panel["xlabel"]) else None)
@@ -2707,6 +2775,25 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                 a.set_ylim(_lo, _hi)
             print(f"composite: share_y 已统一「{_yl}」×{len(_axs)} 面板 y 轴"
                   f"（{'log ' if _log else ''}{_lo:.4g}~{_hi:.4g}）", file=sys.stderr)
+
+    # v7.6 手绘参考图形态件：单行多面板间虚线分隔 + json suptitle 总标题（左上粗体）
+    if data.get("suptitle"):
+        _st = str(data["suptitle"])
+        fig.text(0.02, 0.995, _st, fontsize=theme["font_size"] + 6,
+                 fontweight="bold", color="#1F4E79", ha="left", va="top",
+                 fontproperties=cjk_fp if cjk_fp and has_cjk(_st) else None)
+        fig.subplots_adjust(top=0.72)  # 面板标题层整体让出总标题层（参考图两级标题）
+    if data.get("source_note"):
+        _sn = str(data["source_note"])
+        fig.text(0.02, 0.012, _sn, fontsize=theme["font_size"] - 2,
+                 color="#9A9A9A", ha="left", va="bottom",
+                 fontproperties=cjk_fp if cjk_fp and has_cjk(_sn) else None)
+    _n_panels = len(data.get("panels", []))
+    if _n_panels > 1:
+        for _k in range(1, _n_panels):
+            fig.add_artist(plt.Line2D([_k / _n_panels, _k / _n_panels],
+                                      [0.02, 0.96], transform=fig.transFigure,
+                                      ls="--", color="#B8B8B8", lw=1.2, zorder=0))
 
     return "composite"  # signal to main() that figure is already built
 
