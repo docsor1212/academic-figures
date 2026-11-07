@@ -1,6 +1,6 @@
 # 视觉样例库（Gallery）
 
-真实公开数据的可复现样例（每例=数据 JSON+复现命令；成品图预览：仓库内 `*_preview.svg`（矢量，可直接查看）与 GitHub 页（github.com/docsor1212/academic-figures/tree/main/examples/gallery） examples/gallery/）。
+真实公开数据的可复现样例（每例 = 数据 JSON + 复现命令；成品图 = 仓库内 `*_preview.svg` 矢量图，可直接查看）。
 每例 = 成品图 + 数据 JSON + 复现命令；统计值经独立实现互拍与视觉验收。
 
 ## pbc_km

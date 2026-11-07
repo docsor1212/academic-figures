@@ -11,7 +11,8 @@
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
 | v6.9.0 | 2026-11-02 | 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠+bar/grouped_bar/box/violin 四图型）+文档准确性四处收口（MCP 工具清单/README 语言/uvx 本地路线/版本历史当前标记） |
-| **v7.3.0（当前）** | 2026-11-06 | 包内输出样例：gallery 三张 SVG 矢量预览随包（可直接查看的生成成品，评测 docQuality「缺输出样例」收口）+SKILL 双语边界行口径补全（--height 有效）+提示词卡 bar 卡话术自洽+--sig-auto 统计责任提示 |
+| **v7.4.0（当前）** | 2026-11-07 | 文档口径统一大扫除：期刊宽度交互与引擎行为三方一致（antipatterns 反向表述纠正）+--stats 适用域五处对齐权威域（box/violin/raincloud×auto|multi|bootstrap、forest/subgroup×cox、域外 [ignored]+exit 0）+tests 自述计数与 examples/README 示例目录对齐包内实际（13 逐图+18 realworld）+修复 --journal×--width 提示重复打印+TestV74000 五项防回潮 |
+| v7.3.0 | 2026-11-06 | 包内输出样例：gallery 三张 SVG 矢量预览随包（可直接查看的生成成品，评测 docQuality「缺输出样例」收口）+SKILL 双语边界行口径补全（--height 有效）+提示词卡 bar 卡话术自洽+--sig-auto 统计责任提示 |
 | v7.2.1 | 2026-11-05 | 发布文案清净化重发（版本详情文案表述未过平台安全审核→中性化+机械锁；代码零差异） |
 | v7.2.0 | 2026-11-05 | 一致性扫描器 v2：引擎源码运行时文案入扫描面（CHART_NOTES 等 --explain 输出字典——accuracy 4.5 抓到 bar 文案 CSV 旧口径）+MCP 安装本地优先反转+SKILL 双语/README 视觉样例库 GitHub 直链 |
 | v7.1.0 | 2026-11-04 | 新工具 `check_consistency.py`（文档与能力注册表自动一致性检查：全部命令载体×旗标域+--verify/PDF 规则+CSV 口径残留——118 条载体对齐，15 处历史混用清零）+域表真值化（--stats 补 raincloud/subgroup）+ADR-0001 状态如实化 |
@@ -54,6 +55,29 @@
 | v3.9.0 | 2026-09-30 | `--order` |
 
 ## 最近版本详情 Recent Details
+
+
+## 7.4.0 — 2026-11-07
+
+文档口径统一大扫除（准确性审查发现的四处不一致全收）+ 引擎小修：
+
+- **期刊宽度交互**：antipatterns.md 曾写「先 journal 后 width 可覆盖（顺序敏感）」，
+  与引擎行为（`--journal` 锁宽、`--width` 被忽略并 `[auto]` 告知、`--height` 仍生效）
+  表述相反——纠正为与 SKILL/limits/引擎三方一致（与给参顺序无关）。
+- **`--stats` 适用域五处对齐权威域**：SKILL 双语与 limits 统一为
+  `auto|multi|bootstrap` → box/violin/raincloud、`cox` → forest/subgroup；
+  域外一律 `[ignored]` 显式告知后继续渲染（limits 曾误写「fatal 校验 exit 1」，
+  实际行为是 `[ignored]`+exit 0）。
+- **tests 自述计数**：套件头部说明与计数锁 docstring 更新为当前真值
+  （15 smoke 图型、40 模板、realworld 18）。
+- **examples/README 目录对拍**：逐图示例表补齐至 13 个 example_*.json、
+  realworld 表补齐至 18 个（此前只列 5+4 个，与包内实际不符）；
+  gallery README 首句语病修复。
+- **引擎修复**：`--journal` × `--width` 同给时 `[auto]` 锁宽提示曾打印两次
+  （重复代码块）——去重为一次。
+- **机制防回潮**：新增 TestV74000 五项锁（期刊宽度真口径 / --stats 五处域同步 /
+  examples README 逐文件覆盖 / `[auto]` 提示唯一性 / tests 自述计数真值）；
+  测试徽章 520→525（README 徽章动态互锁自动对账）。
 
 
 ## 7.3.0 — 2026-11-06

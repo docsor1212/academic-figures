@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.3.0
+version: 7.4.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,8 +37,8 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.3.0
-  date: 2026-10-31
+  version: 7.4.0
+  date: 2026-11-07
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -78,7 +78,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 | Data volume | cluster_heatmap >3000 rows auto-downsamples (announced) | pca ≤200 feature columns; venn 2-4 sets; paired/bland_altman equal-length pairs | limits.md |
 | CJK | `--cjk` + recursive auto-detect in data | Headless servers need at least one CJK font installed (detect: `setup_env.py`) | pitfalls.md |
 | Watchdog | Adaptive 30-1800s budget; `--timeout` adjusts; auto-degrade on MemoryError; transient failures (timeout/memory) auto-retry via `--retries` | `--timeout 0` disables adaptive budget but keeps a 7200s hard cap | limits.md §7 |
-| Flag scopes | `--stats` box/violin (`cox`: forest/subgroup); `--compare` roc; `--egger` funnel; `--hatch` bar family; `--order/--normalize` per family | Flag outside its scope is ignored with a notice — run `--doctor` to preflight combos | limits.md |
+| Flag scopes | `--stats` box/violin/raincloud (`cox`: forest/subgroup); `--compare` roc; `--egger` funnel; `--hatch` bar family; `--order/--normalize` per family | Flag outside its scope is ignored with a notice — run `--doctor` to preflight combos | limits.md |
 | Exit codes | 0 success / 1 fatal validation / 2 overlap / 3 data / 4 env / 5 timeout / 6 memory | Exit 0 never co-exists with a silent data problem (non-finite values are fatal) | §Exit Codes ↓ |
 
 Full matrix: `references/limits.md`. FAQ: `references/faq.md`. Anti-patterns (what NOT to do, one page): `references/antipatterns.md`. Over-limit inputs are rejected with a Chinese error message
@@ -233,7 +233,7 @@ auto-link their theme unless `--theme` is explicit. Params: `scripts/journal/*.j
 
 ## Stats & Legends Quick Facts
 
-box/violin: `--stats auto` (Shapiro→Welch-t/Mann-Whitney, brackets with stars) or
+box/violin/raincloud: `--stats auto` (Shapiro→Welch-t/Mann-Whitney, brackets with stars) or
 `--stats multi` (ANOVA+Tukey / Kruskal-Wallis+Dunn-Hochberg); `--stats cox` =
 multi-variable Cox forest from raw per-subject data; on `-t subgroup` it becomes
 one-command subgroup analysis: per-layer HR(95%CI,p) + likelihood-ratio P-interaction +
@@ -305,7 +305,7 @@ High-frequency flags (full cheatsheet: `references/cheatsheet.md`):
 | Flag | Description |
 |------|-------------|
 | `--journal` / `--column` | Journal presets / column layout (⚠ locks width, see above) |
-| `--stats auto\|cox\|bootstrap` | Significance brackets on box/violin / Cox forest; `cox` × `-t subgroup` = one-command subgroup analysis (v5.8: `--subgroup-vars`/`--treatment`/`--cut`) |
+| `--stats auto\|multi\|cox\|bootstrap` | Significance brackets on box/violin/raincloud / Cox forest; `cox` × `-t subgroup` = one-command subgroup analysis (v5.8: `--subgroup-vars`/`--treatment`/`--cut`) |
 | `--order "C,A,B" \| auto` | Reorder categories (bar/box/violin/line; explicit list must cover all labels; auto = descending by value/median) |
 | `--normalize baseline\|pct100` | Normalize: divide by control mean (control = 1) / first point = 100 (bar family/line; error bars rescaled) |
 | `--doctor` | Pre-render parameter/environment check report (omit -o for check-only, exit 1 = findings) |

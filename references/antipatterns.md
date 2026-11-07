@@ -29,7 +29,7 @@
 
 | 反模式 | 后果 | 正确做法 | 详见 |
 |---|---|---|---|
-| `--journal` 与 `--width` 同时给 | journal 预设锁宽覆盖 width（先 journal 后 width 可覆盖，顺序敏感） | 只用一个；确需覆盖先 `--journal` 再 `--width` | limits §二/§三 |
+| `--journal` 与 `--width` 同时给 | journal 预设锁宽，`--width` 被忽略（stderr `[auto]` 显式告知，与给参顺序无关） | 只用一个：期刊版式用 `--journal`，自定义尺寸用 `--width/--height`（改单双栏用 `--column`） | limits §二/§三 |
 | `--verify` 配 PNG 输出 | 无效（仅对 PDF 生效） | 输出 PDF 再 `--verify` | faq §输出与投稿 |
 | 跨数量级面板共享 y 轴（composite） | 小数量级面板被压扁（临床实验室指标教训） | 不加 `share_y`，让各面板独立尺度 | pitfalls「Clinical Lab Trend」 |
 | cluster_heatmap 行数超 3000 硬跑 | 聚类 O(n²) 内存耗尽 | `--downsample 2000` 等距采样 | limits §一 |

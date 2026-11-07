@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.3.0: Publication-quality academic figure generator.
+academic-figures v7.4.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -2956,9 +2956,6 @@ def main():
             and str(args.data).lower().endswith(".csv")):
         print("[hint] CSV 误差棒 v6.0 起支持后缀列写法（如 weight+weight_sd 自动配对；"
               "--csv-no-errors 关闭识别）", file=sys.stderr)
-    if args.journal and getattr(args, "width", None):
-        print("[auto] --journal 锁定图宽，--width "
-              f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
     if getattr(args, "verify", False):
         _fmt = os.path.splitext(str(args.out or ""))[1].lower()
         if _fmt and _fmt != ".pdf":

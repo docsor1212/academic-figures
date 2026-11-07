@@ -15,7 +15,7 @@
 | 冲突组合 | 行为 | 出口 |
 |---|---|---|
 | `--journal` × `--width` | `--journal` 锁宽，`--width` 被忽略 | `--height` 仍有效；stderr 报预设 |
-| `--stats auto/multi` × 非 box/violin | 忽略并 `[ignored]` 告知 | 改用 `--stats cox`（仅 forest） |
+| `--stats auto/multi` × 非 box/violin/raincloud | 忽略并 `[ignored]` 告知 | 改用 `--stats cox`（仅 forest/subgroup） |
 | `--compare` × 非 roc ／ `--egger` × 非 funnel | 忽略并告知 | — |
 | `--hatch` × 非 bar 系 | 忽略并告知 | 品牌斜纹用 `--style glm-hatch`（全图型） |
 | composite 面板 × composite/diagram/upset | 渲染前校验拒绝 | 拆分多层组合 |
@@ -61,7 +61,7 @@
 
 | 参数 | 适用图型 | 其他图型上传入时 |
 |---|---|---|
-| `--stats auto` / `--stats multi` / `--stats bootstrap` | 仅 box / violin | 其他图型 → `[ignored]` 显式告知（stderr） |
+| `--stats auto` / `--stats multi` / `--stats bootstrap` | 仅 box / violin / raincloud | 其他图型 → `[ignored]` 显式告知（stderr） |
 | `--compare`（DeLong） | 仅 roc，且需 `labels` + 各曲线 `scores` | 只有 fpr/tpr 时 stderr 提示无法检验 |
 | `--egger` | 仅 funnel（≥3 研究） | 其他图型 → `[ignored]` 显式告知 |
 | `--no-risk-table` / `--risk-times` | 仅 km（原始 `[时间,事件]` 格式） | 预计算曲线格式时 stderr 提示 |
@@ -74,7 +74,7 @@
 | `--horizontal` | bar（等同 hbar） | — |
 | `--annotate "x,y:文字"` | 所有图型（组合图自动选面板） | 坐标越界/类别不匹配 → 中文报错 exit 1 |
 | `--legend-loc` / `--legend-outside` | 有图例的图型；组合图 outside=共享图例 | 无图例时 stderr 提示未生效 |
-| `--stats cox` | 仅 forest（fatal 校验：其他图型中文报错 exit 1） | — |
+| `--stats cox` | 仅 forest / subgroup（其他图型 → `[ignored]` 显式告知后继续渲染） | — |
 | `--order` | bar 系 / box / violin / line（box/violin 重排系列键） | 其他图型 → `[ignored]` 显式告知；显式列表须覆盖全部标签（多/少/重复=exit 1） |
 | `--normalize` | 仅 bar 系 / line（分布图不做均值归一） | 其他图型 → `[ignored]` 显式告知 |
 | `--doctor` | 全图型可用；只报告不改退出码 | 省 `-o` 纯体检（exit 1=有发现） |

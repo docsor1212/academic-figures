@@ -3,7 +3,7 @@
 
 Runs on stdlib `unittest` only (no pytest dependency).
 Coverage:
-  1. Smoke test — all 14 chart types generate via the real CLI (exit 0 + file exists)
+  1. Smoke test — all 15 chart types generate via the real CLI (exit 0 + file exists)
   2. validate_data() — fatal/warning detection per chart family
   3. load_data() — CSV edge cases (mixed numeric/text, scatter/box long format)
   4. has_cjk() — CJK detection
@@ -2576,8 +2576,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.3.0", self.zh)
-        self.assertIn("version: 7.3.0", self.en)
+        self.assertIn("version: 7.4.0", self.zh)
+        self.assertIn("version: 7.4.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2674,8 +2674,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.3.0", self.zh)
-        self.assertIn("version: 7.3.0", self.en)
+        self.assertIn("version: 7.4.0", self.zh)
+        self.assertIn("version: 7.4.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2708,8 +2708,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.3.0", self.zh)
-        self.assertIn("version: 7.3.0", self.en)
+        self.assertIn("version: 7.4.0", self.zh)
+        self.assertIn("version: 7.4.0", self.en)
 
 
 
@@ -2776,7 +2776,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.3.0", zh)
+        self.assertIn("version: 7.4.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2949,7 +2949,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.3.0", t, name)
+            self.assertIn("version: 7.4.0", t, name)
 
 
 
@@ -3040,7 +3040,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.3.0", t, name)
+            self.assertIn("version: 7.4.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3161,7 +3161,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.3.0", t, name)
+            self.assertIn("version: 7.4.0", t, name)
 
 
 
@@ -3230,7 +3230,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.3.0", t, name)
+            self.assertIn("version: 7.4.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -5692,7 +5692,7 @@ class TestV50700(unittest.TestCase):
             self.assertIn("antipatterns.md", s, f"{sk} 未链接反模式集中页")
 
     def test_v570_counts_and_docs(self):
-        """v5.7.0 计数锁：38 模板/注册表≥38/README 38 chart types/realworld 13（v5.9 +rmst/+colon）。"""
+        """计数锁（v5.7.0 建锁 38；v6.1 +rob、v6.3 +labbe 增至 40）：40 模板/注册表≥40/README 40 chart types/realworld 18。"""
         root = os.path.join(SCRIPT_DIR, "..")
         jsons = glob.glob(os.path.join(root, "templates", "*.json"))
         self.assertEqual(len(jsons), 40, f"templates 应 40: {len(jsons)}")
@@ -7179,6 +7179,80 @@ class TestV73000(unittest.TestCase):
                 capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
             self.assertIn("检验假设", r.stderr)
+
+
+class TestV74000(unittest.TestCase):
+    """v7.4.0：评测 492208 func 4.5（tests 旧图型计数）+accuracy 4.6（期刊宽度表述相反/
+    stats 域新旧口径混用/README 示例目录与包内不一致）+引擎 [auto] journal 重复打印
+    机制化防回潮。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_antipatterns_journal_width_truth(self):
+        """antipatterns 期刊宽度口径=引擎真值（锁宽忽略 width，与顺序无关）。"""
+        txt = self._rd(os.path.join("references", "antipatterns.md"))
+        self.assertNotIn("顺序敏感", txt)
+        self.assertNotIn("可覆盖", txt)
+        self.assertIn("被忽略", txt)
+        self.assertIn("[auto]", txt)
+
+    def test_stats_scope_docs_synced(self):
+        """--stats 域五处文档=引擎权威域（auto|multi|bootstrap→box/violin/raincloud；
+        cox→forest/subgroup；域外 [ignored]+exit 0 非 fatal）。"""
+        en = self._rd("SKILL.md")
+        self.assertIn("box/violin/raincloud (`cox`: forest/subgroup)", en)
+        self.assertIn("--stats auto\\|multi\\|cox\\|bootstrap", en)
+        self.assertNotIn("--stats auto\\|cox\\|bootstrap", en)
+        lim = self._rd(os.path.join("references", "limits.md"))
+        self.assertIn("仅 box / violin / raincloud", lim)
+        self.assertNotIn("仅 box / violin |", lim)
+        self.assertIn("仅 forest / subgroup", lim)
+        self.assertNotIn("fatal 校验", lim)
+        zh = self._rd("SKILL_ZH.md")
+        self.assertIn("仅 box/violin/raincloud（cox 仅 forest/subgroup）", zh)
+        self.assertIn("--stats auto\\|multi\\|cox\\|bootstrap", zh)
+
+    def test_examples_readme_covers_all(self):
+        """examples/README 逐图表与 realworld 表覆盖包内全部 JSON（目录描述=实际文件）。"""
+        import glob as _glob
+        rd = self._rd(os.path.join("examples", "README.md"))
+        ex = sorted(_glob.glob(os.path.join(self.root, "examples", "example_*.json")))
+        self.assertGreaterEqual(len(ex), 12)
+        for p in ex:
+            self.assertIn(os.path.basename(p), rd, f"README 缺 {os.path.basename(p)}")
+        rw = sorted(_glob.glob(os.path.join(self.root, "examples", "realworld", "*.json")))
+        self.assertGreaterEqual(len(rw), 18)
+        for p in rw:
+            self.assertIn(os.path.basename(p), rd, f"README 缺 {os.path.basename(p)}")
+
+    def test_journal_width_notice_once(self):
+        """--journal × --width 同给时 [auto] 锁宽提示只打一次（v7.3.x 曾重复两次）。"""
+        with tempfile.TemporaryDirectory() as td:
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "bar",
+                 "--data", os.path.join(self.root, "examples", "example_bar.json"),
+                 "-o", os.path.join(td, "o.png"), "--dpi", "80",
+                 "--journal", "nature", "--width", "100"],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertEqual(r.stderr.count("journal 锁定图宽"), 1)
+
+    def test_tests_docstring_counts_current(self):
+        """tests 自述计数=当前真值（smoke 图型数/模板数锁在当前值），旧数字残留即红。
+        断言串用拼接构造防自指（本测试源码不得携带字面量）。"""
+        src = self._rd(os.path.join("tests", "run_tests.py"))
+        old14 = "1" + "4 chart types"
+        old38 = "3" + "8 模板"
+        self.assertIn("15 chart types", src)
+        self.assertNotIn(old14, src)
+        self.assertNotIn(old38, src)
+        self.assertIn("40 模板", src)
 
 
 if __name__ == "__main__":
