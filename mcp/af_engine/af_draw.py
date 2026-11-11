@@ -357,6 +357,13 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
         # v7.5 --arena 基准对比竞技场风格（单系列竖向 bar）：per-bar 异质填充循环
         # （灰实心/橙白斜线/蓝白点纹）+冠军柱实心深青绿+金色皇冠+数值高亮。
         arena = kwargs.get("arena")
+        if isinstance(arena, str) and arena.strip().lower() == "off":
+            arena = None  # v7.7 --arena off 显式逃生门（负面指标最高=最差，自动皇冠失义）
+        _auto_arena = False
+        if arena is None and kwargs.get("arena_default") and n_series == 1 \
+                and len(values) >= 2 and not kwargs.get("alternate") \
+                and not kwargs.get("horizontal"):
+            arena = "auto"; _auto_arena = True  # v7.7 默认竞技场（默认输出=最佳输出第二期）
         _aci = None
         if arena and n_series == 1:
             if horizontal:
@@ -384,7 +391,9 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                         bar_colors.append(_ARENA_BASE)
                     else:
                         bar_colors.append(_ARENA_FILL[_ci.index(k) % 3])
-                print(f"[arena] 冠军={_labels_short(labels[_aci])}（--arena）", file=sys.stderr)
+                print(f"[arena] 冠军={_labels_short(labels[_aci])}"
+                      f"（{'默认竞技场风格；负面指标请 --arena off' if _auto_arena else '--arena'}）",
+                      file=sys.stderr)
         elif arena:
             print("[ignored] --arena 仅单系列 bar 生效（多系列已忽略）", file=sys.stderr)
         # v3.10 单系列视觉增强（真金链路反馈"默认出图朴素"）：
@@ -438,6 +447,12 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                             color=bar_colors, edgecolor='white', linewidth=0.5,
                             capsize=3, error_kw={'linewidth': 1},
                             label=name if n_series > 1 else None)
+        if _SKETCH_MODE[0]:
+            # v7.7.1 缺陷修复：xkcd 路径抖动会把柱体白色描边随机位移切入自身/邻柱
+            # 填充（视觉门实锤白楔缺口，且抖动无种子=随机逃逸）——sketch 模式柱体
+            # 补丁一律禁用路径抖动走直边（手绘感保留在轴线/网格/字体/皇冠）。
+            for _p in getattr(bars, "patches", []):
+                _p.set_sketch_params(None)
         all_bars.append((name, values, bars, offset))
 
         # v4.2 --peak-label：最大值点自动注记（数据事实，单/多系列均取全局峰）
@@ -2645,7 +2660,7 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                            hspace=0.35, wspace=0.3,
                            left=0.08, right=0.95,
                            top=0.72 if data.get("suptitle") else 0.92,
-                           bottom=0.08)
+                           bottom=0.13 if data.get("source_note") else 0.08)
 
     # v4.1 自动面板标签（期刊 A/B/C 规范自动化）："panel_labels": true → 按
     # pos 行序自动加粗 A/B/C…；传数组（如 ["I","II"]）自定义序列；缺省 false
@@ -4969,6 +4984,14 @@ def format_suggest_line(idx, score, ctype, why):
     """--suggest 单行双语：英文理由后追加图型中文名（未知类型静默回退英文）。"""
     zh = _SUGGEST_TYPE_ZH.get(ctype)
     return f"  [{idx}] {ctype:<12} score {score:<3} — {why}" + (f"（{zh}）" if zh else "")
+
+
+def suggest_arena_note(best):
+    """v7.7 --suggest 附属提示（返回 str，空串=不打印）：bar 默认竞技场+sketch 榜单配方。"""
+    if best in ("bar", "hbar"):
+        return ("[arena] bar 单系列默认竞技场风格（冠军=最高柱；负面指标请 --arena off）；"
+                "基准榜单场景推荐加 --style sketch 手绘风。")
+    return ""
 
 
 _RAW_GENERATORS = {

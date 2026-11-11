@@ -2578,8 +2578,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.6.0", self.zh)
-        self.assertIn("version: 7.6.0", self.en)
+        self.assertIn("version: 7.7.0", self.zh)
+        self.assertIn("version: 7.7.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2676,8 +2676,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.6.0", self.zh)
-        self.assertIn("version: 7.6.0", self.en)
+        self.assertIn("version: 7.7.0", self.zh)
+        self.assertIn("version: 7.7.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2710,8 +2710,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.6.0", self.zh)
-        self.assertIn("version: 7.6.0", self.en)
+        self.assertIn("version: 7.7.0", self.zh)
+        self.assertIn("version: 7.7.0", self.en)
 
 
 
@@ -2778,7 +2778,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.6.0", zh)
+        self.assertIn("version: 7.7.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2951,7 +2951,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.6.0", t, name)
+            self.assertIn("version: 7.7.0", t, name)
 
 
 
@@ -3042,7 +3042,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.6.0", t, name)
+            self.assertIn("version: 7.7.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3163,7 +3163,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.6.0", t, name)
+            self.assertIn("version: 7.7.0", t, name)
 
 
 
@@ -3232,7 +3232,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.6.0", t, name)
+            self.assertIn("version: 7.7.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6742,13 +6742,14 @@ class TestV68000(unittest.TestCase):
         self.assertEqual(af_draw._fmt_series_value(1234.5678, [1234.5678]), "1234.568")
 
     def test_hatch_single_ignored_notice(self):
-        """非品牌主题 --hatch 单系列豁免必须 [ignored] 显式告知（透明化）。"""
+        """非品牌主题 --hatch 单系列豁免必须 [ignored] 显式告知（透明化）。
+        v7.7 起单系列 bar 默认竞技场风格，本锁走 --arena off 回非竞技场通路验证。"""
         with tempfile.TemporaryDirectory() as td:
             p = os.path.join(td, "d.csv")
             open(p, "w", encoding="utf-8").write("group,value\nA,3.1\nB,4.2\nC,5.3")
             r = subprocess.run([sys.executable, GEN, "-t", "bar", "--data", p,
                                 "-o", os.path.join(td, "o.png"), "--dpi", "80",
-                                "--theme", "glm", "--hatch"],
+                                "--theme", "glm", "--hatch", "--arena", "off"],
                                capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
             self.assertIn("单系列", r.stderr)
@@ -7377,6 +7378,136 @@ class TestV76000(unittest.TestCase):
                 capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
             self.assertTrue(os.path.exists(os.path.join(td, "o.png")))
+
+
+class TestV77000(unittest.TestCase):
+    """v7.7.0：bar 单系列默认竞技场风格机制化（默认输出=最佳输出第二期）+
+    --arena off 负面指标逃生门 + --pub-ready 自动规避 + --suggest 榜单配方路由。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def _data(self, td, name, obj):
+        p = os.path.join(td, name)
+        io.open(p, "w", encoding="utf-8").write(json.dumps(obj))
+        return p
+
+    _S1 = {"labels": ["M1", "M2", "M3"], "series": {"score": [10.0, 25.0, 18.0]}}
+    _S2 = {"labels": ["A", "B"], "series": {"ctrl": [10.0, 20.0], "treat": [15.0, 25.0]}}
+
+    def _run(self, td, d, out, extra):
+        return subprocess.run(
+            [sys.executable, GEN, "-t", "bar", "--data", d, "-o", out,
+             "--dpi", "70"] + extra, capture_output=True, text=True, timeout=240)
+
+    def test_default_arena_on_bar(self):
+        """零参数单系列 bar → 默认竞技场启用（stderr 默认提示+冠军=最高柱）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = self._data(td, "a.json", self._S1)
+            r = self._run(td, d, os.path.join(td, "o.png"), [])
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("默认竞技场风格", r.stderr)
+            self.assertIn("[arena] 冠军=M2", r.stderr)
+
+    def test_arena_off_escape(self):
+        """--arena off 逃生门：stderr 零 arena 行；输出字节与默认渲染不同。"""
+        import hashlib as _hb
+        with tempfile.TemporaryDirectory() as td:
+            d = self._data(td, "a.json", self._S1)
+            r_on = self._run(td, d, os.path.join(td, "on.png"), [])
+            r_off = self._run(td, d, os.path.join(td, "off.png"), ["--arena", "off"])
+            self.assertEqual(r_on.returncode, 0, r_on.stderr[-300:])
+            self.assertEqual(r_off.returncode, 0, r_off.stderr[-300:])
+            self.assertNotIn("[arena]", r_off.stderr)
+            self.assertNotEqual(
+                _hb.md5(open(os.path.join(td, "on.png"), "rb").read()).hexdigest(),
+                _hb.md5(open(os.path.join(td, "off.png"), "rb").read()).hexdigest(),
+                "--arena off 输出与默认竞技场完全相同——逃生门无效")
+
+    def test_default_multi_series_silent(self):
+        """多系列 bar 默认渲染 → 无 arena 提示噪声（默认竞技场不适用时不吭声）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = self._data(td, "a.json", self._S2)
+            r = self._run(td, d, os.path.join(td, "o.png"), [])
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertNotIn("[arena]", r.stderr)
+
+    def test_default_single_value_skip(self):
+        """单值 bar（1 柱）默认渲染 → 不套竞技场（单柱皇冠无意义）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = self._data(td, "a.json", {"labels": ["X"], "series": {"v": [5.0]}})
+            r = self._run(td, d, os.path.join(td, "o.png"), [])
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertNotIn("[arena]", r.stderr)
+
+    def test_alternate_defeats_default_arena(self):
+        """--alternate 显式风格优先于默认竞技场（显式旗标 > 引擎默认）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = self._data(td, "a.json", self._S1)
+            r = self._run(td, d, os.path.join(td, "o.png"), ["--alternate"])
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertNotIn("[arena]", r.stderr)
+
+    def test_pubready_suppresses_default_arena(self):
+        """--pub-ready 投稿流自动规避竞技场默认（投稿图表走色盲安全主题）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = self._data(td, "a.json", self._S1)
+            r = self._run(td, d, os.path.join(td, "pr"), ["--pub-ready"])
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertNotIn("默认竞技场风格", r.stderr)
+
+    def test_suggest_arena_note(self):
+        """--suggest bar 类推荐附竞技场默认+sketch 配方提示；非 bar 推荐不提示。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = self._data(td, "a.json", self._S1)
+            r = subprocess.run([sys.executable, GEN, "--suggest", "-d", d],
+                               capture_output=True, text=True, timeout=120)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("默认竞技场风格", r.stdout)
+            self.assertIn("--style sketch", r.stdout)
+            f = self._data(td, "f.json", {"estimates": [1.2, 0.8],
+                                          "ci_low": [1.0, 0.6], "ci_high": [1.4, 1.0]})
+            r2 = subprocess.run([sys.executable, GEN, "--suggest", "-d", f],
+                                capture_output=True, text=True, timeout=120)
+            self.assertEqual(r2.returncode, 0, r2.stderr[-300:])
+            self.assertNotIn("[arena]", r2.stdout)
+
+    def test_leaderboard_recipe_smoke(self):
+        """榜单配方 smoke：-t bar --style sketch 零参数竞技场默认仍在（配方=两件套）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = self._data(td, "a.json", self._S1)
+            r = self._run(td, d, os.path.join(td, "o.png"), ["--style", "sketch"])
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("默认竞技场风格", r.stderr)
+
+    def test_arena_docs_sync(self):
+        """默认竞技场文档/运行时文案同步（SKILL.md/cheatsheet/limits/antipatterns/
+        场景卡/CHART_NOTES/域表——SKILL_ZH 断言在 MIRROR-skip 的专用测试）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import af_shared as _as
+        self.assertIn("--arena off", self._rd("SKILL.md"))
+        self.assertIn("DEFAULT ON", self._rd("SKILL.md"))
+        self.assertIn("--arena off", self._rd("references/cheatsheet.md"))
+        self.assertIn("--arena off", self._rd("references/limits.md"))
+        self.assertIn("--arena off", self._rd("references/antipatterns.md"))
+        sc = self._rd("references/scenario-cards.md")
+        self.assertIn("--style sketch", sc)
+        self.assertIn("v7.7 起默认启用", sc)
+        self.assertIn("--arena off", _as.CHART_NOTES["bar"])
+        self.assertIn("默认启用竞技场风格", self._rd("scripts/af_shared.py"))
+
+    @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
+    def test_arena_docs_sync_zh(self):
+        """SKILL_ZH 默认竞技场声明同步（GitHub 镜像无此文件，自动跳过）。"""
+        zh = self._rd("SKILL_ZH.md")
+        self.assertIn("--arena off", zh)
+        self.assertIn("默认竞技场风格", zh)
+        self.assertIn("v7.7 默认启用", zh)
 
 
 if __name__ == "__main__":

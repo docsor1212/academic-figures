@@ -10,8 +10,8 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| v6.9.0 | 2026-11-02 | 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠+bar/grouped_bar/box/violin 四图型）+文档准确性四处收口（MCP 工具清单/README 语言/uvx 本地路线/版本历史当前标记） |
-| **v7.6.0（当前）** | 2026-11-08 | 默认出图=品牌视觉：零参数默认主题 glm→glm-brand（信号黄×深钢蓝）+品牌斜纹自动开启——最短路径调用即得黄蓝双斜线品牌图；投稿色盲安全 --theme okabe-ito 逃生门保留；文档/suggest 同步；TestV76000 两项锁；533 测试 |
+| **v7.7.0（当前）** | 2026-11-12 | bar 单系列默认竞技场风格机制化（零参数即得异质填充+冠军皇冠——默认输出=最佳输出第二期）+`--arena off` 负面指标逃生门+`--pub-ready` 投稿流自动规避+`--suggest` 榜单配方路由；TestV77000 十项锁 |
+| v7.6.0 | 2026-11-08 | 默认出图=品牌视觉：零参数默认主题 glm→glm-brand（信号黄×深钢蓝）+品牌斜纹自动开启——最短路径调用即得黄蓝双斜线品牌图；投稿色盲安全 --theme okabe-ito 逃生门保留；文档/suggest 同步；TestV76000 两项锁；533 测试 |
 | v7.5.0 | 2026-11-07 | 新功能 `--arena` 基准对比竞技场风格（per-bar 异质填充+冠军皇冠+数值高亮；自动/指定冠军）+跨行命令一致性扫描修复（当场抓到场景卡 bar×stats auto 矛盾与 --cox-* 域表缺口）+OSWorld 真实数据样例；531 测试 |
 | v7.4.1 | 2026-11-07 | hotfix：包内测试套件镜像适配（SKILL_ZH 依赖锁自动跳过，修复 7.4.0 包内跑套件报 1 error；引擎零差异）；526 测试 |
 | v7.4.0 | 2026-11-07 | 文档口径统一大扫除：期刊宽度交互与引擎行为三方一致（antipatterns 反向表述纠正）+--stats 适用域五处对齐权威域（box/violin/raincloud×auto|multi|bootstrap、forest/subgroup×cox、域外 [ignored]+exit 0）+tests 自述计数与 examples/README 示例目录对齐包内实际（13 逐图+18 realworld）+修复 --journal×--width 提示重复打印+TestV74000 五项防回潮 |
@@ -20,6 +20,7 @@
 | v7.2.0 | 2026-11-05 | 一致性扫描器 v2：引擎源码运行时文案入扫描面（CHART_NOTES 等 --explain 输出字典——accuracy 4.5 抓到 bar 文案 CSV 旧口径）+MCP 安装本地优先反转+SKILL 双语/README 视觉样例库 GitHub 直链 |
 | v7.1.0 | 2026-11-04 | 新工具 `check_consistency.py`（文档与能力注册表自动一致性检查：全部命令载体×旗标域+--verify/PDF 规则+CSV 口径残留——118 条载体对齐，15 处历史混用清零）+域表真值化（--stats 补 raincloud/subgroup）+ADR-0001 状态如实化 |
 | v7.0.0 | 2026-11-03 | major：新功能 `--sig-auto` 全自动组间显著性（两两自动检验 Shapiro→Welch t / Mann-Whitney U+分层 bracket）+文档可信度大扫除（changelog 补 6.9.0/7.0.0 双节+CSV 误差表述全面清零含 quickstart/SKILL 决策树+README 分发形态如实化+openpyxl 入正式依赖+MCP 包声明如实化） |
+| v6.9.0 | 2026-11-02 | 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠+bar/grouped_bar/box/violin 四图型）+文档准确性四处收口（MCP 工具清单/README 语言/uvx 本地路线/版本历史当前标记） |
 | v6.8.0 | 2026-10-31 | MCP 新工具 `query_capability`（图型+旗标域动态查询，能力面与引擎注册表零漂移）+CHARTS 内置清单快照锁+CSV 误差能力文档真相化（FAQ/data-formats/引擎 hint 旧表述纠正）+守卫扩容（mcp/pyproject 入扫描+英文修饰容忍）+glm-brand 单系列斜纹补齐+show-values 精度自适应 |
 | v6.7.0 | 2026-10-31 | 新功能 `--list-flags [TYPE]` 旗标域查询（专属+域外 [ignored] 预告；注册表与 argparse/图型注册表互锁防漂移）+ 官方点名收口（37 残留×5 含锚链接/gallery JSON 随包索引指针存活/Python 下限统一 3.8/changelog 表格解挤压）+ README 测试徽章动态互锁 |
 | v6.6.0 | 2026-10-30 | 一致性清剿第二轮（评测 accuracy/usability 4.6 点名全修：MCP server.py 头注释与提交文档 23→40、SKILL 索引与代码布局 37→40、quickstart 36→40；limits「静默忽略」纠为实际 [ignored] 行为+机械锁）+计数守卫扩至 14 份活文档含裸 types 口径 |
@@ -59,6 +60,25 @@
 
 ## 最近版本详情 Recent Details
 
+
+## 7.7.0 — 2026-11-12
+
+**bar 单系列默认竞技场风格（默认输出=最佳输出第二期）**：v7.6.0 把品牌主题下沉为
+引擎默认后，本版把基准对比场景的核心视觉同样机制化——
+
+- **单系列竖向 bar 零参数即得竞技场风格**：per-bar 异质填充循环（橙白斜纹/蓝白
+  点纹/紫白斜纹）+冠军柱实心深青绿+金色皇冠+数值加粗，冠军=最高柱自动加冕；
+  stderr 提示冠军与来源（默认竞技场风格/--arena）。
+- **`--arena off` 显式逃生门**：负面指标（最高=最差，如错误率/不良事件率/死亡率）
+  不宜自动加冕，一参数回到普通柱状图；`--pub-ready` 投稿流自动规避竞技场默认
+  （投稿图表走色盲安全主题）；`--alternate` 显式指定风格时优先生效；多系列/
+  横向 bar/单值 bar 不受影响且无提示噪声。
+- **`--suggest` 榜单配方路由**：bar 类推荐附带「基准榜单场景推荐 `--style sketch`
+  手绘风」提示——大模型榜单速览图的标准配方固化为一句话（数据当期快照+来源
+  上图 source_note 属数据纪律，见场景卡卡14）。
+- SKILL 双语/cheatsheet/limits/antipatterns/CHART_NOTES/域表六处同步；SKILL 双语
+  「近期版本行」陈旧修正（原停留 v6.7.0）；TestV77000 十项锁（默认启用/off 逃生门/
+  多系列静默/单值跳过/alternate 优先/pub-ready 规避/suggest 提示/文档同步）。
 
 ## 7.6.0 — 2026-11-08
 

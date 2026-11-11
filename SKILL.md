@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.6.0
+version: 7.7.0
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.6.0
+  version: 7.7.0
   date: 2026-11-07
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -214,7 +214,7 @@ pitfalls live in **`references/quickstart.md`** (standalone getting-started guid
 
 ## Color Themes
 
-**Default = `glm-brand`** (signal yellow x deep steel blue, brand hatch on by default).
+**Default = `glm-brand`** (signal yellow x deep steel blue, brand hatch on by default). Single-series vertical bar also defaults to arena style (champion = max bar + crown); `--arena off` disables it; leaderboard look: add `--style sketch`.
 Colorblind-safe: `--theme okabe-ito`; also `glm` / `cool` / `nature` / `lancet` / `nejm` / `science` / `conservative`.
 (Nature Methods standard; red-green schemes are a top rejection reason). Palettes: `glm` /
 `okabe-ito` / `cool` (all colorblind-safe); `nature` `lancet` `nejm` `science` `conservative`
@@ -307,7 +307,7 @@ High-frequency flags (full cheatsheet: `references/cheatsheet.md`):
 |------|-------------|
 | `--journal` / `--column` | Journal presets / column layout (⚠ locks width, see above) |
 | `--stats auto\|multi\|cox\|bootstrap` | Significance brackets on box/violin/raincloud / Cox forest; `cox` × `-t subgroup` = one-command subgroup analysis (v5.8: `--subgroup-vars`/`--treatment`/`--cut`) |
-| `--arena [name]` | Benchmark-arena style on single-series bar (v7.5): per-bar fill cycle (solid gray / orange diagonal / blue dots), champion bar in solid teal with golden crown + bold value; bare `--arena` auto-picks the max bar, `--arena "Name"` pins by label |
+| `--arena [name\|off]` | Benchmark-arena style, DEFAULT ON for single-series vertical bar (v7.7): per-bar fill cycle, champion (max bar) in teal with golden crown + bold value; negative metrics (highest = worst): `--arena off`; `--arena "Name"` pins by label; leaderboard look: add `--style sketch` |
 | `--order "C,A,B" \| auto` | Reorder categories (bar/box/violin/line; explicit list must cover all labels; auto = descending by value/median) |
 | `--normalize baseline\|pct100` | Normalize: divide by control mean (control = 1) / first point = 100 (bar family/line; error bars rescaled) |
 | `--doctor` | Pre-render parameter/environment check report (omit -o for check-only, exit 1 = findings) |
@@ -403,7 +403,7 @@ Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v6.7.0** `--list-flags [TYPE]` flag-domain query (per-type flags, out-of-domain [ignored] preview; registry test-locked to argparse & chart registry) + evaluator-named closures (stale 37 counts incl. anchor links; gallery JSONs now ship in packages so the file-index pointer is live; Python floor unified at 3.8; changelog index un-squeezed) + README test-badge dynamically locked to the suite count; **v6.6.0** consistency sweep round 2. Older: see changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.7.0** default arena style on single-series bar (zero-arg champion crown; `--arena off` escape for negative metrics; auto-skip under `--pub-ready`) + `--suggest` leaderboard recipe routing (`--style sketch`); **v7.6.0** default theme glm→glm-brand + brand hatch auto-on; **v7.5.0** `--arena` style debut + cross-line command scanner fix. Older: see changelog.
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 

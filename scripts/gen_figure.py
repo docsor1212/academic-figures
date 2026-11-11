@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.6.0: Publication-quality academic figure generator.
+academic-figures v7.7.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -49,7 +49,7 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
 from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _SKETCH_MODE,
                         _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query,
                         add_sig_bracket_arg, add_sig_auto_arg)
-from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
+from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, suggest_arena_note,
                      pairwise_vs_first, draw_bootstrap_brackets, annotate_bootstrap_stats, draw_stat_brackets,
                      annotate_auto_stats, annotate_multi_stats, gen_bar,
                      gen_heatmap, gen_scatter, gen_line, gen_box,
@@ -454,14 +454,13 @@ def cmd_suggest(data_path):
         print(f"ERROR: cannot load '{data_path}': {e}", file=sys.stderr)
         sys.exit(1)
     recs = suggest_chart_type(data)
-    if not recs:
-        print("No confident match — default to bar (labels + series). "
-          "无高匹配图型，默认柱状图；--explain <type> 可查各图型字段说明。")
-        return
+    if not recs: print("No confident match — default to bar (labels + series). 无高匹配图型，默认柱状图；--explain <type> 可查字段说明。"); return
     print("Suggested chart types 推荐图型（按匹配度，best first）:")
     for i, (score, ctype, why) in enumerate(recs[:3], 1):
         print(format_suggest_line(i, score, ctype, why))
     best = recs[0][1]
+    _an = suggest_arena_note(best)
+    if _an: print(_an)
     print(f"\nRun: python3 scripts/gen_figure.py -t {best} -d '{data_path}' -o out.pdf "
           f"--theme okabe-ito --verify  # --explain {best} 查字段说明")
 
@@ -697,6 +696,8 @@ def _degrade_axis(ax, axis, level):
             l.set_rotation(90)
             l.set_ha('center')
         return True
+    if level >= 5 and _SKETCH_MODE[0]:
+        return False  # v7.6.1 sketch 禁丢标签（模型名不可隐藏，宁可缩小字号）
     if level >= 5:
         stride = 2 ** (level - 4)
         hid = False
@@ -2614,11 +2615,8 @@ def main():
     parser.add_argument("--summary", action="store_true",
                         help="自动数据摘要副标题（v4.1）：纯计数事实（样本量/组数/"
                              "事件数等，零推断）；--subtitle 显式给出时以其为准")
-    parser.add_argument("--subtitle", default=None,
-                        help="副标题（主标题下方第二行，小号灰色——标题层级 v4.0；"
-                             "兼容 --title \"主/副\" 斜杠写法）")
-    parser.add_argument("--source", default=None,
-                        help="来源注（图底部右对齐小字，如\"数据来源：XX 数据库\"——v4.0）")
+    parser.add_argument("--subtitle", default=None, help="副标题（主标题下方第二行，小号灰色——标题层级 v4.0；兼容 --title \"主/副\" 斜杠写法）")
+    parser.add_argument("--source", default=None, help="来源注（图底部右对齐小字，如\"数据来源：XX 数据库\"——v4.0）")
     parser.add_argument("--order", default=None, metavar="L1,L2,...|auto",
                         help="自定义类别顺序：逗号分隔标签，或 auto=按第一系列值降序"
                              "（box/violin 按各组中位数降序）（v3.9；仅 bar/box/violin/line 系）")
@@ -2637,7 +2635,7 @@ def main():
     parser.add_argument("--legend", action="store_true", default=True, help="显示图例")
     parser.add_argument("--no-legend", action="store_true", help="隐藏图例")
     parser.add_argument("--show-values", action="store_true", help="在图元上标注数值")
-    parser.add_argument("--arena", nargs="?", const="auto", default=None, help="基准对比竞技场风格（仅 -t bar 单系列竖向）：per-bar 异质填充+冠军柱高亮+皇冠；--arena 自动选最高柱，--arena \"名称\" 按标签指定")
+    parser.add_argument("--arena", nargs="?", const="auto", default=None, help="基准对比竞技场风格（v7.7 起单系列竖向 bar 默认启用）：per-bar 异质填充+冠军柱高亮+皇冠；负面指标（最高=最差，如错误率/不良事件）用 --arena off 关闭，--arena \"名称\" 按标签钉冠军")
     parser.add_argument("--trend", action="store_true", default=True, help="显示趋势线（散点图）")
     parser.add_argument("--no-trend", action="store_true", help="隐藏趋势线（散点图）")
     parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）"); parser.add_argument("--vmin", type=float, default=None, help="热图色阶下限")
@@ -3048,7 +3046,7 @@ def main():
     if getattr(args, "normalize", None) and args.type not in _NORM_CHARTS:
         _ignored.append("--normalize（仅 bar 系/line 生效；分布数据不做均值归一）")
         args.normalize = None
-    if getattr(args, "arena", None) and args.type != "bar": _ignored.append("--arena（仅 -t bar 单系列竖向生效）")
+    if getattr(args, "arena", None) not in (None, "off") and args.type != "bar": _ignored.append("--arena（仅 -t bar 单系列竖向生效；--arena off 显式关闭默认竞技场）")
     for _ig in _ignored:
         print(f"[ignored] {_ig} 对 {args.type} 不适用，本次渲染已忽略", file=sys.stderr)
 
@@ -3180,6 +3178,7 @@ def main():
     gen_func = GENERATORS[args.type]
     kwargs = {
         "show_values": args.show_values, "arena": args.arena,
+        "arena_default": args.arena is None and args.type == "bar" and not args.horizontal and not getattr(args, "pub_ready_applied", False),
         "trend": args.trend and not args.no_trend,
         "peak_label": getattr(args, "peak_label", False),
         "cmap": args.cmap,
@@ -3344,6 +3343,7 @@ def main():
 
     if not is_self_managed:
         plt.tight_layout()
+        if getattr(args, "source", None): fig.subplots_adjust(bottom=0.18)  # v7.6.1 来源注与两行 x 标签防挤压
 
     # Mechanism-level anti-overlap: detect real collisions post-render and
     # degrade tick labels until no axis overlaps (works for composite panels)

@@ -60,7 +60,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | `--dpi N` | 覆盖 DPI（默认线条图 600、照片 300） |
 | `--show-values` / `--show-ratio` | 数值标签 / 组间比率标注 |
 | `--hatch` / `--style glm-hatch` / `--alternate` | 斜纹 / GLM 签名风格 / 交替配色 |
-| `--arena [名称]` | 基准对比竞技场风格（bar 单系列）：异质填充+冠军皇冠（v7.5） |
+| `--arena [名称|off]` | 基准对比竞技场风格（bar 单系列，v7.7 默认启用）：异质填充+冠军皇冠；负面指标用 `--arena off` |
 | `--stats auto\|multi\|cox\|bootstrap` | 显著性 / Tukey·Dunn / Cox 多因素 |
 | `--order "C,A,B" \| auto` | 类别顺序（bar/box/violin/line；auto=值/中位数降序） |
 | `--normalize baseline\|pct100` | 归一化（对照=1 / 首点=100；误差棒同步） |

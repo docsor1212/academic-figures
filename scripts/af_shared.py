@@ -90,7 +90,7 @@ def _ensure_ylabel_clear(ax, fig=None, max_pad=24.0):
 # ── v5.6 自 gen_figure.py 迁入的纯数据表（编排逻辑留主文件，行预算纪律） ──
 
 CHART_NOTES = {
-    "bar": "bar/hbar: JSON 或 CSV 均可；CSV 首列为 X 标签。误差棒：JSON errors 字段，或 CSV 后缀列（weight_sd/weight_se 等 v6.0+ 自动配对）。--hatch 斜纹适合打印/黑白场景。",
+    "bar": "bar/hbar: JSON 或 CSV 均可；CSV 首列为 X 标签。误差棒：JSON errors 字段，或 CSV 后缀列（weight_sd/weight_se 等 v6.0+ 自动配对）。单系列竖向 bar 默认竞技场风格（冠军=最高柱；负面指标 --arena off）；基准榜单场景推荐 --style sketch 手绘风。--hatch 斜纹适合打印/黑白场景。",
     "grouped_bar": "同 bar。多 series 自动分组；--show-ratio 显示比值标注。",
     "hbar": "同 bar（horizontal）。标签过长时 horizontal 模式更合适。",
     "stacked_bar": "stacked_bar: 构成比堆叠；JSON percentage=true 归一化为 100%；CSV 每列为一个 series。",
@@ -244,7 +244,7 @@ _FLAG_DOMAINS = {
     "--hatch": (("bar", "grouped_bar", "stacked_bar", "hbar"), "bar 系"),
     "--order": (("bar", "grouped_bar", "stacked_bar", "hbar", "line", "scatter"), "按族"),
     "--normalize": (("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar", "line"), "bar 系/line"),
-    "--arena": (("bar",), "仅单系列竖向 bar；基准对比竞技场风格（--arena 自动冠军/--arena \"名称\" 指定）"),
+    "--arena": (("bar",), "仅单系列竖向 bar；v7.7 默认启用竞技场风格（冠军=最高柱；负面指标 --arena off 关闭；--arena \"名称\" 指定冠军）"),
     "--sig-auto": (("box", "violin", "raincloud"), "全自动两两检验+bracket（原始分布数据）"),
     "--sig-bracket": (("bar", "grouped_bar", "box", "violin"), "组间显著性括号（comparisons 字段）"),
     "--peak-label": (("line",), None),

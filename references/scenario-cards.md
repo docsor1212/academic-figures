@@ -141,7 +141,8 @@ python3 scripts/gen_figure.py -t composite -d panels.json -o fig12.pdf --verify 
 
 ```bash
 python3 scripts/gen_figure.py -t bar -d arena.json -o fig14.png \
-  --show-values --arena "GPT-4"
+  --show-values --style sketch   # 竞技场风格 v7.7 起默认启用（负面指标 --arena off）
 ```
-`-t bar` 单系列柱状图｜`--arena` 基准对比竞技场风格：每根柱异质填充（灰实心/橙白斜线/蓝白点纹循环），冠军柱=实心深青绿+柱顶金色皇冠+数值加粗高亮｜`--arena`（无值）自动选最高柱为冠军，`--arena "名称"` 按类别标签指定（如论文方法名）｜仅单系列竖向 bar；多面板对比用 composite 两面板各 bar（share_y 统一尺度）｜
+`-t bar` 单系列柱状图｜竞技场风格 v7.7 起默认启用：每根柱异质填充循环（橙白斜线/蓝白点纹/紫白斜纹），冠军柱（=最高柱）自动深青绿+柱顶金色皇冠+数值加粗高亮｜负面指标（最高=最差，如错误率/不良事件率）加 `--arena off` 关闭；`--arena "名称"` 按类别标签指定冠军｜榜单手绘风加 `--style sketch`（Balsamiq Sans/霞鹜文楷）；仅单系列竖向 bar；多面板对比用 composite 两面板各 bar（share_y 统一尺度）｜
 数据：`{"labels":["模型A","模型B"],"series":{"得分":[分,分]}}`；真实样例见 `examples/example_arena.json`（OSWorld 基准论文公开数字）。
+榜单图数据纪律：用当期时点快照（聚合榜收录有滞后，逐源标注更新时间）+来源上图（`--source`，composite 用 `source_note` 字段）。
