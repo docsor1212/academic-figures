@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.7.1: Publication-quality academic figure generator.
+academic-figures v7.7.2: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -47,7 +47,7 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
 
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
 from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _SKETCH_MODE,
-                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query,
+                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query, parse_inline_data,
                         add_sig_bracket_arg, add_sig_auto_arg)
 from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, suggest_arena_note,
                      pairwise_vs_first, draw_bootstrap_brackets, annotate_bootstrap_stats, draw_stat_brackets,
@@ -459,8 +459,7 @@ def cmd_suggest(data_path):
     for i, (score, ctype, why) in enumerate(recs[:3], 1):
         print(format_suggest_line(i, score, ctype, why))
     best = recs[0][1]
-    _an = suggest_arena_note(best)
-    if _an: print(_an)
+    if _an := suggest_arena_note(best): print(_an)
     print(f"\nRun: python3 scripts/gen_figure.py -t {best} -d '{data_path}' -o out.pdf "
           f"--theme okabe-ito --verify  # --explain {best} 查字段说明")
 
@@ -846,6 +845,7 @@ def load_data(path, chart_type=None, sheet=None, csv_errors=True):
     - box/violin: first col as groups, second numeric col as values → {series: {group: [values]}}
     - sheet: Excel only — sheet name (default: first/active sheet)
     """
+    if (_inline := parse_inline_data(path)) is not None: return _inline  # v7.7.2 AF1：inline 简写（af_shared 真值，行预算纪律下沉）
     ext = os.path.splitext(path)[1].lower()
     if ext == '.json':
         try:
@@ -2566,7 +2566,7 @@ def main():
                "｜ 偏倚风险 -t rob（robvis 同款交通灯）｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
     parser.add_argument("--type", "-t", choices=list(GENERATORS.keys()),
                         help="图型（如 bar/box/violin/km/roc/forest/prisma，--demo 可看菜单）")
-    parser.add_argument("--data", "-d", help="输入数据文件（.json / .csv / .tsv / .xlsx）")
+    parser.add_argument("--data", "-d", help="输入数据文件（.json / .csv / .tsv / .xlsx）；支持 inline 简写 \"A=10,B=8,C=5\"（单系列，等价 labels+series value）")
     parser.add_argument("--sheet", default=None,
                         help="xlsx 的工作表名（默认取活动工作表）")
     parser.add_argument("--out", "-o", help="输出文件路径（.png / .svg / .pdf / .tiff / .eps）")

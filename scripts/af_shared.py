@@ -89,8 +89,28 @@ def _ensure_ylabel_clear(ax, fig=None, max_pad=24.0):
 
 # ── v5.6 自 gen_figure.py 迁入的纯数据表（编排逻辑留主文件，行预算纪律） ──
 
+_INLINE_DATA_RE = re.compile(r"^\s*[^=,]+=[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?(\s*,\s*[^=,]+=[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)*\s*$")
+
+
+def parse_inline_data(path):
+    """v7.7.2 AF1：--data inline 简写 "A=10,B=8,C=5" → 单系列 bar 数据 dict。
+
+    规则收紧=整体匹配「名称=数值(,名称=数值)*」才当 inline（数值=严格十进制/
+    科学计数，正则字符类不含点号乱序），不匹配返回 None（调用方走原文件路径，
+    坏文件名的原报错保持不变）。系列名固定 value；int/float/负数/中文名均可。
+    """
+    if not _INLINE_DATA_RE.match(path.strip()):
+        return None
+    labels, values = [], []
+    for _item in path.strip().split(","):
+        _k, _v = _item.split("=", 1)
+        labels.append(_k.strip())
+        values.append(float(_v))
+    return {"labels": labels, "series": {"value": values}}
+
+
 CHART_NOTES = {
-    "bar": "bar/hbar: JSON 或 CSV 均可；CSV 首列为 X 标签。误差棒：JSON errors 字段，或 CSV 后缀列（weight_sd/weight_se 等 v6.0+ 自动配对）。单系列竖向 bar 默认竞技场风格（冠军=最高柱；负面指标 --arena off）；基准榜单场景推荐 --style sketch 手绘风。--hatch 斜纹适合打印/黑白场景。",
+    "bar": "bar/hbar: JSON 或 CSV 均可；CSV 首列为 X 标签。inline 简写：-d \"A=10,B=8\" 免文件（单系列）。误差棒：JSON errors 字段，或 CSV 后缀列（weight_sd/weight_se 等 v6.0+ 自动配对）。单系列竖向 bar 默认竞技场风格（冠军=最高柱；负面指标 --arena off）；基准榜单场景推荐 --style sketch 手绘风。--hatch 斜纹适合打印/黑白场景。",
     "grouped_bar": "同 bar。多 series 自动分组；--show-ratio 显示比值标注。",
     "hbar": "同 bar（horizontal）。标签过长时 horizontal 模式更合适。",
     "stacked_bar": "stacked_bar: 构成比堆叠；JSON percentage=true 归一化为 100%；CSV 每列为一个 series。",
