@@ -3390,7 +3390,7 @@ def main():
             save_kwargs["pil_kwargs"] = {"compression": "tiff_lzw"}
         for _attempt in (1, 2):
             try:
-                fig.savefig(final_out, format=out_format, **save_kwargs)
+                fig.savefig((_t := f"{final_out}.af_tmp{os.getpid()}"), format=out_format, **save_kwargs); os.replace(_t, final_out)  # v7.7.1 原子落盘：杀代竞态下僵尸渲染线程的滞后写只进孤儿 inode，不再截断成品（重试链逐字节锁复现实锤）
                 break
             except OSError as e:
                 if _attempt == 1:
