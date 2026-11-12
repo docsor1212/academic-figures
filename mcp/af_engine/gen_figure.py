@@ -21,7 +21,6 @@ Usage:
 Data formats: JSON or CSV (first column = labels, rest = series)
 """
 import argparse, json, csv, subprocess, sys, os, time, threading
-import re
 
 import matplotlib
 matplotlib.use('Agg')
@@ -48,7 +47,7 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
 
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
 from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _SKETCH_MODE,
-                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query,
+                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query, parse_inline_data,
                         add_sig_bracket_arg, add_sig_auto_arg)
 from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, suggest_arena_note,
                      pairwise_vs_first, draw_bootstrap_brackets, annotate_bootstrap_stats, draw_stat_brackets,
@@ -460,8 +459,7 @@ def cmd_suggest(data_path):
     for i, (score, ctype, why) in enumerate(recs[:3], 1):
         print(format_suggest_line(i, score, ctype, why))
     best = recs[0][1]
-    _an = suggest_arena_note(best)
-    if _an: print(_an)
+    if _an := suggest_arena_note(best): print(_an)
     print(f"\nRun: python3 scripts/gen_figure.py -t {best} -d '{data_path}' -o out.pdf "
           f"--theme okabe-ito --verify  # --explain {best} 查字段说明")
 
@@ -839,9 +837,6 @@ def _read_excel(path, sheet=None):
     return headers, rows
 
 
-_INLINE_DATA_RE = re.compile(r"^\s*[^=,]+=[-+0-9.eE]+(\s*,\s*[^=,]+=[-+0-9.eE]+)*\s*$")
-
-
 def load_data(path, chart_type=None, sheet=None, csv_errors=True):
     """Load data from JSON, CSV or Excel (.xlsx/.xls). Returns dict with structure info.
 
@@ -850,19 +845,7 @@ def load_data(path, chart_type=None, sheet=None, csv_errors=True):
     - box/violin: first col as groups, second numeric col as values → {series: {group: [values]}}
     - sheet: Excel only — sheet name (default: first/active sheet)
     """
-    # v7.7.2 AF1（测试线差量方案）：inline 数据简写 "A=10,B=8,C=5"——免临时文件，
-    # 脚本/agent 集成友好。规则收紧=整体匹配「名称=数值(,名称=数值)*」才当 inline，
-    # 否则走原路径（坏文件名的原报错保持不变）。单系列，系列名固定 value。
-    if isinstance(path, str) and _INLINE_DATA_RE.match(path.strip()):
-        labels, values = [], []
-        for _item in path.strip().split(","):
-            _k, _sep, _v = _item.partition("=")
-            try:
-                values.append(float(_v))
-            except ValueError:
-                break  # 理论不可达（正则已保证）；防御性回退
-            labels.append(_k.strip())
-        return {"labels": labels, "series": {"value": values}}
+    if (_inline := parse_inline_data(path)) is not None: return _inline  # v7.7.2 AF1：inline 简写（af_shared 真值，行预算纪律下沉）
     ext = os.path.splitext(path)[1].lower()
     if ext == '.json':
         try:

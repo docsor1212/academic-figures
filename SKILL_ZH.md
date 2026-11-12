@@ -367,7 +367,7 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 
 ## 版本历史
 
-完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v7.7.2** --data inline 简写 "A=10,B=8"+套件 --verbose 里程碑输出；**v7.7.1** 主题色板默认标记真值锁（扫描器 3d）+默认竞技场像素契约锁+frontmatter date 随版锁定；**v7.7.0** bar 单系列默认竞技场风格（零参数即得异质填充+冠军皇冠；负面指标 --arena off 逃生门；--pub-ready 自动规避）+--suggest 榜单配方路由（--style sketch）；**v7.6.0** 默认主题 glm→glm-brand+品牌斜纹自动开启；**v7.5.0** --arena 竞技场风格+扫描器跨行命令修复。更早版本见 changelog。
+完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v7.7.2** --data inline 简写 "A=10,B=8"+套件 --verbose 里程碑；**v7.7.1** 主题默认标记真值锁+像素契约+date 随版；**v7.7.0** bar 单系列默认竞技场（--arena off 逃生门/--pub-ready 规避）；**v7.6.0** 默认主题 glm-brand+品牌斜纹；**v7.5.0** --arena 竞技场。更早版本见 changelog。
 
 ## 🚀 进阶版：论文配图一键生成 Pro
 
