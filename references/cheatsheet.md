@@ -4,7 +4,7 @@
 > **最短路径**：Ctrl-F 图型名 → 复制命令行 → 换数据文件。
 > **回 INDEX**：SKILL.md「文件索引与 30 秒路由」。
 
-> 一页速查：30 种图型命令骨架、全量参数、退出码、边界 Top 5。
+> 一页速查：40 种图型命令骨架、全量参数、退出码、边界 Top 5。
 > 细节：`--explain <类型>`；数据格式 `references/data-formats.md`；参数交互 `references/limits.md`。
 
 ## 一、图型命令骨架（通用格式）
@@ -60,7 +60,8 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | `--dpi N` | 覆盖 DPI（默认线条图 600、照片 300） |
 | `--show-values` / `--show-ratio` | 数值标签 / 组间比率标注 |
 | `--hatch` / `--style glm-hatch` / `--alternate` | 斜纹 / GLM 签名风格 / 交替配色 |
-| `--stats auto\|multi\|cox` | 显著性 / Tukey·Dunn / Cox 多因素 |
+| `--arena [名称|off]` | 基准对比竞技场风格（bar 单系列，v7.7 默认启用）：异质填充+冠军皇冠；负面指标用 `--arena off` |
+| `--stats auto\|multi\|cox\|bootstrap` | 显著性 / Tukey·Dunn / Cox 多因素 |
 | `--order "C,A,B" \| auto` | 类别顺序（bar/box/violin/line；auto=值/中位数降序） |
 | `--normalize baseline\|pct100` | 归一化（对照=1 / 首点=100；误差棒同步） |
 | `--doctor` | 渲染前参数/环境体检（省略 -o 只体检） |
@@ -75,7 +76,7 @@ python3 scripts/gen_figure.py -t <类型> -d <数据.json> -o <输出.png> [参�
 | `--area` | 仅 venn 面积比例 |
 | `--alt` / `--caption` | 无障碍描述侧车 / 期刊图注侧车 |
 | `--suggest` / `--wizard` / `--demo` / `--explain T` | 选图三件套与演示 |
-| `--theme NAME` | 配色主题（glm/okabe-ito 色盲安全等 9 套） |
+| `--theme NAME` | 配色主题（默认 glm-brand 品牌；okabe-ito 色盲安全等 9 套） |
 
 ## 三、退出码
 

@@ -1,6 +1,6 @@
 # academic-figures-mcp
 
-23 种投稿级学术图型的 MCP Server（FastMCP）：bar/line/km（含竞争风险）/forest/roc/slope/composite/prisma…，
+40 种投稿级学术图型的 MCP Server（FastMCP，数量随引擎注册表自动增长）：bar/line/km（含竞争风险）/forest/roc/slope/composite/prisma…，
 本地确定性渲染（同输入同字节）、中文零配置、数据校验+渲染看门狗+退出码语义全继承自
 [academic-figures](https://github.com/docsor1212/academic-figures) 引擎。
 
@@ -9,7 +9,11 @@
 ## 安装
 
 ```bash
-# uvx（git 直跑，推荐）
+# 本地安装（推荐，不访问 GitHub）：clone 或下载包后——
+pip install -e <包目录>/mcp   # pip 可走清华/阿里镜像
+uvx --from <包目录>/mcp academic-figures-mcp
+
+# uvx git 直跑（国际网络备选）：
 uvx --from "git+https://github.com/docsor1212/academic-figures#subdirectory=mcp" academic-figures-mcp
 
 # 或本地路径
@@ -39,9 +43,10 @@ Codex：`codex mcp add academic-figures -- uvx --from "git+https://github.com/do
 
 | tool | 说明 |
 |---|---|
-| `render_chart` | 全图型渲染（随引擎注册表，当前 27 种）：`chart` + `data`（JSON/CSV 文本）+ `options`（title/subtitle/source/xlabel/ylabel/theme/journal/column/verify/peak_label/summary…）+ `dpi`（72–600）+ `fmt`；回预览 base64 + 成品落盘路径；重叠检出返回 `overlap_detected`（修复机制，不交付） |
+| `render_chart` | 全图型渲染（随引擎注册表，当前 40 种）：`chart` + `data`（JSON/CSV 文本）+ `options`（title/subtitle/source/xlabel/ylabel/theme/journal/column/verify/peak_label/summary…）+ `dpi`（72–600）+ `fmt`；回预览 base64 + 成品落盘路径；重叠检出返回 `overlap_detected`（修复机制，不交付） |
 | `suggest_chart` | 数据驱动图型推荐 |
 | `doctor` | 渲染前参数/环境体检（只体检不渲染） |
+| `query_capability` | 查图型能力面：chart 留空=全注册表+旗标域速览；指定图型=专属/域外旗标详情（动态真值=引擎，防清单漂移） |
 
 Resources：`capability://matrix`（全图型注册表×期刊预设）、`capability://changelog`。
 Prompt：`chart_picker`（选图引导）。

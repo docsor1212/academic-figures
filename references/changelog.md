@@ -10,6 +10,33 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
+| **v7.7.0（当前）** | 2026-11-12 | bar 单系列默认竞技场风格机制化（零参数即得异质填充+冠军皇冠——默认输出=最佳输出第二期）+`--arena off` 负面指标逃生门+`--pub-ready` 投稿流自动规避+`--suggest` 榜单配方路由；TestV77000 十项锁 |
+| v7.6.0 | 2026-11-08 | 默认出图=品牌视觉：零参数默认主题 glm→glm-brand（信号黄×深钢蓝）+品牌斜纹自动开启——最短路径调用即得黄蓝双斜线品牌图；投稿色盲安全 --theme okabe-ito 逃生门保留；文档/suggest 同步；TestV76000 两项锁；533 测试 |
+| v7.5.0 | 2026-11-07 | 新功能 `--arena` 基准对比竞技场风格（per-bar 异质填充+冠军皇冠+数值高亮；自动/指定冠军）+跨行命令一致性扫描修复（当场抓到场景卡 bar×stats auto 矛盾与 --cox-* 域表缺口）+OSWorld 真实数据样例；531 测试 |
+| v7.4.1 | 2026-11-07 | hotfix：包内测试套件镜像适配（SKILL_ZH 依赖锁自动跳过，修复 7.4.0 包内跑套件报 1 error；引擎零差异）；526 测试 |
+| v7.4.0 | 2026-11-07 | 文档口径统一大扫除：期刊宽度交互与引擎行为三方一致（antipatterns 反向表述纠正）+--stats 适用域五处对齐权威域（box/violin/raincloud×auto|multi|bootstrap、forest/subgroup×cox、域外 [ignored]+exit 0）+tests 自述计数与 examples/README 示例目录对齐包内实际（13 逐图+18 realworld）+修复 --journal×--width 提示重复打印+TestV74000 五项防回潮 |
+| v7.3.0 | 2026-11-06 | 包内输出样例：gallery 三张 SVG 矢量预览随包（可直接查看的生成成品，评测 docQuality「缺输出样例」收口）+SKILL 双语边界行口径补全（--height 有效）+提示词卡 bar 卡话术自洽+--sig-auto 统计责任提示 |
+| v7.2.1 | 2026-11-05 | 发布文案清净化重发（版本详情文案表述未过平台安全审核→中性化+机械锁；代码零差异） |
+| v7.2.0 | 2026-11-05 | 一致性扫描器 v2：引擎源码运行时文案入扫描面（CHART_NOTES 等 --explain 输出字典——accuracy 4.5 抓到 bar 文案 CSV 旧口径）+MCP 安装本地优先反转+SKILL 双语/README 视觉样例库 GitHub 直链 |
+| v7.1.0 | 2026-11-04 | 新工具 `check_consistency.py`（文档与能力注册表自动一致性检查：全部命令载体×旗标域+--verify/PDF 规则+CSV 口径残留——118 条载体对齐，15 处历史混用清零）+域表真值化（--stats 补 raincloud/subgroup）+ADR-0001 状态如实化 |
+| v7.0.0 | 2026-11-03 | major：新功能 `--sig-auto` 全自动组间显著性（两两自动检验 Shapiro→Welch t / Mann-Whitney U+分层 bracket）+文档可信度大扫除（changelog 补 6.9.0/7.0.0 双节+CSV 误差表述全面清零含 quickstart/SKILL 决策树+README 分发形态如实化+openpyxl 入正式依赖+MCP 包声明如实化） |
+| v6.9.0 | 2026-11-02 | 新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠+bar/grouped_bar/box/violin 四图型）+文档准确性四处收口（MCP 工具清单/README 语言/uvx 本地路线/版本历史当前标记） |
+| v6.8.0 | 2026-10-31 | MCP 新工具 `query_capability`（图型+旗标域动态查询，能力面与引擎注册表零漂移）+CHARTS 内置清单快照锁+CSV 误差能力文档真相化（FAQ/data-formats/引擎 hint 旧表述纠正）+守卫扩容（mcp/pyproject 入扫描+英文修饰容忍）+glm-brand 单系列斜纹补齐+show-values 精度自适应 |
+| v6.7.0 | 2026-10-31 | 新功能 `--list-flags [TYPE]` 旗标域查询（专属+域外 [ignored] 预告；注册表与 argparse/图型注册表互锁防漂移）+ 官方点名收口（37 残留×5 含锚链接/gallery JSON 随包索引指针存活/Python 下限统一 3.8/changelog 表格解挤压）+ README 测试徽章动态互锁 |
+| v6.6.0 | 2026-10-30 | 一致性清剿第二轮（评测 accuracy/usability 4.6 点名全修：MCP server.py 头注释与提交文档 23→40、SKILL 索引与代码布局 37→40、quickstart 36→40；limits「静默忽略」纠为实际 [ignored] 行为+机械锁）+计数守卫扩至 14 份活文档含裸 types 口径 |
+| v6.5.0 | 2026-10-30 | 文档一致性大扫除（评测 accuracy 4.5 点名三硬伤全修：图型数 30/37/40 多口径统一 40、MCP 23 vs 27 自相矛盾消除、引擎头注释 v2.0.0→随版）+计数守卫扩展（mcp/README+cheatsheet 入扫描+引擎头注释版本锁）+视觉样例库 examples/gallery（3 例真实数据成品图+可复现 JSON） |
+| v6.4.1 | 2026-10-29 | KM 统计框标签动态降级（CI 不可估不标 95%CI）+log-rank p/显著性分隔 + CI 镜像测试自适应补漏（v6.4.0 新类漏挂 skip 致 CI 首红） |
+| v6.4.0 | 2026-10-29 | `--debug` 结构化失败诊断侧车（<output>.debug.json：输入指纹/字段映射/诊断建议）+ SKILL 文档密度守卫锁（体积≤33000B+近期版本行≤700 字符，膨胀即测试拦截） |
+| v6.3.0 | 2026-10-27 | 新图型#40：`labbe`L'Abbé 图（Meta 四件套收官：2×2 四格表事件率散点+对角线无效应线+DL 合并 RR 参考线+骑线/夹缝点自动引线）+ --suggest 识别四格表 + Fleiss93 金标 |
+| v6.2.0 | 2026-10-27 | 渲染稳定性双修：瞬时失败自动重试（`--retries`，exit 5/6 自动重跑、每代预算 ×1.5、确定性错误不重试）+ `--timeout 0` 保留 7200s 硬保险 + 看门狗小预算精度修复 |
+| v6.1.1 | 2026-10-26 | rob 判定扩展：Very high 极高档（ROBINS-I）+Unclear 归顾虑档（ROB1）；三官方工具真实示例；图例在场扫描修复|
+| v6.1.0 | 2026-10-26 | 新图型#39：`rob`偏倚风险交通灯图（robvis 同款；判定中英双语；Overall 不入摘要）+「谁拟合谁可视化」能力矩阵+--suggest 识别原始生存长表|
+| v6.0.0 | 2026-10-24 | CSV 误差列约定：`X_se/X_sem/X_sd/X_err` 后缀列自动配对主列画误差棒（`X_sd+X_n`→SEM），`--csv-no-errors` 逃生门|
+| v5.9.2 | 2026-10-24 | 发布卫生：移除误入 5.9.1 包的内部发布清单文档（无代码变化，5.9.0/5.9.1 功能不变）|
+| v5.9.1 | 2026-10-24 | cif `cause_labels` 键一致性守卫（引用不存在的码=exit 3 中文报错；缺标软提示）——标签对调类错误全谱封堵|
+| v5.9.0 | 2026-10-23 | 新图型#38：`rmst`限制平均生存时间（每臂 RMST(95%CI)+ΔRMST 差值 CI；τ 截断回归锁+colon 619 例金标）+生存触发词扩充|
+| v5.8.0 | 2026-10-23 | `subgroup --stats cox` 一键亚组拟合（逐层 Cox HR+似然比 P 交互；veteran 真实队列金标全表锁）+行预算 ADR-0001+CI 工作流 |
+| v5.7.1 | 2026-10-21 | 修复 galbraith 弧线读数原子性（不可判读弧线整条省略）+弧线/读数一一配对测试锁 |
 | v5.7.0 | 2026-10-21 | 新图型#37：`cif`竞争风险累计发生率（Aalen-Johansen+1−KM 高估对照）+反模式集中页 antipatterns.md+Galbraith 弧线读数密度放宽 |
 | v5.6.1 | 2026-10-20 | 修复 galbraith 深分支崩溃（>12 研究+离群标注相邻）+研究名避让算法升级（纵向 8 档+横向镜像，密集区零叠印） |
 | v5.6.0 | 2026-10-20 | 新图型#36：`galbraith`Galbraith 径向图（Meta 异质性可视化）+composite `share_y` 共享尺度自动统一+提示词卡片文档 |
@@ -34,230 +61,224 @@
 ## 最近版本详情 Recent Details
 
 
-### English
+## 7.7.0 — 2026-11-12
 
-## Version History
+**bar 单系列默认竞技场风格（默认输出=最佳输出第二期）**：v7.6.0 把品牌主题下沉为
+引擎默认后，本版把基准对比场景的核心视觉同样机制化——
 
-## 5.7.0 — 2026-10-21
+- **单系列竖向 bar 零参数即得竞技场风格**：per-bar 异质填充循环（橙白斜纹/蓝白
+  点纹/紫白斜纹）+冠军柱实心深青绿+金色皇冠+数值加粗，冠军=最高柱自动加冕；
+  stderr 提示冠军与来源（默认竞技场风格/--arena）。
+- **`--arena off` 显式逃生门**：负面指标（最高=最差，如错误率/不良事件率/死亡率）
+  不宜自动加冕，一参数回到普通柱状图；`--pub-ready` 投稿流自动规避竞技场默认
+  （投稿图表走色盲安全主题）；`--alternate` 显式指定风格时优先生效；多系列/
+  横向 bar/单值 bar 不受影响且无提示噪声。
+- **`--suggest` 榜单配方路由**：bar 类推荐附带「基准榜单场景推荐 `--style sketch`
+  手绘风」提示——大模型榜单速览图的标准配方固化为一句话（数据当期快照+来源
+  上图 source_note 属数据纪律，见场景卡卡14）。
+- SKILL 双语/cheatsheet/limits/antipatterns/CHART_NOTES/域表六处同步；SKILL 双语
+  「近期版本行」陈旧修正（原停留 v6.7.0）；TestV77000 十项锁（默认启用/off 逃生门/
+  多系列静默/单值跳过/alternate 优先/pub-ready 规避/suggest 提示/文档同步）。
 
-  - **New chart type #37: `cif` — competing-risk cumulative incidence
-    (Aalen-Johansen)**: per-cause CIF step curves; dashed 1−KM naive reference
-    shows how treating competing events as censored overestimates the target
-    event (on a real Mayo Clinic mgus2 cohort of 1384 subjects the gap is
-    +45.5 percentage points). Long-format `time`+`event` integer codes
-    (0=censored, 1=target event, ≥2=competing), `cause_labels`, `percent`,
-    `time_unit`, `compare_km` (auto = draw the reference only when competing
-    events exist); stderr reports event counts, end-of-follow-up CIF per
-    cause and the overestimation in percentage points. Single cohort —
-    multi-arm data is routed to `-t km` (built-in AJ auto mode since v3.7,
-    which now also points to the dedicated chart). Real-world example:
-    `examples/realworld/hematology_mgus_cif.json`.
-  - **Centralized anti-patterns page**: `references/antipatterns.md` — one
-    page of what NOT to do (wrong chart for the data, data-prep traps,
-    flag conflicts, statistical misreads, export mistakes), each entry with
-    consequence + fix + cross-links into faq/pitfalls/limits; linked from
-    SKILL.md/SKILL_ZH.md routing tables.
-  - **Galbraith polish**: arc-label density relaxed (min spacing 10%→7.5% of
-    the axis span, collision detection still guards glyphs) + a small
-    no-effect reference label (`OR=1` on ratio scales, `差值=0` otherwise).
-  - **Mechanism: `--list-types`** prints the authoritative chart registry
-    (one per line); `mcp/server.py` now refreshes its chart list from the
-    engine at startup (fallback list aligned with the v5.7 registry — the
-    hardcoded list had drifted a dozen charts behind).
-  - `--suggest` now recommends `cif` (score 96) when `time`+`event` contains
-    competing-risk codes; scenario quick-reference in CLI help updated.
+## 7.6.0 — 2026-11-08
 
-## 5.6.1 — 2026-10-20
+**默认出图=品牌视觉（机制变更）**：此前零参数默认主题为 `glm`（素雅莫兰迪），
+其他 agent/用户按最短路径调用（只传必需参数）得到的是朴素图——美观效果依赖
+文档引导显式传参，靠不住。本版把品牌效果下沉为引擎默认：
 
-  - **Fix: galbraith deep-branch crash** — with >12 studies and adjacent
-    outlier labels, the label-declutter keep-outlier path hit a variable-name
-    typo (NameError). Added a regression lock with duplicate outlier studies.
-  - **Label avoidance upgrade**: the declutter now walks a vertical ladder
-    (8 depths) plus mirrored horizontal candidates before giving up, driven
-    by acceptance testing on a real 83-study meta-analysis dataset — dense
-    outlier clusters now resolve with zero glyph overlap.
-
-## 5.6.0 — 2026-10-20
-
-  - **New chart type #36: `galbraith` — Galbraith radial plot (meta-analysis
-    heterogeneity)**: precision (1/SE) on x vs standardized effect (effect/SE)
-    on y; regression through origin = pooled fixed effect; ±1.96 parallel band
-    covers homogeneous studies; out-of-band studies are highlighted with red
-    circles and reported per-study on stderr (heterogeneity/outlier suspects).
-    Same schema as `funnel` (`studies` name/effect/se, effects on the log
-    scale); effect-size arcs (OR=0.125~16 readings) drawn by default for
-    ratio labels (OR/HR/RR) and auto-disabled for difference scales
-    (MD/SMD); stderr also reports DL random-effects pooling with I² and
-    P_het. Right-edge study labels flip inward (canvas-fit guarantee).
-  - **composite `share_y` auto-unification**: set `"share_y": true` and
-    panels sharing the same ylabel are unified to one y scale (log scales
-    sync too; unified range reported on stderr). The `--doctor` cross-panel
-    shared-scale precheck now also reads panel-level ylabel (schema-accurate)
-    and points to `share_y` as the fix.
-  - **Prompt cards doc** (`references/prompt-cards.md`): 12 paste-ready
-    agent prompts — "对智能体说 → expected command → acceptance checks" for
-    the main scenarios (baseline/KM/ROC/prediction四件套/Meta trio/omics/
-    composite/journal themes/CJK/pub-ready/batch/suggest).
-  - **Changelog split**: this file becomes a version index + last-3 details;
-    the full history moved verbatim to `references/changelog-full.md`
-    (zero content loss).
-  - **CLI help scenario quick-reference** (epilog) and wizard Meta row now
-    routes forest/funnel/galbraith.
-  - Test-suite hygiene mechanism: verbatim `_command` tests now redirect
-    `-o` to temp dirs (no more render artifacts in the repo trunk).
-
-## 5.4.0 — 2026-10-18
-
-  - **New chart type #34: `rcs` — restricted cubic spline / nonlinear
-    dose-response curve**: estimate line + 95%CI band (log-ratio axis by
-    default), no-effect horizontal rule + `ref` vertical reference, exposure
-    rug along the bottom. JSON: `points=[{value, est, ci_lo, ci_hi}]` (≥5 grid
-    points from your fitted spline model — the engine visualizes, it does not
-    fit); `log_y=false` switches to a linear scale with the reference level at
-    y=0 (`hline_at` overrides).
-  - **DCA benefit-region shading**: thresholds where a model's net benefit
-    beats both reference strategies are shaded in the model's color
-    (`benefit_shade=false` to disable); the shaded ranges are reported on
-    stderr for figure-vs-text cross-checking.
-  - **Tick-collision false positive fixed at the mechanism level** (found via
-    the DCA shading work): the anti-overlap pass counted out-of-view ticks
-    (e.g. x=0.0 when xlim starts at 0.016 — never rendered) as visible boxes;
-    a false intersection with the corner y-label then triggered the
-    degradation ladder and silently hid real tick labels. Collision detection
-    now filters ticks to the view interval.
-  - **Scenario cards** (`references/scenario-cards.md`): 12 complete
-    workflows, one card each = scenario + full runnable command + per-flag
-    explanation + variants — the single entry covering the whole parameter
-    system (answers "why do I need several docs for one scenario").
-  - **SKILL.md density slimming**: journal preset table sunk to
-    `references/limits.md` §六, stats/legend mini-sections merged, rare flags
-    delegated to the cheatsheet — 33 chart types stay, prose shrinks.
-  - **--doctor cross-panel shared-scale precheck**: composite panels sharing a
-    y-label (same variable semantics) with >5× range mismatch are flagged
-    before rendering.
-  - Log-axis plain ticks (LogLocator 1/1.5/2/3/5/7 + scalar formatter) for all
-    log-scale renders — no more 10⁰-style offsets.
-
-## 5.3.0 — 2026-10-17
-
-  - **New chart type #33: `nomogram` — clinical nomogram**: the prediction-model
-    lookup chart (points ruler → per-variable scales → Total Points → outcome
-    scales). JSON: `variables=[{name, ticks[2-12], labels?, points_at?}]`
-    (points_at defaults to linear 0-100) + `outcome_scales=[{label, ticks,
-    points_at}]` (1-3, in total-points units) + optional `total_points_max`.
-    Visualizes your **fitted** model — the engine does not fit; total-axis
-    ticks adaptively choose the nicest split (350→five-way 0/70/140/210/280/350),
-    and figure height scales with row count so dense nomograms never compress.
-  - **Version-consistency lock** (doc-accuracy mechanism): packaged
-    `evals/evals.json` `skill_version` now pinned to the SKILL version and
-    asserted by a regression test — ends the stale-metadata drift class.
-  - **Consolidated flag-conflict table** in `references/limits.md` §〇
-    (journal×width, stats scope, composite nesting, verify×format — all in one
-    place) and the cluster_heatmap two-tier wording (1500 warn / 3000 hard cap)
-    made explicit in both summary rows.
-  - **Per-chart pitfalls FAQ** in `references/faq.md` (Cox PH prerequisites,
-    upset top_n truncation accounting, venn --area fit deviation, dca endpoint
-    rule, calibration binning practice, nomogram provenance, swimmer arrows,
-    raincloud zero-variance) and remaining English-only diagnostics
-    (`VERIFY OK/FAIL`, `--verify` warnings) made bilingual.
+- **零参数默认主题 `glm` → `glm-brand`**（信号黄×深钢蓝），**品牌斜纹随品牌
+  主题自动开启**（斜纹=品牌组成部分非可选项）——最短路径调用即得黄蓝双斜线
+  品牌图。
+- 投稿色盲安全场景保留 `--theme okabe-ito` 逃生门；全部显式主题行为不变
+  （别名解析/金标结构基线 40/40 实测零漂移）。
+- 文档（SKILL 双语默认声明/cheatsheet/--list-themes 注记）与 `--suggest`
+  输出同步；新增 TestV76000 两项锁（默认主题解析+零参数真渲染 smoke）。
+- 测试 531→533。
 
 
-## 中文
+## 7.5.0 — 2026-11-07
 
-## 版本历史
+新功能 `--arena` 基准对比竞技场风格 + 一致性扫描器跨行命令修复：
 
-### v5.7.0（2026-10-21）
-
-- **新图型 #37：`cif` 竞争风险累计发生率（Aalen-Johansen）**：实线按事件原因分解
-  CIF 阶梯曲线；1−KM 朴素对照虚线（竞争事件当删失）直观显示高估幅度——真实
-  Mayo Clinic mgus2 队列（1384 例）实测高估 +45.5 个百分点。长表 `time`+`event`
-  整数编码（0=删失 1=目标事件 ≥2=竞争事件）、`cause_labels`/`percent`/
-  `time_unit`/`compare_km`（auto=有竞争事件才画对照）；stderr 报告事件计数、
-  末点各因 CIF 与高估百分点。单队列按原因分层，多臂分组指路 `-t km`
-  （v3.7 起 AJ 自动模式同步加引导语）。真实数据示例：
-  `examples/realworld/hematology_mgus_cif.json`。
-- **反模式集中页**：`references/antipatterns.md`——「应避免用法」一页看全
-  （选图不当/数据准备/参数冲突/统计解释/导出投稿五类，每条=后果+正确做法+
-  交叉链接 faq/pitfalls/limits）；SKILL.md/SKILL_ZH.md 路由表直达。
-- **Galbraith 打磨**：弧线读数密度放宽（最小间距轴跨度 10%→7.5%，碰撞检测
-  继续兜底）+ 无效应参考线小标（比率尺度 `OR=1`，差值尺度 `差值=0`）。
-- **机制：`--list-types`** 输出权威图型注册表（每行一个）；`mcp/server.py`
-  启动时改为从引擎动态刷新图型清单（回退清单与 v5.7 注册表逐字对齐——
-  原硬编码清单已落后引擎十余图型）。
-- `--suggest` 对含竞争风险编码的 time+event 推荐 cif（96 分）；CLI 帮助
-  场景速查更新。
-
-### v5.6.1（2026-10-20）
-
-- **修复 galbraith 深分支崩溃**：研究数>12 且多个离群标注相邻时，避让的
-  「离群保留」分支引用了笔误变量名（NameError）；新增同点重复离群回归锁。
-- **研究名避让算法升级**：纵向 8 档阶梯+横向镜像候选位全部试净后才落位；
-  由真实 83 项研究元分析数据的验收 fail 驱动——密集离群区零字形叠印。
-
-### v5.6.0（2026-10-20）
-
-- **新图型 #36：`galbraith` Galbraith 径向图（Meta 异质性可视化，漏斗图姊妹图）**：
-  横轴精度 1/SE、纵轴标准化效应 effect/SE；过原点回归线=固定效应合并（斜率 b），
-  ±1.96 平行带覆盖同质研究；带外研究红圈高亮并在 stderr 逐个报名（异质性/离群嫌疑）。
-  数据 schema 与 `funnel` 完全一致（studies name/effect/se，效应取 log 值）；
-  比率标签（OR/HR/RR）默认画效应量弧线（OR=0.125~16 读数），差值尺度（MD/SMD）
-  自动关；stderr 同报 DL 随机效应合并+I²+P_het。右缘研究名标注自动向画布内翻转（不裁切）。
-- **composite `share_y` 共享尺度自动统一**：数据加 `"share_y": true`，同 ylabel
-  （同变量语义）的面板 y 轴自动统一到全体范围（log 尺度同步），stderr 报统一区间；
-  `--doctor` 跨面板共享尺度预检同步修复为面板级 ylabel 读取（与 composite schema 一致）
-  并把 `share_y` 作为机制出口写进提示。
-- **提示词卡片文档**（`references/prompt-cards.md`）：12 张对智能体说的可粘贴完整指令
-  ——「对智能体说 → 应产出命令 → 验收点」，覆盖基线/KM/ROC/预测模型四件套/Meta 三件套/
-  组学/组合图/期刊主题/中文/投稿包/批量重渲/选型建议十二场景。
-- **changelog 拆分**：本文件改为版本索引+最近三版详情；完整历史原样移入
-  `references/changelog-full.md`（内容零删减）。
-- **CLI 帮助场景速查**（epilog）+向导 Meta 行路由 forest/funnel/galbraith 三件套。
-- 测试卫生机制化：逐字执行 `_command` 的测试统一把 `-o` 重定向到临时目录
-  （渲染产物不再落 trunk，哨兵泄漏教训进机制）。
-
-### v5.4.0（2026-10-18）
-
-- **新图型 #34：`rcs` 限制性立方样条/非线性剂量反应曲线**：估计线+95%CI 带
-  （默认对数比值轴）、无效应水平参照线+`ref` 竖直参照线、底部暴露 rug。
-  JSON：`points=[{value,est,ci_lo,ci_hi}]`（≥5 个网格点，来自你拟合的样条模型
-  ——引擎只可视化不拟合）；`log_y=false` 切线性轴（参照水平默认 y=0，
-  `hline_at` 可覆盖）。
-- **DCA 获益区间着色**：模型净收益同时压过两条参照策略的阈值区段按模型色
-  淡色填充（`benefit_shade=false` 关闭）；着色区段写入 stderr 供图文对账。
-- **刻度碰撞假阳性机制级修复**（随 DCA 着色工作发现）：防重叠检查曾把视图
-  区间外的刻度（如 xlim 从 0.016 起、渲染不显示的 x=0.0）当可见框，与轴角
-  y 标签假相交后触发降级阶梯，静默藏掉真实刻度标签。碰撞检测现按视图区间
-  过滤。
-- **场景卡片**（`references/scenario-cards.md`）：12 个完整工作流，每卡=
-  场景+完整可跑命令+参数逐项说明+常见变体——参数体系的单一入口。
-- **SKILL.md 减密**：期刊预设表下沉 `references/limits.md` §六，统计/图例
-  小节合并，低频参数移交 cheatsheet——33 种图型信息不减，密度下降。
-- **--doctor 跨面板共享尺度预检**：组合图同 y 轴标签（同变量语义）面板数值
-  范围差 >5 倍时渲染前提示。
-- 全部对数轴平实刻度（LogLocator 1/1.5/2/3/5/7 + 标量格式化），不再出现
-  10⁰ 式科学计数法。
-
-### v5.3.0（2026-10-17）
-
-- **新图型 #33：`nomogram` 列线图（临床预测模型第四件）**：Points 计分尺→
-  逐变量刻度→Total Points→结局概率尺。JSON：`variables=[{name, ticks[2~12],
-  labels?, points_at?}]`（points_at 缺省线性 0~100）+`outcome_scales=
-  [{label, ticks, points_at}]`（1~3 个，总积分口径）+`total_points_max` 可选。
-  **只可视化你已拟合的模型，引擎不拟合**（points 请来自 R rms::nomogram 等）；
-  总轴刻度自适应选最好台阶（350→五等分 0/70/140/210/280/350）；图高随行数
-  自适应（≥0.6 英寸/行），多变量列线图不再行距压缩。
-- **版本一致性锁**（文档准确性机制化）：随包 `evals/evals.json` 的
-  `skill_version` 钉住 SKILL 版本并由回归测试断言——终结陈旧元数据漂移类
-  （此前 2.2.0 随包漂流三个大版本）。
-- **参数冲突集中表**：`references/limits.md` §〇 新增一表收拢全部冲突组合
-  （journal×width/stats 域/composite 嵌套/verify×格式）；cluster_heatmap
-  两级口径（1500 警告线/3000 硬顶）在两处速查行写明。
-- **图型专属易错点 FAQ**：faq.md 新增一节（Cox PH 前提/upset top_n 截断
-  对账/venn --area 拟合偏差/dca 端点规则/calibration 分箱惯例/nomogram
-  来源口径/swimmer 箭头/raincloud 零方差）；残留英文诊断输出
-  （VERIFY OK/FAIL、--verify 警告）双语化。
+- **`--arena [冠军]`（bar 单系列竖向）**：基准/模型/方法对比一键出「竞技场」视觉——
+  每根柱异质填充循环（灰实心/橙白斜线/蓝白点纹），冠军柱实心深青绿+柱顶金色皇冠
+  +数值加粗高亮。`--arena` 自动选最高柱，`--arena "名称"` 按类别标签指定冠军
+  （如论文方法名）；域外图型/横向/多系列均 `[ignored]` 显式告知。
+- **跨行命令一致性扫描**：check_consistency 此前按单行提取文档命令，反斜杠续行
+  命令的旗标落在第二行时逃逸旗标域检查——本次修复后当场抓到场景卡
+  「bar×--stats auto」矛盾（bar 是聚合数据不做自动检验，已改为 --sig-bracket
+  comparisons 通道）与 SKILL subgroup 示例的 --cox-* 域表缺口（引擎实为一键
+  拟合复用同参，域表扩 forest+subgroup 对齐）。
+- **真实数据样例**：`examples/example_arena.json`（OSWorld 基准论文公开数字，
+  arXiv:2404.07972 Table 5 可达性树口径+人类基线）+场景卡新增「基准对比竞技场」卡。
+- 测试 526→531（+TestV75000 五项：arena 渲染与冠军通知/域外告知/场景卡锁/
+  扫描器跨行机制锁/样例数据真值锁）。
 
 
----
+## 7.4.1 — 2026-11-07
 
-**更早版本的完整详情**：见 `references/changelog-full.md`（本文件只展开最近三版）。
+hotfix（引擎代码与 7.4.0 零差异）：
+
+- **包内测试套件镜像适配**：新增的 `--stats` 域一致性锁中，读取 SKILL_ZH.md 的
+  断言在无独立中文文件的分发形态（SkillHub 包/GitHub 公开镜像）下会直接报错——
+  拆分为独立用例并挂镜像自动跳过（正本完整环境仍全量执行）。
+  修复 7.4.0 包内运行测试套件会报 1 个 error 的问题。
+- 测试 525→526（中文档锁拆分为独立用例）。
+
+
+## 7.4.0 — 2026-11-07
+
+文档口径统一大扫除（准确性审查发现的四处不一致全收）+ 引擎小修：
+
+- **期刊宽度交互**：antipatterns.md 曾写「先 journal 后 width 可覆盖（顺序敏感）」，
+  与引擎行为（`--journal` 锁宽、`--width` 被忽略并 `[auto]` 告知、`--height` 仍生效）
+  表述相反——纠正为与 SKILL/limits/引擎三方一致（与给参顺序无关）。
+- **`--stats` 适用域五处对齐权威域**：SKILL 双语与 limits 统一为
+  `auto|multi|bootstrap` → box/violin/raincloud、`cox` → forest/subgroup；
+  域外一律 `[ignored]` 显式告知后继续渲染（limits 曾误写「fatal 校验 exit 1」，
+  实际行为是 `[ignored]`+exit 0）。
+- **tests 自述计数**：套件头部说明与计数锁 docstring 更新为当前真值
+  （15 smoke 图型、40 模板、realworld 18）。
+- **examples/README 目录对拍**：逐图示例表补齐至 13 个 example_*.json、
+  realworld 表补齐至 18 个（此前只列 5+4 个，与包内实际不符）；
+  gallery README 首句语病修复。
+- **引擎修复**：`--journal` × `--width` 同给时 `[auto]` 锁宽提示曾打印两次
+  （重复代码块）——去重为一次。
+- **机制防回潮**：新增 TestV74000 五项锁（期刊宽度真口径 / --stats 五处域同步 /
+  examples README 逐文件覆盖 / `[auto]` 提示唯一性 / tests 自述计数真值）；
+  测试徽章 520→525（README 徽章动态互锁自动对账）。
+
+
+## 7.3.0 — 2026-11-06
+
+包内输出样例 + 口径统一：
+
+- **SVG 矢量预览随包**：`examples/gallery/` 新增三张 `*_preview.svg`
+  （Mayo PBC KM/卵巢癌 RCT KM/Fleiss 1993 L'Abbé，150dpi 矢量，可直接查看）——
+  包内自此既有可复现输入（JSON+命令）也有生成成品样例。
+- **口径统一**：SKILL 双语「三条最常用边界」行补全 `--height` 有效
+  （与 limits/quickstart/能力表三处口径一致）。
+- **提示词卡自洽**：基线对比 bar 卡的用户话术改为「p 值已算好放进 comparisons」
+  （bar 是聚合数据不能自动检验——话术与应产出不再矛盾）。
+- **统计责任提示**：`--sig-auto` stderr 新增「检验假设（样本独立性/随机抽样）
+  请自行确认；论文引用时请报告所用检验方法与各组 n」——自动检验不替用户承担
+  统计设计责任。
+
+
+## 7.2.1 — 2026-11-05
+
+发布文案清净化重发（代码与 7.2.0 零差异）：
+
+- 7.2.0 版本详情文案含不宜表述，未过平台安全审核——中性化改写重发；
+  并新增机械锁：changelog 主文件禁同类表述（历史存档豁免不回改），
+  纳入 check_consistency 扫描面。
+
+## 7.2.0 — 2026-11-05
+
+一致性扫描器 v2 + 安装/预览体验收口：
+
+- **扫描面扩到引擎源码**：`check_consistency.py` 自此扫描 `scripts/*.py` 的运行时
+  文案（CHART_NOTES 等 `--explain` 输出字典；注释/docstring 属历史描述豁免）——
+  准确性审查发现的 `af_shared.py` bar 文案旧口径即此类（文档已更新而引擎
+  --explain 输出仍沿用旧表述，一句话与实现脱节）。文案已更新为双通道真相
+  （JSON errors 或 CSV 后缀列 v6.0+）。
+- **MCP 安装本地优先**：mcp/README 安装顺序反转——`pip install -e <包目录>/mcp`
+  （清华/阿里镜像）升为默认推荐，uvx git 直跑降为国际网络备选。
+- **视觉样例库直链**：SKILL 双语能力表与 README 的 gallery 行直挂 GitHub 仓库
+  预览链接（包内为可复现 JSON+命令，成品图在仓库一键可看）。
+
+
+## 7.1.0 — 2026-11-04
+
+命令一致性与文档可信度继续收口（自动一致性检查机制化）：
+
+- **新工具 `scripts/check_consistency.py`**：全部命令载体（模板/真实场景 `_command` +
+  文档代码块共 118 条）× 能力注册表（旗标域表 + `--verify` 仅 PDF 规则）逐条校验，
+  另扫 CSV 误差旧口径残留——有发现 exit 1，发车闸直接可挂。本版首跑清出 15 处
+  历史混用：9 处模板/真实场景命令带 `--verify` 却输出 PNG（该门禁仅对 PDF 生效）、
+  提示词卡柱状图示例误用 `--stats auto`（聚合数据不可自动检验——正确通道=
+  `comparisons` + `--sig-bracket`，或原始数据 `-t box --sig-auto`）、反模式页与
+  SKILL 双语能力表的 CSV 表述过时。
+- **域表真值化**：`--stats` 的旗标域补齐 raincloud（auto|multi 合法域，此前域表漏列）
+  与 subgroup（cox 合法域）——`--list-flags` 输出自此与参数门禁完全一致。
+- **ADR-0001 状态如实化**：Proposed→Partially adopted（af_resilience/af_shared/
+  wrapper 通路已落地；af_draw 拆分继续推进）。
+
+
+## 7.0.0 — 2026-11-03
+
+major：全自动组间显著性 + 文档可信度大扫除：
+
+- **新功能 `--sig-auto`**（box/violin/raincloud）：不传 comparisons 也行——引擎自动
+  两两检验（Shapiro 判常态：双常态组 Welch t，否则 Mann-Whitney U）并画分层
+  bracket+星号。检验家族与 `--stats auto` 一致；聚合图（bar 系）不适用并显式告知
+  （用 comparisons + --sig-bracket 传自己的 p 值）。
+- **文档可信度大扫除**（准确性审查逐条收口）：`quickstart` CSV 误差旧限制残留与
+  SKILL 决策树 JSON-only 提示纠正为 v6.0 后缀列真相；README 分发形态表述如实化
+  （中文版=SkillHub 包 SKILL.md，无独立 SKILL_ZH.md 文件随包）；`openpyxl` 入
+  正式依赖（--sheet Excel 直读自此声明完备）；MCP 子目录 wheel 包声明如实化
+  （引擎随包根 scripts/ 提供，不再虚列 af_engine）。
+- **版本历史补全**：6.9.0 节补写（该版 --sig-bracket 与文档收口，此前发版漏记）。
+
+## 6.9.0 — 2026-11-02
+
+新功能 `--sig-bracket` 组间显著性括号 + 文档准确性收口：
+
+- **`--sig-bracket`**：数据携带 `comparisons=[{a,b,p}]` 任意比较对（p 值来自用户
+  自己的检验，引擎只可视化）即自动画分层 bracket+星号（<0.05/<0.01/<0.001，
+  NS 显式标注）；分层布局按区间重叠最低层分配（span 长的在底层，共享端点判撞）；
+  bar/grouped_bar/box/violin 四图型可用。
+- 文档准确性收口：MCP 工具清单补 `query_capability`、README 中文文档描述纠正、
+  MCP 安装新增不依赖 GitHub 的本地路线、版本历史标注当前版本。
+
+
+## 6.8.0 — 2026-10-31
+
+MCP 能力透明化 + CSV 误差能力文档真相化（准确性审查逐条收口）：
+
+- **MCP 新工具 `query_capability`**：一命令查图型能力面——chart 留空=全图型
+  清单+每旗标域适用图型速览；指定图型名=该图型专属/域外旗标（[ignored] 预告）。
+  动态真值=引擎 --list-types / --list-flags，MCP 能力面自此与引擎注册表零漂移。
+- **CHARTS 内置回退清单补齐 + 快照锁**：v5.7 时代快照缺 labbe/rmst/rob 三图型
+  （引擎可达时被运行时刷新掩盖，静态读源码即见缺口）——补齐至 43 键，并新增
+  AST 快照锁（内置清单必须与引擎注册表逐键一致，回退清单从此不可能漂移）。
+- **CSV 误差能力文档真相化**：v6.0 已实现 CSV 误差列（`X_se`/`X_sd`/`X_sem`/
+  `X_err` 后缀列自动配对），但 FAQ 两处、data-formats 三处仍写「CSV 不支持
+  误差棒」，引擎 stderr 两处 hint 同样与自身行为矛盾（同屏打出旧文案+成功
+  识别误差列）——全部改写为准确表述，测试锁防回潮。
+- **守卫扩容**：计数守卫清单纳入 mcp/pyproject.toml（英文描述曾漏网），正则
+  容忍英文修饰语结构（「N publication-grade academic chart types」类）；文档
+  内「第 N 种图型」历史序号改为「第 N 号图型」（编号保留，不再与总量口径混淆）。
+- **品牌斜纹补齐**：glm-brand 单系列柱状图不再豁免斜纹（斜纹是品牌组成部分
+  非可选项）；其他主题显式 --hatch 单系列豁免时改为 [ignored] 显式告知
+  （不再静默失效）。
+- **show-values 精度自适应**：数值标签随系列数据小数位显示（cap 3 位）——
+  固定 1 位小数曾把 5.032 显示成 5.0（视觉门机械断言抓获，交付链回归锁）。
+
+
+## 6.7.0 — 2026-10-31
+
+`--list-flags` 旗标域查询（实质新功能）+ 官方点名四项收口。
+
+- **`--list-flags [TYPE]`**：一命令查某图型的专属旗标与域外旗标（[ignored] 预告），
+  无参数=全图型速览；别名可达（survival→km）。旗标域注册表与 argparse 及图型
+  注册表**测试互锁**（域内图型必须是真实注册图型、旗标必须存在于 argparse）——
+  自此注册表不可能与引擎漂移。
+- **收口**：SKILL 双语「37」残留×5（含 Section Nav 锚链接 `37-chart-types`——
+  守卫正则自此覆盖连字符变体）；gallery 改为 JSON+README 随包（PNG 仅 GitHub/
+  CH），File Index 指针不再死链，打包器新增死链断言；Python 下限统一 3.8
+  （FAQ 3.9→3.8，与 frontmatter/README 对齐）；changelog 版本索引表格解挤压
+  （一版本一行）；README 测试徽章与套件数**动态互锁**（徽章数==def test_ 计数）。
+
+## 6.6.0 — 2026-10-30
+
+一致性清剿第二轮（accuracy/usability 4.6 官方点名逐条收口）：
+
+- **MCP**：server.py 头注释旧计数与 render_chart 文档、提交文档
+  MCP_SUBMISSION.md 旧计数 → 全部 40（随引擎注册表）。
+- **SKILL**：文件索引与代码布局两处旧计数 → 40；quickstart 旧计数 → 40。
+- **limits.md**：四组旗标的「静默忽略」描述纠为实际的 `[ignored]` 显式告知行为
+  （v3.6 起的真实行为，文档描述自此与代码一致）；并新增活文档禁「静默忽略」
+  机械锁（历史存档豁免）。
+- **守卫扩展**：计数扫描扩至 14 份活文档，正则覆盖裸 `types` 与「种学术图型/
+  种投稿级学术图表」口径——上一轮漏网的全部口径自此入闸。

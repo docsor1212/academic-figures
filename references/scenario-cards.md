@@ -9,9 +9,9 @@
 
 ```bash
 python3 scripts/gen_figure.py -t bar -d data.json -o fig1.png \
-  --stats auto --hatch --title "图1 基线特征对比"
+  --sig-bracket --hatch --title "图1 基线特征对比"
 ```
-`-t bar` 柱状图｜`--stats auto` 自动检验并标星号（Shapiro 选 t 或 Mann-Whitney）｜
+`-t bar` 柱状图｜`--sig-bracket` 数据携带 `comparisons:[{a,b,p}]`（p 值你已算好）时自动画分层括号星号——bar 是聚合数据（均值±误差棒），引擎不做自动检验｜
 `--hatch` 黑色斜纹（黑白打印可区分系列）｜数据格式：`{"labels":[组名], "series":{系列: [值]}, "errors":{...}}`。
 变体：分组更细用 `-t grouped_bar --show-ratio`；要看完整分布换 `-t violin`（同 schema）。
 
@@ -99,7 +99,18 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig10 --pub-ready \
 `--pub-ready` 一条命令=--verify 门禁+色盲安全主题+pdf/png 双格式+复跑交付包 `<输出>.repro/`｜
 `--journal cn-core` 中文核心预设（自动 CJK+字号下限把守）｜复跑包给审稿人=数字可逐项对账。
 
+## 卡12b 生存疗效对比（RMST，PH 违背/曲线交叉时）
+
+```bash
+python3 scripts/gen_figure.py -t rmst -d rmst.json -o fig12b.pdf --cjk --verify
+```
+
+`groups={组名: [[时间,事件(1/0)],...]}` 恰好两臂｜`tau` 缺省自动（最小最大随访之半，`--rmst-tau` 钉临床 τ）｜注释框报每臂 RMST(95%CI)与 ΔRMST 差值（Greenwood 方差）｜
+> 适用：PH 检验提示违背或曲线交叉时，单一 HR 会掩盖时变效应——RMST 给绝对差。
+
 ## 卡13 疗效亚组分析（亚组森林图+P 交互）
+
+> v5.8 快捷方式：手里是原始逐例数据？跳过手拼 JSON——`-t subgroup --stats cox -d raw.csv --treatment trt --subgroup-vars celltype --cut age@60` 一步出图（引擎拟合，stderr 报全表）。
 
 ```bash
 python3 scripts/gen_figure.py -t subgroup -d subgroups.json -o fig13.pdf --cjk --verify
@@ -125,3 +136,13 @@ python3 scripts/gen_figure.py -t composite -d panels.json -o fig12.pdf --verify 
 ```
 `panels=[{type,data,title,span?}]`，`panel_labels:true` 自动角标｜面板不可嵌套 composite/diagram/upset｜
 同变量跨面板务必同色+同尺度（--doctor 会预检范围悬殊）。
+
+## 卡14 基准对比竞技场图（模型/方法多方案同指标对比）
+
+```bash
+python3 scripts/gen_figure.py -t bar -d arena.json -o fig14.png \
+  --show-values --style sketch   # 竞技场风格 v7.7 起默认启用（负面指标 --arena off）
+```
+`-t bar` 单系列柱状图｜竞技场风格 v7.7 起默认启用：每根柱异质填充循环（橙白斜线/蓝白点纹/紫白斜纹），冠军柱（=最高柱）自动深青绿+柱顶金色皇冠+数值加粗高亮｜负面指标（最高=最差，如错误率/不良事件率）加 `--arena off` 关闭；`--arena "名称"` 按类别标签指定冠军｜榜单手绘风加 `--style sketch`（Balsamiq Sans/霞鹜文楷）；仅单系列竖向 bar；多面板对比用 composite 两面板各 bar（share_y 统一尺度）｜
+数据：`{"labels":["模型A","模型B"],"series":{"得分":[分,分]}}`；真实样例见 `examples/example_arena.json`（OSWorld 基准论文公开数字）。
+榜单图数据纪律：用当期时点快照（聚合榜收录有滞后，逐源标注更新时间）+来源上图（`--source`，composite 用 `source_note` 字段）。

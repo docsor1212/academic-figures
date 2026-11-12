@@ -6,11 +6,206 @@
 > **最短路径**：Ctrl-F 版本号。
 > **回 INDEX**：SKILL.md「版本历史」。
 
+<!-- 6.5.0 详情自 changelog.md 下沉（v6.8.0 发版，最近三版窗口滚动） -->
+
+## 7.7.0 — 2026-11-12
+
+**bar 单系列默认竞技场风格（默认输出=最佳输出第二期）**：单系列竖向 bar 零参数即得
+per-bar 异质填充循环（橙白斜纹/蓝白点纹/紫白斜纹）+冠军柱实心深青绿+金色皇冠+数值
+加粗，冠军=最高柱自动加冕，stderr 提示冠军与来源。`--arena off` 显式逃生门（负面
+指标最高=最差不宜加冕）；`--pub-ready` 投稿流自动规避竞技场默认；`--alternate` 显式
+风格优先；多系列/横向/单值 bar 不受影响且无提示噪声。`--suggest` bar 类推荐附带
+「基准榜单场景推荐 --style sketch 手绘风」配方提示。SKILL 双语/cheatsheet/limits/
+antipatterns/CHART_NOTES/域表六处同步；SKILL 双语近期版本行陈旧修正（原停留 v6.7.0）；
+TestV77000 十项锁。
+
+## 7.1.0 — 2026-11-04
+
+新工具 `scripts/check_consistency.py`：文档与能力注册表自动一致性检查
+（118 条命令载体×旗标域表+--verify/PDF 规则+CSV 口径扫描；exit 1 发车闸）。
+首跑清出 15 处历史混用（9 模板 --verify+PNG/prompt-cards --stats auto 误用/
+域表 --stats 真值化+raincloud+subgroup/antipatterns+SKILL 双语 CSV/ADR
+Proposed→Partially adopted）。511 项测试。金标=DRS retinopathy KM
+（R survival 394 眼两臂，新数据集）。
+
+## 7.0.0 — 2026-11-03
+
+major：新功能 `--sig-auto` 全自动组间显著性（box/violin/raincloud 自动两两
+检验 Shapiro→Welch t / Mann-Whitney U+分层 bracket；聚合图 ignored 指路）
++文档可信度大扫除五件（README 分发形态如实化/quickstart+SKILL 决策树 CSV
+真相/openpyxl 依赖/pyproject 如实/版本历史补全）。504 项测试。
+
+## 6.9.0 — 2026-11-02
+
+新功能 `--sig-bracket` 组间显著性括号（comparisons 任意比较对+分层防重叠
++bar/grouped_bar/box/violin；分层布局=区间重叠最低层分配，共享端点判撞）
++文档准确性四处收口（MCP 工具清单补 query_capability/README 中文文档描述
+纠正/MCP 安装新增不依赖 GitHub 的本地路线/版本历史标注当前版本）。
+494 项测试。金标=PlantGrowth scipy ttest_ind 真值（NS/*/ ** 三 bracket
+全链机械对拍）。
+
+## 6.5.0 — 2026-10-30
+
+文档一致性大扫除（准确性审查逐条收口）+ 视觉样例库。
+
+- **计数口径统一**：cheatsheet、SKILL 文件索引、mcp/README 的旧计数与自相矛盾
+  表述——全部统一为 40（随注册表）；引擎头注释
+  v2.0.0→随版同步，并新增「头注释版本==SKILL 版本」测试锁（bump 从此不漏）。
+- **守卫扩展**：mcp/README.md 与 cheatsheet.md 纳入计数扫描清单；正则覆盖
+  「种投稿级学术图型」口径。
+- **视觉样例库 `examples/gallery/`**：3 例真实公开数据成品图（Mayo PBC 队列 KM/
+  卵巢癌 RCT KM/Fleiss 1993 L'Abbé），150dpi 缩略+可复现 JSON+命令——
+  每例统计值经独立实现互拍与视觉验收。
+
+## 6.4.1 — 2026-10-29
+
+KM 统计框标签动态降级 + 交付验收逮漏修复：
+
+- **中位生存标签诚实化**：任一组 CI 不可估（小样本/未到达）时标签自动从
+  「中位生存（95%CI）」降级为「中位生存」——标签与内容一致；全组可估时保持
+  原标签（pbc 等大样本回归验证不变）。
+- log-rank p 与显著性标记之间加分隔空格（「0.303NS」→「0.303 NS」）。
+- **CI 镜像测试自适应补漏**：v6.4.0 新增测试类漏挂 MIRROR skip（读 SKILL_ZH.md）
+  致 GitHub CI 首次红灯——守卫类装饰器补齐。
+## 6.4.0 — 2026-10-29
+
+`--debug` 结构化失败诊断侧车（交互式排障落地）+ 文档密度守卫。
+
+- **`--debug`**：渲染失败时写 `<output>.debug.json`——输入文件指纹（sha256 前缀/
+  大小）、字段映射（fields_seen 与白名单外的 fields_unknown 名单）、异常分类与
+  中文修复建议、重试代数。供 agent/脚本程序化排障；成功渲染不产出；不加旗标
+  行为零变化（侧车自身失败不覆盖原退出码）。
+- **文档密度守卫锁**：SKILL 双语 ≤33000 字节 + 近期版本行 ≤700 字符——
+  版本历史堆砌曾把近期行推到 6.7KB（渐进披露退化），此后任何膨胀由测试拦截，
+  历史一律下沉 changelog。
+- 本版瘦身：SKILL 双语近期行 6742/3354 → 546/302 字符（各 -6KB）。
+## 6.3.0 — 2026-10-27
+
+新图型 #40：`labbe` L'Abbé 图（Meta 四件套收官：forest / funnel / galbraith / labbe）。
+
+- 2×2 四格表（`events_t/n_t/events_c/n_c`）的处理组 vs 对照组事件率散点；
+  对角线 = 无效应线（RR=1），DL 随机效应合并 RR 参考线，点面积 ∝ 研究权重，
+  一眼判读：对角线上方=有害、下方=有益、离合并线远=异质性嫌疑。
+- **骑线/夹缝点自动引线标注**：RR 贴合并线、两线夹缝的点贴位必撞参考线，
+  自动改带细引线远置标注（归属清晰不悬空）；普通点朝远离合并线方向标注；
+  紧凑避让（小步长贴点，不产生大位移漂移）。7 轮视觉验收对抗沉淀。
+- `--suggest` 识别 2×2 四格表结构（与 funnel 的 effect/se 契约互斥不混淆）。
+- 金标：Fleiss 1993 阿司匹林 7 RCT（realworld `cardio_fleiss93_aspirin_labbe`）——
+  合并 RR=0.873（95%CI 0.764~0.997）与独立手写实现逐位互拍；
+  MH 固定效应 OR=0.89 复现文献发表值 ≈0.90；I²=40%。
+- 校验：四格表非法（事件>总数/n≤0）exit 3；<3 研究拒绝；零事件格剔除合并并告警。
+## 6.2.0 — 2026-10-27
+
+渲染稳定性双修（此前只有「建议重跑」的文字，无机制）：
+
+- **瞬时失败自动重试**（`--retries`，默认 1）：渲染看门狗超时/内存耗尽（exit 5/6）
+  自动以原参数重跑，每代看门狗预算放宽 ×1.5，stderr 透明记录重试代数；重试成功
+  按最终退出码上报（成功=0），输出与一次成功逐字节一致（测试锁）。重叠/数据/环境
+  等确定性错误不重试（重跑无意义）；`--retries 0` 关闭。进程级重试=状态零残留。
+- **`--timeout 0` 语义收紧**：0 现在禁用自适应预算（30~1800s）但保留 7200s 硬保险，
+  不再有完全无界的渲染；负数预算直接报错（exit 1）并指引。`AF_NO_WATCHDOG=1`
+  仍可完全关闭（维护者逃生门，语义不变）。
+- **看门狗小预算精度修复**：监控步长跟随预算（此前固定 1s 采样，<1s 预算永不触发）。
+- 错误诊断建议与机制对齐：不再提示手动「重跑一次」，改为说明自动重试已内置。
+## 6.1.1 — 2026-10-26
+
+rob 判定扩展+出厂前逮漏：「Very high/critical」新增极高独立档（深红 V，
+ROBINS-I 数据完整渲染）；「Unclear」归入顾虑档（ROB1 旧措辞，黄色警示档）；
+摘要堆叠顺序 L→S→H→VH→NI；图例只列在场类别——修掉循环变量泄漏（在场判定
+误用外层循环残留域键，实际只扫最后一个域）；图例下移避开旋转域标签（逐格
+视觉审核逮住遮挡）；domains/judgements/title 入字段白名单。随包三个官方
+工具真实数据示例（robvis 包：data_rob1 9×7、data_robins_e 10×7 含极高档、
+data_quadas 12×4）；三图经逐格矩阵审核（72/80/60 格 diff=0）。
+
+## 6.1.0 — 2026-10-26
+
+偏倚风险交通灯图（第 39 图型，robvis 同款）：研究×域网格（判定中英同义词
+均可）+各域摘要占比条；Overall 列入网格不入摘要；配色固定语义。另将
+「谁拟合、谁可视化」三层能力矩阵写入双语 SKILL 正文（明确 subgroup
+--stats cox 即引擎拟合、nomogram/rcs 仍为可视化路径），--suggest 新增
+rob 结构与原始 time/event/group 长表识别。真实示例=robvis 包数据（9 项研究）。
+
+## 6.0.0 — 2026-10-24
+
+CSV 误差列约定（官方评测点名缺口收口）：列名 `X_se/X_sem/X_sd/X_err`
+自动配对主列 X 画误差棒；`X_sd`+`X_n` 自动换算 SEM=sd/√n；孤儿列告警
+并按普通数据保留；`--csv-no-errors` 逃生门；无后缀常规 CSV 零变化。
+
 > 本文件为完整双语版本历史；主文档只保留最近三个版本。
 
-## English
+## 5.9.2 — 2026-10-24
 
-## Version History
+发布卫生：内部发布清单文档（docs/RELEASE_CHECKLIST.md，含内部工具名与
+运维流程）误入 5.9.1 包——打包器泄漏红线正确拦截，但发车链管道 `| tail`
+吞掉了非零退出码导致照发（教训已固化：打包步骤禁管道吞码）。本版移除该
+文件，无代码变化。
+
+## 5.9.1 — 2026-10-24
+
+cif `cause_labels` 键一致性守卫：错码（数据中不存在的事件码）→ exit 3
+可搜索中文报错；在场的竞争码缺标签 → 默认名+stderr 软提示。全谱审计
+（10-24）确认引擎三类标签配对方式中唯一键间接映射点（cause_labels）
+无守卫，同日补防。电池 TestV59100 三态锁（错码/缺标/正常）。
+
+## 5.9.0 — 2026-10-23
+
+rmst 限制平均生存时间（第 38 图型）：每臂 RMST(95%CI)=KM 阶梯积分到 τ
+（Greenwood 型方差 Var=Σ(RMST(τ)−RMST(t_j))²·d_j/(Y_j(Y_j−d_j))，Y−d=0 项
+跳过），两臂 ΔRMST 差值 CI（SE=√(V₁+V₂)，正态近似 p=erfc(|Z|/√2)）。
+数据契约同 km（groups 原始对，恰好两臂）；--rmst-tau 或自动 τ；随访不足
+平尾外推+覆盖率标注。守卫：τ 正数、两臂、组≥5 对（渲染层）、时间非负。
+金标：手算 6 点恒等式（RMST 2.0/7-3，Var 2/9 与 8/27）+独立循环第二实现
++colon 真实队列 619 例全表。双实现对拍逮住两个出厂前 bug：①方差循环未按
+τ 截断（混入 t>τ 垃圾项）②未排序输入事件表错位（unique first_idx 与
+reduceat 顺序）。渲染：阶梯 S 曲线+阴影 AUC+τ 竖线+推断注释框。
+
+## 5.8.0 — 2026-10-23
+
+`subgroup --stats cox` 一键亚组拟合：逐层 Cox HR(95%CI,p)（Efron 核）+似然比
+P 交互（含/不含 trt×层指示项的 2Δloglik，χ²，df=层−1）+Overall。旗标
+--subgroup-vars/--treatment/--cut/--cox-cols。守卫：层内 n≥10、2~8 层、处理臂
+恰两取值（数值/文本双分支）、处理臂不得兼任亚组、连续列须 --cut。文本层
+保数据出现序（尊重临床因子惯例）、数值层排序。veteran 真实队列全表金标
+（tests/fixtures/veteran.csv）：总体 HR=1.02(0.71~1.45) p=0.9218；四组 P 交互
+0.042/0.087/0.239/0.024；层值层 n 逐项钉死。**出厂事故渊源**：v5.8 开发中抓出
+第①期教学视频制备脚本标签-掩膜对调（var=(age<60) 时键 0=var==0=≥60），
+本版金标即为此类错误的一票否决闸。附 ADR-0001 巨石拆解计划 + GitHub
+Actions CI + 行预算守卫 3400→3600。
+
+## 5.7.1 — 2026-10-21
+
+galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整条弧线保留=无读数
+噪声——修为弧线与读数一同省略，并加「Arc 数==读数数」配对测试锁。
+（本节为后补整理：5.7.1 发布时的 changelog 详情漏写，内容依据发版归档记忆恢复。）
+
+## 5.7.0 — 2026-10-21
+
+  - **New chart type #37: `cif` — competing-risk cumulative incidence
+    (Aalen-Johansen)**: per-cause CIF step curves; dashed 1−KM naive reference
+    shows how treating competing events as censored overestimates the target
+    event (on a real Mayo Clinic mgus2 cohort of 1384 subjects the gap is
+    +45.5 percentage points). Long-format `time`+`event` integer codes
+    (0=censored, 1=target event, ≥2=competing), `cause_labels`, `percent`,
+    `time_unit`, `compare_km` (auto = draw the reference only when competing
+    events exist); stderr reports event counts, end-of-follow-up CIF per
+    cause and the overestimation in percentage points. Single cohort —
+    multi-arm data is routed to `-t km` (built-in AJ auto mode since v3.7,
+    which now also points to the dedicated chart). Real-world example:
+    `examples/realworld/hematology_mgus_cif.json`.
+  - **Centralized anti-patterns page**: `references/antipatterns.md` — one
+    page of what NOT to do (wrong chart for the data, data-prep traps,
+    flag conflicts, statistical misreads, export mistakes), each entry with
+    consequence + fix + cross-links into faq/pitfalls/limits; linked from
+    SKILL.md/SKILL_ZH.md routing tables.
+  - **Galbraith polish**: arc-label density relaxed (min spacing 10%→7.5% of
+    the axis span, collision detection still guards glyphs) + a small
+    no-effect reference label (`OR=1` on ratio scales, `差值=0` otherwise).
+  - **Mechanism: `--list-types`** prints the authoritative chart registry
+    (one per line); `mcp/server.py` now refreshes its chart list from the
+    engine at startup (fallback list aligned with the v5.7 registry — the
+    hardcoded list had drifted a dozen charts behind).
+  - `--suggest` now recommends `cif` (score 96) when `time`+`event` contains
+    competing-risk codes; scenario quick-reference in CLI help updated.
 
 ## 5.6.1 — 2026-10-20
 
@@ -259,7 +454,6 @@
     render, suggest routing, zero-variance degradation); template lock 26→27;
     suite at 335 green.
 
-
 ## 4.8.0 — 2026-10-10
 
   - **New chart type #26: `waterfall` — oncology best-response waterfall**: one
@@ -299,7 +493,6 @@
     line, no-false-warning lock, --alt content lock, threshold-equality +
     NaN lock, 26-patient label-survival lock); realworld lock 3→4; suite at
     329 green.
-
 
 ## 4.7.0 — 2026-10-09
 
@@ -346,7 +539,6 @@
   - Tests: +TestV47000 (upset E2E render, validate fatals, registry count 25,
     demo-data render, suggest routing, composite-panel rejection, new reference
     docs present); template count lock 24→25; suite at 318 green.
-
 
 ## 4.6.0 — 2026-10-08
 
@@ -843,6 +1035,10 @@
 - **v1.2.0** (2026-05-16) — Added version metadata, requires declaration, negative triggers, file structure docs
 - **v1.1.0** — Added auto CJK detection, CSV long-format auto-conversion, empty data validation
 - **v1.0.0** — Initial release: 7 chart types, 4 themes, CJK support, statistical annotations
+
+## English
+
+## Version History
 
 ## 中文
 

@@ -40,7 +40,25 @@ B,20.3,18.7
 C,15.2,16.5
 ```
 
-Note: CSV mode does not support errors or significance — use JSON for those.
+### 组间显著性括号（`comparisons`，v6.9+，`--sig-bracket`）
+
+bar/grouped_bar/box/violin 可携带比较对，`--sig-bracket` 开启后自动画分层 bracket+星号（<0.05 `*`、<0.01 `**`、<0.001 `***`，p≥0.05 显示 `NS`）：
+
+```json
+{
+  "labels": ["ctrl", "trt1", "trt2"],
+  "series": {"weight": [5.03, 4.66, 5.53]},
+  "comparisons": [
+    {"a": "ctrl", "b": "trt2", "p": 0.049},
+    {"a": "trt1", "b": "trt2", "p": 0.0031}
+  ]
+}
+```
+
+`a`/`b` 必须是组名（labels/分组名）；p 值来自你自己的统计分析
+（引擎只做可视化，不替你选检验）；bracket 按区间自动分层防重叠。
+
+Note: since v6.0, CSV supports error bars via suffix columns (`X_se` / `X_sd` / `X_sem` / `X_err` auto-paired with the main column; `X_sd` + `X_n` → SEM). Significance marks remain JSON-only.
 
 ---
 
@@ -690,13 +708,14 @@ PRISMA 2020 系统综述流程图。必需字段：`records_identified`、`studi
 | 能力 | JSON | CSV/TSV |
 |---|---|---|
 | 基础绘图（柱/线/散点/箱/小提琴等） | ✅ | ✅ |
-| 误差棒 + 显著性标记 | ✅ `errors`/`significance` | ❌ 请改用 JSON |
+| 误差棒 | ✅ `errors` 对象 | ✅ 后缀列 `X_se`/`X_sd`/`X_err`（v6.0 起，`--csv-no-errors` 可关） |
+| 显著性标记 | ✅ `significance` | ❌ 请改用 JSON |
 | KM 风险表/log-rank | ✅ 原始 [时间,事件] 格式 | ❌ |
 | 多因素 Cox 森林图 | ✅ 逐例试者数据 | ✅ 长表 CSV 亦可 |
 | 组合图 panels / 复杂布局 | ✅ | ❌ |
 | Excel 直读 | — | `--sheet` 需 `.xlsx` |
 
-> 原则：需要误差棒、统计标注或复杂结构时用 JSON；简单数值用 CSV 即可。
+> 原则：需要显著性标记、统计标注或复杂结构时用 JSON；简单数值与误差棒（后缀列）用 CSV 即可。
 
 ## ridgeline（v5.0）
 

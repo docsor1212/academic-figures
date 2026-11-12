@@ -11,14 +11,15 @@
 | 有竞争事件（如死亡）时用 KM/1−KM 报告「累积发生率」 | 系统性高估目标事件风险，审稿高频退稿点（mgus2 真实队列实测高估 +45.5 个百分点） | `-t cif`（Aalen-Johansen 按原因分解）；多臂用 `-t km`（内置 AJ 自动模式） | limits §一；`data-formats.md` §cif |
 | 差值尺度（MD/SMD）强行开 galbraith 效应量弧线 | 弧线读数无临床意义 | 引擎已自动关闭并告知；不要 `arcs=true` 硬开 | pitfalls「效应量弧线只对比率尺度有意义」 |
 | ≥5 个集合画韦恩图 | 区域面积失真、不可读 | `-t upset`（UpSet 交集图） | faq §参数与图型选择 |
-| 亚组分析直接在森林图里手拆 P 值 | 编造统计量 | `-t subgroup` 只可视化**已拟合**的亚组模型（引擎不做统计推断） | SKILL「能力与边界」表 |
+| PH 违背/曲线交叉仍只报单一 Cox HR | 掩盖时变效应 | 补 `-t rmst`：τ 截断平均生存差值不依赖比例风险假设，临床可解释 | km 自动 PH 提示→rmst |
+| 亚组分析直接在森林图里手拆 P 值 | 编造统计量 | `-t subgroup` 只可视化**已拟合**的亚组模型（引擎不做统计推断）；没有现成模型就用 `--stats cox` 让引擎拟合并全表报数（v5.8），仍不许手填编造值 | SKILL「能力与边界」表 |
 | 分类变量基数 >8 用饼图/堆叠图 | 色带不可分辨 | 条形图或 `-t upset` | faq §参数与图型选择 |
 
 ## 二、数据准备
 
 | 反模式 | 后果 | 正确做法 | 详见 |
 |---|---|---|---|
-| 误差棒走 CSV | CSV 不支持 errors 字段，静默丢失 | JSON `errors` 字段 | faq §数据与格式 |
+| 误把 errors 对象写进 CSV | `errors` 对象字段是 JSON 专属，CSV 不识别 | CSV 主列+后缀列（`weight_sd`/`weight_se`，v6.0+ 自动配对）或改用 JSON | faq §数据与格式 |
 | KM 预计算生存概率误当逐例数据（或反之） | 曲线数学错误/丢失自动风险表 | 逐例=`{组: [[时间,事件],...]}`；预计算=`time`+`survival`（引擎自动识别并告知） | pitfalls「KM」两条 |
 | 排序后再标注（排序与标注用两份索引） | 标注错位（v5.1 类级铁律） | 排序与标注必须同源索引 | pitfalls 类级铁律章 |
 | groups 数组长度与 x/y 不一致 | 报错或静默错分 | 先对齐长度（v4.5 起有中文报错） | pitfalls「Scatter groups」 |
@@ -28,7 +29,7 @@
 
 | 反模式 | 后果 | 正确做法 | 详见 |
 |---|---|---|---|
-| `--journal` 与 `--width` 同时给 | journal 预设锁宽覆盖 width（先 journal 后 width 可覆盖，顺序敏感） | 只用一个；确需覆盖先 `--journal` 再 `--width` | limits §二/§三 |
+| `--journal` 与 `--width` 同时给 | journal 预设锁宽，`--width` 被忽略（stderr `[auto]` 显式告知，与给参顺序无关） | 只用一个：期刊版式用 `--journal`，自定义尺寸用 `--width/--height`（改单双栏用 `--column`） | limits §二/§三 |
 | `--verify` 配 PNG 输出 | 无效（仅对 PDF 生效） | 输出 PDF 再 `--verify` | faq §输出与投稿 |
 | 跨数量级面板共享 y 轴（composite） | 小数量级面板被压扁（临床实验室指标教训） | 不加 `share_y`，让各面板独立尺度 | pitfalls「Clinical Lab Trend」 |
 | cluster_heatmap 行数超 3000 硬跑 | 聚类 O(n²) 内存耗尽 | `--downsample 2000` 等距采样 | limits §一 |
@@ -41,6 +42,7 @@
 | KM 中位生存未到达仍填数字 | 编造 | 引擎报「未到达」，照实写 | pitfalls「KM median_survival」 |
 | H-L p<0.05 直接判「模型无效」 | H-L 只提示失拟，非全盘否定 | 结合校准曲线形态判断 | faq §图型专属易错点 |
 | 用 1−KM 的数字当「发生率」写进摘要 | 高估偏倚进入论文正文 | 报 CIF（Aalen-Johansen）口径并注明竞争事件 | `data-formats.md` §cif |
+| 负面指标图用默认竞技场自动皇冠 | 皇冠=冠军语义，最高柱却是「最差」（错误率/不良事件率） | `--arena off` 关闭（v7.7 起单系列 bar 默认启用竞技场） | `limits.md` §参数冲突 |
 
 ## 五、导出与投稿
 

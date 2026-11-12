@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v2.0.0: Publication-quality academic figure generator.
+academic-figures v7.7.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -31,9 +31,11 @@ import numpy as np
 
 # v3.0.0 模块化：wizard 与异常诊断系统拆至独立模块（原名在此命名空间可用）
 from af_wizard import _run_wizard
+from af_resilience import spawn_retry as _spawn_retry, wd_scale as _wd_scale  # v6.2.0
+from af_diagnostics import write_debug_report as _write_debug_report
+_LAST_ARGS = None  # v6.4.0 --debug：main 局部 args 登记模块级，__main__ 异常层读
 from af_diagnostics import (_EXIT_DATA_CLASSES, _EXIT_ENV_CLASSES,
-                            _classify_exit_code, _diagnose_exception,
-                            _print_v3_error, _EXC_ZH_V3, _DIAG_PATTERNS,
+                            _classify_exit_code, _diagnose_exception, _print_v3_error, _EXC_ZH_V3, _DIAG_PATTERNS,
                             _KNOWN_DATA_FIELDS)
 
 try:
@@ -44,26 +46,24 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
     _afcharts = None
 
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
-from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID,
-                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA)
-from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars,
-                     pairwise_vs_first, draw_bootstrap_brackets,
-                     annotate_bootstrap_stats, draw_stat_brackets,
-                     annotate_auto_stats, annotate_multi_stats,
-                     gen_bar, gen_heatmap, gen_scatter, gen_line, gen_box,
+from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _SKETCH_MODE,
+                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query,
+                        add_sig_bracket_arg, add_sig_auto_arg)
+from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, suggest_arena_note,
+                     pairwise_vs_first, draw_bootstrap_brackets, annotate_bootstrap_stats, draw_stat_brackets,
+                     annotate_auto_stats, annotate_multi_stats, gen_bar,
+                     gen_heatmap, gen_scatter, gen_line, gen_box,
                      gen_forest, gen_violin, gen_km, gen_roc, gen_stacked_bar,
                      gen_dual_axis, gen_composite, gen_diagram, gen_prisma,
-                     gen_slope, gen_volcano, gen_upset, gen_waterfall,
-                     waterfall_alt, validate_raincloud, raincloud_alt,
-                     validate_waterfall, gen_swimmer, swimmer_alt,
-                     validate_swimmer, alt_text_core,
+                     gen_slope, gen_volcano, gen_upset, gen_waterfall, waterfall_alt, validate_raincloud, raincloud_alt,
+                     validate_waterfall, gen_swimmer, swimmer_alt, alt_text_core,
+                     validate_swimmer,
                      gen_ridgeline, ridgeline_alt, validate_ridgeline,
-                     write_audit_sidecar, gen_dumbbell, dumbbell_alt,
-                     validate_dumbbell, write_repro_bundle,
+                     write_audit_sidecar, gen_dumbbell, dumbbell_alt, validate_dumbbell,
+                     write_repro_bundle,
                      gen_calibration, calibration_alt, validate_calibration,
                      gen_dca, dca_alt, validate_dca, format_suggest_line,
-                     gen_nomogram, nomogram_alt, validate_nomogram,
-                     gen_rcs, rcs_alt, validate_rcs,
+                     gen_nomogram, nomogram_alt, validate_nomogram, gen_rcs, rcs_alt, validate_rcs,
                      gen_subgroup_forest, subgroup_alt, validate_subgroup)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -242,7 +242,7 @@ def resolve_theme(name):
     """Resolve a --theme value to a canonical THEMES key (alias + lenient matching).
     Returns the canonical key, or None if no match."""
     if not name:
-        return "glm"
+        return "glm-brand"  # v7.6 默认=品牌视觉（用户钦定黄蓝双斜线为默认输出）
     key = name.strip().lower()
     if key in THEMES:
         return key
@@ -312,7 +312,7 @@ def cmd_demo(args):
     with open(data_path, "w", encoding="utf-8") as f:
         _json.dump(DEMO_DATA[chart_type], f, ensure_ascii=False)
     cmd = (f"python3 scripts/gen_figure.py -t {chart_type} -d '{data_path}' -o '{out_path}' "
-           f"--theme {args.theme or 'glm'}")
+           f"--theme {args.theme or 'glm-brand'}")
     print(f"\n执行: {cmd}", file=sys.stderr)
     args.type, args.data, args.out = chart_type, data_path, out_path
     return True
@@ -342,6 +342,19 @@ def suggest_chart_type(data):
     keys = set(data.keys())
     if "records_identified" in keys or "studies_included" in keys:
         recs.append((98, "prisma", "PRISMA flow fields (records_identified / studies_included)"))
+    if isinstance(data.get("studies"), list) and data.get("studies") \
+            and isinstance(data["studies"][0], dict) \
+            and isinstance(data["studies"][0].get("judgements"), dict):
+        recs.append((95, "rob", "studies[] with per-domain judgements (risk of bias traffic light)"))
+    _s0 = (data.get("studies") or [None])[0]
+    if isinstance(_s0, dict) and "events_t" in _s0: recs.append((95, "labbe", "studies[] with 2x2 events_t/n_t/events_c/n_c (L'Abbé plot; funnel needs effect/se instead)"))
+    _sk = {str(k).strip().lower() for k in data.get("series", {}) or {}}
+    if isinstance(data.get("time"), list) and isinstance(data.get("event"), list) \
+            and isinstance(data.get("group"), list):
+        recs.append((90, "subgroup", "long-format time/event/group lists → -t subgroup --stats cox (one-command fit)"))
+    elif {"event", "status"} & _sk:
+        # event/status 指示列=生存数据强信号（首列 time 常被 labels 吸收，故不要求 time 在 series）
+        recs.append((90, "subgroup", "event indicator column → survival family; -t subgroup --stats cox = one-command fit"))
     if "blocks" in keys and "arrows" in keys:
         recs.append((96, "diagram", "blocks + arrows structure"))
     if "panels" in keys:
@@ -356,6 +369,12 @@ def suggest_chart_type(data):
         if isinstance(first, list) and first and isinstance(first[0], (list, tuple)) \
                 and len(first[0]) == 2:
             recs.append((94, "km", "groups mapped to [time, survival] step pairs"))
+    _ev = data.get("event")
+    if isinstance(data.get("time"), list) and isinstance(_ev, list) and \
+            any((isinstance(v, (int, float)) and not isinstance(v, bool) and v >= 2)
+                for v in _ev):
+        recs.append((96, "cif", "time+event with competing-risk codes (≥2) — "
+                     "cumulative incidence (Aalen-Johansen)"))
     if {"estimates", "ci_low", "ci_high"} <= keys:
         recs.append((93, "forest", "effect estimates with CI bounds"))
     if isinstance(data.get("matrix"), list):
@@ -435,14 +454,13 @@ def cmd_suggest(data_path):
         print(f"ERROR: cannot load '{data_path}': {e}", file=sys.stderr)
         sys.exit(1)
     recs = suggest_chart_type(data)
-    if not recs:
-        print("No confident match — default to bar (labels + series). "
-          "无高匹配图型，默认柱状图；--explain <type> 可查各图型字段说明。")
-        return
+    if not recs: print("No confident match — default to bar (labels + series). 无高匹配图型，默认柱状图；--explain <type> 可查字段说明。"); return
     print("Suggested chart types 推荐图型（按匹配度，best first）:")
     for i, (score, ctype, why) in enumerate(recs[:3], 1):
         print(format_suggest_line(i, score, ctype, why))
     best = recs[0][1]
+    _an = suggest_arena_note(best)
+    if _an: print(_an)
     print(f"\nRun: python3 scripts/gen_figure.py -t {best} -d '{data_path}' -o out.pdf "
           f"--theme okabe-ito --verify  # --explain {best} 查字段说明")
 
@@ -651,8 +669,8 @@ def _degrade_axis(ax, axis, level):
     if not labels:
         return False
     if level == 1 and axis == 'x':
-        if all(l.get_rotation() == 45 for l in labels):
-            return False
+        if _SKETCH_MODE[0] or all(l.get_rotation() == 45 for l in labels):
+            return False  # sketch 手绘风：禁 45°（水平两行=wrap 产物，参考图口径）
         for l in labels:
             l.set_rotation(45)
             l.set_ha('right')
@@ -672,12 +690,14 @@ def _degrade_axis(ax, axis, level):
             l.set_fontsize(max(5, l.get_fontsize() - 1))
         return True
     if level == 4 and axis == 'x':
-        if all(l.get_rotation() == 90 for l in labels):
-            return False
+        if _SKETCH_MODE[0] or all(l.get_rotation() == 90 for l in labels):
+            return False  # sketch 手绘风：禁 90°（宁可缩字不竖排）
         for l in labels:
             l.set_rotation(90)
             l.set_ha('center')
         return True
+    if level >= 5 and _SKETCH_MODE[0]:
+        return False  # v7.6.1 sketch 禁丢标签（模型名不可隐藏，宁可缩小字号）
     if level >= 5:
         stride = 2 ** (level - 4)
         hid = False
@@ -818,7 +838,7 @@ def _read_excel(path, sheet=None):
     return headers, rows
 
 
-def load_data(path, chart_type=None, sheet=None):
+def load_data(path, chart_type=None, sheet=None, csv_errors=True):
     """Load data from JSON, CSV or Excel (.xlsx/.xls). Returns dict with structure info.
 
     For CSV/Excel, chart_type is used to auto-convert long-format data:
@@ -871,6 +891,48 @@ def load_data(path, chart_type=None, sheet=None):
         # Sync labels with valid rows
         labels = [rows[ri][0] for ri in good_rows if ri < len(rows)]
         result = {"labels": labels, "series": series}
+
+        # ── v6.0.0：CSV 误差列约定——X_se/X_sem/X_sd/X_err 配对主列 X（准确性审查
+        # 与实现脱节的旧表述机制根治）。配对成功→不画成柱、转 errors 契约；
+        # X_sd + X_n → SEM=sd/√n；孤儿列告警保留；--csv-no-errors 逃生门。
+        if csv_errors and series:
+            import re as _re
+            _err_cols, _n_cols = {}, {}
+            for k in list(series.keys()):
+                m = _re.match(r"^(.*)_(sem|se|sd|err)$", str(k), _re.I)
+                if m:
+                    _err_cols[m.group(1)] = (k, m.group(2).lower())
+                elif _re.match(r"^(.*)_n$", str(k), _re.I):
+                    _n_cols[_re.match(r"^(.*)_n$", str(k), _re.I).group(1)] = k
+            errors, notes = {}, []
+            for base, (col, kind) in sorted(_err_cols.items()):
+                if base not in series:
+                    print(f"CSV 误差列告警：「{col}」找不到主列「{base}」——按普通数据列处理",
+                          file=sys.stderr)
+                    continue
+                if len(series[col]) != len(series[base]):
+                    print(f"CSV 误差列告警：「{col}」与主列「{base}」行数不一致——按普通数据列处理",
+                          file=sys.stderr)
+                    continue
+                vals = series[col]
+                if kind == "sd" and base in _n_cols:
+                    nn = series[_n_cols[base]]
+                    import math as _m
+                    if len(nn) == len(vals) and all(v > 0 for v in nn):
+                        vals = [v / _m.sqrt(n) for v, n in zip(vals, nn)]
+                        notes.append(f"{_n_cols[base]}+{col} → {base}（SD+标本量→SEM=sd/√n）")
+                        del series[_n_cols[base]]
+                    else:
+                        notes.append(f"{col} → {base}（±1SD；{_n_cols[base]} 行数不符/含非正值，未转 SEM）")
+                else:
+                    _lab = "SEM" if kind in ("sem", "se") else ("SD" if kind == "sd" else "误差值")
+                    notes.append(f"{col} → {base}（±1{_lab}）")
+                errors[base] = vals
+                del series[col]
+            if errors:
+                result["errors"] = errors
+                print("CSV 误差列识别：" + "；".join(notes)
+                      + "（--csv-no-errors 可关闭，把误差列按普通数据画）", file=sys.stderr)
 
         # Long-format conversion for scatter (C1 real fix)
         if chart_type == 'scatter' and series:
@@ -1169,7 +1231,8 @@ def _doctor_report(args, data):
     combos = [
         (args.stats in ("auto", "multi", "bootstrap") and args.type not in ("box", "violin", "raincloud"),
          f"--stats {args.stats} 仅 box/violin/raincloud 生效"),
-        (args.stats == "cox" and args.type != "forest", "--stats cox 仅 forest 生效"),
+        (args.stats == "cox" and args.type not in ("forest", "subgroup"),
+        "--stats cox 仅 forest/subgroup 生效"),
         (bool(args.compare) and args.type != "roc", "--compare 仅 roc 生效"),
         (bool(args.egger) and args.type != "funnel", "--egger 仅 funnel 生效"),
         (bool(args.hatch) and args.type not in ("bar", "grouped_bar", "hbar",
@@ -1431,15 +1494,16 @@ def validate_data(data, chart_type):
         if isinstance(events, list) and events and _len(events) != _len(estimates):
             warns.append(f"forest: {_len(events)} 行事件数据但 {_len(estimates)} 个效应值 — events/total 可能错位")
 
-    # ── KM: groups (list of [t, s] pairs) OR time + survival ──
-    elif chart_type in ("km", "survival"):
+    # ── KM/RMST: groups (list of [t, s] pairs) OR time + survival ──
+    elif chart_type in ("km", "survival", "rmst"):
+        _pfx = "rmst" if chart_type == "rmst" else "km"
         groups = data.get("groups", data.get("series", {}))
         has_time = _nonempty_list(data.get("time", []))
         if isinstance(groups, dict) and groups and all(isinstance(v, (list, tuple)) and v and all(isinstance(p, (list, tuple)) and _len(p) >= 2 for p in v) for v in groups.values()):
             for gname, pairs in groups.items():
                 times = [p[0] for p in pairs if _is_number(p[0])]
                 if len(times) >= 2 and any(times[i] > times[i + 1] for i in range(len(times) - 1)):
-                    warns.append(f"km: 组 '{gname}' 时间点未升序 — 拟合前已自动排序，曲线不受影响")
+                    warns.append(f"{_pfx}: 组 '{gname}' 时间点未升序 — 拟合前已自动排序，曲线不受影响")
         elif has_time and isinstance(data.get("survival"), dict):
             surv = data["survival"]
             fatal += _check_series_dict(surv, "survival", req_nonempty=False)
@@ -1454,13 +1518,13 @@ def validate_data(data, chart_type):
             _keys_l = {str(k).strip().lower() for k in groups}
             if _keys_l & _long_keys:
                 fatal.append(
-                    "km: 检测到长表结构（time/event/group 各占一列，一行记录一名患者）—"
+                    f"{_pfx}: 检测到长表结构（time/event/group 各占一列，一行记录一名患者）—"
                     "这种表无法直接画生存曲线。请转成 JSON："
                     '{"groups": {"组名": [[时间, 事件(1=事件/0=删失), ...]], ...}}，'
                     "每组一个数组；格式详见 references/data-formats.md")
             else:
                 fatal.append(
-                    "km: groups 的每个值必须是 [时间, 事件(1/0)] 成对列表，当前是普通数值数组 —"
+                    f"{_pfx}: groups 的每个值必须是 [时间, 事件(1/0)] 成对列表，当前是普通数值数组 —"
                     '请改为 {"组名": [[12, 1], [24, 0], ...]}，或改用 time+survival 两个数组')
         elif not isinstance(groups, dict) or not groups:
             fatal.append("km 需要 'groups'（{组名: [[t, s], ...]}）或 'time'+'survival' 数组 — 都没找到")
@@ -2292,14 +2356,214 @@ def _run_cox_forest(args):
     }
 
 
+
+def _run_cox_subgroup(args):
+    """v5.8：--stats cox × -t subgroup —— 原始逐例生存数据一键亚组分析。
+    逐层 Cox HR(95%CI,p)（处理臂 vs 参照臂）+ 似然比 P 交互 + Overall 菱形；
+    --cox-cols 可选调整协变量（进入全部模型）。数据格式同 --stats cox：
+    JSON {"time":[...],"event":[...],其余=列} 或 CSV（--cox-time/--cox-event 改列名）。
+    需 --subgroup-vars 名1,名2（类目列，或 --cut 名@阈值 二分数值列）。
+    边界：引擎只做亚组拟合并可视化；亚组变量选择与层定义由研究者决定。"""
+    import csv as _csv
+    from collections import OrderedDict
+
+    path = args.data
+    if not path or not os.path.exists(path):
+        print(f"ERROR: 找不到数据文件：{path}", file=sys.stderr)
+        sys.exit(1)
+
+    def _fatal(msg):
+        print(f"ERROR: {msg}", file=sys.stderr)
+        sys.exit(1)
+
+    ext = os.path.splitext(path)[1].lower()
+    time_col, event_col = args.cox_time, args.cox_event
+    cols = OrderedDict()
+    if ext == ".json":
+        try:
+            with open(path, encoding="utf-8-sig") as fh:
+                d = json.load(fh)
+        except Exception as exc:
+            _fatal(f"JSON 解析失败：{exc}")
+        if not isinstance(d, dict) or "time" not in d or "event" not in d:
+            _fatal("数据 JSON 必须包含 time 与 event 两个数组（逐例一行）")
+        cols["time"] = d["time"]
+        cols["event"] = d["event"]
+        src_cols = d.get("covariates") if isinstance(d.get("covariates"), dict) else \
+            {k: v for k, v in d.items() if k not in ("time", "event")}
+        cols.update(src_cols or {})
+    elif ext in (".csv", ".tsv", ".txt"):
+        delim = "\t" if ext == ".tsv" else ","
+        try:
+            with open(path, encoding="utf-8-sig", newline="") as fh:
+                rows = list(_csv.DictReader(fh, delimiter=delim))
+        except Exception as exc:
+            _fatal(f"CSV 解析失败：{exc}")
+        if not rows:
+            _fatal("CSV 为空")
+        headers = list(rows[0].keys())
+        for need in (time_col, event_col):
+            if need not in headers:
+                _fatal(f"CSV 缺少必需列「{need}」（现有列：{'、'.join(headers)}）。"
+                       "可用 --cox-time/--cox-event 指定列名")
+        for h in headers:
+            cols[h] = [r[h] for r in rows]
+    else:
+        _fatal("--stats cox（subgroup）支持 .json / .csv / .tsv 原始逐例数据；"
+               "已有 est/p 的亚组 JSON 不要加 --stats cox")
+
+    def _as_float(seq):
+        try:
+            return [float(v) for v in seq]
+        except (TypeError, ValueError):
+            return None
+
+    try:
+        times = [float(v) for v in cols[time_col]]
+        events = [float(v) for v in cols[event_col]]
+    except (TypeError, ValueError):
+        _fatal("time/event 列存在非数值内容")
+    if _afstats is None:
+        _fatal("统计模块 af_v23_stats 加载失败")
+    n = len(times)
+
+    # ── 处理臂：--treatment 或常见名自动探测 ──
+    tname = args.treatment
+    if not tname:
+        for cand in ("trt", "treatment", "arm", "group", "exposure", "处理", "暴露"):
+            if cand in cols:
+                tname = cand
+                print(f"处理臂自动探测：{cand}（可用 --treatment 指定）", file=sys.stderr)
+                break
+    if not tname:
+        _fatal("未找到处理臂列——用 --treatment 列名指定（二分类：试验/对照）")
+    if tname not in cols:
+        _fatal(f"--treatment 列「{tname}」不存在（现有列：{'、'.join(list(cols)[:8])}…）")
+    t_raw = cols[tname]
+    t_num = _as_float(t_raw)
+    if t_num is not None:
+        uniq = sorted(set(t_num))
+        if len(uniq) != 2:
+            _fatal(f"处理臂「{tname}」须恰好两个取值（现有 {len(uniq)} 个）。"
+                   "多臂请先二分（试验 vs 对照），或用类目文本列")
+        ref_v, hi_v = uniq[0], uniq[-1]
+        ref_s = str(int(ref_v)) if float(ref_v).is_integer() else str(ref_v)
+        hi_s = str(int(hi_v)) if float(hi_v).is_integer() else str(hi_v)
+        trt_bin = [1.0 if v == hi_v else 0.0 for v in t_num]
+    else:
+        seen, order = set(), []
+        for v in t_raw:
+            s = str(v).strip()
+            if s not in seen:
+                seen.add(s)
+                order.append(s)
+        if len(order) != 2:
+            _fatal(f"处理臂「{tname}」须恰好两个取值（现有 {len(order)} 个）")
+        ref_s, hi_s = order[0], order[1]
+        trt_bin = [0.0 if str(v).strip() == ref_s else 1.0 for v in t_raw]
+    print(f"处理臂：{hi_s}（编码 1）vs {ref_s}（参照 0）", file=sys.stderr)
+
+    # ── 调整协变量 --cox-cols（可选，须数值列）──
+    adjust = {}
+    if args.cox_cols:
+        for c in (x.strip() for x in str(args.cox_cols).split(",") if x.strip()):
+            if c in (time_col, event_col, tname):
+                continue
+            if c not in cols:
+                _fatal(f"--cox-cols 指定了不存在的列：{c}")
+            fv = _as_float(cols[c])
+            if fv is None:
+                _fatal(f"调整协变量「{c}」含非数值——请先数值化")
+            adjust[c] = fv
+
+    # ── 亚组变量：--cut 名@阈值 二分 + --subgroup-vars 类目列 ──
+    cuts = {}
+    for spec in (args.cut or []):
+        if "@" not in spec:
+            _fatal(f"--cut 格式应为 名@阈值（收到：{spec}）")
+        cname, thr_s = spec.split("@", 1)
+        try:
+            thr = float(thr_s)
+        except ValueError:
+            _fatal(f"--cut 阈值须为数字（收到：{spec}）")
+        if cname not in cols:
+            _fatal(f"--cut 列「{cname}」不存在")
+        fv = _as_float(cols[cname])
+        if fv is None:
+            _fatal(f"--cut 列「{cname}」含非数值——只能二分数值列")
+        lab_lo, lab_hi = (f"＜{thr_s}", f"≥{thr_s}")
+        cuts[cname] = ([lab_lo if v < thr else lab_hi for v in fv], lab_lo, lab_hi)
+        print(f"--cut：{cname} → {lab_lo}（<{thr_s}）/ {lab_hi}（≥{thr_s}）", file=sys.stderr)
+
+    if not args.subgroup_vars:
+        _fatal("一键亚组分析需要 --subgroup-vars 名1,名2（类目列名，逗号分隔；"
+               "连续数值列先用 --cut 名@阈值 二分）。例：--subgroup-vars celltype,prior --cut age@60")
+    groups_spec = []
+    for gname in (x.strip() for x in str(args.subgroup_vars).split(",") if x.strip()):
+        if gname in cuts:
+            groups_spec.append((gname, cuts[gname][0]))
+            continue
+        if gname not in cols:
+            _fatal(f"--subgroup-vars 列「{gname}」不存在（现有列：{'、'.join(list(cols)[:8])}…）")
+        if gname == tname:
+            _fatal("处理臂列不能同时作为亚组变量")
+        raw = [str(v).strip() for v in cols[gname]]
+        fv = _as_float(raw)
+        if fv is not None and len(set(fv)) > 8:
+            _fatal(f"亚组变量「{gname}」是连续数值（{len(set(fv))} 个不同值）——"
+                   f"请先 --cut {gname}@阈值 二分")
+        if fv is not None and all(float(v).is_integer() for v in set(fv)):
+            raw = [str(int(float(v))) for v in cols[gname]]
+        groups_spec.append((gname, raw))
+    for cname, (vals, _lo, _hi) in cuts.items():   # --cut 声明即纳入（用户切了就是要用）
+        if cname not in {g[0] for g in groups_spec}:
+            groups_spec.append((cname, vals))
+
+    try:
+        res = _afstats.cox_subgroup_analysis(times, events, trt_bin, groups_spec,
+                                             adjust=adjust or None)
+    except ValueError as exc:
+        _fatal(str(exc))
+
+    def _r2(x):
+        return round(float(x), 2)
+
+    out = {
+        "est_label": "HR",
+        "x_label": f"HR（{hi_s} vs {ref_s}，95% CI）",
+        "subgroups": [{"name": g["name"],
+                       "p_interaction": round(float(g["p_interaction"]), 3),
+                       "levels": [{"name": lv["name"], "n": int(lv["n"]),
+                                   "est": _r2(lv["est"]), "ci_low": _r2(lv["ci_low"]),
+                                   "ci_high": _r2(lv["ci_high"]),
+                                   "p": round(float(lv["p"]), 4)} for lv in g["levels"]]}
+                      for g in res["subgroups"]],
+        "overall": {"est": _r2(res["overall"]["est"]), "ci_low": _r2(res["overall"]["ci_low"]),
+                    "ci_high": _r2(res["overall"]["ci_high"]),
+                    "p": round(float(res["overall"]["p"]), 4), "n": int(res["overall"]["n"])},
+        "_method": (f"--stats cox 一键亚组拟合（v5.8）：{res['method']}。数据={os.path.basename(path)}，"
+                    f"n={n}；引擎只做亚组拟合并可视化，亚组变量选择与层定义由研究者决定"),
+    }
+    print(f"亚组 Cox（Efron 核）n={n}：总体 HR={out['overall']['est']}"
+          f"（{out['overall']['ci_low']}~{out['overall']['ci_high']}）p={out['overall']['p']}",
+          file=sys.stderr)
+    for g in out["subgroups"]:
+        lv = "；".join(f"{l['name']}:{l['est']}({l['ci_low']}~{l['ci_high']},n={l['n']})"
+                       for l in g["levels"])
+        print(f"  {g['name']}（P 交互={g['p_interaction']}）{lv}", file=sys.stderr)
+    print("提示：层定义/变量取舍由研究者决定；亚组结论以交互检验为准，不看层内 p 值。",
+          file=sys.stderr)
+    return out
+
 def main():
     parser = argparse.ArgumentParser(
         description="academic-figures：一条命令生成投稿级学术图表",
         epilog="场景速查：基线表对比 -t bar --stats auto ｜ KM 生存 -t km（逐例数据自动风险表）"
+               "｜ 竞争风险 -t cif（Aalen-Johansen+1−KM 高估对照）｜ RMST -t rmst（τ 截断平均生存+差值推断）"
                "｜ 诊断 ROC -t roc --compare ｜ 预测模型四件套 -t roc/calibration/dca/nomogram"
-               "｜ Meta 森林+漏斗+径向 -t forest/funnel/galbraith ｜ 亚组森林 -t subgroup"
+               "｜ Meta 森林+漏斗+径向 -t forest/funnel/galbraith ｜ 亚组森林 -t subgroup（原始数据一键拟合加 --stats cox）"
                "｜ 组学 -t volcano/-t cluster_heatmap ｜ 多面板 -t composite（share_y 统一尺度）"
-               "｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
+               "｜ 偏倚风险 -t rob（robvis 同款交通灯）｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
     parser.add_argument("--type", "-t", choices=list(GENERATORS.keys()),
                         help="图型（如 bar/box/violin/km/roc/forest/prisma，--demo 可看菜单）")
     parser.add_argument("--data", "-d", help="输入数据文件（.json / .csv / .tsv / .xlsx）")
@@ -2311,12 +2575,15 @@ def main():
     parser.add_argument("--ylabel", default="", help="y 轴标签")
     parser.add_argument("--theme", default=None,
                         help="配色主题（默认 glm；--list-themes 查看全部）")
-    parser.add_argument("--style", default=None, choices=["glm-hatch", "nature-clean", "glm-brand"],
+    parser.add_argument("--style", default=None, choices=["glm-hatch", "nature-clean", "glm-brand", "sketch"],
                         help="快捷风格：'glm-hatch' = GLM 黄蓝斜线风（theme glm + --hatch）；"
                              "'nature-clean' = 顶刊版式（Okabe-Ito 配色+去顶右框线+无网格+无框图例，v3.3）；"
                              "'glm-brand' = 品牌视觉（信号黄对比强化+无网格+同系深色斜纹，v3.3.1）")
     parser.add_argument("--list-themes", action="store_true",
                         help="列出全部配色主题（含色卡预览）后退出")
+    parser.add_argument("--list-flags", nargs="?", const="", default=None, metavar="TYPE", help="查询某图型旗标域（专属+域外[ignored] 预告）；无参数=全图型速览")
+    parser.add_argument("--list-types", action="store_true",
+                        help="列出全部图型（权威清单，每行一个）后退出")
     parser.add_argument("--theme-swatch", default=None, metavar="THEME",
                         help="渲染某主题的色卡预览图后退出")
     parser.add_argument("--demo", action="store_true",
@@ -2348,11 +2615,8 @@ def main():
     parser.add_argument("--summary", action="store_true",
                         help="自动数据摘要副标题（v4.1）：纯计数事实（样本量/组数/"
                              "事件数等，零推断）；--subtitle 显式给出时以其为准")
-    parser.add_argument("--subtitle", default=None,
-                        help="副标题（主标题下方第二行，小号灰色——标题层级 v4.0；"
-                             "兼容 --title \"主/副\" 斜杠写法）")
-    parser.add_argument("--source", default=None,
-                        help="来源注（图底部右对齐小字，如\"数据来源：XX 数据库\"——v4.0）")
+    parser.add_argument("--subtitle", default=None, help="副标题（主标题下方第二行，小号灰色——标题层级 v4.0；兼容 --title \"主/副\" 斜杠写法）")
+    parser.add_argument("--source", default=None, help="来源注（图底部右对齐小字，如\"数据来源：XX 数据库\"——v4.0）")
     parser.add_argument("--order", default=None, metavar="L1,L2,...|auto",
                         help="自定义类别顺序：逗号分隔标签，或 auto=按第一系列值降序"
                              "（box/violin 按各组中位数降序）（v3.9；仅 bar/box/violin/line 系）")
@@ -2371,26 +2635,26 @@ def main():
     parser.add_argument("--legend", action="store_true", default=True, help="显示图例")
     parser.add_argument("--no-legend", action="store_true", help="隐藏图例")
     parser.add_argument("--show-values", action="store_true", help="在图元上标注数值")
+    parser.add_argument("--arena", nargs="?", const="auto", default=None, help="基准对比竞技场风格（v7.7 起单系列竖向 bar 默认启用）：per-bar 异质填充+冠军柱高亮+皇冠；负面指标（最高=最差，如错误率/不良事件）用 --arena off 关闭，--arena \"名称\" 按标签钉冠军")
     parser.add_argument("--trend", action="store_true", default=True, help="显示趋势线（散点图）")
     parser.add_argument("--no-trend", action="store_true", help="隐藏趋势线（散点图）")
-    parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）")
-    parser.add_argument("--vmin", type=float, default=None, help="热图色阶下限")
+    parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）"); parser.add_argument("--vmin", type=float, default=None, help="热图色阶下限")
     parser.add_argument("--vmax", type=float, default=None, help="热图色阶上限")
-    parser.add_argument("--horizontal", action="store_true", help="水平柱状图（即 hbar）")
-    parser.add_argument("--hatch", action="store_true", help="柱体加斜线填充（打印友好）")
+    parser.add_argument("--horizontal", action="store_true", help="水平柱状图（即 hbar）"); parser.add_argument("--hatch", action="store_true", help="柱体加斜线填充（打印友好）")
     parser.add_argument("--alternate", action="store_true",
                         help="GLM 风格：单系列柱子交替前两种主题色")
     parser.add_argument("--show-ratio", action="store_true", help="分组柱上标注倍率（如 4.96x）")
     parser.add_argument("--ratio-base", type=int, default=0, help="倍率计算的基准系列序号（默认 0）")
+    add_sig_bracket_arg(parser)
+    add_sig_auto_arg(parser)
     parser.add_argument("--stats", default=None, choices=["auto", "multi", "cox", "bootstrap"],
-                        help="box/violin 自动显著性标注：auto=各组 vs 第一组（Shapiro 定正态→"
-                             "Welch t / Mann-Whitney U）；multi=全两两（正态→ANOVA+Tukey，"
-                             "否则 Kruskal-Wallis+Dunn+Hochberg）。括号+星号自动绘制。"
-                             "cox=仅 forest：原始逐例生存数据自动拟合多因素 Cox 比例风险模型，"
-                             "输出 HR[95%%CI] 森林图+系数表+PH 假设近似检验")
+                        help="box/violin 自动显著性标注：auto=各组 vs 第一组（Shapiro 定正态→Welch t / Mann-Whitney U）；multi=全两两（正态→ANOVA+Tukey，否则 KW+Dunn+Hochberg）；cox=仅 forest：原始逐例生存数据自动拟合多因素 Cox，输出 HR[95%%CI] 森林图+系数表+PH 检验。括号+星号自动绘制")
     parser.add_argument("--timeout", type=float, default=None,
-                        help="渲染看门狗预算（秒）：超时强制中断并给中文建议（exit 5）；"
-                             "0=禁用；默认按图型与数据量自适应（30~1800s）")
+                        help="渲染看门狗预算（秒）：超时强制中断并给中文建议（exit 5）；0=禁用自适应预算（保留硬保险）；默认自适应 30~1800s")
+    parser.add_argument("--debug", action="store_true",
+                        help="渲染失败时输出结构化诊断侧车 <output>.debug.json（输入指纹/字段映射/异常分类/修复建议，供程序化排障）；成功渲染不产出")
+    parser.add_argument("--retries", type=int, default=1, metavar="N",
+                        help="瞬时失败自动重试次数：看门狗超时/内存耗尽自动重跑（每代预算放宽 ×1.5）；确定性错误不重试；0=关闭；默认 1")
     parser.add_argument("--downsample", type=int, default=None, metavar="N",
                         help="cluster_heatmap 行数超过 N 时等距采样到 N 行（确定性采样）")
     parser.add_argument("--size", default=None,
@@ -2402,6 +2666,18 @@ def main():
                         help="--stats cox 时生存时间列名（默认 time）")
     parser.add_argument("--cox-event", default="event",
                         help="--stats cox 时事件列名（默认 event；0=删失 1=事件）")
+    parser.add_argument("--subgroup-vars", default=None,
+                        help="--stats cox × -t subgroup：亚组变量列（逗号分隔，各 2~8 层；"
+                             "连续数值列先用 --cut 二分）")
+    parser.add_argument("--treatment", default=None,
+                        help="--stats cox：处理臂列名（二分类；默认自动探测 trt/treatment/arm 等）")
+    parser.add_argument("--cut", action="append", default=[],
+                        help="--stats cox × -t subgroup：数值列二分，格式 名@阈值（可多次）"
+                             "——自动按 <阈值/≥阈值 分层")
+    parser.add_argument("--rmst-tau", default=None,
+                        help="-t rmst：截断时间 τ（时间单位；缺省=最小最大随访之半并显著告知）")
+    parser.add_argument("--csv-no-errors", action="store_true",
+                        help="关闭 CSV 误差列自动识别（X_se/X_sem/X_sd/X_err 后缀列按普通数据列画）")
     parser.add_argument("--cox-cols", default=None,
                         help="--stats cox 时协变量列（逗号分隔，默认除时间/事件外全部数值列；"
                              "顺序即森林图行序）")
@@ -2530,6 +2806,15 @@ def main():
         cmd_list_themes()
         sys.exit(0)
 
+    if args.list_types:
+        # 权威图型清单出口（v5.7）：MCP/外部脚本动态消费，杜绝硬编码清单漂移
+        print("\n".join(sorted(GENERATORS)))
+        sys.exit(0)
+    if args.list_flags is not None:
+        try: print(list_flags_query(args.list_flags.strip() or None, sorted(GENERATORS)))
+        except ValueError as e: print(f"ERROR: {e}", file=sys.stderr); sys.exit(1)
+        sys.exit(0)
+
     if args.theme_swatch:
         resolved = resolve_theme(args.theme_swatch)
         if not resolved:
@@ -2608,6 +2893,7 @@ def main():
         args.theme = "glm-brand"
         args.hatch = True
 
+    if args.style == "sketch": from af_draw import apply_sketch_style; apply_sketch_style()  # v7.6 手绘风
     if args.style in ("glm-brand", "nature-clean") and args.type == "line" \
             and not args.legend_loc:
         args.direct_label = True  # 设计语言第二刀：品牌/顶刊风格下 line 默认直接标注
@@ -2650,6 +2936,8 @@ def main():
         sys.exit(1)
 
     theme_key = resolve_theme(args.theme)
+    if theme_key == "glm-brand" and not args.hatch:
+        args.hatch = True  # v7.6 品牌斜纹默认开启（显式 --theme 别名同样生效）
     if not theme_key:
         print(f"ERROR: 未知主题 '{args.theme}'。运行 --list-themes 查看全部配色。", file=sys.stderr)
         sys.exit(1)
@@ -2666,11 +2954,8 @@ def main():
               f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
     if (args.type in ("bar", "grouped_bar") and args.data
             and str(args.data).lower().endswith(".csv")):
-        print("[hint] CSV 不支持误差棒——需要误差棒/显著性标记请改用 JSON 格式"
-              "（errors/significance 字段，见 --explain bar）", file=sys.stderr)
-    if args.journal and getattr(args, "width", None):
-        print("[auto] --journal 锁定图宽，--width "
-              f"{args.width} 已被忽略（--height 仍生效）", file=sys.stderr)
+        print("[hint] CSV 误差棒 v6.0 起支持后缀列写法（如 weight+weight_sd 自动配对；"
+              "--csv-no-errors 关闭识别）", file=sys.stderr)
     if getattr(args, "verify", False):
         _fmt = os.path.splitext(str(args.out or ""))[1].lower()
         if _fmt and _fmt != ".pdf":
@@ -2698,16 +2983,20 @@ def main():
         print(f"画幅预设 {args.size}：figsize {w_in:.2f}x{theme['figsize'][1]:.2f}in"
               f"（宽度不变，高度按比例）", file=sys.stderr)
     if args.stats == "cox":
-        if args.type != "forest":
+        if args.type == "forest":
+            data = _run_cox_forest(args)
+        elif args.type == "subgroup":
+            data = _run_cox_subgroup(args)
+        else:
             # v4.5 R2-3：互斥策略统一——参数不适用=[ignored] 显式告知继续（与 auto/multi 同口径）
-            print("[ignored] --stats cox（仅 forest 生效）对 "
+            print("[ignored] --stats cox（仅 forest/subgroup 生效）对 "
                   f"{args.type} 不适用，本次渲染已忽略", file=sys.stderr)
             args.stats = None
-            data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
-        else:
-            data = _run_cox_forest(args)
+            data = load_data(args.data, chart_type=args.type, sheet=args.sheet,
+                         csv_errors=not getattr(args, 'csv_no_errors', False))
     else:
-        data = load_data(args.data, chart_type=args.type, sheet=args.sheet)
+        data = load_data(args.data, chart_type=args.type, sheet=args.sheet,
+                         csv_errors=not getattr(args, 'csv_no_errors', False))
 
     # ── A4(v2.8)+v3.1：cluster_heatmap 降采样（确定性等距采样；校验前执行）──
     # v3.1：行数>3000 且未给 --downsample 时自动采样到 2000 行并显著告知
@@ -2757,6 +3046,7 @@ def main():
     if getattr(args, "normalize", None) and args.type not in _NORM_CHARTS:
         _ignored.append("--normalize（仅 bar 系/line 生效；分布数据不做均值归一）")
         args.normalize = None
+    if getattr(args, "arena", None) not in (None, "off") and args.type != "bar": _ignored.append("--arena（仅 -t bar 单系列竖向生效；--arena off 显式关闭默认竞技场）")
     for _ig in _ignored:
         print(f"[ignored] {_ig} 对 {args.type} 不适用，本次渲染已忽略", file=sys.stderr)
 
@@ -2772,8 +3062,8 @@ def main():
             print(f"ERROR: {m}", file=sys.stderr)
         if any("CSV" in m or "csv" in m for m in fatal_msgs) or \
            any("error" in m.lower() and "bar" in m.lower() for m in fatal_msgs):
-            print("HINT: CSV 不支持误差棒 → 改用 JSON 格式（见 --explain bar / 文档 §数据输入）",
-                  file=sys.stderr)
+            print("HINT: CSV 误差棒用后缀列（v6.0 起，weight+weight_sd；见 --explain bar）；"
+                  "JSON 则用 errors 字段", file=sys.stderr)
         sys.exit(1)
     _memory_hint(data, args.type)
     # ── v3.9：--order / --normalize（渲染前数据变换，stderr 透明告知）──
@@ -2791,10 +3081,19 @@ def main():
             sys.exit(1)
     if getattr(args, "doctor", False):
         _doctor_report(args, data)
-    # ── A1(v2.8)：看门狗武装（--timeout 覆盖自适应预算；0=禁用）──
+    # ── A1(v2.8) 看门狗武装 ── v6.2.0：0=禁用自适应预算留硬保险；负数报错；重试上限全局登记
+    global _LAST_ARGS; _LAST_ARGS = args
+    os.environ["AF_RETRIES_MAX"] = str(max(0, int(getattr(args, "retries", 1))))
     if args.timeout is None or args.timeout > 0:
         _watchdog_arm(args.type, data,
                       budget=None if args.timeout is None else float(args.timeout))
+    elif args.timeout == 0:
+        print(f"WARNING: 自适应看门狗已禁用（--timeout 0）——保留 {_WD_HARD_CAP:.0f}s 硬保险防无限挂起（AF_NO_WATCHDOG=1 可完全关闭）", file=sys.stderr)
+        _watchdog_arm(args.type, data, budget=_WD_HARD_CAP)
+    else:
+        print(f"ERROR: --timeout 不接受负数（{args.timeout:g}）；禁用自适应预算请用 --timeout 0（保留硬保险）", file=sys.stderr)
+        sys.exit(1)
+    if os.environ.get("AF_TEST_RENDER_DELAY") and os.environ.get("AF_RETRY_N", "0") == "0": time.sleep(float(os.environ["AF_TEST_RENDER_DELAY"]))  # 维护者钩子：仅首代延迟（确定性超时）——重试代恢复真实行为，防 savefig 中杀（6.7.0 逐字节锁逮）
     cjk_fp = None
     # Auto-detect: scan displayable text for CJK chars
     def _scan_cjk(obj):
@@ -2878,14 +3177,16 @@ def main():
     # Generate
     gen_func = GENERATORS[args.type]
     kwargs = {
-        "show_values": args.show_values,
+        "show_values": args.show_values, "arena": args.arena,
+        "arena_default": args.arena is None and args.type == "bar" and not args.horizontal and not getattr(args, "pub_ready_applied", False),
         "trend": args.trend and not args.no_trend,
         "peak_label": getattr(args, "peak_label", False),
         "cmap": args.cmap,
         "vmin": args.vmin,
         "vmax": args.vmax,
         "horizontal": args.horizontal or args.type in ("hbar", "horizontal_bar"),
-        "hatch": args.hatch,
+        "hatch": args.hatch, "sig_bracket": getattr(args, "sig_bracket", False),
+        "sig_auto": getattr(args, "sig_auto", False),
         "direct_label": getattr(args, "direct_label", False),
         "alternate": args.alternate,
         "show_ratio": args.show_ratio,
@@ -2899,6 +3200,7 @@ def main():
         "egger": getattr(args, "egger", False),
         "area_mode": getattr(args, "area", False),
         "risk_table": km_risk,
+        "rmst_tau": getattr(args, "rmst_tau", None),
         "risk_axes": risk_axes if km_risk else None,
         "risk_times": getattr(args, "risk_times", None),
         "auto_cjk_hdr": bool(args.cjk) and args.type in ("km", "survival"),
@@ -2937,7 +3239,7 @@ def main():
             title_text = args.title.replace('\\n', '\n')
             _t_pad = 22 if getattr(args, "subtitle", None) else 12
             ax.set_title(title_text, fontsize=theme["font_size"] + 1, fontweight='bold',
-                         pad=_t_pad,
+                         pad=_t_pad, loc=None if _SKETCH_MODE[0] else "center",
                          fontproperties=cjk_fp if cjk_fp and has_cjk(title_text) else None)
         if getattr(args, "summary", False) and not getattr(args, "subtitle", None):
             # v4.1 自动数据摘要副标题：只陈述计数事实（零推断，accuracy 优先）。
@@ -3021,7 +3323,7 @@ def main():
         if cjk_fp is None:
             try:
                 cjk_fp, cjk_name = load_cjk_font(None)
-                if cjk_fp:
+                if cjk_fp and not _SKETCH_MODE[0]:
                     plt.rcParams['font.sans-serif'] = [cjk_name, 'DejaVu Sans']
                     plt.rcParams['axes.unicode_minus'] = False
                     print(f"自动补启用中文字体: {cjk_name}（图内含自动生成的中文标注）",
@@ -3041,6 +3343,7 @@ def main():
 
     if not is_self_managed:
         plt.tight_layout()
+        if getattr(args, "source", None): fig.subplots_adjust(bottom=0.18)  # v7.6.1 来源注与两行 x 标签防挤压
 
     # Mechanism-level anti-overlap: detect real collisions post-render and
     # degrade tick labels until no axis overlaps (works for composite panels)
@@ -3180,11 +3483,12 @@ def main():
 # ── A1(v2.8)：渲染看门狗（v2.10：退出码分级与异常诊断拆至 af_diagnostics.py）──
 
 _WD_BASE_BUDGET = {
-    "cluster_heatmap": 240, "composite": 180, "pca": 120, "km": 120,
+    "cluster_heatmap": 240, "composite": 180, "pca": 120, "km": 120, "rmst": 120, "rob": 120,
     "forest": 90, "venn": 90, "prisma": 60,
 }
 _WD_DEFAULT_BUDGET = 90.0
 _WD_MIN, _WD_MAX = 30.0, 1800.0
+_WD_HARD_CAP = 7200.0  # --timeout 0（禁用自适应预算）时的硬保险，防无限挂起；不随重试放宽
 
 
 def _wd_estimate_rows(data):
@@ -3209,11 +3513,20 @@ def _wd_estimate_rows(data):
     return 0
 
 
+def _wd_scale(budget):
+    """v6.2.0：重试代看门狗预算放宽（AF_WD_BUDGET_SCALE=1.5^N，由重试层写入）。"""
+    try:
+        s = float(os.environ.get("AF_WD_BUDGET_SCALE", "1") or 1)
+    except ValueError:
+        s = 1.0
+    return budget * (s if s >= 1.0 else 1.0)
+
+
 def _wd_budget_for(chart_type, data):
     rows = _wd_estimate_rows(data)
     base = _WD_BASE_BUDGET.get(chart_type, _WD_DEFAULT_BUDGET)
     factor = 1.0 + min(3.0, rows / 2000.0)
-    return max(_WD_MIN, min(_WD_MAX, base * factor))
+    return _wd_scale(max(_WD_MIN, min(_WD_MAX, base * factor)))
 
 
 def _watchdog_arm(chart_type, data, budget=None):
@@ -3224,6 +3537,8 @@ def _watchdog_arm(chart_type, data, budget=None):
         return None
     if budget is None:
         budget = _wd_budget_for(chart_type, data)
+    elif budget != _WD_HARD_CAP:
+        budget = _wd_scale(budget)  # v6.2.0：显式预算在重试代同样放宽；硬保险除外
     start = time.time()
     main_t = threading.main_thread()
 
@@ -3239,12 +3554,14 @@ def _watchdog_arm(chart_type, data, budget=None):
         print("建议2: 调大预算 --timeout 600；或本图禁用看门狗 --timeout 0",
               file=sys.stderr)
         print("建议3: composite 面板过多时拆成多图分别渲染", file=sys.stderr)
-        os._exit(5)
+        rc = _spawn_retry(5)
+        os._exit(5 if rc is None else rc)  # rc=重试进程最终退出码；None=未重试按 5
 
     def _monitor():
         warned = set()
+        step = min(1.0, max(0.05, budget / 10.0))  # v6.2.0：预算<1s 时步长跟随，保证精度
         while True:
-            time.sleep(1.0)
+            time.sleep(step)
             if not main_t.is_alive():
                 return
             el = time.time() - start
@@ -3268,15 +3585,15 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n已中断", file=sys.stderr)
         sys.exit(130)
-    except SystemExit:
+    except SystemExit as e:
+        code = e.code if isinstance(e.code, int) else (0 if e.code is None else 1)
+        rc = _spawn_retry(code)
+        if rc is not None:
+            sys.exit(rc)
         raise
-    except (ValueError, KeyError, FileNotFoundError, json.JSONDecodeError) as e:
-        if os.environ.get("AF_DEBUG"):
-            raise
-        _print_v3_error(e)
-        sys.exit(_classify_exit_code(e))
-    except Exception as e:  # A2 v3：未知异常 → 中文诊断 + 原文保留 + 针对性建议
+    except Exception as e:  # v3 中文诊断 + v6.4.0 --debug 结构化侧车（两分支行为本相同，去重）
         if os.environ.get("AF_DEBUG"):
             raise  # 维护者/反馈通道：完整 traceback
         _print_v3_error(e)
+        if _LAST_ARGS is not None and getattr(_LAST_ARGS, "debug", False): _write_debug_report(_LAST_ARGS, e, getattr(_LAST_ARGS, "out", None))
         sys.exit(_classify_exit_code(e))

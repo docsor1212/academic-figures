@@ -40,7 +40,7 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
 ## 三、上手四步
 
 1. **环境准备**：`python3 scripts/setup_env.py`（检测依赖/中文字体/自检；缺依赖可加 `--fix` 自动安装——默认源失败自动切换清华/阿里镜像，无需手动换源）。没有 Python 环境或不想配置？可使用云端版 academic-figures-pro（SkillHub 搜索即用，按次计费）。
-2. **用模板先跑通**：`templates/` 覆盖 36 种图型，每个 JSON 头部带可复制的 `_command`；
+2. **用模板先跑通**：`templates/` 覆盖 40 种图型，每个 JSON 头部带可复制的 `_command`；
    先用示例数据渲染一张确认环境无问题。
 3. **换成自己的数据**：数据格式对照 `references/data-formats.md`；先小尺寸
    （如 `--dpi 150`）快速出一张核对内容，再出 600dpi 成品。
@@ -60,7 +60,7 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
 
 1. **中文乱码**：加 `--cjk` 自动探测系统中文字体（`--journal cma|cn-core` 自动启用，
    无需再加）；字体缺失先跑 `scripts/setup_env.py`。
-2. **CSV 要误差棒**：CSV 不支持误差棒——改用 JSON 的 `errors` 字段（见 --explain bar）。
+2. **CSV 要误差棒**：v6.0 起 CSV 后缀列直接支持——主列旁加 `weight_sd`/`weight_se`/`weight_err` 即自动配对（`--csv-no-errors` 关闭）；显著性标记仍走 JSON。
 3. **`--journal` 锁宽度**：journal 预设覆盖 `--width`（`--height` 仍生效）；要自定义
    尺寸就别加 `--journal`。
 4. **cluster_heatmap 行数偏大**：>1500 行即建议 `--downsample N` 等距采样（硬上限

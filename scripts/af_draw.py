@@ -4,19 +4,20 @@
 拆分后 gen_figure 主文件保留：参数解析/校验/统计推断/流水线/文档；
 本模块只做绘制。公开名经 gen_figure 再导出，`import gen_figure` 用法不变。
 """
+import os
 import sys
 
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
+from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Polygon, Circle
 import numpy as np
 
 try:
     import af_v23_stats as _afstats
 except ImportError:  # 统计模块不在同目录时降级（标注函数自行判 None 提示）
     _afstats = None
-from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear
+from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear, _SKETCH_MODE
 
 
 def _darken_color(color, factor=0.55):
@@ -226,6 +227,21 @@ def annotate_multi_stats(ax, series, positions, theme, chart_type):
 # ── Alt text generation (v2.2, accessibility) ─────────────────────────
 
 
+def _fmt_series_value(v, series_values):
+    """v6.8.0：show-values 数值标签精度自适应（随系列数据小数位，cap 3；整数仍整数）。
+    历史：bar 固定 .1f 曾把 5.032 显示成 5.0（视觉门二轮机械断言抓获）。"""
+    v = float(v)
+    if v.is_integer():
+        return f"{int(v)}"
+
+    def _dec(x):
+        s = f"{float(x):.6f}".rstrip("0")
+        return len(s.split(".")[1]) if "." in s else 0
+
+    nd = min(3, max((_dec(x) for x in series_values), default=1))
+    return f"{v:.{nd}f}"
+
+
 def _hatch_edgecolor(theme, fill_color):
     """斜纹描边色：主题声明 hatch_edge=auto 时用填充同系深色，否则黑色（历史行为）。"""
     if not isinstance(theme, dict) or theme.get("hatch_edge") != "auto":
@@ -245,6 +261,65 @@ def apply_base_style(ax, theme):
         return
     ax.yaxis.grid(True, alpha=theme["grid_alpha"], linestyle='--')
     ax.tick_params(labelsize=theme["font_size"] - 1)
+
+
+def apply_sketch_style():
+    """v7.6 --style sketch：手绘风（参考图精髓复刻）。xkcd path effects（线条抖动+
+    手写体 fallback 链）+淡虚线网格+粗白纹；配合立体皇冠与黑粗数值标签。"""
+    plt.xkcd()
+    plt.rcParams["font.family"] = ["Balsamiq Sans", "Comic Neue", "Patrick Hand",
+                                   "Humor Sans", "xkcd", "Comic Sans MS",
+                                   "DejaVu Sans"]  # v7.6.1 粗圆马克笔手写链（Balsamiq=参考图同气质且高辨识）
+    plt.rcParams["axes.grid.axis"] = "y"  # 参考图=仅水平网格
+    plt.rcParams["axes.titlelocation"] = "left"
+    plt.rcParams["axes.titlecolor"] = "#1F4E79"
+    plt.rcParams["axes.titleweight"] = "bold"
+    plt.rcParams["hatch.linewidth"] = 2.2
+    plt.rcParams["axes.grid"] = True
+    plt.rcParams["grid.linestyle"] = "--"
+    plt.rcParams["grid.alpha"] = 0.35
+    plt.rcParams["grid.linewidth"] = 0.7
+    plt.rcParams["axes.axisbelow"] = True  # 网格在柱体下层（参考图口径）
+    _SKETCH_MODE[0] = True
+    os.environ["AF_SKETCH"] = "1"  # detect_cjk_font 子进程感知手绘模式（中文手写字形）
+    print("[style] sketch 手绘模式（xkcd 手绘线+淡虚线网格+粗白纹+黑粗数值+立体皇冠）",
+          file=sys.stderr)
+
+
+_ARENA_FILL = ("#E8A33D", "#5B8DB8", "#9B72C7")   # v7.6.2 数据柱全彩循环（橙斜/蓝点/紫斜）
+_ARENA_HATCH = ("///", "..", "///")               # 白粗纹两种（斜/点）×三彩
+_ARENA_BASE = "#A9B7C6"                            # 参照系柱（人类/基线/随机）=浅蓝灰实心，不占彩循环位
+_ARENA_BASELINE_KW = ("基线", "人类", "随机", "baseline", "human", "random")
+_ARENA_CHAMP = "#0F8A6D"
+
+
+def _labels_short(lb):
+    """v7.6.2 arena stderr 用：标签首行截断。"""
+    return str(lb).split("\n")[0][:12]
+
+
+def _draw_crown(ax, bar, vmax, yspan=None):
+    """v7.6 --arena 立体皇冠（参考图 emoji 皇冠复刻）：五尖冠体+三尖顶圆球
+    +分离底座+双层金+深棕描边。抬升按轴跨度计（低值面板数值不被压）。"""
+    cx = bar.get_x() + bar.get_width() / 2.0
+    _span = yspan if yspan else vmax
+    y0 = bar.get_y() + bar.get_height() + _span * 0.12
+    w = bar.get_width() * 0.52
+    h = _span * 0.075
+    xL, xR = cx - w, cx + w
+    yb = y0 + h * 0.16
+    pts = [(xL, yb), (xL, yb + h * 0.62), (cx - w * 0.5, yb + h * 0.30),
+           (cx, yb + h * 0.95), (cx + w * 0.5, yb + h * 0.30), (xR, yb + h * 0.62),
+           (xR, yb)]
+    ax.add_patch(Polygon(pts, closed=True, facecolor="#F6B72E",
+                         edgecolor="#8A5A16", linewidth=1.6, zorder=7))
+    for fx, fy in ((xL, yb + h * 0.62), (cx, yb + h * 0.95), (xR, yb + h * 0.62)):
+        ax.add_patch(Circle((fx, fy), w * 0.12, facecolor="#FFD34D",
+                            edgecolor="#8A5A16", linewidth=1.2, zorder=8))
+    ax.add_patch(FancyBboxPatch(
+        (xL - w * 0.10, y0), 2 * (w + w * 0.10), h * 0.15,
+        boxstyle="round,pad=0,rounding_size=" + str(w * 0.08),
+        facecolor="#E09E1F", edgecolor="#8A5A16", linewidth=1.4, zorder=9))
 
 
 def gen_bar(data, ax, theme, cjk_fp, **kwargs):
@@ -279,13 +354,57 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                 errs = [errs] * n_groups
 
         hatch_val = HATCH_PATTERNS[i % len(HATCH_PATTERNS)] if use_hatch else None
+        # v7.5 --arena 基准对比竞技场风格（单系列竖向 bar）：per-bar 异质填充循环
+        # （灰实心/橙白斜线/蓝白点纹）+冠军柱实心深青绿+金色皇冠+数值高亮。
+        arena = kwargs.get("arena")
+        if isinstance(arena, str) and arena.strip().lower() == "off":
+            arena = None  # v7.7 --arena off 显式逃生门（负面指标最高=最差，自动皇冠失义）
+        _auto_arena = False
+        if arena is None and kwargs.get("arena_default") and n_series == 1 \
+                and len(values) >= 2 and not kwargs.get("alternate") \
+                and not kwargs.get("horizontal"):
+            arena = "auto"; _auto_arena = True  # v7.7 默认竞技场（默认输出=最佳输出第二期）
+        _aci = None
+        if arena and n_series == 1:
+            if horizontal:
+                print("[ignored] --arena 仅支持竖向 bar（横向模式本次忽略）", file=sys.stderr)
+                arena = None
+            else:
+                _vals_f = [float(v) for v in values]
+                if str(arena) == "auto":
+                    _aci = max(range(len(_vals_f)), key=lambda k: _vals_f[k])
+                else:
+                    _aci = next((k for k, lb in enumerate(labels)
+                                 if " ".join(str(lb).split()) == " ".join(str(arena).split())), None)
+                    if _aci is None:
+                        print(f"[ignored] --arena {arena} 未匹配类别标签，自动选最高柱",
+                              file=sys.stderr)
+                        _aci = max(range(len(_vals_f)), key=lambda k: _vals_f[k])
+                def _is_base(k):
+                    return any(w in str(labels[k]).lower() for w in _ARENA_BASELINE_KW)
+                _ci = [k for k in range(len(_vals_f)) if k != _aci and not _is_base(k)]
+                bar_colors = []
+                for k in range(len(_vals_f)):
+                    if k == _aci:
+                        bar_colors.append(_ARENA_CHAMP)
+                    elif _is_base(k):
+                        bar_colors.append(_ARENA_BASE)
+                    else:
+                        bar_colors.append(_ARENA_FILL[_ci.index(k) % 3])
+                print(f"[arena] 冠军={_labels_short(labels[_aci])}"
+                      f"（{'默认竞技场风格；负面指标请 --arena off' if _auto_arena else '--arena'}）",
+                      file=sys.stderr)
+        elif arena:
+            print("[ignored] --arena 仅单系列 bar 生效（多系列已忽略）", file=sys.stderr)
         # v3.10 单系列视觉增强（真金链路反馈"默认出图朴素"）：
         # ①Top-N 强调层级——最大条(含并列)主题主色，其余同色淡化（focus+context）
         # ②斜纹豁免——斜纹是"系列区分"工具，单系列铺满=噪声
         # ③图例抑制——单系列图例=系列名复读（label 不设，图例自然消失）
         _single_enh = (n_series == 1 and len(values) >= 3
                        and not kwargs.get("alternate", False))
-        if kwargs.get("alternate", False) and n_series == 1:
+        if arena and n_series == 1:
+            pass  # --arena：bar_colors 已在上方 arena 块赋值（per-bar 循环+冠军）
+        elif kwargs.get("alternate", False) and n_series == 1:
             # GLM-5.2 blog style: alternate first two theme colors per bar
             bar_colors = [colors[j % 2] for j in range(len(values))]
         elif _single_enh:
@@ -295,10 +414,26 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
             _accent = colors[i % len(colors)]
             _muted = to_rgba(_accent, 0.42)
             bar_colors = [_accent if abs(v - _vmax) < 1e-12 else _muted for v in _vals]
-            hatch_val = None  # 单系列斜纹豁免
+            _is_brand = isinstance(theme, dict) and theme.get("hatch_edge") == "auto"
+            if use_hatch and not _is_brand:
+                hatch_val = None  # 单系列斜纹豁免（v3.10：斜纹=系列区分工具；glm-brand 不豁免）
+                print("[ignored] --hatch 单系列已豁免斜纹（系列区分工具；"
+                      "--style glm-brand 不豁免）", file=sys.stderr)
         else:
             bar_colors = colors[i % len(colors)]
-        if use_hatch and not (n_series == 1 and hatch_val is None):
+        if arena and n_series == 1 and _aci is not None:
+            bars = bar_func(x + offset, values, w * 0.78, yerr=errs, color=bar_colors,
+                            edgecolor="white",
+                            linewidth=[0.5 if (k == _aci or any(w in str(labels[k]).lower() for w in _ARENA_BASELINE_KW)) else 1.4 for k in range(len(values))],
+                            hatch=[None if (k == _aci or any(w in str(labels[k]).lower() for w in _ARENA_BASELINE_KW))
+                                   else _ARENA_HATCH[_ci.index(k) % 3]
+                                   for k in range(len(values))],
+                            capsize=3, error_kw={'linewidth': 1})
+            _ys = ax.get_ylim()[1] - ax.get_ylim()[0]
+            _draw_crown(ax, bars[_aci], max(float(v) for v in values), yspan=_ys)
+            _top = ax.get_ylim()[1]
+            ax.set_ylim(top=_top + _ys * 0.22)  # 皇冠全域（冠顶=y0+0.178span，0.22 留裕量）
+        elif use_hatch and not (n_series == 1 and hatch_val is None):
             # GLM-5.2 blog style: ALL bars get hatching. glm-brand: 同系深色纹+边
             #（视觉精修）；其他主题保持黑色纹（历史行为）。
             bars = bar_func(x + offset, values, w, yerr=errs,
@@ -312,6 +447,12 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                             color=bar_colors, edgecolor='white', linewidth=0.5,
                             capsize=3, error_kw={'linewidth': 1},
                             label=name if n_series > 1 else None)
+        if _SKETCH_MODE[0]:
+            # v7.7.1 缺陷修复：xkcd 路径抖动会把柱体白色描边随机位移切入自身/邻柱
+            # 填充（视觉门实锤白楔缺口，且抖动无种子=随机逃逸）——sketch 模式柱体
+            # 补丁一律禁用路径抖动走直边（手绘感保留在轴线/网格/字体/皇冠）。
+            for _p in getattr(bars, "patches", []):
+                _p.set_sketch_params(None)
         all_bars.append((name, values, bars, offset))
 
         # v4.2 --peak-label：最大值点自动注记（数据事实，单/多系列均取全局峰）
@@ -331,15 +472,23 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
         if kwargs.get("show_values", False):
             for j, v in enumerate(values):
                 err = errs[j] if errs and j < len(errs) else 0
-                _fv = f'{int(v)}' if float(v).is_integer() else f'{v:.1f}'
+                _fv = _fmt_series_value(v, values)
+                _champ = bool(arena and n_series == 1 and j == _aci)
+                if _champ:
+                    _vc, _fw = _ARENA_CHAMP, 'bold'
+                elif _SKETCH_MODE[0]:
+                    _vc, _fw = "#222222", 'bold'  # sketch 手绘风：数值黑粗（参考图口径）
+                else:
+                    _vc, _fw = colors[i % len(colors)], 'bold' if _champ else 'normal'
+                _fs = 10 if _SKETCH_MODE[0] else 7
                 if horizontal:
                     ax.text(v + err + max(values) * 0.01, x[j] + offset,
-                            _fv, ha='left', va='center', fontsize=7,
-                            color=colors[i % len(colors)])
+                            _fv, ha='left', va='center', fontsize=_fs,
+                            color=_vc, fontweight=_fw)
                 else:
                     ax.text(x[j] + offset, v + err + max(values) * 0.01,
-                            _fv, ha='center', va='bottom', fontsize=7,
-                            color=colors[i % len(colors)])
+                            _fv, ha='center', va='bottom', fontsize=_fs,
+                            color=_vc, fontweight=_fw)
 
     # Ratio annotations (e.g., "4.96x" above second series bars)
     if show_ratio and n_series >= 2:
@@ -395,7 +544,7 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
         ax.invert_yaxis()
     else:
         max_lbl_len = max((len(str(l)) for l in labels), default=0)
-        rotation = 45 if (len(labels) > 8 or max_lbl_len > 12) else 0
+        rotation = 0 if _SKETCH_MODE[0] else (45 if (len(labels) > 8 or max_lbl_len > 12) else 0)
         ax.set_xticks(x)
         ax.set_xticklabels(labels, fontsize=theme["font_size"] - 1,
                            rotation=rotation, ha='right' if rotation else 'center',
@@ -1019,6 +1168,7 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
 
     # ── 自动中位生存（原始数据组；用户传 median_survival 仍画竖线，互不冲突）──
     median_notes = []
+    _med_ci = [0, 0]  # v6.4.0：[带CI组数, 显示数值组数]——CI 缺失时标签须降级
     if kwargs.get("median_auto", True) and raw_groups and _afstats is not None:
         for gname in group_names:
             if gname not in raw_groups or (median_survival and gname in median_survival):
@@ -1036,13 +1186,16 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
             else:
                 if clo is not None and chi_ is not None:
                     median_notes.append(f"{gname}: {med:g}（{clo:g}~{chi_:g}）")
+                    _med_ci[0] += 1
                 else:
                     median_notes.append(f"{gname}: {med:g}")
+                _med_ci[1] += 1
                 if median_survival is None:
                     median_survival = {}
                 median_survival.setdefault(gname, med)
         if median_notes:
-            print("km: 自动中位生存（95%CI）：" + "；".join(median_notes), file=sys.stderr)
+            _ml = "中位生存（95%CI）" if _med_ci[1] > 0 and _med_ci[0] == _med_ci[1] else "中位生存"
+            print("km: 自动" + _ml + "：" + "；".join(median_notes), file=sys.stderr)
         if log_rank is not None:
             method = log_rank.get("method", "log-rank")
             p_val = log_rank.get("p")
@@ -1052,14 +1205,16 @@ def gen_km(data, ax, theme, cjk_fp, **kwargs):
                 p_val = 1.0
             p_str = f"p = {p_val:.3f}" if p_val >= 0.001 else "p < 0.001"
             sig = "***" if p_val < 0.001 else "**" if p_val < 0.01 else "*" if p_val < 0.05 else "NS"
-            _box_lines = [f"{method} {p_str}{sig}"]
+            _box_lines = [f"{method} {p_str} {sig}" if sig else f"{method} {p_str}"]
             if median_notes:
-                _box_lines.append("中位生存（95%CI）")
+                _ml = "中位生存（95%CI）" if _med_ci[1] > 0 and _med_ci[0] == _med_ci[1] else "中位生存"
+                _box_lines.append(_ml)
                 _box_lines += median_notes[:4]
             _km_note_box(ax, "\n".join(_box_lines), cjk_fp)
             median_notes = []
         if median_notes:
-            _km_note_box(ax, "中位生存（95%CI）\n" + "\n".join(median_notes[:4]), cjk_fp)
+            _ml = "中位生存（95%CI）" if _med_ci[1] > 0 and _med_ci[0] == _med_ci[1] else "中位生存"
+            _km_note_box(ax, _ml + "\n" + "\n".join(median_notes[:4]), cjk_fp)
 
     # ── 风险表（自动计算；独立坐标轴与主图共享 x 轴）──
     rendered = False
@@ -1341,7 +1496,7 @@ def _annotate_peak(ax, xs, labels, values, horizontal, theme, cjk_fp, series_nam
 
 
 def gen_slope(data, ax, theme, cjk_fp, **kwargs):
-    """Slope chart（v4.2，第 23 种图型）：两时点比较——每项一条左→右连线，
+    """Slope chart（v4.2，第 23 号图型）：两时点比较——每项一条左→右连线，
     两端直接标注"名称+数值"，最大上升项主题色强调、最大下降项暖橙。
     期刊 pre/post 标准形态（如治疗前后、基线→随访）。
 
@@ -1423,7 +1578,7 @@ def gen_slope(data, ax, theme, cjk_fp, **kwargs):
 
 
 def gen_volcano(data, ax, theme, cjk_fp, **kwargs):
-    """Volcano plot（v4.4，第 24 种图型）：组学差异表达标准形态——
+    """Volcano plot（v4.4，第 24 号图型）：组学差异表达标准形态——
     x=log2(倍数变化)，y=-log10(p 值)；上调暖橙/下调蓝/非显著灰；
     阈值虚线（|log2FC| 与 p）+ 显著性 Top-N 自动名称标注（确定性偏移避让）。
 
@@ -1575,7 +1730,7 @@ def validate_raincloud(data):
 
 
 def gen_raincloud(data, ax, theme, cjk_fp, **kwargs):
-    """Raincloud plot（v4.9，第 27 种图型）：半小提琴（KDE 密度云）+ 箱线（五数概括）
+    """Raincloud plot（v4.9，第 27 号图型）：半小提琴（KDE 密度云）+ 箱线（五数概括）
     + 抖动原始点（雨滴）三合一——分布可视化现代标准形态（Allen et al. 2021），
     box 只给摘要、violin 藏样本、raincloud 全部给出且互不遮挡。
 
@@ -1663,7 +1818,7 @@ def gen_raincloud(data, ax, theme, cjk_fp, **kwargs):
 
 
 def gen_upset(data, ax, theme, cjk_fp, **kwargs):
-    """UpSet 交集图（v4.7，第 25 种图型）：多集合交集可视化——韦恩图（2~4 集合）
+    """UpSet 交集图（v4.7，第 25 号图型）：多集合交集可视化——韦恩图（2~4 集合）
     的标准后继；≥5 集合场景（组学多基因集/多标签共现/多中心入排标准重叠）远优于 venn。
 
     经典三区布局：顶部=交集大小柱（降序，计数直标）；中部=点阵（行=集合、
@@ -1895,7 +2050,7 @@ def validate_waterfall(data):
 
 
 def gen_waterfall(data, ax, theme, cjk_fp, **kwargs):
-    """Waterfall plot（v4.8，第 26 种图型）：肿瘤学最佳缓解瀑布图——每例患者
+    """Waterfall plot（v4.8，第 26 号图型）：肿瘤学最佳缓解瀑布图——每例患者
     自基线最佳肿瘤直径变化百分比，按变化降序（经典形态）排列；
     阈值虚线（PR/PD）+ 类别着色 + 计数事实框（纯计数，零推断）。
 
@@ -2046,7 +2201,7 @@ def reserve_bottom_band(ax, n_rows, top_pad=0.4, band=0.8):
 
 
 def gen_swimmer(data, ax, theme, cjk_fp, **kwargs):
-    """Swimmer plot（v4.10，第 28 种图型）：临床试验游泳图——每例受试者一条横条，
+    """Swimmer plot（v4.10，第 28 号图型）：临床试验游泳图——每例受试者一条横条，
     条长=治疗/随访持续时长，按持续时长降序（经典形态，PharmaSUG/IASLC 惯例）；
     端部箭头=数据截止时仍在治疗/缓解（ongoing），条上空心圆点=里程碑事件时间
     （如首次应答）；类别着色与瀑布图同族（RECIST 规范语义色），地标参考线=竖直
@@ -2503,7 +2658,9 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
 
     gs = gridspec.GridSpec(n_rows, n_cols, figure=fig,
                            hspace=0.35, wspace=0.3,
-                           left=0.08, right=0.95, top=0.92, bottom=0.08)
+                           left=0.08, right=0.95,
+                           top=0.72 if data.get("suptitle") else 0.92,
+                           bottom=0.13 if data.get("source_note") else 0.08)
 
     # v4.1 自动面板标签（期刊 A/B/C 规范自动化）："panel_labels": true → 按
     # pos 行序自动加粗 A/B/C…；传数组（如 ["I","II"]）自定义序列；缺省 false
@@ -2554,6 +2711,7 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                           or panel_type in ("hbar", "horizontal_bar"),
             "hatch": panel.get("hatch", False),
             "alternate": panel.get("alternate", False),
+            "arena": panel.get("arena", kwargs.get("arena")),  # v7.5 面板级竞技场风格
             "show_ratio": panel.get("show_ratio", False),
             "cmap": panel.get("cmap", kwargs.get("cmap")),
             "vmin": panel.get("vmin", kwargs.get("vmin")),
@@ -2579,9 +2737,15 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
 
         # Panel-specific labels
         ptitle = panel.get("title", "")
+        psub = panel.get("subtitle", "")
         if ptitle:
-            sub_ax.set_title(ptitle, fontsize=theme["font_size"], fontweight='bold', pad=8,
+            sub_ax.set_title(ptitle, fontsize=theme["font_size"], fontweight='bold',
+                             pad=34 if psub else 8,
                              fontproperties=cjk_fp if cjk_fp and has_cjk(ptitle) else None)
+        if psub:
+            sub_ax.text(0.5, 1.02, psub, transform=sub_ax.transAxes, ha='center',
+                        va='bottom', fontsize=theme["font_size"] - 2, color="#9A9A9A",
+                        fontproperties=cjk_fp if cjk_fp and has_cjk(psub) else None)
         if panel.get("xlabel"):
             sub_ax.set_xlabel(panel["xlabel"], fontsize=theme["font_size"] - 1,
                               fontproperties=cjk_fp if cjk_fp and has_cjk(panel["xlabel"]) else None)
@@ -2626,6 +2790,25 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                 a.set_ylim(_lo, _hi)
             print(f"composite: share_y 已统一「{_yl}」×{len(_axs)} 面板 y 轴"
                   f"（{'log ' if _log else ''}{_lo:.4g}~{_hi:.4g}）", file=sys.stderr)
+
+    # v7.6 手绘参考图形态件：单行多面板间虚线分隔 + json suptitle 总标题（左上粗体）
+    if data.get("suptitle"):
+        _st = str(data["suptitle"])
+        fig.text(0.02, 0.995, _st, fontsize=theme["font_size"] + 6,
+                 fontweight="bold", color="#1F4E79", ha="left", va="top",
+                 fontproperties=cjk_fp if cjk_fp and has_cjk(_st) else None)
+        fig.subplots_adjust(top=0.72)  # 面板标题层整体让出总标题层（参考图两级标题）
+    if data.get("source_note"):
+        _sn = str(data["source_note"])
+        fig.text(0.02, 0.012, _sn, fontsize=theme["font_size"] - 2,
+                 color="#9A9A9A", ha="left", va="bottom",
+                 fontproperties=cjk_fp if cjk_fp and has_cjk(_sn) else None)
+    _n_panels = len(data.get("panels", []))
+    if _n_panels > 1:
+        for _k in range(1, _n_panels):
+            fig.add_artist(plt.Line2D([_k / _n_panels, _k / _n_panels],
+                                      [0.02, 0.96], transform=fig.transFigure,
+                                      ls="--", color="#B8B8B8", lw=1.2, zorder=0))
 
     return "composite"  # signal to main() that figure is already built
 
@@ -3305,7 +3488,7 @@ def alt_text_core(chart_type, data, title=""):
 
 
 def gen_ridgeline(data, ax, theme, cjk_fp, **kwargs):
-    """Ridgeline plot（v5.0，第 29 种图型）：山脊图/joyplot——多组 KDE 密度沿纵向
+    """Ridgeline plot（v5.0，第 29 号图型）：山脊图/joyplot——多组 KDE 密度沿纵向
     堆叠、部分重叠，一屏展示"分布如何逐组移动/变形"（时间进程/剂量梯度/分场景
     比较的全景形态；Wehrle & Johnson 经典形态）。画序自底向上（画家算法），
     上排山脊线完整覆盖下排填充。
@@ -3487,7 +3670,7 @@ def write_audit_sidecar(data, chart_type, out_path):
 
 
 def gen_dumbbell(data, ax, theme, cjk_fp, **kwargs):
-    """Dumbbell plot（v5.1，第 30 种图型）：哑铃图——每行两点（from→to）+连接线，
+    """Dumbbell plot（v5.1，第 30 号图型）：哑铃图——每行两点（from→to）+连接线，
     横向形态（发表惯例），强调"逐条目的差距大小"（两时点/两组对照：基线 vs
     随访、男 vs 女、实验 vs 对照；Pew/Lancet 系常用形态）。严格限两时点：
     >2 时点请用 slope/line，配对检验请用 paired。
@@ -3670,7 +3853,7 @@ def _cal_bins(data):
 
 
 def gen_calibration(data, ax, theme, cjk_fp, **kwargs):
-    """calibration 校准曲线（v5.2，第 31 种图型）：临床预测模型三件套之一
+    """calibration 校准曲线（v5.2，第 31 号图型）：临床预测模型三件套之一
     （与 ROC/DCA 同生态）——分箱预测概率 vs 实际观测率 + 理想对角线（虚线），
     等比坐标。JSON: bins=[{predicted,observed,n?,ci_lo?,ci_hi?}] 或
     predicted/observed 平行数组（ci_lo/ci_hi/n 可选平行数组，长度同 predicted）；
@@ -3769,7 +3952,7 @@ def validate_calibration(data):
 
 
 def gen_dca(data, ax, theme, cjk_fp, **kwargs):
-    """dca 决策曲线分析（v5.2，第 32 种图型）：临床预测模型三件套之一——
+    """dca 决策曲线分析（v5.2，第 32 号图型）：临床预测模型三件套之一——
     净收益 vs 阈值概率，各模型与两条参照策略（全部干预/不干预）比较，
     净收益定义 Vickers（每 100 人净真阳性数）。
     JSON: thresholds 严格升序 (0,1) 开区间；models=[{name, net_benefit}] 1~6 个；
@@ -3982,7 +4165,7 @@ def _nom_ticks(var, pts_hi=100.0, name_key="name"):
 
 
 def gen_nomogram(data, ax, theme, cjk_fp, **kwargs):
-    """nomogram 列线图（v5.3，第 33 种图型）：临床预测模型第四件——把多变量
+    """nomogram 列线图（v5.3，第 33 号图型）：临床预测模型第四件——把多变量
     回归模型的贡献转成"查表尺"：各变量刻度→Points(0~100)→Total Points→
     结局概率。引擎只做可视化不拟合：points/points_at 请来自你已拟合的模型
     （R rms::nomogram / Python 统计包输出），方法学口径写入统计方法段。
@@ -4144,7 +4327,7 @@ def validate_nomogram(data):
 # ═══ v5.4：rcs 限制性立方样条曲线（临床回归线，第 34 图型）+ DCA 获益区着色 ═══
 
 def gen_rcs(data, ax, theme, cjk_fp, **kwargs):
-    """rcs 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 种图型）：把已拟合
+    """rcs 限制性立方样条/非线性剂量反应曲线（v5.4，第 34 号图型）：把已拟合
     样条模型的网格结果画成 带置信带的效应曲线（HR/OR 惯例对数轴 + 参照线）。
     JSON: points=[{value, est, ci_lo, ci_hi}]（≥5 点，来自你拟合的 RCS/Cox/
     Logistic 样条输出——引擎只可视化不拟合，方法学口径写入统计方法段）；
@@ -4342,7 +4525,7 @@ def _plain_log_ticks(ax):
 
 
 def gen_subgroup_forest(data, ax, theme, cjk_fp, **kwargs):
-    """subgroup 亚组分析森林图（v5.5，第 35 种图型）：亚组效应 + 交互检验
+    """subgroup 亚组分析森林图（v5.5，第 35 号图型）：亚组效应 + 交互检验
     一图呈现（NEJM/Lancet 风格：左侧亚组行、中间 CI 森林、右侧 est/p 列，
     亚组标题行报 P interaction，底部总效应菱形）。
     JSON: subgroups=[{name, p_interaction?, levels=[{name, est, ci_low, ci_high,
@@ -4644,6 +4827,143 @@ def write_repro_bundle(argv, data, out_path, extra_outputs=None):
 
 
 # v5.2：--suggest 输出双语化（domestic 反馈：辅助输出此前以英文为主）
+# ── v6.9.0 sig-bracket 组间显著性括号 ─────────────────────────────────
+def pairwise_all(series):
+    """v7.0.0 --sig-auto：全部两两比较（itertools.combinations）。
+    Shapiro 常态判定（双组均 p>0.05 → Welch t；否则 Mann-Whitney U）——
+    与 pairwise_vs_first 同构检验家族。返回 [(a, b, p_or_None), ...]。"""
+    from scipy import stats as _st
+    import itertools as _it
+    out = []
+    for a, b in _it.combinations(list(series.keys()), 2):
+        xa = [float(v) for v in series[a] if v is not None]
+        xb = [float(v) for v in series[b] if v is not None]
+        if len(xa) < 2 or len(xb) < 2:
+            out.append((a, b, None))
+            continue
+        try:
+            norm = (_st.shapiro(xa).pvalue > 0.05
+                    and _st.shapiro(xb).pvalue > 0.05)
+        except Exception:
+            norm = False
+        try:
+            if norm:
+                p = float(_st.ttest_ind(xa, xb, equal_var=False).pvalue)
+            else:
+                p = float(_st.mannwhitneyu(xa, xb).pvalue)
+        except Exception:
+            p = None
+        out.append((a, b, p))
+    return out
+
+
+def compute_bracket_layers(pairs):
+    """comparisons 分层布局纯函数：pairs=[(i, j), ...]（组索引对，i<j 自动归一）。
+    经典区间重叠最低层分配（span 长的先放矮层）→ 返回与输入同序的 layer 列表。
+    同层两条 bracket 的 [i,j] 闭区间重叠即视为冲突（共享端点=竖线相撞，也算）。"""
+    idx = sorted(range(len(pairs)), key=lambda k: -(max(pairs[k]) - min(pairs[k])))
+    placed, out = [], [0] * len(pairs)
+    for k in idx:
+        i, j = min(pairs[k]), max(pairs[k])
+        layer = 0
+        while any(pl == layer and not (pj < i or pi > j) for (pi, pj, pl) in placed):
+            layer += 1
+        out[k] = layer
+        placed.append((i, j, layer))
+    return out
+
+
+def _maybe_draw_brackets(data, ax, kwargs, chart_name=None):
+    """GENERATORS wrapper 钩子：--sig-bracket + JSON comparisons → 组间显著性括号。
+    组名经 ax tick 标签映射（bar/box/violin 三族 tick 均为组名）；horizontal 模式
+    暂不支持（[ignored] 告知）；未知组名 raise ValueError（中文诊断）。"""
+    if not (kwargs.get("sig_bracket") or kwargs.get("sig_auto")):
+        return
+    if chart_name is not None and chart_name not in (
+            "bar", "grouped_bar", "box", "violin"):
+        print("[ignored] --sig-bracket 对 " + chart_name + " 不适用（仅 bar/grouped_bar/box/violin）", file=sys.stderr)
+        return
+    comps = data.get("comparisons")
+    if (not comps or not isinstance(comps, list)) and kwargs.get("sig_auto"):
+        _auto_domains = ("box", "violin", "raincloud")
+        if chart_name not in _auto_domains:
+            print("[ignored] --sig-auto 仅对 box/violin/raincloud 的原始分布数据自动检验；"
+                  "聚合图请改用 comparisons 字段 + --sig-bracket", file=sys.stderr)
+            return
+        _ser = data.get("series") or data.get("groups") or {}
+        if not isinstance(_ser, dict) or len(_ser) < 2:
+            print("[ignored] --sig-auto 需要 ≥2 组原始数据（series/groups）", file=sys.stderr)
+            return
+        try:
+            _pairs = pairwise_all(_ser)
+        except ImportError:
+            print("WARNING: --sig-auto 需要 scipy（pip install scipy）", file=sys.stderr)
+            return
+        comps = [{"a": a, "b": b, "p": p} for (a, b, p) in _pairs if p is not None]
+        _n_ns = sum(1 for (_a, _b, p) in _pairs if p is None)
+        if _n_ns:
+            print(f"WARNING: --sig-auto {_n_ns} 组样本量 <2 无法检验，已跳过", file=sys.stderr)
+        print(f"[sig-auto] 两两检验 {_pairs and len(_pairs)} 对（Shapiro 判常态："
+              "双常态组 Welch t / 否则 Mann-Whitney U）", file=sys.stderr)
+        print("[sig-auto] 检验假设（样本独立性/随机抽样）请自行确认；"
+              "论文引用时请报告所用检验方法与各组 n", file=sys.stderr)
+    if not comps or not isinstance(comps, list):
+        print("[ignored] --sig-bracket 需要数据携带 comparisons 字段"
+              "（示例: [{a:组A, b:组B, p:0.03}, ...]）", file=sys.stderr)
+        return
+    if kwargs.get("horizontal"):
+        print("[ignored] --sig-bracket 暂不支持 horizontal 模式", file=sys.stderr)
+        return
+    ticks = [t.get_text() for t in ax.get_xticklabels()]
+    pos_map = {name: k for k, name in enumerate(ticks) if name}
+    if len(pos_map) < 2:
+        print("[ignored] --sig-bracket 未识别到组名 tick（需 ≥2 组）", file=sys.stderr)
+        return
+    pairs, stars = [], []
+    for c in comps:
+        a, b = c.get("a"), c.get("b")
+        if a not in pos_map or b not in pos_map:
+            raise ValueError(
+                f"comparisons 引用未知组名 {a!r}/{b!r}；有效组名: {sorted(pos_map)}")
+        if a == b:
+            raise ValueError(f"comparisons 的 a/b 不可为同组（{a!r}）")
+        p = c.get("p")
+        if p is None:
+            label = str(c.get("label") or _sig_stars(float(c.get("p", 1.0))))
+        else:
+            label = _sig_stars(float(p))
+        pairs.append((pos_map[a], pos_map[b]))
+        stars.append(label)
+    layers = compute_bracket_layers(pairs)
+    n_layer = max(layers) + 1
+    y0, y1 = ax.get_ylim()
+    span = (y1 - y0) or 1.0
+    step = span * 0.09
+    pad = span * 0.02
+    base = y1 + pad
+    ax.set_ylim(top=base + step * n_layer + pad)
+    width = (max(pos_map.values()) - min(pos_map.values())) / max(len(pos_map) - 1, 1) * 0.12
+    for (i, j), layer, s in zip(pairs, layers, stars):
+        yb = base + step * layer
+        ax.plot([i, i, j, j], [yb, yb + step * 0.32, yb + step * 0.32, yb],
+                color="#333333", linewidth=1.1, clip_on=False, zorder=5)
+        ax.text((i + j) / 2, yb + step * 0.42, s, ha="center", va="bottom",
+                fontsize=9, color="#333333", zorder=5)
+    print(f"[sig-bracket] {len(pairs)} 组间比较 → {n_layer} 层"
+          f"（星号阈值 <0.05/<0.01/<0.001；NS=不显著）", file=sys.stderr)
+
+
+def _wrap_brackets(fn, chart_name=None):
+    def _w(data, ax, theme, cjk_fp, **kwargs):
+        extra = fn(data, ax, theme, cjk_fp, **kwargs)
+        _maybe_draw_brackets(data, ax, kwargs, chart_name)
+        return extra
+    _w.__name__ = fn.__name__
+    _w.__doc__ = fn.__doc__
+    return _w
+
+
+
 _SUGGEST_TYPE_ZH = {
     "bar": "柱状图", "grouped_bar": "分组柱状图", "hbar": "横向条形图",
     "stacked_bar": "堆叠柱状图", "heatmap": "热图", "scatter": "散点图",
@@ -4656,7 +4976,7 @@ _SUGGEST_TYPE_ZH = {
     "upset": "UpSet 交集图", "raincloud": "雨云图", "slope": "斜率图",
     "volcano": "火山图", "swimmer": "游泳图", "waterfall": "瀑布图",
     "ridgeline": "山脊图", "dumbbell": "哑铃图",
-    "calibration": "校准曲线", "dca": "决策曲线",
+    "calibration": "校准曲线", "dca": "决策曲线", "rmst": "RMST 限制平均生存时间", "rob": "偏倚风险交通灯图",
 }
 
 
@@ -4666,7 +4986,15 @@ def format_suggest_line(idx, score, ctype, why):
     return f"  [{idx}] {ctype:<12} score {score:<3} — {why}" + (f"（{zh}）" if zh else "")
 
 
-GENERATORS = {
+def suggest_arena_note(best):
+    """v7.7 --suggest 附属提示（返回 str，空串=不打印）：bar 默认竞技场+sketch 榜单配方。"""
+    if best in ("bar", "hbar"):
+        return ("[arena] bar 单系列默认竞技场风格（冠军=最高柱；负面指标请 --arena off）；"
+                "基准榜单场景推荐加 --style sketch 手绘风。")
+    return ""
+
+
+_RAW_GENERATORS = {
     "bar": gen_bar,
     "grouped_bar": gen_bar,
     "hbar": gen_bar,
@@ -4676,6 +5004,7 @@ GENERATORS = {
     "scatter": gen_scatter,
     "line": gen_line,
     "dual_axis": gen_dual_axis,
+
     "box": gen_box,
     "boxplot": gen_box,
     "forest": gen_forest,
@@ -4700,3 +5029,4 @@ GENERATORS = {
     "rcs": gen_rcs,
     "subgroup": gen_subgroup_forest,
 }
+GENERATORS = {k: _wrap_brackets(v, k) for k, v in _RAW_GENERATORS.items()}

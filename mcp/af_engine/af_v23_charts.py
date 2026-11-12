@@ -117,7 +117,7 @@ def _meta_studies(data, tname, hint=""):
     return names, es, ses
 
 
-# ── galbraith Galbraith 径向图（v5.6 第 36 种图型，漏斗图姊妹图） ─────
+# ── galbraith Galbraith 径向图（v5.6 第 36 号图型，漏斗图姊妹图） ─────
 
 _RATIO_LABELS = ("OR", "HR", "RR")
 
@@ -141,25 +141,29 @@ def _draw_galbraith_arcs(ax, b, x_hi, est_label, fs_s, cjk_fp, pts=None):
             continue
         r = float(np.hypot(x_m, m))
         ang = float(np.degrees(np.arctan2(m, x_m)))
-        ax.add_patch(mpatches.Arc((0, 0), 2 * r, 2 * r, theta1=ang - 26.0,
-                                  theta2=ang + 26.0, color="#999999",
-                                  lw=0.9, linestyle=":", zorder=2))
         # 标签位=弧段中点（ang−14°）再径向外推 12%——离开数据线簇集区
         import math as _m
         _a = _m.radians(ang - 14.0)
         lx, ly = 1.12 * r * _m.cos(_a), 1.12 * r * _m.sin(_a)
+        # v5.7.0 交付验收裁决：弧线与读数同生共死——读数放不下时整条弧线
+        # 一并省略（无读数的弧线对读者是无法判读的噪声；stderr 报告条数）
         if pts is not None and len(pts):
             _dx = np.array([lx - px for px, _ in pts])
             _dy = np.array([ly - pz for _, pz in pts])
-            _near = float(np.hypot(x_hi, 1.0)) * 0.10  # 归一化最小间距（轴跨度 10%）
+            # v5.7：最小间距 0.10→0.075（读数密度放宽，仍以碰撞检测兜底防叠印）
+            _near = float(np.hypot(x_hi, 1.0)) * 0.075  # 归一化最小间距（轴跨度 7.5%）
             if bool((np.hypot(_dx, _dy) < _near).any()):
                 skipped += 1
                 continue
+        ax.add_patch(mpatches.Arc((0, 0), 2 * r, 2 * r, theta1=ang - 26.0,
+                                  theta2=ang + 26.0, color="#999999",
+                                  lw=0.9, linestyle=":", zorder=2))
         ax.annotate(f"{est_label}={v:g}", (lx, ly), ha="center", va="center",
                     fontsize=fs_s, color="#666666",
                     fontproperties=cjk_fp if cjk_fp and _has_cjk(est_label) else None)
     if skipped:
-        _warn(f"galbraith: {skipped} 条弧线读数与研究名过近已省略（弧线仍保留）")
+        _warn(f"galbraith: {skipped} 条效应量弧线（含读数）与研究名过近已整条省略"
+              "（保留的弧线均带读数）")
 
 
 def _declutter_annotations(ax, anns):
@@ -215,7 +219,7 @@ def _declutter_annotations(ax, anns):
 
 
 def gen_galbraith(data, ax, theme, cjk_fp, **kwargs):
-    """Galbraith 径向图（Meta 异质性可视化，漏斗图姊妹图；v5.6 第 36 种图型）。
+    """Galbraith 径向图（Meta 异质性可视化，漏斗图姊妹图；v5.6 第 36 号图型）。
 
     x=精度 1/SE，y=标准化效应 effect/SE；过原点固定效应回归线斜率 b=合并效应，
     ±1.96 平行带=同质区，带外研究=异质性/离群嫌疑（stderr 逐个报名+红圈高亮）。
@@ -268,6 +272,11 @@ def gen_galbraith(data, ax, theme, cjk_fp, **kwargs):
     _x_right = float(x.max()) * 0.90   # 右缘标注左翻（端点 pad 铁律：右 10% 区域标签向左，防溢出画布）
     import matplotlib.patheffects as _pe
     _stroke = [_pe.withStroke(linewidth=2.2, foreground="white")]  # 白描边：标注压合并线仍可读（视觉验收结论落地）
+    # v5.7：无效应参考线小标（比率尺度 y=0 即 OR=1；差值尺度=差值 0）
+    _rl = f"{est_label}=1" if est_label in _RATIO_LABELS else "差值=0"
+    ax.annotate(_rl, (x_hi, 0.0), ha="right", va="bottom", xytext=(0, 2),
+                textcoords="offset points", fontsize=fs_s, color="#999999",
+                path_effects=_stroke, zorder=2)
     _anns = []
     for i, nm in enumerate(names):
         if show_all or i in out_idx:
@@ -315,6 +324,167 @@ def gen_galbraith(data, ax, theme, cjk_fp, **kwargs):
     if out_idx:
         _warn("galbraith: 带外研究是异质性主要来源——考虑随机效应合并（DL 已报）、"
               "分层 Meta 或剔除该研究的敏感性分析对照")
+    return None
+
+
+# ── cif 竞争风险累计发生率（v5.7 第 37 号图型；Aalen-Johansen） ────────
+
+def _naive_one_minus_km(times, events, target=1):
+    """1−KM 朴素估计（竞争事件当删失）——高估参照线。
+
+    返回 (t_seq, one_minus_s_seq)，t 从 0 起（阶梯画法 where='post'）。"""
+    e1 = [1 if int(e) == target else 0 for e in events]
+    t_seq, s_seq, _ = st.km_estimate(times, e1)
+    return t_seq, [1.0 - s for s in s_seq]
+
+
+def gen_cif(data, ax, theme, cjk_fp, **kwargs):
+    """竞争风险累计发生率图（Aalen-Johansen；v5.7 第 37 号图型）。
+
+    有竞争事件（如死亡）时 1−KM 系统性高估目标事件的累计发生率（审稿高频
+    退稿点）——实线按事件原因分解 AJ 累计发生率，compare_km 叠加 1−KM 朴素
+    对照虚线直观显示高估幅度；stderr 报告事件计数/末点对比与口径提醒。
+    数据：长表 time+event 两等长数组（0=删失 1=目标事件 ≥2=竞争事件编号），
+    可选 cause_labels / percent / time_unit / y_max / compare_km（auto=有
+    竞争事件才画）。多臂分组请用 -t km（v3.7 起内置 AJ 自动模式）。
+    """
+    t_raw = data.get("time")
+    e_raw = data.get("event")
+    if not isinstance(t_raw, list) or not isinstance(e_raw, list):
+        if isinstance(data.get("groups"), dict):
+            raise ValueError("cif: 不支持 groups 多臂分组——CIF 按事件原因分层；"
+                             "多臂竞争风险请用 -t km（内置 AJ 自动模式）")
+        raise ValueError("cif: 需要 'time'+'event' 两个等长数组"
+                         "（0=删失 1=目标事件 ≥2=竞争事件）")
+    if len(t_raw) != len(e_raw):
+        raise ValueError(f"cif: time 有 {len(t_raw)} 个值但 event 有 "
+                         f"{len(e_raw)} 个 — 长度必须一致")
+    if not t_raw:
+        raise ValueError("cif: 数据为空")
+    try:
+        times = [float(v) for v in t_raw]
+    except (TypeError, ValueError):
+        raise ValueError("cif: time 含非数值项（NaN/字符串）——请清洗后重试")
+    try:
+        events = [int(v) for v in e_raw]
+    except (TypeError, ValueError):
+        raise ValueError("cif: event 含非整数编码（须为 0=删失 1=目标事件 ≥2=竞争事件）")
+    for _v, _e in zip(t_raw, e_raw):
+        # v5.7 审计 P2：与 validate 层同口径——bool/字符串在 Python API 直调时也不静默放行
+        if isinstance(_v, bool) or not isinstance(_v, (int, float)) or _v != _v:
+            raise ValueError("cif: time 含非数值项（NaN/布尔/字符串）——请清洗后重试")
+        if (isinstance(_e, bool) or not isinstance(_e, (int, float))
+                or float(_e) != int(_e) or int(_e) < 0):
+            raise ValueError(f"cif: event 编码须为 ≥0 整数（0=删失 1=目标事件 ≥2=竞争），"
+                             f"发现 {_e!r}")
+    if any(t < 0 for t in times):
+        raise ValueError("cif: 存在负时间——随访时间须 ≥0")
+    n = len(times)
+    n1 = sum(1 for e in events if e == 1)
+    comp_codes = sorted({e for e in events if e >= 2})
+    nc = sum(1 for e in events if e == 0)
+    if n1 == 0 and not comp_codes:
+        raise ValueError("cif: 全部为删失（event 全 0）——无法估计累计发生率")
+
+    cause_labels = data.get("cause_labels") if isinstance(data.get("cause_labels"), dict) else {}
+    # ⛔键↔标签一致性守卫（10-24 全谱审计：ep35 标签对调同类——唯一的键间接映射点）
+    _codes_in_data = {int(x) for x in e_raw if isinstance(x, (int, float)) and int(x) >= 1}
+    for _k in cause_labels:
+        try:
+            _kc = int(_k)
+        except (TypeError, ValueError):
+            raise ValueError(f"cif: cause_labels 键「{_k}」不是整数事件码（合法：1=目标事件，≥2=竞争事件）")
+        if _kc not in _codes_in_data:
+            raise ValueError(f"cif: cause_labels 引用了数据中不存在的事件码 {_kc}"
+                             f"（数据里实际出现的码：{sorted(_codes_in_data)}）——"
+                             "八成是码与含义写反了，请核对 event 列编码")
+    for _c in sorted(_codes_in_data):
+        if _c >= 2 and str(_c) not in {str(k) for k in cause_labels}:
+            print(f"cif: 竞争事件码 {_c} 未给 cause_labels，图例将用默认名「原因{_c}」", file=sys.stderr)
+    compare_mode = data.get("compare_km", "auto")
+    percent = bool(data.get("percent"))
+    unit = str(data.get("time_unit") or "")
+
+    aj = st.aalen_johansen(times, events)
+    if compare_mode in (None, "auto"):
+        compare = bool(comp_codes) and n1 > 0
+    else:
+        if not isinstance(compare_mode, bool):
+            raise ValueError("cif: compare_km 须为 true/false/auto"
+                             "（默认 auto=有竞争事件才画参照线）")
+        compare = compare_mode and n1 > 0
+        if compare_mode and not comp_codes:
+            _warn("cif: 无竞争事件（无 ≥2 编码）——1−KM 与目标因累计发生率重合，"
+                  "对照线已省略（此时 KM 口径正确，无需 CIF）")
+            compare = False
+        if compare_mode and n1 == 0:
+            _warn("cif: 无目标事件（无 1 编码）——1−KM 对照线无对象，已省略")
+            compare = False
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 2)
+    _scale = 100.0 if percent else 1.0
+
+    def _cause_name(j):
+        v = cause_labels.get(str(j), cause_labels.get(j))
+        return str(v) if v else ("目标事件" if j == 1 else f"竞争事件 {j}")
+
+    for k, j in enumerate(sorted(aj["cif"].keys())):
+        ys = [0.0] + [v * _scale for v in aj["cif"][j]]
+        xs = [0.0] + list(aj["times"])
+        ax.step(xs, ys, where="post", color=theme["colors"][k % len(theme["colors"])],
+                lw=2, label=_cause_name(j), zorder=3)
+    if compare:
+        tk, sk = _naive_one_minus_km(times, events, 1)
+        ax.step(tk, [v * _scale for v in sk], where="post", color="#888888",
+                lw=1.4, ls="--", label="1−KM（竞争当删失，高估参照）", zorder=2)
+
+    ax.set_xlabel(f"时间（{unit}）" if unit else "时间",
+                  fontproperties=cjk_fp if cjk_fp and (_has_cjk(unit) or not unit) else None)
+    yl = "累计发生率（%）" if percent else "累计发生率 Cumulative Incidence"
+    ax.set_ylabel(yl, fontproperties=cjk_fp if cjk_fp and _has_cjk(yl) else None)
+    _vals = [v * _scale for vs in aj["cif"].values() for v in vs]
+    if compare and sk:
+        _vals.append(max(sk) * _scale)
+    _top = max(_vals + [0.0])
+    import math as _m
+    if percent:
+        _top = max(10.0, _m.ceil(_top * 1.08 / 10.0) * 10.0)
+    else:
+        _top = max(0.10, _m.ceil(_top * 1.08 * 20.0) / 20.0)
+    _user_top = data.get("y_max")
+    if isinstance(_user_top, (int, float)) and _user_top > 0:
+        ax.set_ylim(0, _user_top)
+    else:
+        ax.set_ylim(0, _top if percent else min(1.0, _top))
+    if ax.get_legend_handles_labels()[1]:
+        ax.legend(fontsize=fs - 1, loc="lower right", framealpha=0.9, prop=cjk_fp)
+
+    def _end(states):
+        out = {}
+        for j in states:
+            seq = aj["cif"].get(j)
+            out[j] = seq[-1] if seq else 0.0
+        return out
+
+    _parts = "，".join(f"{_cause_name(j)} {_end([j])[j]:.3f}"
+                       for j in sorted(aj["cif"].keys()))
+    _tmax = aj["times"][-1] if len(aj["times"]) else 0.0
+    _msg = (f"cif: n={n}（目标事件 {n1}"
+            + (f"，竞争事件 {sum(1 for e in events if e >= 2)}" if comp_codes else "")
+            + f"，删失 {nc}）；随访 0~{_tmax:g}" + unit)
+    if aj["cif"]:
+        _msg += f"；末点累计发生率——{_parts}"
+    if compare:
+        km_end = sk[-1] if sk else 0.0
+        c1 = aj["cif"].get(1, [0.0])[-1]
+        _msg += (f"；1−KM 末点 {km_end:.3f}（高估 "
+                 f"{(km_end - c1) * 100:+.1f} 个百分点）")
+        _warn("cif: 竞争风险下 1−KM 系统性高估目标事件累计发生率——"
+              "论文请报告 CIF（Aalen-Johansen）口径并注明竞争事件")
+    if n1 == 0:
+        _warn("cif: 无目标事件（event=1）——仅绘制竞争事件累计发生率曲线")
+    _warn(_msg)
     return None
 
 
@@ -1409,9 +1579,533 @@ def gen_cluster_heatmap(data, ax, theme, cjk_fp, **kwargs):
 
 # ── 注册表 ────────────────────────────────────────────────────────────
 
+def gen_rmst(data, ax, theme, cjk_fp, **kwargs):
+    """RMST 限制平均生存时间图（阶梯 S 曲线+τ 截断阴影 AUC+两臂差值推断；
+    v5.9 第 38 号图型）。
+
+    PH 假设不成立/曲线交叉时，单一 Cox HR 会掩盖时变效应——RMST(τ)=∫₀^τ S(u)du
+    给出「到 τ 时刻平均生存多久」的绝对差，临床可解释且不依赖比例风险假设。
+    数据：groups={组名: [[时间,事件(1/0)],...]}（恰好两臂，契约同 km）；
+    可选 tau（截断时间；缺省=最小最大随访之半并显著告知）、time_unit。
+    stderr 报告每臂 RMST(95%CI)+ΔRMST 差值（Greenwood 方差，SE=√(V₁+V₂)，
+    正态近似 p）；随访不足 τ 的臂平尾外推并显著标注。多臂分组请用 -t km。"""
+    has_cjk = None
+    try:
+        from af_shared import has_cjk as _has_cjk
+        has_cjk = _has_cjk
+    except ImportError:
+        pass
+
+    def _fatal(msg):
+        raise ValueError(f"rmst: {msg}")
+
+    groups = data.get("groups", data.get("series", {}))
+    if not isinstance(groups, dict) or len(groups) != 2:
+        _fatal("需要 groups 恰好两个组（{组名: [[时间,事件(1/0)],...]}）——"
+               "RMST 是两臂对比工具，多臂请拆分或用 -t km")
+    names = list(groups.keys())
+    for gname in names:
+        pairs = groups[gname]
+        if not isinstance(pairs, (list, tuple)) or len(pairs) < 5:
+            _fatal(f"组「{gname}」至少需要 5 例 [时间,事件] 对（当前 {len(pairs) if isinstance(pairs, list) else '非数组'}）")
+        for p in pairs:
+            if not (isinstance(p, (list, tuple)) and len(p) >= 2
+                    and all(isinstance(x, (int, float)) for x in p[:2])):
+                _fatal(f"组「{gname}」存在非 [时间,事件] 数值对")
+
+    time_unit = str(data.get("time_unit", "天"))
+    t_all, e_all, a_all = [], [], []
+    for i, gname in enumerate(names):
+        for p in groups[gname]:
+            t_all.append(float(p[0]))
+            e_all.append(float(p[1]))
+            a_all.append(float(i))
+    tau = kwargs.get("rmst_tau") or data.get("tau")
+    tau_auto = False
+    if tau in (None, "", "auto"):
+        mx = min(max(float(p[0]) for p in groups[g]) for g in names)
+        tau = mx / 2.0
+        tau_auto = True
+    tau = float(tau)
+    if tau <= 0:
+        _fatal(f"τ 须为正数（收到：{tau}）")
+
+    res = st.rmst_analysis(t_all, e_all, a_all, tau)
+    g_res = {g["name"]: g for g in res["groups"]}
+
+    def _fmt(v):
+        return f"{v:.0f}" if abs(v - round(v)) < 1e-9 else f"{v:.1f}"
+
+    # ── 曲线（阶梯，裁剪到 τ；阴影=RMST 视觉面积）──
+    for i, gname in enumerate(names):
+        c = theme["colors"][i % len(theme["colors"])]
+        pairs = sorted(([float(p[0]), float(p[1])] for p in groups[gname]))
+        t_seq, s_seq, _cn = st.km_estimate([p[0] for p in pairs], [p[1] for p in pairs])
+        keep = t_seq <= tau
+        ts = list(t_seq[keep]) + ([tau] if t_seq[keep][-1] < tau else [])
+        ss = list(s_seq[keep]) + ([s_seq[keep][-1]] * (1 if ts[-1] == tau and t_seq[keep][-1] < tau else 0))
+        ax.step(ts, ss, where="post", color=c, linewidth=2, label=gname, zorder=3)
+        ax.fill_between(ts, ss, 0, step="post", color=c, alpha=0.15, zorder=2)
+
+    ax.axvline(tau, color="#8A8A8A", linestyle="--", linewidth=1.2, zorder=1)
+    ax.set_xlim(0, tau * 1.06)                      # 右留白：τ 线不贴边
+    ax.set_ylim(-0.02, 1.14)                        # 顶部预留带：τ 标签与注释框分层（视觉门 10-23）
+    ax.text(tau, 1.10, f"τ={_fmt(tau)}{time_unit}", ha="center", va="bottom",
+            fontsize=theme["font_size"] - 1,
+            fontproperties=cjk_fp if cjk_fp and (not has_cjk or has_cjk(f"τ{_fmt(tau)}{time_unit}")) else None)
+
+    # ── 注释框：每臂 RMST(95%CI) + ΔRMST ──
+    gr = res["groups"]
+    box = [f"RMST（τ={_fmt(tau)}{time_unit}）"]
+    for g, nm in zip(gr, names):
+        ex = "，平尾外推" if g["extrapolated"] else ""
+        box.append(f"{nm}: {_fmt(g['rmst'])}（95%CI {_fmt(g['ci_low'])}~{_fmt(g['ci_high'])}）{ex}")
+    if res["difference"]:
+        dd = res["difference"]
+        p_disp = f"P={dd['p']:.3f}" if dd["p"] >= 0.001 else "P<0.001"
+        box.append(f"ΔRMST（{dd['arm_hi']}−{dd['arm_ref']}）= {_fmt(dd['diff'])} {time_unit}")
+        box.append(f"（95%CI {_fmt(dd['ci_low'])}~{_fmt(dd['ci_high'])}，{p_disp}）")
+    if tau_auto:
+        box.append("τ 自动=最小最大随访之半（--rmst-tau 可指定）")
+    fp = cjk_fp if cjk_fp else None
+    ax.text(0.98, 0.90, "\n".join(box), transform=ax.transAxes, ha="right", va="top",
+            fontsize=theme["font_size"] - 1, linespacing=1.5,
+            bbox=dict(boxstyle="round,pad=0.5", facecolor="#FBF7EF",
+                      edgecolor=theme["colors"][0], linewidth=1.2, alpha=0.95),
+            fontproperties=fp if fp and (not has_cjk or has_cjk("\n".join(box))) else None)
+
+    ax.set_xlabel(f"时间（{time_unit}）", fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp else None)
+    ax.set_ylabel("生存概率", fontsize=theme["font_size"],
+                  fontproperties=cjk_fp if cjk_fp else None)
+    ax.grid(True, alpha=0.3, linewidth=0.6)
+    ax.legend(loc="lower left", fontsize=theme["font_size"] - 1, framealpha=0.9)
+
+    # ── stderr 报告 ──
+    print(f"rmst: τ={_fmt(tau)}{time_unit}" + ("（自动=最小最大随访之半）" if tau_auto else ""),
+          file=sys.stderr)
+    for g, nm in zip(gr, names):
+        cov = f"，随访覆盖 {g['coverage'] * 100:.0f}%" + ("，⚠ 平尾外推" if g["extrapolated"] else "")
+        print(f"  {nm}: RMST={_fmt(g['rmst'])}{time_unit}"
+              f"（95%CI {_fmt(g['ci_low'])}~{_fmt(g['ci_high'])}，n={g['n']}，事件={g['n_events']}{cov}）",
+              file=sys.stderr)
+    if res["difference"]:
+        dd = res["difference"]
+        print(f"  ΔRMST（{dd['arm_hi']}−{dd['arm_ref']}）={_fmt(dd['diff'])}{time_unit}"
+              f"（95%CI {_fmt(dd['ci_low'])}~{_fmt(dd['ci_high'])}），Z={dd['z']:.3f}，"
+              + (f"P={dd['p']:.3f}" if dd["p"] >= 0.001 else "P<0.001"), file=sys.stderr)
+    print("  提示：RMST 不依赖比例风险假设；τ 为临床预设的截断时间，报告中应说明选取依据。",
+          file=sys.stderr)
+
+
+def gen_rob(data, ax, theme, cjk_fp, **kwargs):
+    """偏倚风险交通灯图（Risk of Bias traffic light；v6.1 第 39 号图型，robvis 同款）。
+
+    系统综述/Meta 分析的纳入研究方法学质量可视化：左=研究×域交通灯网格
+    （圆点着色：低风险/有顾虑/高风险/无信息），右下=加权摘要条（各域占比，
+    Overall 列只入网格不入摘要——robvis 惯例）。数据：
+      studies=[{name, judgements:{域键: 判定}}...]（2~50 项），
+      domains=["D1",...] 或 [{key,label}...]（2~12 域；缺省=取自首个研究的键序），
+      title 可选。摘要条=各域判定占比（robvis 默认等权，无自定权重语义）。
+    判定取值（大小写/中英不敏感）：Low/L/低风险/低；Some concerns/S/有一定顾虑/中等；
+    High/H/高风险/高；No information/NI/N/无信息/未知。配色固定语义
+    （绿=低/琥珀=顾虑/红=高/灰=无信息），与主题无关。"""
+    import matplotlib.patches as _mp
+
+    def _fatal(msg):
+        raise ValueError(f"rob: {msg}")
+
+    studies = data.get("studies")
+    if not isinstance(studies, list) or not (2 <= len(studies) <= 50):
+        _fatal("需要 studies（2~50 个 {name, judgements} 对象）")
+    dom_spec = data.get("domains")
+    if dom_spec is None:
+        dom_spec = [k for k in studies[0].get("judgements", {}) if k != "Overall"]
+    doms = []
+    for d in dom_spec:
+        if isinstance(d, str):
+            doms.append((d, d))
+        elif isinstance(d, dict) and d.get("key"):
+            doms.append((str(d["key"]), str(d.get("label", d["key"]))))
+        else:
+            _fatal(f"domains 每项须为字符串或 {{key,label}}（收到：{d!r}）")
+    if not (2 <= len(doms) <= 12):
+        _fatal(f"需要 2~12 个偏倚域（当前 {len(doms)}）")
+    dkeys = [k for k, _ in doms]
+
+    _MAP = {}
+    for codes, code in ((("low", "l", "低风险", "低"), "L"),
+                        (("some concerns", "someconcerns", "s", "有一定顾虑", "中等", "顾虑",
+                          "unclear", "unclear risk", "不明确", "风险不明确"), "S"),
+                        (("high", "h", "高风险", "高"), "H"),
+                        (("very high", "veryhigh", "v", "critical", "极高风险", "极高", "危急"), "VH"),
+                        (("no information", "noinformation", "ni", "n", "无信息", "未知", "不清楚"), "NI")):
+        for c in codes:
+            _MAP[c] = code
+    # 固定语义配色：绿=低/琥珀=顾虑（含旧工具 Unclear）/红=高/深红=极高(VH)/灰=无信息
+    _COLOR = {"L": "#1F7A4D", "S": "#E8A020", "H": "#B23434", "VH": "#6E1414", "NI": "#9AA0A6"}
+    _LETTER = {"L": "L", "S": "S", "H": "H", "VH": "V", "NI": "?"}
+
+    def _norm(v):
+        if v is None:
+            return None
+        return _MAP.get(str(v).strip().lower())
+
+    has_overall = any("Overall" in s.get("judgements", {}) for s in studies)
+    rows = []
+    for s in studies:
+        if not isinstance(s, dict) or not s.get("name") or not isinstance(s.get("judgements"), dict):
+            _fatal("studies 每项须为含 name 与 judgements 的对象")
+        j = s["judgements"]
+        row = {}
+        for k in dkeys:
+            if k not in j:
+                _fatal(f"研究「{s['name']}」缺少域「{k}」的判定——所有研究须覆盖全部域")
+            code = _norm(j[k])
+            if code is None:
+                _fatal(f"研究「{s['name']}」域「{k}」判定值「{j[k]}」无法识别——"
+                       "合法：Low/L/低风险、Some concerns/S/有一定顾虑（含 Unclear）、High/H/高风险、"
+                       "Very high/V/极高风险、No information/NI/无信息")
+            row[k] = code
+        if has_overall:
+            code = _norm(j.get("Overall"))
+            if code is None:
+                _fatal(f"研究「{s['name']}」Overall 判定值无法识别")
+            row["Overall"] = code
+        rows.append((str(s["name"]), row))
+
+    # ── 摘要计数（Overall 不入摘要——robvis 惯例；等权占比）──
+    counts = {k: {"L": 0, "S": 0, "H": 0, "VH": 0, "NI": 0} for k in dkeys}
+    for _, row in rows:
+        for k in dkeys:
+            counts[k][row[k]] += 1
+
+    # ── 布局：上=交通灯网格，下=加权摘要条（共享域 x 轴）──
+    n = len(rows)
+    x_overall = len(dkeys) - 1 + 0.7 if has_overall else None
+    ax.set_xlim(-0.55, (x_overall if has_overall else len(dkeys) - 1) + 0.55)
+    ax.set_ylim(-1.9, n - 0.4)
+    # 手排：研究 i（0 起）→ y=i（顶部=0，ylim 反向）；摘要区在网格下方
+    y_sum0, y_sum1 = n + 0.35, n + 1.45          # 摘要条带
+    ax.set_ylim(n + 1.9, -0.7)                    # 顶大底小：研究 1 在最上
+    for i, (name, row) in enumerate(rows):
+        for ci, k in enumerate(dkeys):
+            code = row[k]
+            ax.scatter(ci, i, s=300, c=_COLOR[code], edgecolors="white",
+                       linewidths=1.6, zorder=3)
+            ax.text(ci, i, _LETTER[code], ha="center", va="center",
+                    fontsize=theme["font_size"] - 3, color="white",
+                    fontweight="bold", zorder=4)
+        if has_overall:
+            code = row["Overall"]
+            xo = x_overall
+            ax.scatter(xo, i, s=300, c=_COLOR[code], edgecolors="white",
+                       linewidths=1.6, zorder=3)
+            ax.text(xo, i, _LETTER[code], ha="center", va="center",
+                    fontsize=theme["font_size"] - 3, color="white",
+                    fontweight="bold", zorder=4)
+    if has_overall:
+        ax.plot([x_overall - 0.35, x_overall - 0.35], [-0.55, n - 0.55],
+                color="#C9C2B4", linewidth=1.0, zorder=1)
+
+    # 摘要条（加权占比；Low 贴基线向上堆叠）
+    order = ["L", "S", "H", "VH", "NI"]            # 自基线向上：低、顾虑、高、极高、无信息
+    base = y_sum1
+    htot = y_sum1 - y_sum0
+    for ci, k in enumerate(dkeys):
+        cum = 0.0
+        for code in order:
+            h = counts[k][code] / n * htot         # 占比×条带高
+            if h <= 0:
+                continue
+            ax.bar(ci, h, bottom=base - cum - h, width=0.62,
+                   color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
+            cum += h
+    if has_overall:
+        oc = {"L": 0, "S": 0, "H": 0, "VH": 0, "NI": 0}
+        for _, row in rows:
+            oc[row["Overall"]] += 1
+        cum = 0.0
+        for code in order:
+            h = oc[code] / n * htot
+            if h <= 0:
+                continue
+            ax.bar(x_overall, h, bottom=base - cum - h, width=0.62,
+                   color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
+            cum += h
+
+    ax.axhline(y_sum1, color="#8A8A8A", linewidth=1.0, xmin=0.0,
+               xmax=1.0, zorder=2)
+    # 坐标轴
+    ax.set_yticks(list(range(n)))
+    ax.set_yticklabels([nm for nm, _ in rows], fontsize=theme["font_size"] - 1,
+                       fontproperties=cjk_fp if cjk_fp else None)
+    xticks = list(range(len(dkeys))) + ([x_overall] if has_overall else [])
+    xlabels = [lab for _, lab in doms] + (["Overall 总体"] if has_overall else [])
+    ax.set_xticks(xticks)
+    ax.set_xticklabels(xlabels, fontsize=theme["font_size"] - 2, rotation=18,
+                       ha="right", fontproperties=cjk_fp if cjk_fp else None)
+    ax.set_xticks([x + 0.5 for x in range(len(dkeys) - 1)], minor=True)
+    ax.grid(True, axis="x", which="minor", alpha=0.25, linewidth=0.5)
+    ax.tick_params(axis="y", length=0)
+    for sp in ("top", "right", "left"):
+        ax.spines[sp].set_visible(False)
+
+    _LB = {"L": "低风险 Low", "S": "顾虑/Unclear", "H": "高风险 High",
+           "VH": "极高风险 Very high", "NI": "无信息 No information"}
+    # ⛔勿用外层循环变量 k（泄漏=只查最后一个域，图例漏档事故 10-26）：显式全域扫描
+    present = [c for c in ("L", "S", "H", "VH", "NI")
+               if any(row[dk] == c for _, row in rows for dk in dkeys)
+               or (has_overall and any(row["Overall"] == c for _, row in rows))]
+    handles = [_mp.Patch(facecolor=_COLOR[c], edgecolor="white",
+                         label=_LB[c]) for c in present]
+    # 图例放图下方外侧（robvis 惯例；bbox_inches='tight' 会完整收入，且不遮摘要条）
+    leg = ax.legend(handles=handles, loc="upper center",
+                    bbox_to_anchor=(0.5, -0.28), fontsize=theme["font_size"] - 2,
+                    framealpha=0.95, ncol=4)
+    if cjk_fp:
+        try:
+            leg.set_prop(cjk_fp)
+        except Exception:
+            pass
+    ttl = str(data.get("title") or "偏倚风险图 Risk of Bias（交通灯）")
+    ax.set_title(ttl, fontsize=theme["font_size"] + 1,
+                 fontproperties=cjk_fp if cjk_fp and _has_cjk(ttl) else None)
+
+    # ── stderr 报告 ──
+    print(f"rob: {n} 项研究 × {len(dkeys)} 个偏倚域"
+          + ("（含 Overall 列，未计入摘要）" if has_overall else ""), file=sys.stderr)
+    for ci, k in enumerate(dkeys):
+        c = counts[k]
+        pr = {code: c[code] / n * 100 for code in ("L", "S", "H", "VH", "NI")}
+        lab = dict(doms)[k]
+        print(f"  {lab}: 低 {pr['L']:.0f}%（{c['L']}）｜顾虑 {pr['S']:.0f}%（{c['S']}）"
+              f"｜高 {pr['H']:.0f}%（{c['H']}）｜极高 {pr['VH']:.0f}%（{c['VH']}）"
+              f"｜无信息 {pr['NI']:.0f}%（{c['NI']}）",
+              file=sys.stderr)
+    print("  提示：判定应来自预设的 ROB2/ROBINS-I/QUADAS-2 工具与两人独立评估；",
+          file=sys.stderr)
+
+
+
+
+# ── labbe L'Abbé 图（v6.3 第 40 号图型，Meta 四件套收官：forest/funnel/galbraith/labbe） ──
+
+def gen_labbe(data, ax, theme, cjk_fp, **kwargs):
+    """L'Abbé 图（处理组 vs 对照组事件率散点，Meta 分析效应直观化）。
+
+    x=对照组事件率，y=处理组事件率；对角线 y=x 为无效应线（RR=1），
+    DL 随机效应合并 RR 参考线 y=RR·x；点面积 ∝ 研究权重（1/方差）——
+    一眼看出：点在对角线上=处理无效，上方=有害，下方=有益，离合并线远者=异质性嫌疑。
+    数据: {"studies": [{"name": "...", "events_t": n, "n_t": n,
+                        "events_c": n, "n_c": n}, ...]}
+    （处理/对照组事件数与样本总数，2×2 四格表）
+    选项: est_measure（RR/OR，默认 RR——logOR 尺度下参考线非线性，RR 版最直观）、
+    show_labels（bool，默认 <=12 全标注）。
+    """
+    studies = data.get("studies", None)
+    if not studies or not isinstance(studies, list):
+        raise ValueError("labbe: 需要 'studies' 数组，每项含 name/events_t/n_t/events_c/n_c（2×2 四格表）")
+    names, et, nt, ec, nc = [], [], [], [], []
+    for i, s in enumerate(studies):
+        for k, arr in (("events_t", et), ("n_t", nt), ("events_c", ec), ("n_c", nc)):
+            v = s.get(k)
+            if v is None or not isinstance(v, (int, float)) or v < 0:
+                raise ValueError(f"labbe: 研究 {i+1}（{s.get('name', '?')}）的 {k} 非法（须为非负数）")
+            arr.append(float(v))
+        names.append(str(s.get("name", f"研究{i+1}")))
+    et, nt, ec, nc = map(np.asarray, (et, nt, ec, nc))
+    bad = (nt <= 0) | (nc <= 0) | (et > nt) | (ec > nc)
+    if bad.any():
+        i = int(np.where(bad)[0][0])
+        raise ValueError(f"labbe: 研究 {i+1}（{names[i]}）四格表非法（事件数不得超过总数，n 须为正）")
+    if len(et) < 3:
+        raise ValueError("labbe: 至少需要 3 个研究（两点定不了线，三点才有异质性信息）")
+    zero = (ec == 0) | (et == 0)
+    if zero.all():
+        raise ValueError("labbe: 全部研究的事件率均为 0 或对照全零——无法定义效应方向")
+    if zero.any():
+        _warn(f"labbe: {int(zero.sum())} 个研究含零事件格（事件率 0），无法取 log 参与合并，已从合并统计剔除（点仍绘出）")
+
+    measure = str(data.get("est_measure") or "RR").upper()
+    if measure not in ("RR", "OR"):
+        raise ValueError("labbe: est_measure 仅支持 RR/OR")
+
+    fs = theme["font_size"]
+    fs_s = max(5.0, fs - 2)
+    c_main = theme["colors"][0]
+    pt = et / nt          # 处理组事件率
+    pc = ec / nc          # 对照组事件率
+
+    # DL 随机效应合并（log 尺度；零格研究剔除）
+    keep = ~zero
+    rr_line = None
+    pooled = None
+    if keep.any():
+        if measure == "RR":
+            es = np.log(pt[keep] / pc[keep])
+        else:
+            a, b_ = et[keep], nt[keep] - et[keep]
+            c_, d_ = ec[keep], nc[keep] - ec[keep]
+            es = np.log((a + 0.5) / (b_ + 0.5) / ((c_ + 0.5) / (d_ + 0.5)))
+        v = 1.0 / et[keep] - 1.0 / nt[keep] + 1.0 / ec[keep] - 1.0 / nc[keep]
+        v = np.maximum(v, 1e-8)
+        ses = np.sqrt(v)
+        pooled = st.dl_pool(es, ses)
+        rr = float(np.exp(pooled["pooled"]))
+        lo = float(np.exp(pooled["pooled"] - 1.96 * pooled["se"]))
+        hi = float(np.exp(pooled["pooled"] + 1.96 * pooled["se"]))
+        hi_cap = min(hi, 1.05 * float(max(pc.max(), pt.max())))
+
+    hi_ax = 1.08 * float(max(pc.max(), pt.max()))
+    ax.plot([0, hi_ax], [0, hi_ax], color="#888888", lw=1.2, ls="--", zorder=2)
+    _rl = "无效应线（RR=1）" if measure == "RR" else "无效应线（OR=1）"
+    import matplotlib.patheffects as _pe
+    _stroke = [_pe.withStroke(linewidth=2.2, foreground="white")]
+    ax.annotate(_rl, (0.055 * hi_ax, 0.055 * hi_ax), ha="left", va="top",
+                xytext=(0, -8), textcoords="offset points", fontsize=fs_s,
+                color="#999999", path_effects=_stroke, zorder=2)
+    if pooled is not None:
+        xg = np.linspace(1e-4, hi_ax, 64)
+        ax.plot(xg, rr * xg, color=c_main, lw=1.6, zorder=3,
+                label=f"合并 {measure}={rr:.2f}（{lo:.2f}~{min(hi, 99):.2f}，随机效应）")
+
+    # 点面积 ∝ 研究权重（1/方差归一到 [30, 320]）
+    var = np.maximum(1.0 / np.maximum(et, 1) - 1.0 / nt + 1.0 / np.maximum(ec, 1) - 1.0 / nc, 1e-8)
+    w = 1.0 / var
+    sizes = 30 + 290 * (w / w.max())
+    ax.scatter(pc, pt, s=sizes, color=c_main, alpha=0.75,
+               edgecolor="#333333", linewidth=0.9, zorder=4)
+
+    show_all = data.get("show_labels")
+    show_all = (len(names) <= 12) if show_all is None else bool(show_all)
+    # 标注朝向=远离合并线的方向（上方点标上侧、下方点标下侧）——
+    # v6.3.0 视觉验收三轮教训：反着放（朝线）必压线割线（UK-1 三轮残留即此因）
+    _rr_eff = rr if pooled is not None else 1.0
+    _above = pt > _rr_eff * pc
+    _diff = np.abs(pt - _rr_eff * pc)              # 点到合并线走廊的距离
+    _on_line = _diff < 0.012   # 骑线点（RR 贴合并线走廊）
+    _anns = []
+    for i, nm in enumerate(names):
+        if show_all:
+            _fp = cjk_fp if cjk_fp and _has_cjk(nm) else None
+            if _on_line[i]:
+                continue  # 骑线点由下方专用引线循环处理
+            if abs(pt[i] - pc[i]) < 0.02:
+                # 两线夹缝点（贴无效应对角线）：上下都是参考线——引线横向左拉到空白
+                _a = ax.annotate(nm, (pc[i], pt[i]), textcoords="offset points",
+                                 xytext=(-26, 14), ha="right", va="bottom",
+                                 fontsize=fs_s, color="#555555", fontproperties=_fp,
+                                 path_effects=_stroke, zorder=6,
+                                 arrowprops=dict(arrowstyle="-", lw=0.8,
+                                                 color="#AAAAAA", shrinkA=1, shrinkB=3))
+                _anns.append((_a, False, nm, float(pc[i]), float(pt[i]),
+                              (-26, 14), "right", fs_s, "#555555", _fp, True))
+                continue
+            if _above[i]:
+                _off, _va = ((8, 14), "bottom") if _diff[i] < 0.025 else ((8, 6), "bottom")
+            else:
+                _off, _va = ((8, -16), "top") if _diff[i] < 0.025 else ((8, -11), "top")
+            _a = ax.annotate(nm, (pc[i], pt[i]), textcoords="offset points",
+                             xytext=_off, ha="left", va=_va, fontsize=fs_s,
+                             color="#555555", fontproperties=_fp,
+                             path_effects=_stroke, zorder=6)
+            _anns.append((_a, False, nm, float(pc[i]), float(pt[i]),
+                          _off, "left", fs_s, "#555555", _fp, False))
+    for i, nm in enumerate(names):
+        if show_all and _on_line[i]:
+            _fp = cjk_fp if cjk_fp and _has_cjk(nm) else None
+            _sx, _sy = ((44, 10) if i % 2 == 0 else (44, -18))  # 奇偶交替，双骑线簇错位
+            _a = ax.annotate(nm, (pc[i], pt[i]), textcoords="offset points",
+                             xytext=(_sx, _sy), ha="left",
+                             va="bottom" if _sy > 0 else "top",
+                             fontsize=fs_s, color="#555555", fontproperties=_fp,
+                             path_effects=_stroke, zorder=6,
+                             arrowprops=dict(arrowstyle="-", lw=0.8,
+                                             color="#AAAAAA", shrinkA=1, shrinkB=3))
+            _anns.append((_a, False, nm, float(pc[i]), float(pt[i]),
+                          (_sx, _sy), "left", fs_s, "#555555", _fp, True))
+    # 紧凑避让（L'Abbé 专用）：小步长候选贴点重试，禁 declutter 大阶梯
+    # （600dpi 下 132pt 阶梯=大幅数据位移→标注悬空，v6.3.0 首轮视觉验收抓出）
+    _dropped = 0
+    if len(_anns) >= 2:
+        import matplotlib.patheffects as _pe2
+        _st2 = [_pe2.withStroke(linewidth=2.2, foreground="white")]
+        _fig = ax.figure
+        _fig.canvas.draw()
+        _rend = _fig.canvas.get_renderer()
+        _placed = []
+        for _a, _out, _nm, _xi, _zi, (_dx, _dy), _ha, _fs, _col, _fp, *_lead in _anns:
+            _leader = _lead[0] if _lead else False
+            _bb = _a.get_window_extent(_rend).expanded(1.10, 1.30)
+            if not any(_bb.overlaps(_p) for _p in _placed):
+                _placed.append(_bb)
+                continue
+            _a.remove()
+            _va0 = "top" if _dy < 0 else "bottom"
+            if _leader:
+                _cands = ()  # 引线项重试仍走引线（贴位=回撞线/邻簇，v6 教训）
+            else:
+                _cands = (( _dx + 4, _dy), (_dx - 14, _dy), (_dx, _dy + (10 if _dy < 0 else -10)),
+                          (_dx, _dy + (16 if _dy < 0 else -16)), (-_dx - 4, _dy))
+            _a2 = None
+            for _ox, _oy in _cands:
+                _t = ax.annotate(_nm, (_xi, _zi), textcoords="offset points",
+                                 xytext=(_ox, _oy), ha="left", va=_va0,
+                                 fontsize=_fs, color=_col, fontproperties=_fp,
+                                 path_effects=_st2, zorder=6)
+                _bt = _t.get_window_extent(_rend).expanded(1.10, 1.30)
+                if not any(_bt.overlaps(_p) for _p in _placed):
+                    _a2 = _t
+                    _placed.append(_bt)
+                    break
+                _t.remove()
+            if _a2 is None:
+                # 引线兜底（v6.3.0 视觉验收多轮教训：簇集点贴位候选会耗尽，
+                # 直接省略=研究缺标注；远置+细引线=不悬空且脱离合并线/邻簇）
+                for _ox, _oy in ((18, 40), (44, 8), (-20, 36), (16, -42),
+                                 (-44, 10), (-44, -16), (44, -32), (8, 52)):
+                    _t = ax.annotate(_nm, (_xi, _zi), textcoords="offset points",
+                                     xytext=(_ox, _oy), ha="left",
+                                     va="bottom" if _oy > 0 else "top",
+                                     fontsize=_fs, color=_col, fontproperties=_fp,
+                                     path_effects=_st2, zorder=6,
+                                     arrowprops=dict(arrowstyle="-", lw=0.8,
+                                                     color="#AAAAAA",
+                                                     shrinkA=1, shrinkB=3))
+                    _bt = _t.get_window_extent(_rend).expanded(1.10, 1.30)
+                    if not any(_bt.overlaps(_p) for _p in _placed):
+                        _a2 = _t
+                        _placed.append(_bt)
+                        break
+                    _t.remove()
+            if _a2 is None:
+                _dropped += 1
+    if _dropped:
+        _warn(f"labbe: {_dropped} 个研究名与相邻标注叠印已省略（数据点仍在图上）")
+
+    ax.set_xlim(0, hi_ax)
+    ax.set_ylim(0, hi_ax)
+    ax.set_aspect("equal", adjustable="box")  # 等比例（对角线视觉 45°；xlim/ylim 已显式同域）
+    xl = str(data.get("x_label") or "对照组事件率")
+    yl = str(data.get("y_label") or "处理组事件率")
+    ax.set_xlabel(xl, fontproperties=cjk_fp if cjk_fp and _has_cjk(xl) else None)
+    ax.set_ylabel(yl, fontproperties=cjk_fp if cjk_fp and _has_cjk(yl) else None)
+    if ax.get_legend_handles_labels()[1]:
+        ax.legend(fontsize=fs - 1, loc="upper left", framealpha=0.9, prop=cjk_fp)
+    if pooled is not None:
+        _warn(f"labbe: DL 随机效应合并 {measure}={rr:.4g}（95%CI {lo:.3g}~{hi:.3g}），"
+              f"异质性 I²={pooled['i2']:.0f}%，P_het={pooled['p_het']:.3g}"
+              f"（合并含 {int(keep.sum())}/{len(et)} 个研究）")
+    return None
+
 EXTRA_GENERATORS = {
     "funnel": gen_funnel,
     "galbraith": gen_galbraith,
+    "labbe": gen_labbe,
+    "cif": gen_cif,
+    "rmst": gen_rmst,
+    "rob": gen_rob,
     "bland_altman": gen_bland_altman,
     "pca": gen_pca,
     "paired": gen_paired,
@@ -1440,6 +2134,12 @@ EXTRA_DEMO_DATA = {
         {"name": "李 2024", "effect": 0.64, "se": 0.08},
         {"name": "Dubois 2024", "effect": 1.55, "se": 0.22},
     ]},
+    "cif": {"time": [3, 5, 6, 7, 8, 10, 12, 12, 14, 16, 18, 20, 22, 24, 26, 28,
+                      30, 32, 34, 36, 38, 40, 42, 44],
+             "event": [1, 2, 1, 0, 1, 2, 0, 1, 0, 2, 1, 0, 0, 2, 1, 0,
+                       2, 0, 1, 0, 0, 2, 0, 0],
+             "cause_labels": {"1": "复发", "2": "移植相关死亡"},
+             "time_unit": "月"},
     "bland_altman": {"methods": {"新仪器": [5.1, 4.9, 5.3, 5.6, 4.8, 5.2, 5.0, 5.5],
                                  "金标准": [5.0, 5.1, 5.2, 5.4, 5.0, 5.1, 5.2, 5.3]}},
     "pca": {"matrix": [[5.1, 3.5, 1.4, 0.2], [4.9, 3.0, 1.4, 0.2], [6.7, 3.1, 4.4, 1.4],
@@ -1490,6 +2190,40 @@ def validate_extra(chart_type, data):
         _arcs = data.get("arcs")
         if _arcs not in (None, "auto") and not isinstance(_arcs, bool):
             fatal.append("galbraith: arcs 须为 true/false/auto（默认 auto=比率尺度开弧线）")
+    elif chart_type == "cif":
+        t_raw = data.get("time")
+        e_raw = data.get("event")
+        if isinstance(data.get("groups"), dict):
+            fatal.append("cif: 不支持 groups 多臂分组——CIF 按事件原因分层；"
+                         "多臂竞争风险请用 -t km（内置 AJ 自动模式）")
+        elif not isinstance(t_raw, list) or not isinstance(e_raw, list):
+            fatal.append("cif: 需要 'time'+'event' 两个等长数组"
+                         "（0=删失 1=目标事件 ≥2=竞争事件）")
+        else:
+            if len(t_raw) != len(e_raw):
+                fatal.append(f"cif: time 有 {len(t_raw)} 个值但 event 有 "
+                             f"{len(e_raw)} 个 — 长度必须一致")
+            elif not t_raw:
+                fatal.append("cif: 数据为空")
+            else:
+                _bad_t = [i for i, v in enumerate(t_raw)
+                          if not isinstance(v, (int, float)) or isinstance(v, bool)
+                          or v != v or v < 0]
+                if _bad_t:
+                    fatal.append(f"cif: time 第 {_bad_t[:3]} 项非数值/负数")
+                _bad_e = [i for i, v in enumerate(e_raw)
+                          if not isinstance(v, (int, float)) or isinstance(v, bool)
+                          or float(v) != int(v) or v < 0]
+                if _bad_e:
+                    fatal.append(f"cif: event 第 {_bad_e[:3]} 项须为 ≥0 整数编码"
+                                 "（0=删失 1=目标事件 ≥2=竞争事件）")
+                elif not any((not isinstance(v, bool)) and isinstance(v, (int, float))
+                             and v >= 1 for v in e_raw):
+                    fatal.append("cif: 全部为删失（event 全 0）——无法估计累计发生率")
+        _ck = data.get("compare_km")
+        if _ck not in (None, "auto") and not isinstance(_ck, bool):
+            fatal.append("cif: compare_km 须为 true/false/auto"
+                         "（默认 auto=有竞争事件才画参照线）")
     elif chart_type == "bland_altman":
         if ("a" not in data or "b" not in data) and not isinstance(data.get("methods"), dict):
             fatal.append("bland_altman: 需要 'a'+'b' 数组或 'methods' 两个系列")
@@ -1534,6 +2268,15 @@ def alt_extra(chart_type, data, title=""):
         n = len(data.get("studies", data.get("effects", [])) or [])
         return (f"{t}Galbraith 径向图，{n} 个研究按精度（1/SE）与标准化效应排布，"
                 "过原点直线为固定效应合并，±1.96 平行带覆盖同质研究，带外即离群/异质性嫌疑。")
+    if chart_type == "cif":
+        ev = data.get("event") or []
+        _nc = sum(1 for v in ev if isinstance(v, (int, float))
+                  and not isinstance(v, bool) and v == 1)
+        _nx = sum(1 for v in ev if isinstance(v, (int, float))
+                  and not isinstance(v, bool) and v >= 2)
+        return (f"{t}竞争风险累计发生率图（Aalen-Johansen）：{len(ev)} 名受试者"
+                f"（目标事件 {_nc}、竞争事件 {_nx}），各事件原因一条累计发生率阶梯曲线，"
+                "虚线为 1−KM 朴素对照（竞争事件当删失，系统性高估）。")
     if chart_type == "bland_altman":
         a = data.get("a") or (data.get("methods") or {}).get(list(data.get("methods", {}))[0], [])
         return f"{t}Bland-Altman 一致性图，{len(a)} 对测量的差值-均值散点，含均值差线与 95% 一致性界线。"
@@ -1584,6 +2327,8 @@ def make_caption(chart_type, data, title=""):
                    "Funnel plot: study effects vs SE, dashed pseudo-95% CI bounds, vertical line = DL pooled estimate."),
         "galbraith": ("Galbraith 径向图：横轴精度 1/SE、纵轴标准化效应，过原点直线为固定效应合并，±1.96 平行带外的研究提示离群/异质性。",
                       "Galbraith radial plot: precision (1/SE) vs standardized effect; regression through origin = pooled fixed effect; studies outside the ±1.96 band suggest heterogeneity or outliers."),
+        "cif": ("累计发生率图（Aalen-Johansen）：各事件原因一条阶梯曲线；虚线为 1−KM 朴素估计（竞争事件当删失，系统性高估目标事件风险）。",
+                "Cumulative incidence curves by cause (Aalen-Johansen); dashed = naive 1−KM reference (competing events censored; systematically overestimates the target event)."),
         "bland_altman": ("Bland-Altman 图：横轴两法均值、纵轴差值；实线=均值差，虚线=95% 一致性界值。",
                          "Bland-Altman plot: mean vs difference; solid = mean difference, dashed = 95% limits of agreement."),
         "pca": ("PCA 得分图（PC1×PC2，标准化后），椭圆为各组均值±2SD，箭头为载荷前 5 特征。",

@@ -18,7 +18,7 @@
 ## 安装与环境
 
 **Q：需要装什么？**
-Python 3.9+ 和 matplotlib/numpy/scipy。跑一次 `python3 scripts/setup_env.py` 自动配齐并检测中文字体。
+Python 3.8+ 和 matplotlib/numpy/scipy。跑一次 `python3 scripts/setup_env.py` 自动配齐并检测中文字体。
 
 **Q：中文显示成方框？**
 `--cjk` 自动探测系统字体；仍不行用 `--cjk-font /path/to/字体.ttf` 指定。`--journal cma/cn-core` 会自动开中文，无需手动加。
@@ -28,8 +28,8 @@ Python 3.9+ 和 matplotlib/numpy/scipy。跑一次 `python3 scripts/setup_env.py
 
 ## 数据与格式
 
-**Q：CSV 能画哪些图？误差棒为什么报错？**
-CSV 适合 bar/line/box/scatter 等常规图。误差棒、显著性等复杂字段是 JSON 专属——CSV 不支持（报错会提示改用 JSON）。
+**Q：CSV 能画哪些图？误差棒怎么加？**
+CSV 适合 bar/line/box/scatter 等常规图。误差棒 v6.0 起 CSV 直接支持：主列旁加后缀列即可（`weight` 配 `weight_sd`/`weight_se`/`weight_sem`/`weight_err`，自动配对画误差棒；`weight_sd`+`weight_n` 自动换算 SEM）；显著性标记仍是 JSON 专属（`significance` 字段）。
 
 **Q：KM 生存数据报「检测到长表结构」？**
 你的表是 time/event/group 各占一列（一行记录一名患者），这种长表画不了生存曲线。请转成分组格式：
@@ -109,7 +109,7 @@ auto=各组对第一组（两组就能用）；multi=全两两（需 ≥3 组，
 | 不支持的数据格式 | 扩展名不在支持列表 | 改用 .json / .csv / .tsv / .xlsx |
 | No module named 'xxx'（ImportError） | 缺少依赖库（环境侧，退出码 4） | 按提示 pip install；核心功能只需 matplotlib/numpy/scipy |
 | 内存不足（MemoryError） | 数据量超出可用内存（退出码 6=自动降级重试仍失败） | 减少行数/列数；cluster_heatmap 可加 --downsample 2000 |
-| 渲染看门狗超时（退出码 5） | 图表未在预算时间内完成，被强制中断并给出建议 | 瘦身数据，或 --timeout 600 调大预算；--timeout 0 禁用 |
+| 渲染看门狗超时（退出码 5） | 图表未在预算时间内完成，被强制中断并给出建议；默认自动重试一次（预算放宽 ×1.5） | 瘦身数据，或 --timeout 600 调大预算 / --retries 3 加多次数；--timeout 0 仅关自适应预算（保留硬保险） |
 | 退出码 1/3/4 怎么区分 | 1=参数或校验错误，3=数据或格式问题，4=环境或依赖问题 | 按报错里的中文建议逐条处理；AF_DEBUG=1 看完整细节 |
 
 ## 付费版
@@ -149,8 +149,11 @@ v5.6 起在 composite 数据加 `"share_y": true`——同 ylabel 的面板自�
 v3.1 起不会——自动等距采样到 2000 行并显著告知（`AUTO-DOWNSAMPLE`）；`--downsample N`
 可指定其他行数。
 
+**Q：组间比较的星号括号（bracket）怎么画？**
+数据加 `comparisons` 字段+`--sig-bracket`：`{"a":"ctrl","b":"trt2","p":0.049}` 这样一组比较对，自动画分层 bracket+星号（bar/grouped_bar/box/violin）。p 值用你自己跑的检验结果；引擎只可视化不替你选检验。
+
 **Q：CSV 能带误差棒吗？**
-不能——JSON 的 `errors` 字段才支持。详见 data-formats.md 的 JSON/CSV 能力对照表。
+能——v6.0 起 CSV 后缀列自动配对：主列 `weight` 旁放 `weight_sd`/`weight_se`/`weight_sem`/`weight_err` 即自动画误差棒（`weight_sd`+`weight_n` 自动换算 SEM；`--csv-no-errors` 可关闭识别）。JSON 的 `errors` 对象写法仍可用。详见 data-formats.md 的 JSON/CSV 能力对照表。
 
 **Q：投稿一键出图怎么做？**
 `--pub-ready`（v3.8）：一条 flag 自动展开 `--verify`（PDF 重叠门禁）+ 色盲安全主题 + pdf,png

@@ -15,7 +15,7 @@
 | 冲突组合 | 行为 | 出口 |
 |---|---|---|
 | `--journal` × `--width` | `--journal` 锁宽，`--width` 被忽略 | `--height` 仍有效；stderr 报预设 |
-| `--stats auto/multi` × 非 box/violin | 忽略并 `[ignored]` 告知 | 改用 `--stats cox`（仅 forest） |
+| `--stats auto/multi` × 非 box/violin/raincloud | 忽略并 `[ignored]` 告知 | 改用 `--stats cox`（仅 forest/subgroup） |
 | `--compare` × 非 roc ／ `--egger` × 非 funnel | 忽略并告知 | — |
 | `--hatch` × 非 bar 系 | 忽略并告知 | 品牌斜纹用 `--style glm-hatch`（全图型） |
 | composite 面板 × composite/diagram/upset | 渲染前校验拒绝 | 拆分多层组合 |
@@ -61,20 +61,21 @@
 
 | 参数 | 适用图型 | 其他图型上传入时 |
 |---|---|---|
-| `--stats auto` / `--stats multi` / `--stats bootstrap` | 仅 box / violin | 其他图型 → `[ignored]` 显式告知（stderr） |
+| `--stats auto` / `--stats multi` / `--stats bootstrap` | 仅 box / violin / raincloud | 其他图型 → `[ignored]` 显式告知（stderr） |
 | `--compare`（DeLong） | 仅 roc，且需 `labels` + 各曲线 `scores` | 只有 fpr/tpr 时 stderr 提示无法检验 |
 | `--egger` | 仅 funnel（≥3 研究） | 其他图型 → `[ignored]` 显式告知 |
 | `--no-risk-table` / `--risk-times` | 仅 km（原始 `[时间,事件]` 格式） | 预计算曲线格式时 stderr 提示 |
 | `--hatch` | bar 系（bar/grouped_bar/hbar/stacked_bar） | 其他图型 → `[ignored]` 显式告知 |
-| `--cmap` / `--vmin` / `--vmax` | heatmap / cluster_heatmap | 静默忽略 |
-| `--trend` / `--no-trend` | scatter | 静默忽略 |
+| `--cmap` / `--vmin` / `--vmax` | heatmap / cluster_heatmap | [ignored] 显式告知（stderr 提示，不静默） |
+| `--trend` / `--no-trend` | scatter | [ignored] 显式告知（stderr 提示，不静默） |
 | `--sheet` | 仅 `--data *.xlsx` | CSV/JSON → `[ignored]` 显式告知 |
-| `--show-ratio` / `--ratio-base` | grouped_bar | 静默忽略 |
-| `--lang zh` | prisma（中文标准措辞版） | 静默忽略 |
+| `--show-ratio` / `--ratio-base` | grouped_bar | [ignored] 显式告知（stderr 提示，不静默） |
+| `--lang zh` | prisma（中文标准措辞版） | [ignored] 显式告知（stderr 提示，不静默） |
 | `--horizontal` | bar（等同 hbar） | — |
 | `--annotate "x,y:文字"` | 所有图型（组合图自动选面板） | 坐标越界/类别不匹配 → 中文报错 exit 1 |
 | `--legend-loc` / `--legend-outside` | 有图例的图型；组合图 outside=共享图例 | 无图例时 stderr 提示未生效 |
-| `--stats cox` | 仅 forest（fatal 校验：其他图型中文报错 exit 1） | — |
+| `--stats cox` | 仅 forest / subgroup（其他图型 → `[ignored]` 显式告知后继续渲染） | — |
+| `--arena` | 仅单系列竖向 bar（横向/多系列 → `[ignored]` 告知）；**v7.7 起默认启用**（冠军=最高柱，stderr 提示） | 负面指标（最高=最差）用 `--arena off` 关闭；`--arena "标签"` 指定冠军；未匹配自动回落最高柱并告知 |
 | `--order` | bar 系 / box / violin / line（box/violin 重排系列键） | 其他图型 → `[ignored]` 显式告知；显式列表须覆盖全部标签（多/少/重复=exit 1） |
 | `--normalize` | 仅 bar 系 / line（分布图不做均值归一） | 其他图型 → `[ignored]` 显式告知 |
 | `--doctor` | 全图型可用；只报告不改退出码 | 省 `-o` 纯体检（exit 1=有发现） |
@@ -128,7 +129,7 @@
 | `--journal` × `--width` | journal 预设锁定宽度，`--width` 被覆盖（`--height` 仍生效） | 要自定义尺寸就不加 `--journal` |
 | PDF 重叠检测 | 仅 PDF 输出有意义，且**必须显式 `--verify`**（发现重叠→退出码 2，不落盘）；不加则不做像素级检查 | 投稿 PDF 一律加 `--verify` |
 | 默认 DPI | 线条图 600、照片类 300（`--dpi` 72–600 覆盖） | 期刊成品保持默认即可 |
-| 渲染看门狗 | 默认自适应 30–1800s；`--timeout N` 覆盖，`--timeout 0` 禁用 | 超大图适当调大 |
+| 渲染看门狗 | 默认自适应 30–1800s；`--timeout N` 覆盖；`--timeout 0` 禁用自适应预算（保留 7200s 硬保险，负数报错）；瞬时失败自动重试 `--retries N`（默认 1，仅超时/内存） | 超大图适当调大；重试对确定性错误不生效 |
 | journal × theme | `--journal nejm/lancet/science/nature` 未显式 `--theme` 时自动联动同款配色 | 显式 `--theme` 优先 |
 | `--stats multi` × `auto` | 互斥（multi 优先）；两组数据用 auto（multi 需 ≥3 组） | 两组比较选 auto |
 | `--order` | 显式列表须恰好覆盖全部标签（多/少/重复=exit 1）；significance 列索引自动改写；box/violin 重排系列键 | 类别有天然顺序（时间点/剂量）时显式列表 |

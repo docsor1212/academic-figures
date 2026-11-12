@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """异常兜底诊断系统（v3.0.0 自 gen_figure.py 拆出；行为完全一致）。
 分级退出码（3 数据/4 环境/6 内存）、中文三段式诊断、字段名近似匹配纠错。"""
+import os
 import sys
 
 # ── 分级退出码（v2.8 定义，v2.10 拆出）──────────────────────────────────
@@ -104,6 +105,7 @@ _DIAG_PATTERNS = [
 
 _KNOWN_DATA_FIELDS = [
     "labels", "series", "errors", "significance", "groups", "matrix",
+    "comparisons",
     "row_labels", "col_labels", "rows", "cols", "x_labels", "y_labels",
     "time", "event", "group", "fpr", "tpr", "scores", "name",
     "sets", "counts", "areas", "studies", "effect", "se", "lower", "upper",
@@ -120,7 +122,9 @@ _KNOWN_DATA_FIELDS = [
   "points", "est", "ci_lo", "ci_hi", "ref", "log_y", "hline_at", "hist", "benefit_shade",
   "subgroups", "levels", "p_interaction", "p", "overall", "est_label", "log_x",
   "arcs", "share_y",
-  "cause_labels", "compare_km", "percent", "time_unit", "y_max"
+  "cause_labels", "compare_km", "percent", "time_unit", "y_max",
+  "domains", "judgements", "title"
+    "events_t", "n_t", "events_c", "n_c", "est_measure", "show_labels",
 ]
 
 
@@ -151,7 +155,8 @@ def _diagnose_exception(e):
                     break
         if why:
             tips.append(why)
-        tips.append("重跑一次（瞬态问题已支持自动重试）")
+        tips.append("瞬态失败（超时/内存）会自动重试（--retries）；"
+                      "反复失败请核对数据与参数")
         return zh, f"{qual}: {e}", tips[:3]
     except Exception:
         return "未知错误", repr(e), ["重试一次", "核对数据格式", "见文档 FAQ"]
@@ -212,3 +217,40 @@ def doctor_composite_shared_scale(data, print_fn=None):
                 f"或改用不同轴标签区分不同变量）")
             n += 1
     return n
+
+
+def write_debug_report(args, exc, out_path):
+    """--debug：渲染失败时的结构化诊断侧车（<output>.debug.json，v6.4.0）。
+
+    供调用方（agent/脚本）程序化排障：输入指纹/字段映射（含未知字段名单）/
+    异常分类与修复建议/重试代数。成功渲染不产出；失败但未加 --debug 也不产出。
+    """
+    import hashlib
+    import json as _json
+    rep = {"schema": "af-debug/1", "chart_type": getattr(args, "type", None),
+           "output": getattr(args, "out", None)}
+    data_path = getattr(args, "data", None)
+    if data_path and os.path.exists(data_path):
+        raw = open(data_path, "rb").read()
+        rep["input"] = {"path": data_path, "size_bytes": len(raw),
+                        "sha256_12": hashlib.sha256(raw).hexdigest()[:12]}
+        try:
+            parsed = _json.loads(raw)
+            if isinstance(parsed, dict):
+                keys = list(parsed.keys())
+                rep["fields_seen"] = keys
+                rep["fields_unknown"] = [k for k in keys if k not in _KNOWN_DATA_FIELDS]
+        except Exception:
+            rep["input"]["format"] = "non-JSON (CSV/Excel passed through)"
+    rep["exception"] = {"type": type(exc).__name__, "message": str(exc)[:300]}
+    try:
+        zh, _orig, tips = _diagnose_exception(exc)
+        rep["diagnosis"] = {"summary": zh, "suggestions": tips}
+    except Exception:
+        pass
+    rep["retries_attempted"] = int(os.environ.get("AF_RETRY_N", "0") or 0)
+    target = (out_path or "figure") + ".debug.json"
+    with open(target, "w", encoding="utf-8") as f:
+        _json.dump(rep, f, ensure_ascii=False, indent=1)
+    print(f"DEBUG: 诊断侧车已写 {target}", file=sys.stderr)
+    return target
