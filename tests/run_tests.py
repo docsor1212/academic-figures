@@ -497,7 +497,8 @@ class TestV201ThemeSystem(unittest.TestCase):
         self.assertEqual(gen_figure.resolve_theme("glm"), "glm")
 
     def test_classic_alias_kept(self):
-        self.assertEqual(gen_figure.resolve_theme("default"), "glm")
+        # v7.7.1 起 default 别名跟随引擎默认（glm-brand）——别名表不得指回旧默认
+        self.assertEqual(gen_figure.resolve_theme("default"), "glm-brand")
         self.assertEqual(gen_figure.resolve_theme("classic"), "classic")
         self.assertIn("classic", gen_figure.THEMES)
 
@@ -2578,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.7.0", self.zh)
-        self.assertIn("version: 7.7.0", self.en)
+        self.assertIn("version: 7.7.1", self.zh)
+        self.assertIn("version: 7.7.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2676,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.7.0", self.zh)
-        self.assertIn("version: 7.7.0", self.en)
+        self.assertIn("version: 7.7.1", self.zh)
+        self.assertIn("version: 7.7.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2710,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.7.0", self.zh)
-        self.assertIn("version: 7.7.0", self.en)
+        self.assertIn("version: 7.7.1", self.zh)
+        self.assertIn("version: 7.7.1", self.en)
 
 
 
@@ -2778,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.7.0", zh)
+        self.assertIn("version: 7.7.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2951,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.7.0", t, name)
+            self.assertIn("version: 7.7.1", t, name)
 
 
 
@@ -3042,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.7.0", t, name)
+            self.assertIn("version: 7.7.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3163,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.7.0", t, name)
+            self.assertIn("version: 7.7.1", t, name)
 
 
 
@@ -3232,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.7.0", t, name)
+            self.assertIn("version: 7.7.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7508,6 +7509,121 @@ class TestV77000(unittest.TestCase):
         self.assertIn("--arena off", zh)
         self.assertIn("默认竞技场风格", zh)
         self.assertIn("v7.7 默认启用", zh)
+
+
+class TestV77100(unittest.TestCase):
+    """v7.7.1：收尾修复+契约升级（外部实测反馈驱动）——主题色板默认标记真值锁
+    （扫描器 3d）+默认竞技场像素契约锁+frontmatter date 一致性锁+基线加冕提示。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_pixel_contract_default_arena(self):
+        """默认竞技场视觉契约（像素级）：冠军色/三彩循环/灰基线逐色在场——
+        视觉默认不再只有行为级 stderr 锁（外部实测建议采纳）。"""
+        import numpy as _np
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.image as _mpimg
+        data = {"labels": ["方法A", "方法B", "方法C", "方法D", "人类专家基线"],
+                "series": {"得分": [50.0, 90.0, 40.0, 60.0, 72.0]}}
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "a.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps(data))
+            out = os.path.join(td, "o.png")
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "-d", d, "-o", out,
+                                "--dpi", "70"], capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            arr = (_mpimg.imread(out)[:, :, :3] * 255).astype(int)
+
+            def _cnt(rgb):
+                return int((((_np.abs(arr[:, :, 0] - rgb[0]) <= 2) &
+                             (_np.abs(arr[:, :, 1] - rgb[1]) <= 2) &
+                             (_np.abs(arr[:, :, 2] - rgb[2]) <= 2)).sum()))
+
+            def _hx(h):
+                return tuple(int(h[i:i + 2], 16) for i in (1, 3, 5))
+
+            sys.path.insert(0, os.path.join(self.root, "scripts"))
+            from af_draw import _ARENA_CHAMP, _ARENA_FILL, _ARENA_BASE
+            for name, h in [("_ARENA_CHAMP 冠军", _ARENA_CHAMP),
+                            ("_ARENA_FILL[0] 橙", _ARENA_FILL[0]),
+                            ("_ARENA_FILL[1] 蓝", _ARENA_FILL[1]),
+                            ("_ARENA_FILL[2] 紫", _ARENA_FILL[2]),
+                            ("_ARENA_BASE 灰基线", _ARENA_BASE)]:
+                n = _cnt(_hx(h))
+                self.assertGreaterEqual(n, 80,
+                    f"{name} ({h}) 精确像素仅 {n}——默认竞技场视觉契约漂移")
+
+    def test_baseline_champion_hint(self):
+        """基线关键词柱为最高柱被自动加冕时必须 stderr 明示（出口 --arena "名称"/off）。"""
+        with tempfile.TemporaryDirectory() as td:
+            d = os.path.join(td, "a.json")
+            io.open(d, "w", encoding="utf-8").write(json.dumps(
+                {"labels": ["模型甲", "人类基线"], "series": {"得分": [50.0, 80.0]}}))
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "-d", d,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "70"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("冠军为基线项", r.stderr)
+            self.assertIn("人类基线", r.stderr)
+
+    def test_theme_default_marker_scanner(self):
+        """扫描器 3d 规则：真引擎干净；污染副本（双「（默认）」）必须命中。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import check_consistency as _cc
+        import shutil as _sh
+        with tempfile.TemporaryDirectory() as td:
+            os.makedirs(os.path.join(td, "scripts"))
+            os.makedirs(os.path.join(td, "references"))
+            for f in ("af_shared.py", "gen_figure.py"):
+                _sh.copy(os.path.join(self.root, "scripts", f),
+                         os.path.join(td, "scripts", f))
+            io.open(os.path.join(td, "references", "changelog.md"), "w",
+                    encoding="utf-8").write("# cl\n")
+            io.open(os.path.join(td, "SKILL.md"), "w", encoding="utf-8").write("version: 0.0.0\n")
+            old = os.getcwd()
+            try:
+                _n, hits = _cc.scan(td)
+            finally:
+                os.chdir(old)
+            self.assertFalse(any("（默认）" in h for h in hits), f"真引擎误报: {hits}")
+            gp = os.path.join(td, "scripts", "gen_figure.py")
+            t = io.open(gp, encoding="utf-8").read()
+            t2 = t.replace('"classic": "经典 matplotlib 色板（v2.0 前的旧默认）"',
+                           '"classic": "经典 matplotlib 色板（默认）"', 1)
+            self.assertNotEqual(t, t2, "污染锚点未命中")
+            io.open(gp, "w", encoding="utf-8").write(t2)
+            try:
+                _n2, hits2 = _cc.scan(td)
+            finally:
+                os.chdir(old)
+            self.assertTrue(any("（默认）" in h for h in hits2), f"污染副本未命中: {hits2}")
+
+    def test_frontmatter_date_matches_changelog(self):
+        """frontmatter date 必须等于 changelog 当前版本节日期（v7.7.0 date 漏 bump 防回潮）。"""
+        skill = self._rd("SKILL.md")
+        ver = re.search(r"version: ([\d.]+)", skill).group(1)
+        date = re.search(r"date: (\d{4}-\d{2}-\d{2})", skill).group(1)
+        cl = self._rd("references/changelog.md")
+        m = re.search(r"## " + re.escape(ver) + r" — (\d{4}-\d{2}-\d{2})", cl)
+        self.assertIsNotNone(m, f"changelog 缺 {ver} 详情节")
+        self.assertEqual(m.group(1), date,
+                         f"SKILL date {date} ≠ changelog {ver} 节日期 {m and m.group(1)}")
+
+    def test_list_themes_single_default_marker(self):
+        """--list-themes 运行时输出恰一处「（默认）」且在 glm-brand 行（用户可见面终验）。"""
+        r = subprocess.run([sys.executable, GEN, "--list-themes"],
+                           capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        lines = [l for l in r.stdout.splitlines() if "（默认）" in l]
+        self.assertEqual(len(lines), 1, f"「（默认）」标记 {len(lines)} 行: {lines}")
+        self.assertIn("glm-brand", lines[0])
 
 
 if __name__ == "__main__":

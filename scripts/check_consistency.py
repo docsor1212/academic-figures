@@ -127,6 +127,53 @@ def scan(root):
     for i, line in enumerate(_cl.split("\n"), 1):
         if _EV.search(line):
             hits.append(f"references/changelog.md:{i}: 评测导向表述（平台详情页展示面禁令）")
+    # 3d) v7.7.1：主题色板「（默认）」标记唯一性+真值一致——v7.6 默认切 glm-brand
+    # 时 glm 行漏改且扫描器盲区（--list-themes 会把 agent 引导回旧默认）。AST 提取
+    # THEME_SWATCH_DESCRIPTIONS 与 resolve_theme(None) 首个字面返回值机械对拍。
+    try:
+        import ast as _ast
+        _gf = "scripts/gen_figure.py"
+        _tree = _ast.parse(open(_gf, encoding="utf-8").read())
+        _swatch, _default_ret, _aliases, _order = None, None, None, None
+        for _node in _tree.body:
+            if isinstance(_node, _ast.FunctionDef) and _node.name == "resolve_theme":
+                for _n2 in _ast.walk(_node):
+                    if isinstance(_n2, _ast.Return) and isinstance(_n2.value, _ast.Constant) \
+                            and isinstance(_n2.value.value, str):
+                        _default_ret = _n2.value.value
+                        break
+            if isinstance(_node, _ast.Assign) and any(
+                    isinstance(_t, _ast.Name) and _t.id == "THEME_SWATCH_DESCRIPTIONS"
+                    for _t in _node.targets) and isinstance(_node.value, _ast.Dict):
+                _swatch = {k.value: v.value for k, v in
+                           zip(_node.value.keys, _node.value.values)
+                           if isinstance(k, _ast.Constant) and isinstance(v, _ast.Constant)}
+            if isinstance(_node, _ast.Assign) and any(
+                    isinstance(_t, _ast.Name) and _t.id == "THEME_ALIASES"
+                    for _t in _node.targets) and isinstance(_node.value, _ast.Dict):
+                _aliases = {k.value: v.value for k, v in
+                            zip(_node.value.keys, _node.value.values)
+                            if isinstance(k, _ast.Constant) and isinstance(v, _ast.Constant)}
+            if isinstance(_node, _ast.Assign) and any(
+                    isinstance(_t, _ast.Name) and _t.id == "THEME_ORDER"
+                    for _t in _node.targets) and isinstance(_node.value, _ast.List):
+                _order = [e.value for e in _node.value.elts if isinstance(e, _ast.Constant)]
+        if _swatch and _default_ret:
+            _marked = [k for k, v in _swatch.items() if "（默认）" in str(v)]
+            if len(_marked) != 1:
+                hits.append(f"{_gf}: THEME_SWATCH_DESCRIPTIONS「（默认）」标记 "
+                            f"{len(_marked)} 处（应恰 1 处=引擎默认主题）")
+            elif _marked[0] != _default_ret:
+                hits.append(f"{_gf}: 默认标记在 '{_marked[0]}'，但 resolve_theme(None)="
+                            f"'{_default_ret}'——主题默认声明不一致")
+            if _aliases is not None and _aliases.get("default") != _default_ret:
+                hits.append(f"{_gf}: --theme default 别名解析为 "
+                            f"'{_aliases.get('default')}'，但引擎默认是 '{_default_ret}'")
+            if _order is not None and _default_ret not in _order:
+                hits.append(f"{_gf}: THEME_ORDER 不含默认主题 '{_default_ret}'"
+                            "（--list-themes 将缺席默认项）")
+    except (OSError, SyntaxError):
+        pass  # gen_figure.py 缺失/异常态容错（镜像最小树）
     return n_cmds, hits
 
 

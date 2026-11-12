@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.7.0
+version: 7.7.1
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,8 +37,8 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.7.0
-  date: 2026-11-07
+  version: 7.7.1
+  date: 2026-11-12
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -403,7 +403,7 @@ Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.7.0** default arena style on single-series bar (zero-arg champion crown; `--arena off` escape for negative metrics; auto-skip under `--pub-ready`) + `--suggest` leaderboard recipe routing (`--style sketch`); **v7.6.0** default theme glm→glm-brand + brand hatch auto-on; **v7.5.0** `--arena` style debut + cross-line command scanner fix. Older: see changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.7.1** theme-swatch default-marker truth lock (scanner rule 3d) + pixel contract lock on default arena visuals + frontmatter date release-locked; **v7.7.0** default arena style on single-series bar (zero-arg champion crown; `--arena off` escape for negative metrics; auto-skip under `--pub-ready`) + `--suggest` leaderboard recipe routing (`--style sketch`); **v7.6.0** default theme glm→glm-brand + brand hatch auto-on; **v7.5.0** `--arena` style debut + cross-line command scanner fix. Older: see changelog.
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 

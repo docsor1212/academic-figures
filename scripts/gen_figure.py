@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.7.0: Publication-quality academic figure generator.
+academic-figures v7.7.1: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -211,7 +211,7 @@ THEMES = {
 THEME_ALIASES = {
     "okabe": "okabe-ito", "colorblind": "okabe-ito", "colorblind-safe": "okabe-ito",
     "okabeIto": "okabe-ito", "okabeito": "okabe-ito",
-    "classic": "classic", "matplotlib": "classic", "default": "glm",
+    "classic": "classic", "matplotlib": "classic", "default": "glm-brand",
     "glm": "glm", "glm-blog": "glm", "glmblog": "glm", "glm-brand": "glm-brand", "brand": "glm-brand", "glmb": "glm-brand",
     "cool": "cool", "cool-toned": "cool",
     "nature": "nature", "npg": "nature",
@@ -222,8 +222,8 @@ THEME_ALIASES = {
 }
 
 THEME_SWATCH_DESCRIPTIONS = {
-    "glm": "GLM 素雅莫兰迪风（默认）· 色盲安全 · 钢蓝/暖黄/鼠尾草绿/灰紫/珊瑚",
-    "glm-brand": "GLM 品牌视觉 · 信号黄对比强化 · 无网格 · 同系深色斜纹（Pro 默认）",
+    "glm": "GLM 素雅莫兰迪风 · 色盲安全 · 钢蓝/暖黄/鼠尾草绿/灰紫/珊瑚",
+    "glm-brand": "GLM 品牌视觉（默认）· 信号黄对比强化 · 无网格 · 同系深色斜纹",
     "classic": "经典 matplotlib 色板（v2.0 前的旧默认）",
     "okabe-ito": "Nature Methods 金标准 · 色盲安全 · 橙/天蓝/绿/黄/深蓝/红",
     "nature": "NPG 期刊风 · 红/蓝/绿/藏蓝",
@@ -234,8 +234,8 @@ THEME_SWATCH_DESCRIPTIONS = {
     "cool": "冷色调 · 深海军蓝→浅钢蓝 8 阶 · 色盲安全",
 }
 
-THEME_ORDER = ["glm", "classic", "okabe-ito", "nature", "lancet", "nejm", "science",
-               "conservative", "cool"]
+THEME_ORDER = ["glm-brand", "glm", "classic", "okabe-ito", "nature", "lancet", "nejm",
+               "science", "conservative", "cool"]
 
 
 def resolve_theme(name):
@@ -265,7 +265,7 @@ def cmd_list_themes():
                          for c in colors)
         safe = "色盲安全" if THEMES[t].get("colorblind_safe") else ""
         print(f"  {t:<14} {blocks}  {desc} {safe}")
-    print("\n用法: --theme <name>   别名: okabe→okabe-ito, colorblind→okabe-ito, classic/default→glm")
+    print("\n用法: --theme <name>   别名: default/brand→glm-brand（引擎默认）, okabe→okabe-ito, classic→classic")
 
 
 def cmd_theme_swatch(theme_key, out):
@@ -2574,7 +2574,7 @@ def main():
     parser.add_argument("--xlabel", default="", help="x 轴标签")
     parser.add_argument("--ylabel", default="", help="y 轴标签")
     parser.add_argument("--theme", default=None,
-                        help="配色主题（默认 glm；--list-themes 查看全部）")
+                        help="配色主题（默认 glm-brand；--list-themes 查看全部）")
     parser.add_argument("--style", default=None, choices=["glm-hatch", "nature-clean", "glm-brand", "sketch"],
                         help="快捷风格：'glm-hatch' = GLM 黄蓝斜线风（theme glm + --hatch）；"
                              "'nature-clean' = 顶刊版式（Okabe-Ito 配色+去顶右框线+无网格+无框图例，v3.3）；"
@@ -3390,7 +3390,7 @@ def main():
             save_kwargs["pil_kwargs"] = {"compression": "tiff_lzw"}
         for _attempt in (1, 2):
             try:
-                fig.savefig(final_out, format=out_format, **save_kwargs)
+                fig.savefig((_t := f"{final_out}.af_tmp{os.getpid()}"), format=out_format, **save_kwargs); os.replace(_t, final_out)  # v7.7.1 原子落盘：杀代竞态下僵尸渲染线程的滞后写只进孤儿 inode，不再截断成品（重试链逐字节锁复现实锤）
                 break
             except OSError as e:
                 if _attempt == 1:
