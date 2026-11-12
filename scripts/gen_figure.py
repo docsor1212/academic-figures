@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.7.1: Publication-quality academic figure generator.
+academic-figures v7.7.2: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -21,6 +21,7 @@ Usage:
 Data formats: JSON or CSV (first column = labels, rest = series)
 """
 import argparse, json, csv, subprocess, sys, os, time, threading
+import re
 
 import matplotlib
 matplotlib.use('Agg')
@@ -838,6 +839,9 @@ def _read_excel(path, sheet=None):
     return headers, rows
 
 
+_INLINE_DATA_RE = re.compile(r"^\s*[^=,]+=[-+0-9.eE]+(\s*,\s*[^=,]+=[-+0-9.eE]+)*\s*$")
+
+
 def load_data(path, chart_type=None, sheet=None, csv_errors=True):
     """Load data from JSON, CSV or Excel (.xlsx/.xls). Returns dict with structure info.
 
@@ -846,6 +850,19 @@ def load_data(path, chart_type=None, sheet=None, csv_errors=True):
     - box/violin: first col as groups, second numeric col as values → {series: {group: [values]}}
     - sheet: Excel only — sheet name (default: first/active sheet)
     """
+    # v7.7.2 AF1（测试线差量方案）：inline 数据简写 "A=10,B=8,C=5"——免临时文件，
+    # 脚本/agent 集成友好。规则收紧=整体匹配「名称=数值(,名称=数值)*」才当 inline，
+    # 否则走原路径（坏文件名的原报错保持不变）。单系列，系列名固定 value。
+    if isinstance(path, str) and _INLINE_DATA_RE.match(path.strip()):
+        labels, values = [], []
+        for _item in path.strip().split(","):
+            _k, _sep, _v = _item.partition("=")
+            try:
+                values.append(float(_v))
+            except ValueError:
+                break  # 理论不可达（正则已保证）；防御性回退
+            labels.append(_k.strip())
+        return {"labels": labels, "series": {"value": values}}
     ext = os.path.splitext(path)[1].lower()
     if ext == '.json':
         try:
@@ -2566,7 +2583,7 @@ def main():
                "｜ 偏倚风险 -t rob（robvis 同款交通灯）｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
     parser.add_argument("--type", "-t", choices=list(GENERATORS.keys()),
                         help="图型（如 bar/box/violin/km/roc/forest/prisma，--demo 可看菜单）")
-    parser.add_argument("--data", "-d", help="输入数据文件（.json / .csv / .tsv / .xlsx）")
+    parser.add_argument("--data", "-d", help="输入数据文件（.json / .csv / .tsv / .xlsx）；支持 inline 简写 \"A=10,B=8,C=5\"（单系列，等价 labels+series value）")
     parser.add_argument("--sheet", default=None,
                         help="xlsx 的工作表名（默认取活动工作表）")
     parser.add_argument("--out", "-o", help="输出文件路径（.png / .svg / .pdf / .tiff / .eps）")

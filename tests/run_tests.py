@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.7.1", self.zh)
-        self.assertIn("version: 7.7.1", self.en)
+        self.assertIn("version: 7.7.2", self.zh)
+        self.assertIn("version: 7.7.2", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.7.1", self.zh)
-        self.assertIn("version: 7.7.1", self.en)
+        self.assertIn("version: 7.7.2", self.zh)
+        self.assertIn("version: 7.7.2", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.7.1", self.zh)
-        self.assertIn("version: 7.7.1", self.en)
+        self.assertIn("version: 7.7.2", self.zh)
+        self.assertIn("version: 7.7.2", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.7.1", zh)
+        self.assertIn("version: 7.7.2", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.7.1", t, name)
+            self.assertIn("version: 7.7.2", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.7.1", t, name)
+            self.assertIn("version: 7.7.2", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.7.1", t, name)
+            self.assertIn("version: 7.7.2", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.7.1", t, name)
+            self.assertIn("version: 7.7.2", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7626,5 +7626,94 @@ class TestV77100(unittest.TestCase):
         self.assertIn("glm-brand", lines[0])
 
 
+class TestV77200(unittest.TestCase):
+    """v7.7.2：测试线差量方案 AF1（--data inline 简写）+ AF2（套件里程碑输出）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+        sys.path.insert(0, os.path.join(cls.root, "scripts"))
+
+    def _run(self, data, *extra):
+        """返回 (r, out_path, out_size)；产物尺寸在临时目录存续期内取样。"""
+        with tempfile.TemporaryDirectory() as td:
+            out = os.path.join(td, "o.png")
+            r = subprocess.run([sys.executable, GEN, "-t", "bar", "-d", data,
+                                "-o", out, "--dpi", "70"] + list(extra),
+                               capture_output=True, text=True, timeout=240)
+            return r, out, (os.path.getsize(out) if os.path.exists(out) else 0)
+
+    def test_inline_render_and_champion(self):
+        """inline 简写渲染成功+默认竞技场冠军=最高值项。"""
+        r, out, size = self._run("A=10,B=90,C=45")
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertIn("[arena] 冠军=B", r.stderr)
+        self.assertGreater(size, 5000, "inline 渲染产物缺失或过小")
+
+    def test_inline_load_data_struct(self):
+        """load_data 单元级：inline 解析为 labels+series.value（int/float/负数）。"""
+        import gen_figure as _g
+        d = _g.load_data("x=-1.5, y=2.25, 中文名=3")
+        self.assertEqual(d["labels"], ["x", "y", "中文名"])
+        self.assertEqual(d["series"]["value"], [-1.5, 2.25, 3.0])
+
+    def test_inline_bad_syntax_falls_back(self):
+        """非 inline 形态（A=10,B）走原路径=合理报错（不静默吞）。"""
+        r, _, _ = self._run("A=10,B")
+        self.assertNotEqual(r.returncode, 0)
+        self.assertIn("数据格式", r.stderr)
+
+    def test_inline_escape_hatch(self):
+        """--arena off 在 inline 数据上同样成立（默认竞技场可关）。"""
+        r, _, _ = self._run("A=10,B=90", "--arena", "off")
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertNotIn("[arena]", r.stderr)
+
+    def test_inline_alias_respects_default_theme(self):
+        """inline+显式主题（okabe-ito）正常渲染（inline 不改变主题通路）。"""
+        r, _, _ = self._run("A=10,B=90,C=45", "--theme", "okabe-ito")
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+
+    def test_suite_verbose_milestones(self):
+        """--verbose 里程碑 runner：单类跑批输出 [i/total]+DONE 摘要+exit 0。"""
+        r = subprocess.run(
+            [sys.executable, os.path.join(self.root, "tests", "run_tests.py"),
+             "--verbose", "TestV77100.test_frontmatter_date_matches_changelog"],
+            capture_output=True, text=True, timeout=240)
+        self.assertEqual(r.returncode, 0, r.stderr[-300:])
+        self.assertIn("MILESTONE RUN: 1 tests", r.stdout)
+        self.assertIn("[1/1]", r.stdout)
+        self.assertIn("== DONE:", r.stdout)
+
+
 if __name__ == "__main__":
+    # v7.7.2 AF2（测试线差量方案）：--verbose 里程碑输出——全量 548 项 ~460s
+    # 无阶段感（PP1 同源，横向共性①的 AF 侧落地）；默认行为不变（CI 兼容）。
+    if "--verbose" in sys.argv:
+        import time as _time
+        _argv = [a for a in sys.argv[1:] if a != "--verbose"]
+        _names = [a for a in _argv if not a.startswith("-")]
+        _loader = unittest.TestLoader()
+        if _names:
+            _suite = _loader.loadTestsFromNames(_names, module=sys.modules["__main__"])
+        else:
+            _suite = _loader.loadTestsFromModule(sys.modules["__main__"])
+        _total = _suite.countTestCases()
+        _t0 = _time.time()
+
+        class _MilestoneResult(unittest.TextTestResult):
+            def startTest(self, test):
+                self._n = getattr(self, "_n", 0) + 1
+                print(f"\n[{self._n}/{_total}] {_time.strftime('%H:%M:%S')} {test.id()}",
+                      flush=True)
+                super().startTest(test)
+
+        print(f"== MILESTONE RUN: {_total} tests ==", flush=True)
+        _res = unittest.TextTestRunner(verbosity=1, resultclass=_MilestoneResult).run(_suite)
+        _sk = len(_res.skipped)
+        print(f"\n== DONE: {_total} tests in {_time.time() - _t0:.0f}s | "
+              f"passed={_res.testsRun - len(_res.failures) - len(_res.errors) - _sk} "
+              f"failed={len(_res.failures)} errors={len(_res.errors)} skipped={_sk} ==",
+              flush=True)
+        sys.exit(0 if _res.wasSuccessful() else 1)
     unittest.main(verbosity=2)
