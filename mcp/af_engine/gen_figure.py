@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.7.0: Publication-quality academic figure generator.
+academic-figures v7.7.1: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)

@@ -36,7 +36,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.7.0
+  version: 7.7.1
   date: 2026-11-12
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
