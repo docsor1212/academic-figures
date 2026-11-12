@@ -394,6 +394,10 @@ def gen_bar(data, ax, theme, cjk_fp, **kwargs):
                 print(f"[arena] 冠军={_labels_short(labels[_aci])}"
                       f"（{'默认竞技场风格；负面指标请 --arena off' if _auto_arena else '--arena'}）",
                       file=sys.stderr)
+                if str(arena) == "auto" and _is_base(_aci):
+                    print(f"[arena] 冠军为基线项 {_labels_short(labels[_aci])}"
+                          "——若非预期请 --arena \"名称\" 指定冠军或 --arena off",
+                          file=sys.stderr)
         elif arena:
             print("[ignored] --arena 仅单系列 bar 生效（多系列已忽略）", file=sys.stderr)
         # v3.10 单系列视觉增强（真金链路反馈"默认出图朴素"）：

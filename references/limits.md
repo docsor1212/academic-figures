@@ -75,7 +75,7 @@
 | `--annotate "x,y:文字"` | 所有图型（组合图自动选面板） | 坐标越界/类别不匹配 → 中文报错 exit 1 |
 | `--legend-loc` / `--legend-outside` | 有图例的图型；组合图 outside=共享图例 | 无图例时 stderr 提示未生效 |
 | `--stats cox` | 仅 forest / subgroup（其他图型 → `[ignored]` 显式告知后继续渲染） | — |
-| `--arena` | 仅单系列竖向 bar（横向/多系列 → `[ignored]` 告知）；**v7.7 起默认启用**（冠军=最高柱，stderr 提示） | 负面指标（最高=最差）用 `--arena off` 关闭；`--arena "标签"` 指定冠军；未匹配自动回落最高柱并告知 |
+| `--arena` | 仅单系列竖向 bar（横向/多系列 → `[ignored]` 告知）；**v7.7 起默认启用**（冠军=最高柱，stderr 提示） | 负面指标（最高=最差）用 `--arena off` 关闭；`--arena "标签"` 指定冠军；未匹配自动回落最高柱并告知；基线关键词柱（人类/baseline 等）若为最高柱会被自动加冕（stderr 提示），非预期时用 `--arena "名称"` 改指数据柱 |
 | `--order` | bar 系 / box / violin / line（box/violin 重排系列键） | 其他图型 → `[ignored]` 显式告知；显式列表须覆盖全部标签（多/少/重复=exit 1） |
 | `--normalize` | 仅 bar 系 / line（分布图不做均值归一） | 其他图型 → `[ignored]` 显式告知 |
 | `--doctor` | 全图型可用；只报告不改退出码 | 省 `-o` 纯体检（exit 1=有发现） |

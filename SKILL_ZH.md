@@ -25,7 +25,7 @@ ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
   version: 7.7.0
-  date: 2026-11-07
+  date: 2026-11-12
   author: docsor1212
   lang: zh
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -367,7 +367,7 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 
 ## 版本历史
 
-完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v7.7.0** bar 单系列默认竞技场风格（零参数即得异质填充+冠军皇冠；负面指标 --arena off 逃生门；--pub-ready 自动规避）+--suggest 榜单配方路由（--style sketch）；**v7.6.0** 默认主题 glm→glm-brand+品牌斜纹自动开启；**v7.5.0** --arena 竞技场风格+扫描器跨行命令修复。更早版本见 changelog。
+完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v7.7.1** 主题色板默认标记真值锁（扫描器 3d）+默认竞技场像素契约锁+frontmatter date 随版锁定；**v7.7.0** bar 单系列默认竞技场风格（零参数即得异质填充+冠军皇冠；负面指标 --arena off 逃生门；--pub-ready 自动规避）+--suggest 榜单配方路由（--style sketch）；**v7.6.0** 默认主题 glm→glm-brand+品牌斜纹自动开启；**v7.5.0** --arena 竞技场风格+扫描器跨行命令修复。更早版本见 changelog。
 
 ## 🚀 进阶版：论文配图一键生成 Pro
 

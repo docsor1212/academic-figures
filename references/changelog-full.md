@@ -8,6 +8,15 @@
 
 <!-- 6.5.0 详情自 changelog.md 下沉（v6.8.0 发版，最近三版窗口滚动） -->
 
+## 7.7.1 — 2026-11-12
+
+**收尾修复+契约升级（外部实测反馈驱动）**：--list-themes glm 行「（默认）」陈旧标记
+清正（v7.6 默认切 glm-brand 漏改）+扫描器新增 3d 规则=THEME_SWATCH_DESCRIPTIONS
+「（默认）」标记全库恰 1 处且=resolve_theme(None) 真值（AST 对拍）；frontmatter date
+入 af_release 升版链+date↔changelog 一致性测试锁；默认竞技场像素契约锁（冠军
+#0F8A6D/三彩循环/灰基线逐色断言）；基线关键词柱被自动加冕时 stderr 提示；trunk git
+快照恢复+每版一 commit 卫生入发车清单。548 测试。
+
 ## 7.7.0 — 2026-11-12
 
 **bar 单系列默认竞技场风格（默认输出=最佳输出第二期）**：单系列竖向 bar 零参数即得
