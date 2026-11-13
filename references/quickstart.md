@@ -56,6 +56,13 @@ python3 scripts/gen_figure.py --explain bar     # 某图型的用法、参数与
   嵌入前必须自己 `matplotlib.use("Agg")`（引擎顶层已对 CLI 路径设置）。
 - 完整示例与退出码约定见 `references/python-api.md`。
 
+### 交付文件命名约定（与稿件编号对齐）
+
+- 主图：`fig1_<内容>.pdf`、`fig2_<内容>.pdf`（`-o fig1_gel_migration.pdf`）
+- 面板级：`fig2a_<内容>.pdf` / `fig2b_<内容>.pdf`（composite 出多面板时逐面板命名）
+- 补充图：`figS1_<内容>.pdf`、`figS2_<内容>.pdf`
+- 内容词用英文短横线小写（投稿系统兼容），编号与稿件图序严格一致——返修时编辑按文件名直接对号。
+
 ## 五、常见第一坑（Top 6）
 
 1. **中文乱码**：加 `--cjk` 自动探测系统中文字体（`--journal cma|cn-core` 自动启用，

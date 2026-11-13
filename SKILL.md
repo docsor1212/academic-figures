@@ -50,6 +50,7 @@ Generate figures from JSON/CSV/Excel data. Local execution, no data leaves the m
 > ⚡ **Top-3 boundaries**: add `--verify` for submission PDFs (PDF only); `--journal`
 > locks the figure width (`--width` is ignored, `--height` still applies); cluster_heatmap >3000 rows auto-downsamples
 > to 2000. FAQ for every error: `references/faq.md` (exit codes, formats, flag scoping).
+> **Problem-first gate**: if the user provides data but no scientific question, ask back (or route through `--suggest`) BEFORE rendering — a figure without a question is noise, not evidence.
 
 **One command, verified output:**
 ```bash
@@ -386,7 +387,8 @@ announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir de
 | "Why did it error / what does exit 3 mean" | `references/faq.md` |
 | Anti-patterns — what NOT to do (one page, cross-linked) | `references/antipatterns.md` |
 | Flag conflict, data-volume cap, env issue | `references/limits.md` |
-| Multi-panel layout recipes | `references/composite-layouts.md` |
+| Multi-panel layout recipes + anti-redundancy audit + hero panel spec | `references/composite-layouts.md` |
+| Reviewer-return case library (what reviewers flag, and the fix) | `references/reviewer-cases.md` |
 | Stats deep-dive (Cox/bootstrap/meta) | `references/advanced.md` |
 | Known traps with fixes | `references/pitfalls.md` |
 | Theme/palette choice | `references/color-guide.md`; combos: `combo-guide.md` |
@@ -402,7 +404,7 @@ Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.7.2** inline data `-d "A=10,B=8"` + suite `--verbose` milestones; **v7.7.1** theme default-marker truth lock + pixel contract + date release-locked; **v7.7.0** default arena on single-series bar (`--arena off` escape, `--pub-ready` auto-skip); **v7.6.0** default theme glm-brand + brand hatch; **v7.5.0** `--arena` debut. Older: see changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.8.0** competitor-adoption docs (five-point contract, anti-redundancy audit, hero-panel spec, semantic color roles, reviewer cases); **v7.7.2** inline data `-d "A=10,B=8"` + suite `--verbose` milestones; **v7.7.1** theme default-marker truth lock + pixel contract + date release-locked; **v7.7.0** default arena on single-series bar (`--arena off` escape, `--pub-ready` auto-skip); **v7.6.0** default theme glm-brand + brand hatch; **v7.5.0** `--arena` debut. Older: see changelog.
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 
