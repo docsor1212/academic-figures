@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.7.2: Publication-quality academic figure generator.
+academic-figures v7.8.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -47,7 +47,7 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
 
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
 from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _SKETCH_MODE,
-                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query, parse_inline_data,
+                        _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query, parse_inline_data, hero_panel_mode,
                         add_sig_bracket_arg, add_sig_auto_arg)
 from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, suggest_arena_note,
                      pairwise_vs_first, draw_bootstrap_brackets, annotate_bootstrap_stats, draw_stat_brackets,
@@ -1670,11 +1670,11 @@ def validate_data(data, chart_type):
             if bad:
                 fatal.append(f"composite: 面板 {bad[:5]} 缺少 'type' 字段 — 每个面板都要有 type（如 'bar'）")
             # v4.3 span 跨行跨列：合法性 + 占位重叠检测（GridSpec 重叠静默，必须前置拦）
-            lay = data.get("layout", [1, 2])
-            _nr, _nc = int(lay[0]), int(lay[1])
+            _nr, _nc = (int(x) for x in data.get("layout", [1, 2]))
+            _hero_valid = hero_panel_mode(data, panels)[0]  # v7.8.0：hero 接管布局，跳过 pos/span 占位检测
             occ = {}
             for i, p in enumerate(panels):
-                if not isinstance(p, dict):
+                if _hero_valid or not isinstance(p, dict):
                     continue
                 # v4.5 R2-4：未知面板类型前置拒绝（原静默画 "Unknown type" 文本框）
                 # v4.7：upset 为自管类型（内部 GridSpec 拆轴），不可作面板

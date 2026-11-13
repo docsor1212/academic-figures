@@ -17,7 +17,7 @@ try:
     import af_v23_stats as _afstats
 except ImportError:  # 统计模块不在同目录时降级（标注函数自行判 None 提示）
     _afstats = None
-from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear, _SKETCH_MODE
+from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear, _SKETCH_MODE, hero_panel_mode
 
 
 def _darken_color(color, factor=0.55):
@@ -626,8 +626,14 @@ def gen_scatter(data, ax, theme, cjk_fp, **kwargs):
     y_data = np.array(data.get("y", data.get("ys", [])))
     groups = data.get("groups", data.get("colors", None))
 
+    _raster = len(x_data) > 50000  # v7.8.0 A10：>50K 点数据层栅格化（轴/文字保矢量）
+    if _raster:
+        print("[rasterized] 数据点 >50K——散点数据层已栅格化（坐标轴/文字保持矢量，"
+              "控制 PDF/SVG 体积；与 cluster_heatmap --downsample 互补：一个改渲染层一个改数据）",
+              file=sys.stderr)
     if groups is None:
-        ax.scatter(x_data, y_data, s=60, color=theme["colors"][0],
+        ax.scatter(x_data, y_data, s=60 if not _raster else 12,
+                   rasterized=_raster, color=theme["colors"][0],
                    edgecolors='white', linewidth=0.5, alpha=0.7, zorder=3)
     else:
         # Validate groups length matches x/y data length
@@ -638,7 +644,8 @@ def gen_scatter(data, ax, theme, cjk_fp, **kwargs):
         for i, g in enumerate(unique_groups):
             mask = [j for j in range(len(groups)) if groups[j] == g]
             c = theme["colors"][i % len(theme["colors"])]
-            ax.scatter(x_data[mask], y_data[mask], s=60, c=c,
+            ax.scatter(x_data[mask], y_data[mask], s=60 if not _raster else 12,
+                       rasterized=_raster, c=c,
                        edgecolors='white', linewidth=0.5, alpha=0.7,
                        label=g, zorder=3)
 
@@ -2660,11 +2667,29 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
     # Clear the default axis created by plt.subplots
     ax.remove()
 
-    gs = gridspec.GridSpec(n_rows, n_cols, figure=fig,
-                           hspace=0.35, wspace=0.3,
-                           left=0.08, right=0.95,
-                           top=0.72 if data.get("suptitle") else 0.92,
-                           bottom=0.13 if data.get("source_note") else 0.08)
+    # v7.8.0 hero_panel：主面板跨全行+1.35:1 双列（B1 规格——思想/参数取竞品调研，
+    # 实现自有）。hero 优先级高于 pos/span：合法时布局由本块接管，两者忽略。
+    # 仅 3-6 面板支持；>6 或索引非法打 WARNING 回退均等网格（不静默）。
+    _hero_ok, _hp = hero_panel_mode(data, panels)
+    if _hp is not None and not _hero_ok:
+        _why = ("仅 3-6 面板支持" if not (3 <= len(panels) <= 6)
+                else "须为 0 起始的整数面板序号且在范围内")
+        print(f"WARNING: hero_panel={_hp!r} 未启用（{_why}）——回退均等网格", file=sys.stderr)
+    if _hero_ok:
+        _n_aux = len(panels) - 1
+        gs = gridspec.GridSpec(_n_aux, 2, figure=fig, width_ratios=[1.35, 1.0],
+                               hspace=0.6, wspace=0.3,
+                               left=0.08, right=0.95,
+                               top=0.72 if data.get("suptitle") else 0.92,
+                               bottom=0.13 if data.get("source_note") else 0.08)
+        print(f"[hero] hero_panel={_hp}（{len(panels)} 面板：主面板跨全行 "
+              f"width_ratios=[1.35, 1.0]，辅面板右列纵排）", file=sys.stderr)
+    else:
+        gs = gridspec.GridSpec(n_rows, n_cols, figure=fig,
+                               hspace=0.35, wspace=0.3,
+                               left=0.08, right=0.95,
+                               top=0.72 if data.get("suptitle") else 0.92,
+                               bottom=0.13 if data.get("source_note") else 0.08)
 
     # v4.1 自动面板标签（期刊 A/B/C 规范自动化）："panel_labels": true → 按
     # pos 行序自动加粗 A/B/C…；传数组（如 ["I","II"]）自定义序列；缺省 false
@@ -2672,10 +2697,15 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
     panel_labels = data.get("panel_labels", False)
     _pl_seq = panel_labels if isinstance(panel_labels, list) else None
     _pl_on = bool(panel_labels)
-    _pos_order = sorted(range(len(panels)),
-                        key=lambda i: (panels[i].get("pos", [9, 9])[0],
-                                       panels[i].get("pos", [9, 9])[1]))
+    if _hero_ok:
+        # 标签序=阅读序：hero（左列跨全行）先，辅面板右列自上而下按数组序
+        _pos_order = [_hp] + [i for i in range(len(panels)) if i != _hp]
+    else:
+        _pos_order = sorted(range(len(panels)),
+                            key=lambda i: (panels[i].get("pos", [9, 9])[0],
+                                           panels[i].get("pos", [9, 9])[1]))
     _pl_of = {idx: k for k, idx in enumerate(_pos_order)}
+    _aux_slot = 0  # hero 模式右列下一空槽
     _panel_axes = []  # (ax, ylabel) 采集——share_y 统一用（v5.6）
 
     for _pi, panel in enumerate(panels):
@@ -2683,14 +2713,22 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
         panel_type = panel.get("type", "bar")
         panel_data = panel.get("data", {})
 
-        _rs, _cs = panel.get("span", [1, 1]) or [1, 1]
-        try:
-            _rs, _cs = int(_rs), int(_cs)
-        except (TypeError, ValueError):
-            _rs = _cs = 1
-        _rs = max(1, min(_rs, n_rows - pos[0]))
-        _cs = max(1, min(_cs, n_cols - pos[1]))
-        sub_ax = fig.add_subplot(gs[pos[0]:pos[0] + _rs, pos[1]:pos[1] + _cs])
+        if _hero_ok:
+            # hero 优先级高于 span/pos：主面板左列跨全行，辅面板右列逐行占位
+            if _pi == _hp:
+                sub_ax = fig.add_subplot(gs[:, 0])
+            else:
+                sub_ax = fig.add_subplot(gs[_aux_slot, 1])
+                _aux_slot += 1
+        else:
+            _rs, _cs = panel.get("span", [1, 1]) or [1, 1]
+            try:
+                _rs, _cs = int(_rs), int(_cs)
+            except (TypeError, ValueError):
+                _rs = _cs = 1
+            _rs = max(1, min(_rs, n_rows - pos[0]))
+            _cs = max(1, min(_cs, n_cols - pos[1]))
+            sub_ax = fig.add_subplot(gs[pos[0]:pos[0] + _rs, pos[1]:pos[1] + _cs])
 
         # Get the generator function
         gen_func = GENERATORS.get(panel_type)
@@ -2808,7 +2846,9 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                  color="#9A9A9A", ha="left", va="bottom",
                  fontproperties=cjk_fp if cjk_fp and has_cjk(_sn) else None)
     _n_panels = len(data.get("panels", []))
-    if _n_panels > 1:
+    # v7.8.0：分隔虚线假设 [1, N] 横排布局（k/N 处竖线）——hero 模式为双列纵向
+    # 布局，旧坐标会把虚线横穿主面板与来源行（视觉门 FAIL 实锤），跳过。
+    if _n_panels > 1 and not _hero_ok:
         for _k in range(1, _n_panels):
             fig.add_artist(plt.Line2D([_k / _n_panels, _k / _n_panels],
                                       [0.02, 0.96], transform=fig.transFigure,

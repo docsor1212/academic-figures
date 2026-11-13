@@ -116,3 +116,11 @@ def _run_wizard():
     print(f"图型细节：python3 scripts/gen_figure.py --explain {chart}")
 
 
+
+
+if __name__ == "__main__":
+    # v7.8.0 批次2（跨线 U6 精神自查）：本模块是 gen_figure --wizard 的实现库，
+    # 直接执行无入口语义——指路 + rc=2（禁静默 rc=0 零输出）。
+    print("内部模块：请通过 python3 scripts/gen_figure.py --wizard 调用交互式向导。",
+          file=sys.stderr)
+    sys.exit(2)
