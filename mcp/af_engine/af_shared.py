@@ -109,6 +109,19 @@ def parse_inline_data(path):
     return {"labels": labels, "series": {"value": values}}
 
 
+def hero_panel_mode(data, panels):
+    """v7.8.0 composite hero 模式判定：返回 (ok, idx)。
+
+    合法 = hero_panel 为 0 起始整数面板序号且在界内，且面板数 3-6（hero 规格）。
+    非法/缺省返回 (False, None)——调用方回退均等网格（af_draw 打 WARNING，validate 跳过占位检测）。
+    """
+    hp = data.get("hero_panel")
+    if isinstance(hp, int) and not isinstance(hp, bool) \
+            and 0 <= hp < len(panels) and 3 <= len(panels) <= 6:
+        return True, hp
+    return False, (hp if isinstance(hp, int) and not isinstance(hp, bool) else None)
+
+
 CHART_NOTES = {
     "bar": "bar/hbar: JSON 或 CSV 均可；CSV 首列为 X 标签。inline 简写：-d \"A=10,B=8\" 免文件（单系列）。误差棒：JSON errors 字段，或 CSV 后缀列（weight_sd/weight_se 等 v6.0+ 自动配对）。单系列竖向 bar 默认竞技场风格（冠军=最高柱；负面指标 --arena off）；基准榜单场景推荐 --style sketch 手绘风。--hatch 斜纹适合打印/黑白场景。",
     "grouped_bar": "同 bar。多 series 自动分组；--show-ratio 显示比值标注。",

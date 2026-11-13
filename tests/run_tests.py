@@ -1143,7 +1143,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 40, f"expected 40 templates (+labbe v6.3), got {len(jsons)}")
+        self.assertEqual(len(jsons), 41, f"expected 41 templates (+hero v7.8), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -5695,10 +5695,10 @@ class TestV50700(unittest.TestCase):
             self.assertIn("antipatterns.md", s, f"{sk} 未链接反模式集中页")
 
     def test_v570_counts_and_docs(self):
-        """计数锁（v5.7.0 建锁 38；v6.1 +rob、v6.3 +labbe 增至 40）：40 模板/注册表≥40/README 40 chart types/realworld 18。"""
+        """计数锁（v5.7.0 建锁 38；v6.1 +rob、v6.3 +labbe 增至 40；v7.8 +hero=41）：41 模板/注册表≥40/README 40 chart types/realworld 18。"""
         root = os.path.join(SCRIPT_DIR, "..")
         jsons = glob.glob(os.path.join(root, "templates", "*.json"))
-        self.assertEqual(len(jsons), 40, f"templates 应 40: {len(jsons)}")
+        self.assertEqual(len(jsons), 41, f"templates 应 41: {len(jsons)}")
         sys.path.insert(0, SCRIPT_DIR)
         import gen_figure
         self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 40)
@@ -7684,6 +7684,147 @@ class TestV77200(unittest.TestCase):
         self.assertIn("MILESTONE RUN: 1 tests", r.stdout)
         self.assertIn("[1/1]", r.stdout)
         self.assertIn("== DONE:", r.stdout)
+
+
+class TestV78000(unittest.TestCase):
+    """v7.8.0：竞品调研采纳三批次的采纳内容锁——
+    批次1 文档（五点图约/审稿人模拟/语义配色/反冗余/reviewer-cases/问题门/命名约定）
+    + 批次2 审计层（像素探针/尺寸双保险/trigger 基准）+ 批次3 引擎（hero_panel/分层栅格化）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    # ── 批次1 文档 ──
+    def test_five_point_contract_card(self):
+        """卡14 五点图约：核心结论闸（写不出=不出图）与 5 问齐备。"""
+        pc = self._rd("references/prompt-cards.md")
+        self.assertIn("## 卡14 五点图约", pc)
+        self.assertIn("核心结论一句话", pc)
+        self.assertIn("不出图", pc)
+        self.assertIn("## 卡15 审稿人模拟", pc)
+        self.assertIn("must-fix", pc)
+
+    def test_reviewer_cases_page(self):
+        """reviewer-cases.md：10 案+未溯源标注+何时读我入口+4 硬动作。"""
+        rc = self._rd("references/reviewer-cases.md")
+        self.assertIn("何时读我", rc)
+        self.assertIn("未逐条溯源核实", rc)
+        n_rows = rc.count("\n| ") + 1
+        self.assertIn("F0F0F0", rc)
+        self.assertIn("灰度", rc)
+        self.assertIn("raincloud", rc)
+        self.assertIn("-t volcano", rc)
+
+    def test_composite_layouts_sections(self):
+        """composite-layouts：反冗余/hero 规格/叙事排序三节齐。"""
+        cl = self._rd("references/composite-layouts.md")
+        self.assertIn("反冗余审计", cl)
+        self.assertIn("主面板（Hero Panel）规格", cl)
+        self.assertIn("1.35", cl)
+        self.assertIn("叙事排序 5 规则", cl)
+        self.assertIn("数据先于示意图", cl)
+
+    def test_semantic_color_roles_and_gate(self):
+        """color-guide §七 语义角色表（advisory 标注）+ SKILL 问题优先门+命名约定。"""
+        cg = self._rd("references/color-guide.md")
+        self.assertIn("语义配色角色表", cg)
+        self.assertIn("#B2182B", cg)
+        self.assertIn("引擎不强制", cg)
+        sk = self._rd("SKILL.md")
+        self.assertIn("Problem-first gate", sk)
+        self.assertIn("reviewer-cases.md", sk)
+        qs = self._rd("references/quickstart.md")
+        self.assertIn("fig2a_", qs)
+        lm = self._rd("references/limits.md")
+        self.assertIn("分层栅格化", lm)
+
+    # ── 批次2 审计层 ──
+    def test_batch2_selftests(self):
+        """三脚本 --selftest 全 rc=0（探针/尺寸/trigger）。"""
+        scripts = [("scripts/pixel_probe.py", ["--selftest"]),
+                   ("scripts/audit_pdf.py", ["--selftest"]),
+                   (os.path.join("tests", "trigger_benchmark.py"), ["--selftest"])]
+        for rel, extra in scripts:
+            r = subprocess.run([sys.executable, os.path.join(self.root, rel)] + extra,
+                               capture_output=True, text=True, timeout=180)
+            self.assertEqual(r.returncode, 0, f"{rel} selftest 失败: {r.stderr[-200:]}")
+
+    # ── 批次3 引擎 ──
+    def test_hero_panel_render_and_notice(self):
+        """hero_panel=0 渲染成功+[hero] stderr+白名单（无未知字段假告警）。"""
+        data = {"layout": [1, 2], "hero_panel": 0, "panel_labels": True,
+                "panels": [
+                    {"title": "Hero", "type": "km",
+                     "data": {"groups": {"A": [[0, 1], [10, 0.9], [20, 0.7]],
+                                         "B": [[0, 1], [8, 0.85], [16, 0.6]]}}},
+                    {"title": "Bar", "type": "bar",
+                     "data": {"labels": ["x", "y"], "series": {"v": [3, 5]}}},
+                    {"title": "Box", "type": "box",
+                     "data": {"datasets": {"g": [1, 2, 3, 4]}}},
+                    {"title": "Scatter", "type": "scatter",
+                     "data": {"x": [1, 2, 3], "y": [2, 3, 1]}}]}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "h.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "composite", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "60"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("[hero] hero_panel=0", r.stderr)
+            self.assertNotIn("hero_panel", r.stderr.split("未知字段")[0][-80:] if "未知字段" in r.stderr else "")
+            self.assertNotIn("不是有效字段", r.stderr)
+
+    def test_hero_fallback_warning(self):
+        """>6/越界/缺面非法情形回退均等网格并 WARNING（2 面板=低于 3）。"""
+        data = {"layout": [1, 2], "hero_panel": 0, "panels": [
+            {"title": "A", "type": "bar", "data": {"labels": ["x"], "series": {"v": [1]}}},
+            {"title": "B", "type": "bar", "data": {"labels": ["y"], "series": {"v": [2]}}}]}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "h.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "composite", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "60"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("未启用", r.stderr)
+            self.assertIn("回退均等网格", r.stderr)
+
+    def test_scatter_rasterized_over_50k(self):
+        """>50K 点：stderr rasterized 提示；≤50K 无提示。"""
+        import numpy as _np
+        rng = _np.random.default_rng(7)
+        with tempfile.TemporaryDirectory() as td:
+            big = os.path.join(td, "big.json")
+            io.open(big, "w", encoding="utf-8").write(json.dumps(
+                {"x": list(rng.normal(0, 1, 60000)), "y": list(rng.normal(0, 1, 60000))}))
+            r = subprocess.run([sys.executable, GEN, "-t", "scatter", "-d", big,
+                                "-o", os.path.join(td, "b.png"), "--dpi", "30"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-200:])
+            self.assertIn("[rasterized]", r.stderr)
+            small = os.path.join(td, "s.json")
+            io.open(small, "w", encoding="utf-8").write(json.dumps({"x": [1, 2], "y": [2, 3]}))
+            r2 = subprocess.run([sys.executable, GEN, "-t", "scatter", "-d", small,
+                                 "-o", os.path.join(td, "s.png"), "--dpi", "30"],
+                                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r2.returncode, 0, r2.stderr[-200:])
+            self.assertNotIn("[rasterized]", r2.stderr)
+
+    def test_hero_field_whitelisted_and_template(self):
+        """hero_panel 入字段白名单；hero 模板在场且含 _command（第 41 模板）。"""
+        from af_diagnostics import _KNOWN_DATA_FIELDS
+        self.assertIn("hero_panel", _KNOWN_DATA_FIELDS)
+        tp = os.path.join(self.root, "templates", "composite-hero.json")
+        self.assertTrue(os.path.isfile(tp), "templates/composite-hero.json 缺失")
+        d = json.loads(self._rd(os.path.join("templates", "composite-hero.json")))
+        self.assertEqual(d.get("hero_panel"), 0)
+        self.assertIn("_command", d)
+        self.assertIn("-t composite", d["_command"])
 
 
 if __name__ == "__main__":
