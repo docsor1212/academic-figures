@@ -4938,7 +4938,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 40)
+        self.assertEqual(len(jsons), 41)
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5469,7 +5469,7 @@ class TestV50600(unittest.TestCase):
         """计数锁收口：模板 37 / realworld 12 / 新字段白名单（v5.7 起 cif+mgus2 入列）。"""
         root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
-        self.assertEqual(len(tpls), 40, f"模板应 40 个: {len(tpls)}")
+        self.assertEqual(len(tpls), 41, f"模板应 41 个: {len(tpls)}")
         rws = os.listdir(os.path.join(root, "examples", "realworld"))
         self.assertEqual(len([x for x in rws if x.endswith(".json")]), 18,
                          f"realworld 应 14 个: {rws}")
@@ -7261,7 +7261,9 @@ class TestV74000(unittest.TestCase):
         self.assertIn("15 chart types", src)
         self.assertNotIn(old14, src)
         self.assertNotIn(old38, src)
-        self.assertIn("40 模板", src)
+        self.assertIn("41 模板", src)
+        old40tpl = "4" + "0 模板"
+        self.assertNotIn(old40tpl, src)
 
 
 class TestV75000(unittest.TestCase):

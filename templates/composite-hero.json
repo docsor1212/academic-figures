@@ -1,5 +1,6 @@
 {
  "type": "composite",
+ "_chart_type": "composite",
  "layout": [
   1,
   2

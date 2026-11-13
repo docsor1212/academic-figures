@@ -2678,7 +2678,7 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
     if _hero_ok:
         _n_aux = len(panels) - 1
         gs = gridspec.GridSpec(_n_aux, 2, figure=fig, width_ratios=[1.35, 1.0],
-                               hspace=0.35, wspace=0.3,
+                               hspace=0.6, wspace=0.3,
                                left=0.08, right=0.95,
                                top=0.72 if data.get("suptitle") else 0.92,
                                bottom=0.13 if data.get("source_note") else 0.08)
@@ -2846,7 +2846,9 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
                  color="#9A9A9A", ha="left", va="bottom",
                  fontproperties=cjk_fp if cjk_fp and has_cjk(_sn) else None)
     _n_panels = len(data.get("panels", []))
-    if _n_panels > 1:
+    # v7.8.0：分隔虚线假设 [1, N] 横排布局（k/N 处竖线）——hero 模式为双列纵向
+    # 布局，旧坐标会把虚线横穿主面板与来源行（视觉门 FAIL 实锤），跳过。
+    if _n_panels > 1 and not _hero_ok:
         for _k in range(1, _n_panels):
             fig.add_artist(plt.Line2D([_k / _n_panels, _k / _n_panels],
                                       [0.02, 0.96], transform=fig.transFigure,
