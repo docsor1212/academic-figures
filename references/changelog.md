@@ -10,7 +10,7 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| **v7.8.0（当前·引擎批在途）** | 2026-11-13 | 竞品调研采纳·文档批：composite-layouts 反冗余审计+主面板规格+叙事排序三节、color-guide 语义配色角色表、prompt-cards 五点图约+审稿人模拟两卡、SKILL 问题优先门、quickstart 交付命名约定、新建 reviewer-cases.md（10 审稿返修案例）——引擎批（composite hero_panel 字段+scatter 大点数分层栅格化）同版随行 |
+| **v7.8.0（当前）** | 2026-11-13 | 竞品调研采纳·文档批+引擎批同版：composite-layouts 反冗余审计+主面板规格+叙事排序三节、color-guide 语义配色角色表、prompt-cards 五点图约+审稿人模拟两卡、SKILL 问题优先门、quickstart 交付命名约定、新建 reviewer-cases.md（10 审稿返修案例）——引擎批（composite hero_panel 字段+scatter 大点数分层栅格化）同版随行 |
 | v7.7.2 | 2026-11-13 | 测试线差量方案 AF1+AF2 落地：`--data` 支持 inline 简写 "A=10,B=8,C=5"（免临时文件，规则收紧=整体匹配名称=数值才解析，坏文件名原报错不变）+run_tests.py `--verbose` 里程碑输出（[i/总数]+时间戳+DONE 摘要，默认行为不变 CI 零风险）+`--theme default` 别名归位 glm-brand；554 测试 |
 | v7.7.1 | 2026-11-12 | 收尾修复+契约升级（外部实测驱动）：--list-themes glm 行「（默认）」陈旧标记清正+扫描器 3d 规则（默认标记全库唯一且=resolve_theme(None) 真值）+frontmatter date 入升版链+一致性锁+默认竞技场像素契约锁+基线加冕 stderr 提示；548 测试 |
 | v7.7.0 | 2026-11-12 | bar 单系列默认竞技场风格机制化（零参数即得异质填充+冠军皇冠——默认输出=最佳输出第二期）+`--arena off` 负面指标逃生门+`--pub-ready` 投稿流自动规避+`--suggest` 榜单配方路由；TestV77000 十项锁 |
