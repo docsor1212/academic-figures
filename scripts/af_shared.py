@@ -3,7 +3,10 @@
 
 叶模块：不依赖 gen_figure/af_draw，被两者共同导入。
 """
+import json
+import os
 import re
+import sys
 
 from matplotlib.transforms import BboxBase  # v4.5 P0-1：_ensure_ylabel_clear 依赖（缺失致 KM-ylabel/dual_axis/composite 硬崩溃）
 
@@ -41,6 +44,56 @@ def has_cjk(text):
         if 0x30000 <= o <= 0x3134f:  # Ext-G
             return True
     return False
+
+
+# v7.9.0 AF3：CJK 探测脚本路径（与 af_shared 同目录；gen_figure 委托本模块加载）
+DETECT_SCRIPT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "detect_cjk_font.py")
+
+
+def load_cjk_font(font_path=None):
+    """Load CJK font. Returns (FontProperties, font_name) or (None, None).
+
+    v7.9.0 AF3：探测链重构——进程内加载探测模块优先（agent 嵌套/嵌入式解释器场景
+    sys.executable 可能为空串，旧 subprocess 路径失败曾被 except 静默吞掉→rc=0 中文
+    全豆腐块）；进程内失败再回退子进程（sys.executable 非空 → python3）。"""
+    if font_path is None:
+        try:
+            import importlib.util as _ilu
+            _sp = _ilu.spec_from_file_location("af_detect_cjk", DETECT_SCRIPT)
+            _md = _ilu.module_from_spec(_sp)
+            _sp.loader.exec_module(_md)
+            font_path = _md.detect_cjk_font()
+        except Exception:
+            font_path = None
+        if not font_path:
+            import subprocess
+            for _py in ([sys.executable] if sys.executable else []) + ["python3"]:
+                try:
+                    _r = subprocess.run([_py, DETECT_SCRIPT], capture_output=True,
+                                        text=True, timeout=10)
+                    _i = json.loads(_r.stdout)
+                    font_path = _i.get("path") if _i.get("found") else None
+                    if font_path:
+                        break
+                except Exception:
+                    continue
+    if font_path and os.path.exists(font_path):
+        from matplotlib import font_manager as _fm
+        _fm.fontManager.addfont(font_path)
+        fp = _fm.FontProperties(fname=font_path)
+        return fp, fp.get_name()
+    return None, None
+
+
+def advise_colorblind(theme, n_series, stream=None):
+    """v7.9.0 AF29：非色盲安全主题×≥3 系列时 stderr 一行提示（默认主题 glm-brand
+    为品牌钦定不动，仅提示不强制；色盲安全场景建议 --theme okabe-ito）。永不抛异常。"""
+    try:
+        if n_series is not None and n_series >= 3 and not theme.get("colorblind_safe"):
+            print("NOTICE: 当前主题未按色盲安全设计（红绿对/相近明度在 3+ 系列下风险升高）——"
+                  "投稿或色盲读者场景建议 --theme okabe-ito", file=stream or sys.stderr)
+    except Exception:
+        pass
 
 
 
@@ -152,7 +205,7 @@ CHART_NOTES = {
     "dual_axis": "dual_axis: 需要 JSON 含 left/right 两个 series 定义；CSV 不支持双轴。",
     "box": "box: 每列为一个分布；CSV 或 JSON datasets。",
     "forest": "forest: meta 分析森林图；JSON estimates/ci_low/ci_high 必填，可选 weights/overall/heterogeneity/events。",
-    "km": "km: Kaplan-Meier；JSON 需 time/status 数据结构，参考文档 §统计数据。",
+    "km": "km: Kaplan-Meier；groups={组名:[[时间,事件0/1],...]} 患者级原始数据（≥2 组自动 log-rank+风险表+中位生存）或 {组名:[[时间,生存率],...]} 预计算曲线（此形态跳过自动统计并提示）；可选 log_rank={\"p\":...}/risk_table/median_survival 直接提供。",
     "roc": "roc: ROC 曲线；JSON 需 scores/labels，参考文档 §统计数据。",
     "violin": "violin: 小提琴图；JSON datasets 或 CSV，每列为分布。",
     "composite": "composite: 多面板组合图；JSON panels 数组定义子图，参考文档 §组合图。",
@@ -180,7 +233,7 @@ CHART_NOTES = {
     "raincloud": "raincloud: 雨云图（v4.9，第 27 号图型；分布三合一：KDE 半小提琴云+箱线五数概括+"
                  "抖动原始点雨）；schema 同 violin；--stats 通用；jitter(0~0.3)/cloud_scale(0~2.0，0=藏云)；零方差/单点组云退化并告知。",
     "slope": "slope: 斜率图（两时点/两组对比）；JSON items={名称:[前值,后值]}+left_label/right_label；--show-gap 标差值。",
-    "volcano": "volcano: 火山图；JSON log2fc+pvalue 两数组必填（names/fc_cut/p_cut/top 可选）；阈值线与 top 基因标注自动。",
+    "volcano": "volcano: 火山图；JSON log2fc+pvalue 两数组必填（names/fc_cut/p_cut/top 可选）；阈值线与 top 基因标注自动；轴标默认组学口径（log2 fold change / -log10 p-value），其他数据域可用 --xlabel/--ylabel 覆盖。",
     "rmst": "rmst: RMST 限制平均生存时间；JSON groups={臂名: [[时间,事件 0/1]...]} 恰好两臂（契约同 km）；--rmst-tau 指定 τ（缺省=最小最大随访之半，与 stderr 披露一致）；自动输出每臂 RMST(95%CI)+ΔRMST。",
     "labbe": "labbe: L'Abbé 图（Meta 四件套）；JSON studies=[{name,events_t,n_t,events_c,n_c}...]（2x2 四格，非 trials）；est_measure=RR/OR；气泡面积∝研究权重；合并线=DL 随机效应。",
     "dumbbell": "dumbbell: 哑铃图（v5.1，第 30 号图型；每行两点 from→to+连接线，横向形态，"
@@ -204,8 +257,9 @@ CHART_NOTES = {
                 "（1~12 组×2~8 层）+overall 可选（底部菱形）；est_label 定无效线（HR/OR/RR=1，MD/SMD=0）；"
                 "log_x 默认 true；引擎只可视化不拟合。",
     "ridgeline": "ridgeline: 山脊图/joyplot（v5.0，第 29 号图型；多组 KDE 密度纵向堆叠部分重叠，"
-                 "一屏看分布逐组移动/变形）；schema 同 violin（labels+datasets）；overlap(0~0.95) "
-                 "调重叠、sort=median 按中位数排；单值组退化为标记线并告知。",
+                 "一屏看分布逐组移动/变形）；JSON: {\"labels\": [组名自上而下], \"datasets\": "
+                 "{组名: [数值数组]}}（datasets=组名→数组的字典，与 violin 系列字典同构）；"
+                 "overlap(0~0.95) 调重叠、sort=median 按中位数排；单值组退化为标记线并告知。",
     "swimmer": "swimmer: 游泳图（v4.10，第 28 号图型；临床试验逐例时长）；JSON end 必填（>0，单位自定）、"
                "start/names/group 可选（RECIST 类别着色同 waterfall）、milestones 里程碑圆点（可晚于条端）、"
                "ongoing 端部箭头（持续中）、ref_lines 地标虚线；sort=duration|input。",

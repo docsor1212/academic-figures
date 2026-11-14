@@ -1618,8 +1618,16 @@ def gen_volcano(data, ax, theme, cjk_fp, **kwargs):
     fc_cut = float(data.get("fc_cut", 1.0))
     p_cut = float(data.get("p_cut", 0.05))
     top_n = int(data.get("top", 10))
-    if fc_cut <= 0 or not (0 < p_cut < 1) or top_n < 0:
-        raise ValueError("volcano: fc_cut>0、0<p_cut<1、top≥0")
+    # v7.9.0 AF35：约束违例点名违例字段与实值（原合并一句话不指认哪个参数）
+    _viol = []
+    if fc_cut <= 0:
+        _viol.append(f"fc_cut={data.get('fc_cut', 1.0)} 不满足 fc_cut>0")
+    if not (0 < p_cut < 1):
+        _viol.append(f"p_cut={data.get('p_cut', 0.05)} 不满足 0<p_cut<1")
+    if top_n < 0:
+        _viol.append(f"top={data.get('top', 10)} 不满足 top≥0")
+    if _viol:
+        raise ValueError("volcano: " + "；".join(_viol))
 
     yv = [-math.log10(p) for p in pvv]
     sig_cut = -math.log10(p_cut)
@@ -3770,7 +3778,7 @@ def gen_dumbbell(data, ax, theme, cjk_fp, **kwargs):
     snames = [str(labels[i]) if labels else f"P{i+1:02d}" for i in order]
     for row, i in enumerate(order):
         lo, hi = min(fv[i], tv[i]), max(fv[i], tv[i])
-        ax.plot([lo, hi], [row, row], color="#BBBBBB", lw=2.8,
+        ax.plot([lo, hi], [row, row], color="#999999", lw=2.8,  # v7.9.0 AF36 衍生：#BBBBBB 偏浅（细元素应更实）
                 solid_capstyle="round", zorder=2)
         ax.plot([fv[i]], [row], marker="o", mfc="white", mec=c_from, mew=1.7,
                 ms=8, ls="none", zorder=3)
@@ -4106,8 +4114,10 @@ def gen_dca(data, ax, theme, cjk_fp, **kwargs):
     ax.set_ylabel(yl, fontsize=fs, fontproperties=cjk_fp if cjk_fp and has_cjk(yl) else None)
     ax.legend(handles, hlbls, loc="upper right", frameon=False, fontsize=fs_s,
               prop=cjk_fp if cjk_fp and has_cjk("".join(names) + "".join(hlbls)) else None)
-    peaks = [f"{nm} 峰值 {max(nb):+.2f}@{tv[nb.index(max(nb))]:g}"
-             for nm, nb in zip(names, nbs)]
+    _pk = [max(nb) for nb in nbs]
+    _pf = _dca_peak_fmt(_pk)  # v7.9.0 AF28：0.185/0.180 同显 +0.18 掩盖差异→折叠时升位
+    peaks = [f"{nm} 峰值 {_pf[k]}@{tv[nbs[k].index(_pk[k])]:g}"
+             for k, nm in enumerate(names)]
     print(f"dca: 阈值 {min(tv):g}~{max(tv):g}（{n} 点），{len(names)} 个模型"
           + (f"，患病率 {prev:g}" if prev is not None else "")
           + "；" + "；".join(peaks)
@@ -4115,19 +4125,36 @@ def gen_dca(data, ax, theme, cjk_fp, **kwargs):
     apply_base_style(ax, theme)
 
 
+def _dca_peak_fmt(vals):
+    """v7.9.0 AF28：峰值显示精度自适应——2 位小数若把不同真值折叠成同串
+    （0.185/0.180 同显 +0.18，读者误判两模型等价）则逐级升位直到可区分。"""
+    try:
+        for _nd in (2, 3, 4):
+            _ss = [f"{v:+.{_nd}f}" for v in vals]
+            if len(set(_ss)) == len(_ss):
+                return _ss
+        return [f"{v:+g}" for v in vals]
+    except Exception:
+        return [f"{v:+.2f}" for v in vals]
+
+
 def dca_alt(data, t=""):
     """v5.2：dca 的 --alt 文本。"""
     thr = data.get("thresholds") or []
     models = data.get("models") or []
     segs = []
+    _pkv, _meta = [], []
     for m in models:
         if isinstance(m, dict) and isinstance(m.get("net_benefit"), list):
             nb = [float(v) for v in m["net_benefit"]
                   if isinstance(v, (int, float)) and not isinstance(v, bool)]
             if nb:
-                i = nb.index(max(nb))
-                segs.append(f"{m.get('name', '模型')} 峰值净收益 {max(nb):+.2f}"
-                            f"（阈值 {thr[i] if i < len(thr) else '?'}）")
+                _pkv.append(max(nb))
+                _meta.append((m.get('name', '模型'), nb.index(max(nb))))
+    _pf = _dca_peak_fmt(_pkv) if _pkv else []
+    for k, (nm, i) in enumerate(_meta):
+        segs.append(f"{nm} 峰值净收益 {_pf[k]}"
+                    f"（阈值 {thr[i] if i < len(thr) else '?'}）")
     return (f"决策曲线分析（{len(models)} 个模型，{len(thr)} 个阈值点"
             + ("；参照策略：全部干预/不干预" if data.get("show_none", True) else "")
             + f"）：{'；'.join(segs)}。{t}")
@@ -4239,6 +4266,10 @@ def gen_nomogram(data, ax, theme, cjk_fp, **kwargs):
     for o in outcomes:
         if not isinstance(o, dict) or not o.get("label") or "ticks" not in o:
             raise ValueError("nomogram: outcome_scales 每项须为含 label/ticks 的对象")
+        if o.get("points_at") is None:  # v7.9.0 AF26 新伤：静默线性默认会出错误尺
+            print(f"WARNING: nomogram 结局尺「{o.get('label')}」未给 points_at——"
+                  f"已按线性 0~100 默认映射到总积分轴，若模型总分上限非 100 概率刻度位置即错，"
+                  f"请显式提供 points_at（该概率刻度对应的中介总分）", file=sys.stderr)
         lab, pts = _nom_ticks(o, pts_hi=None, name_key="label")
         olab.append(str(o["label"]))
         olabels.append(lab)

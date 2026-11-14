@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.8.2", self.zh)
-        self.assertIn("version: 7.8.2", self.en)
+        self.assertIn("version: 7.9.0", self.zh)
+        self.assertIn("version: 7.9.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.8.2", self.zh)
-        self.assertIn("version: 7.8.2", self.en)
+        self.assertIn("version: 7.9.0", self.zh)
+        self.assertIn("version: 7.9.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.8.2", self.zh)
-        self.assertIn("version: 7.8.2", self.en)
+        self.assertIn("version: 7.9.0", self.zh)
+        self.assertIn("version: 7.9.0", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.8.2", zh)
+        self.assertIn("version: 7.9.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.2", t, name)
+            self.assertIn("version: 7.9.0", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.2", t, name)
+            self.assertIn("version: 7.9.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.2", t, name)
+            self.assertIn("version: 7.9.0", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.2", t, name)
+            self.assertIn("version: 7.9.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7999,6 +7999,163 @@ class TestV78100(unittest.TestCase):
                                capture_output=True, text=True, timeout=240)
             self.assertNotEqual(r.returncode, 0)
             self.assertIn("两个组", r.stderr)
+
+
+class TestV79000(unittest.TestCase):
+    """v7.9.0：第六轮测试线批次1修复锁——
+    AF3 CJK 探测回退链（嵌套解释器零豆腐）/AF21+AF4 _KNOWN_DATA_FIELDS 假警告族根治
+    （含 title/events_t 缺逗号连字 bug）/AF22 prisma 纳入≤评估守恒独立化/
+    AF10 校验类错误首行=精确原因（无瞬态建议无 AF_DEBUG）/AF35 约束违例点名字段实值/
+    AF29 注释诚实化+色盲提示/AF26 新伤 outcome points_at 静默默认警告/
+    AF28 DCA 峰值精度自适应/AF30+AF5 残留 explain 形态写全/AF36 衍生连接线加深。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def test_af3_nested_interpreter_cjk(self):
+        """AF3：sys.executable 空串（agent 嵌套/嵌入式解释器）时 load_cjk_font
+        仍能经进程内探测链拿到中文字体（旧 subprocess-only 路径静默吞错→豆腐块）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib
+        matplotlib.use("Agg")
+        import af_shared
+        _real = sys.executable
+        try:
+            sys.executable = ""  # 复现 tester 场景
+            fp, name = af_shared.load_cjk_font()
+        finally:
+            sys.executable = _real
+        self.assertIsNotNone(fp, "嵌套解释器场景 CJK 探测必须成功（进程内回退链）")
+        self.assertTrue(name)
+
+    def test_af21_af4_false_field_warnings_gone(self):
+        """AF21+AF4：prisma 合法键（records_identified/records_excluded/reports_excluded/
+        lang）与 km log_rank/risk_table 不再触发近似字段假警告；events_t 已注册
+        （原 title/events_t 缺逗号连字成 titleevents_t）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import gen_figure as gf
+        from af_diagnostics import _KNOWN_DATA_FIELDS
+        for k in ("records_identified", "records_excluded", "reports_excluded",
+                  "lang", "log_rank", "risk_table", "events_t"):
+            self.assertIn(k, _KNOWN_DATA_FIELDS)
+        prisma_like = {"records_identified": 1043, "records_excluded": 731,
+                       "reports_excluded": 34, "lang": "zh"}
+        self.assertEqual(gf._field_nearmiss_warnings(prisma_like), [])
+        self.assertEqual(gf._field_nearmiss_warnings({"log_rank": {"p": 0.03},
+                                                      "risk_table": {"t0": ["A", "B"]}}), [])
+
+    def test_af22_prisma_inclusion_le_assessed(self):
+        """AF22：studies_included > reports_assessed（排除 0 的不可能流程）必须 fatal，
+        且不再依赖 exclusion_reasons 键存在（守卫独立化）。"""
+        data = {"records_identified": 1043, "duplicates_removed": 143,
+                "records_screened": 900, "records_excluded": 731,
+                "reports_sought": 169, "reports_not_retrieved": 0,
+                "reports_assessed": 169, "reports_excluded": 0,
+                "studies_included": 200}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "p.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "prisma", "-d", fp,
+                                "-o", os.path.join(td, "o.png")],
+                               capture_output=True, text=True, timeout=240)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("studies_included (200) >", r.stderr)
+
+    def test_af10_af35_validation_error_precise(self):
+        """AF10+AF35：volcano fc_cut=0 报错首行=精确原因（点名字段与实值），
+        无瞬态重试建议、无 AF_DEBUG 引导（校验类分流）。"""
+        data = {"log2fc": [1.2, -0.8, 2.1], "pvalue": [0.01, 0.5, 0.001], "fc_cut": 0}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "v.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "volcano", "-d", fp,
+                                "-o", os.path.join(td, "o.png")],
+                               capture_output=True, text=True, timeout=240)
+            self.assertNotEqual(r.returncode, 0)
+            first_err = [ln for ln in r.stderr.splitlines()
+                         if ln.startswith("ERROR")][0]
+            self.assertIn("volcano: fc_cut=0 不满足 fc_cut>0", first_err)
+            self.assertNotIn("瞬态", r.stderr)
+            self.assertNotIn("AF_DEBUG", r.stderr)
+
+    def test_af29_colorblind_advisory(self):
+        """AF29：非色盲安全主题×≥3 系列 stderr 一行提示；okabe-ito 或 ≤2 系列静默；
+        glm-brand 主题字典显式 colorblind_safe=False（注释不再自称 colorblind-safe）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import io as _io
+        import matplotlib
+        matplotlib.use("Agg")
+        import gen_figure as gf
+        from af_shared import advise_colorblind
+        self.assertIs(gf.THEMES["glm-brand"]["colorblind_safe"], False)
+        err = _io.StringIO()
+        advise_colorblind(gf.THEMES["glm-brand"], 4, stream=err)
+        self.assertIn("okabe-ito", err.getvalue())
+        err2 = _io.StringIO()
+        advise_colorblind(gf.THEMES["okabe-ito"], 4, stream=err2)
+        self.assertEqual(err2.getvalue(), "")
+        err3 = _io.StringIO()
+        advise_colorblind(gf.THEMES["glm-brand"], 2, stream=err3)
+        self.assertEqual(err3.getvalue(), "")
+
+    def test_af26_nomogram_outcome_points_at_warning(self):
+        """AF26 新伤：outcome_scales 缺 points_at 时 stderr 警告（静默线性 0~100
+        默认曾出错误尺不报错）。"""
+        data = {"variables": [{"name": "X", "ticks": [0, 1], "points": [0, 60]}],
+                "outcome_scales": [{"label": "1 年生存率", "ticks": [0.1, 0.5, 0.9]}],
+                "total_points_max": 235}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "n.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "nomogram", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "60"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("未给 points_at", r.stderr)
+
+    def test_af28_dca_peak_precision(self):
+        """AF28：DCA 峰值显示精度自适应——0.185/0.180 不得同显 +0.18。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_draw import _dca_peak_fmt
+        self.assertEqual(_dca_peak_fmt([0.185, 0.180]), ["+0.185", "+0.180"])
+        self.assertEqual(_dca_peak_fmt([0.3, 0.2]), ["+0.30", "+0.20"])
+        data = {"thresholds": [0.1, 0.2, 0.3, 0.4],
+                "models": [
+                    {"name": "A", "net_benefit": [0.1, 0.185, 0.15, 0.12]},
+                    {"name": "B", "net_benefit": [0.1, 0.180, 0.14, 0.11]}]}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "d.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "dca", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "60"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("+0.185", r.stderr)
+            self.assertIn("+0.180", r.stderr)
+            self.assertNotIn("+0.18@", r.stderr)
+
+    def test_af30_af5_explain_full_shapes(self):
+        """AF30+AF5 残留：--explain ridgeline 写全 datasets 字典形态；
+        --explain km 写全患者级原始数据形态（groups=[[t,e],...]+自动统计）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_shared import CHART_NOTES
+        self.assertIn("datasets", CHART_NOTES["ridgeline"])
+        self.assertIn("字典", CHART_NOTES["ridgeline"])
+        self.assertIn("患者级", CHART_NOTES["km"])
+        self.assertIn("[[时间,事件", CHART_NOTES["km"].replace("，", ","))
+        self.assertIn("--xlabel", CHART_NOTES["volcano"])  # AF34 残留注记
+
+    def test_af36_derived_dumbbell_connector(self):
+        """AF36 衍生：dumbbell 连接线加深 #BBBBBB→#999999（细元素亮度——
+        tester 的连接线指控为测量伪象，但线色偏浅属实）。"""
+        src = self._read(os.path.join("scripts", "af_draw.py"))
+        self.assertNotIn('color="#BBBBBB", lw=2.8', src)
+        self.assertIn('color="#999999", lw=2.8', src)
+
+    def _read(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
 
 
 if __name__ == "__main__":

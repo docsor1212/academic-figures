@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.8.2: Publication-quality academic figure generator.
+academic-figures v7.9.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -48,7 +48,7 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
 from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _SKETCH_MODE,
                         _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query, parse_inline_data, hero_panel_mode,
-                        add_sig_bracket_arg, add_sig_auto_arg)
+                        add_sig_bracket_arg, add_sig_auto_arg, load_cjk_font, advise_colorblind)
 from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, suggest_arena_note,
                      pairwise_vs_first, draw_bootstrap_brackets, annotate_bootstrap_stats, draw_stat_brackets,
                      annotate_auto_stats, annotate_multi_stats, gen_bar,
@@ -67,11 +67,12 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, su
                      gen_subgroup_forest, subgroup_alt, validate_subgroup)
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-DETECT_SCRIPT = os.path.join(SCRIPT_DIR, "detect_cjk_font.py")
 
 # ── Style presets ──────────────────────────────────────────────────────
 THEMES = {
-    # Default theme is "glm" (elegant muted palette, colorblind-safe).
+    # v7.9.0 AF29：默认主题 glm-brand（品牌视觉标识，user-mandated）。NOT colorblind-safe
+    # （主题字典 colorblind_safe: False 如实标注；色盲安全场景用 okabe-ito，3+ 系列
+    # 时渲染 stderr 会提示）。glm/okabe-ito 语义色见各主题注释。
     # The old matplotlib-default palette is preserved as "classic".
     "classic": {
         "figsize": (10, 6),
@@ -186,6 +187,7 @@ THEMES = {
         "spines": ["top", "right"],
         "grid_alpha": 0.0,  # 品牌风格：无网格（Nature 版式语言）
         "hatch_edge": "auto",  # 斜纹色=填充同系深色（品牌精修）
+        "colorblind_safe": False,  # v7.9.0 AF29：如实标注（黄蓝轴安全但 sage/coral 等非色盲全谱）
     },
     # Cool theme: elegant muted cool-toned palette (blues, teals, slate)
     # All colors in 190-260° hue range, low-medium saturation
@@ -559,27 +561,8 @@ def generate_alt_text(chart_type, data, title=""):
     return alt_text_core(chart_type, data, title)
 
 # ── Font helpers ───────────────────────────────────────────────────────
-
-def load_cjk_font(font_path=None):
-    """Load CJK font. Returns (FontProperties, font_name) or (None, None)."""
-    if font_path is None:
-        # Auto-detect
-        import subprocess
-        try:
-            result = subprocess.run(
-                [sys.executable, DETECT_SCRIPT],
-                capture_output=True, text=True, timeout=10
-            )
-            info = json.loads(result.stdout)
-            font_path = info.get("path") if info.get("found") else None
-        except Exception:
-            font_path = None
-    if font_path and os.path.exists(font_path):
-        fm.fontManager.addfont(font_path)
-        fp = fm.FontProperties(fname=font_path)
-        # Extract family name for rcParams
-        return fp, fp.get_name()
-    return None, None
+# load_cjk_font 已下沉 af_shared（v7.9.0 AF3：进程内探测优先回退链，根治嵌套解释器
+# sys.executable 为空串时静默豆腐块）；本文件经顶部 from af_shared import 引用。
 
 
 
@@ -1758,6 +1741,14 @@ def validate_data(data, chart_type):
                 and vals["reports_assessed"] != sought - not_ret:
             fatal.append(f"prisma 数字自洽校验失败: reports_assessed ({vals['reports_assessed']}) != "
                          f"reports_sought - reports_not_retrieved ({sought - not_ret})")
+        # v7.9.0 AF22：纳入≤全文评估守恒独立化（原嵌套在 exclusion_reasons 存在时才检查，
+        # 缺该键的不可能流程 200>169 曾照常出图）
+        _inc_only = vals.get("studies_included")
+        if _inc_only is not None and vals.get("reports_assessed") is not None \
+                and _inc_only > vals["reports_assessed"]:
+            fatal.append(f"prisma 数字自洽校验失败: studies_included ({_inc_only}) > "
+                         f"reports_assessed ({vals['reports_assessed']})——纳入研究数不可能超过"
+                         f"评估全文的报告数，请复核流程数字（若含多报告归并请以评估数为准）")
         reasons = data.get("exclusion_reasons")
         if reasons is not None:
             if not isinstance(reasons, dict) or not reasons:
@@ -3051,6 +3042,11 @@ def main():
     # ── v2.9：JSON 字段名近似匹配告警（拼写错误前置提醒，非致命）──
     for _w in _field_nearmiss_warnings(data):
         print(f"WARNING: {_w}", file=sys.stderr)
+
+    # v7.9.0 AF29：非色盲安全主题×多系列 stderr 提示（默认主题不动，仅提示）
+    _sv = next((v for v in (data.get("series"), data.get("datasets"),
+               data.get("groups")) if isinstance(v, dict)), None)
+    advise_colorblind(THEMES.get(theme_key, {}), len(_sv) if _sv else None)
 
     fatal_msgs, warn_msgs = validate_data(data, args.type)
     for w in warn_msgs:
