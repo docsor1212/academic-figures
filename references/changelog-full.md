@@ -38,6 +38,26 @@
 - **PCA 载荷箭头色入主题**（AF33）：theme["colors"][-1]（原硬编码 #E8A33D
   琥珀+标签 #8a6414 不随 --theme）。591 测试（TestV79100 十项新锁）。
 
+## 7.8.1 — 2026-11-14
+
+**测试线四图型深测修复（AF9-AF16，外部独立实现逐位核对后目检发现）**：
+
+- **AF11（P1）比值类 CI 格式化门**：L'Abbé 图例把 RR 上界 0.997 舍成 1.00——而
+  RR 无效值恰为 1，读者会判「CI 含 1、无显著」与引擎结论相反。新增
+  `fmt_ratio_ci` 自适应格式化（任一边界舍入后==无效值即升三位+「不含 1」显著
+  标注），应用 L'Abbé 图例/forest Overall/forest 逐行三处；funnel/galbraith
+  用有效数字格式不受影响。
+- **AF9 隐式旗标不冒充**：品牌主题自动开斜纹后非 bar 图误报 `[ignored]
+  --hatch`（用户从未传过）——隐式置位打标记、域检查跳过；`--hatch` 支持
+  `on|off` 取值，`--hatch off` 显式关闭品牌默认斜纹（此前 argparse exit 2）。
+- **AF12 rob 摘要条图内数值**：每域最大段标注 百分比+计数（≥15%；多段全标
+  会在薄条带互挤——每域单标方案），计数明细保留 stderr。
+- **AF13/AF15**：L'Abbé 气泡面积图内注（∝研究权重）；rmst 双臂面积 alpha
+  0.15→0.22+第二臂斜纹（两臂面积一眼可归）。
+- **AF16**：`--explain` 补齐 slope/volcano/rmst/labbe（此前输出泛指文档）。
+- AF10（错误首行泛化）/AF14（L'Abbé 引线避让）P3 记录在案缓办；rob 摘要等权
+  为设计决策非权重缺口。
+
 ## 7.9.0 — 2026-11-15
 
 **第六轮测试线批次1（正确性与假警告根治）**：
@@ -927,10 +947,10 @@ galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整�
     （`--no-direct-label` 关闭；显式 `--legend-loc` 优先）；
   - **标题层级**：glm-brand/nature-clean 主题标题加粗+左对齐；
   - Pro API options 白名单透传 style/theme（正则防护，引擎侧最终校验）。
-  - **dual_axis 组合图例保留**（55 机 agent 发现）：主流程无参重建图例仅含主轴
+  - **dual_axis 组合图例保留**（外部测试 agent 发现）：主流程无参重建图例仅含主轴
     handles，右轴系列（如 CRP）从图例消失；现保留 gen_dual_axis 内部组合图例。
     回归：模板 15 PDF 文本含右轴系列名。
-  - **复合图 KM 面板 median_auto 面板级透传**（55 机 agent 发现，82 等效移植）：
+  - **复合图 KM 面板 median_auto 面板级透传**（外部测试 agent 发现，本仓等效移植）：
     此前面板 kwargs 白名单缺失该键，composite 里 median_auto:false 被静默忽略——
     自动中位生存标签带错误单位复发。已修复+回归锁。
 

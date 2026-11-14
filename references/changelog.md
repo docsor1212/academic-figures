@@ -10,7 +10,9 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| **v7.9.1（当前）** | 2026-11-15 | 第六轮测试线批次2（可读性/配色家族）：热图格内数值按底色 WCAG 自动反色（原按数值阈值判黑白——暗底色阶黑字 1.00:1 隐形实锤）+大矩阵标注密度门控（--annot on|auto|off）+diagram 块内文字随块底反色+热图 --discrete 有序离散阶梯映射+--cell-edge 格线+定性色阶语义提示+热图 --theme 提示+`--palette` 外部配色注入（G1 能力缺口）+prisma 竖向箭头终点按实际框高（中文长标签半截根因）+slope 标签扩框入图+去强调线 alpha 下限+raincloud KDE 边界裁剪+PCA 载荷箭头色入主题；591 测试 |
+| **v7.9.3（当前）** | 2026-11-15 | 发布文案净化重发：历史存档 changelog-full 两处内部环境称谓改中性表述（代码零差异，7.9.2 功能不变）；批次3 门禁内容同 7.9.2；596 测试 |
+| v7.9.2 | 2026-11-15 | 第六轮测试线批次3（门禁+覆盖欠账）：tester 建议五组验收门禁入套件（元素内文字 WCAG 对比度门/有序离散 ΔL*≥20 分离门/--explain 全量 schema 对拍/PDF 数字层抽样/dual_axis·composite·funnel 像素抽检）——schema 对拍首轮抓出 14 处 explain 缺口全补齐；596 测试 |
+| v7.9.1 | 2026-11-15 | 第六轮测试线批次2（可读性/配色家族）：热图格内数值按底色 WCAG 自动反色（原按数值阈值判黑白——暗底色阶黑字 1.00:1 隐形实锤）+大矩阵标注密度门控（--annot on|auto|off）+diagram 块内文字随块底反色+热图 --discrete 有序离散阶梯映射+--cell-edge 格线+定性色阶语义提示+热图 --theme 提示+`--palette` 外部配色注入（G1 能力缺口）+prisma 竖向箭头终点按实际框高（中文长标签半截根因）+slope 标签扩框入图+去强调线 alpha 下限+raincloud KDE 边界裁剪+PCA 载荷箭头色入主题；591 测试 |
 | v7.9.0 | 2026-11-15 | 第六轮测试线批次1（正确性与假警告根治）：CJK 字体探测三级回退链（嵌套解释器 sys.executable 为空不再静默豆腐块）+通用字段假警告族根治（prisma 全 schema 键与 lang、km log_rank/risk_table、labbe events_t 注册，含缺逗号连字隐性 bug）+prisma 纳入数守恒校验独立化（included>assessed 不可能流程拦截）+校验类报错首行精确化（点名违例字段与实值，去无关建议）+nomogram 结局尺缺 points_at 显式警告+DCA 峰值精度自适应（0.185/0.180 不再同显 +0.18）+色盲安全提示（非安全主题×≥3 系列 stderr 一行，默认主题不动）+哑铃连接线加深+ridgeline/km/volcano explain 形态补全；581 测试 |
 | v7.8.2 | 2026-11-14 | 第五轮复测修复（AF17-AF20）：rob 摘要条数值标签移条带上方单行（段内两行在薄条带被裁切/重叠——v7.8.1 复测实锤）+--explain rmst τ 口径校准（缺省=最小最大随访之半，与 stderr 披露一致）+自动 τ 渲染追加 τ 敏感性复核提示+limits 登记 PDF 文本层 CJK 提取环境相关（读屏用 --alt）；571 测试 |
 | v7.8.1 | 2026-11-14 | 测试线四图型深测修复（AF9-AF16）：比值类 CI 自适应格式化（上界贴 1 升三位小数+不含 1 标注——防 0.997 印成 1.00 的临床误读，labbe 图例/forest overall/逐行三处）+`--hatch off` 逃生门与隐式置位不冒充用户输入+rob 摘要条图内数值（每域最大段 百分比+计数）+labbe 气泡面积注+rmst 双臂面积可辨+--explain 补齐 slope/volcano/rmst/labbe；571 测试 |
@@ -68,6 +70,27 @@
 ## 最近版本详情 Recent Details
 
 
+## 7.9.3 — 2026-11-15
+
+**发布文案净化重发（代码零差异）**：历史存档两处内部环境称谓改中性表述——打包泄漏
+红线（claw 侧）首拦（v5.6.0 旧账潜伏）；SH 不可覆盖按 7.9.3 递进；7.9.2 功能原样包含。
+
+## 7.9.2 — 2026-11-15
+
+**第六轮测试线批次3（门禁+覆盖欠账）**：
+
+- **元素内文字 WCAG 门**（diagram 侧内省锁：浅块必黑字/深块必白字，cell_text_color 判据）。
+- **有序离散分离门**：--discrete 相邻等级 ΔL*≥20（viridis 三档实测 ≥22 标定）+BoundaryNorm 映射锁。
+- **--explain 全量 schema 对拍**（AF16/AF30 族机械化）：每个有模板的图型，模板主键必须在 explain
+   文案出现——首轮抓出 14 处缺口（bar significance/heatmap row_labels·col_labels·cbar_label/
+   composite hero_panel 族/diagram blocks·label 键名/box·violin series 形态/rmst time_unit 等）全补齐。
+- **PDF 数字层抽样锁**：km/prisma 真渲染 PDF 数字可提取（AF17 教训推广：CJK 文本层环境相关，
+   数字层跨环境稳定）。
+- **覆盖欠账抽检**：dual_axis/composite-hero/funnel 真渲染+非背景像素占比门（判空风险）。
+
+
+
+
 ## 7.9.1 — 2026-11-15
 
 **第六轮测试线批次2（可读性/配色家族）**：
@@ -111,26 +134,6 @@
 - **AF17 产品面**：limits 登记 PDF 文本层 CJK 提取环境相关（matplotlib 字体子集
   ToUnicode 差异）；回归测试改双层断言（PDF 只断数字形态+图例 CJK 内容改图对象
   内省——Text artist 恒持真 unicode，环境无关）。
-
-## 7.8.1 — 2026-11-14
-
-**测试线四图型深测修复（AF9-AF16，外部独立实现逐位核对后目检发现）**：
-
-- **AF11（P1）比值类 CI 格式化门**：L'Abbé 图例把 RR 上界 0.997 舍成 1.00——而
-  RR 无效值恰为 1，读者会判「CI 含 1、无显著」与引擎结论相反。新增
-  `fmt_ratio_ci` 自适应格式化（任一边界舍入后==无效值即升三位+「不含 1」显著
-  标注），应用 L'Abbé 图例/forest Overall/forest 逐行三处；funnel/galbraith
-  用有效数字格式不受影响。
-- **AF9 隐式旗标不冒充**：品牌主题自动开斜纹后非 bar 图误报 `[ignored]
-  --hatch`（用户从未传过）——隐式置位打标记、域检查跳过；`--hatch` 支持
-  `on|off` 取值，`--hatch off` 显式关闭品牌默认斜纹（此前 argparse exit 2）。
-- **AF12 rob 摘要条图内数值**：每域最大段标注 百分比+计数（≥15%；多段全标
-  会在薄条带互挤——每域单标方案），计数明细保留 stderr。
-- **AF13/AF15**：L'Abbé 气泡面积图内注（∝研究权重）；rmst 双臂面积 alpha
-  0.15→0.22+第二臂斜纹（两臂面积一眼可归）。
-- **AF16**：`--explain` 补齐 slope/volcano/rmst/labbe（此前输出泛指文档）。
-- AF10（错误首行泛化）/AF14（L'Abbé 引线避让）P3 记录在案缓办；rob 摘要等权
-  为设计决策非权重缺口。
 
 ## 7.8.0 — 2026-11-13
 

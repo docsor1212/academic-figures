@@ -241,21 +241,21 @@ def hero_panel_mode(data, panels):
 
 
 CHART_NOTES = {
-    "bar": "bar/hbar: JSON 或 CSV 均可；CSV 首列为 X 标签。inline 简写：-d \"A=10,B=8\" 免文件（单系列）。误差棒：JSON errors 字段，或 CSV 后缀列（weight_sd/weight_se 等 v6.0+ 自动配对）。单系列竖向 bar 默认竞技场风格（冠军=最高柱；负面指标 --arena off）；基准榜单场景推荐 --style sketch 手绘风。--hatch 斜纹适合打印/黑白场景。",
-    "grouped_bar": "同 bar。多 series 自动分组；--show-ratio 显示比值标注。",
-    "hbar": "同 bar（horizontal）。标签过长时 horizontal 模式更合适。",
-    "stacked_bar": "stacked_bar: 构成比堆叠；JSON percentage=true 归一化为 100%；CSV 每列为一个 series。",
-    "heatmap": "heatmap: JSON matrix 必填（rows/cols 可选）；--cmap 自定义色阶；大矩阵建议 PNG/SVG。",
+    "bar": "bar/hbar: JSON 或 CSV 均可；CSV 首列为 X 标签；labels+datasets/series+可选 significance 显著性列。inline 简写：-d \"A=10,B=8\" 免文件（单系列）。误差棒：JSON errors 字段，或 CSV 后缀列（weight_sd/weight_se 等 v6.0+ 自动配对）。单系列竖向 bar 默认竞技场风格（冠军=最高柱；负面指标 --arena off）；基准榜单场景推荐 --style sketch 手绘风。--hatch 斜纹适合打印/黑白场景。",
+    "grouped_bar": "同 bar（labels 类别+datasets/series 多系列自动分组，可选 errors 误差棒/significance 列）；--show-ratio 显示比值标注。",
+    "hbar": "同 bar（horizontal）；labels+datasets/series（可选 errors 误差棒）。标签过长时 horizontal 模式更合适。",
+    "stacked_bar": "stacked_bar: 构成比堆叠；JSON percentage=true 归一化为 100%，show_total 显示合计柱；CSV 每列为一个 series。",
+    "heatmap": "heatmap: JSON matrix 必填+row_labels/col_labels（行列标签）+cbar_label（色标标题）；--cmap/--vmin/--vmax/--annot/--cell-edge/--discrete；大矩阵建议 PNG/SVG。",
     "scatter": "scatter: JSON 或 CSV；groups 字段区分颜色；--no-trend 关闭趋势线。",
-    "line": "line: JSON series 或多列 CSV；x 轴标签 JSON labels 或 CSV 首列。",
+    "line": "line: JSON series 或多列 CSV；x 轴标签 JSON labels 或 CSV 首列；series 可带 errors 误差带。",
     "dual_axis": "dual_axis: 需要 JSON 含 left/right 两个 series 定义；CSV 不支持双轴。",
-    "box": "box: 每列为一个分布；CSV 或 JSON datasets。",
+    "box": "box: 箱线图；CSV 每列一分布，或 JSON datasets/series={组名: 数值数组}+labels 组名列表。",
     "forest": "forest: meta 分析森林图；JSON estimates/ci_low/ci_high 必填，可选 weights/overall/heterogeneity/events。",
     "km": "km: Kaplan-Meier；groups={组名:[[时间,事件0/1],...]} 患者级原始数据（≥2 组自动 log-rank+风险表+中位生存）或 {组名:[[时间,生存率],...]} 预计算曲线（此形态跳过自动统计并提示）；可选 log_rank={\"p\":...}/risk_table/median_survival 直接提供。",
-    "roc": "roc: ROC 曲线；JSON 需 scores/labels，参考文档 §统计数据。",
-    "violin": "violin: 小提琴图；JSON datasets 或 CSV，每列为分布。",
-    "composite": "composite: 多面板组合图；JSON panels 数组定义子图，参考文档 §组合图。",
-    "diagram": "diagram: 架构/流程图；JSON boxes/arrows，CONSORT 式，参考文档 §流程图。",
+    "roc": "roc: ROC 曲线；JSON 需 scores/labels（可多曲线），diagonal=对角参照线，AUC 自动标注。",
+    "violin": "violin: 小提琴图；JSON datasets/series={组名: 数值数组}+labels 组名列表，或 CSV 每列一分布。",
+    "composite": "composite: 多面板组合图；JSON panels 数组（每面板 type+data，可选 layout/span/pos/hero_panel 主面板索引/panel_labels），参考文档 §组合图。",
+    "diagram": "diagram: 架构/流程图（CONSORT 式）；JSON blocks [{id,label,x,y,w,h,color,sublabel}]+arrows、background=light。",
     "prisma": "prisma: PRISMA 2020 系统综述流程图；JSON 需 records_identified/studies_included，"
               "数字自洽性自动校验（对不上报 ERROR 拒绝出图）；lang=zh 输出中文标准版；"
               "参考文档 §PRISMA 流程图。",
@@ -280,7 +280,7 @@ CHART_NOTES = {
                  "抖动原始点雨）；schema 同 violin；--stats 通用；jitter(0~0.3)/cloud_scale(0~2.0，0=藏云)；零方差/单点组云退化并告知。",
     "slope": "slope: 斜率图（两时点/两组对比）；JSON items={名称:[前值,后值]}+left_label/right_label；--show-gap 标差值。",
     "volcano": "volcano: 火山图；JSON log2fc+pvalue 两数组必填（names/fc_cut/p_cut/top 可选）；阈值线与 top 基因标注自动；轴标默认组学口径（log2 fold change / -log10 p-value），其他数据域可用 --xlabel/--ylabel 覆盖。",
-    "rmst": "rmst: RMST 限制平均生存时间；JSON groups={臂名: [[时间,事件 0/1]...]} 恰好两臂（契约同 km）；--rmst-tau 指定 τ（缺省=最小最大随访之半，与 stderr 披露一致）；自动输出每臂 RMST(95%CI)+ΔRMST。",
+    "rmst": "rmst: RMST 限制平均生存时间；JSON groups={臂名: [[时间,事件 0/1]...]} 恰好两臂（契约同 km）+time_unit 时间单位；--rmst-tau 指定 τ（缺省=最小最大随访之半，与 stderr 披露一致）；自动输出每臂 RMST(95%CI)+ΔRMST。",
     "labbe": "labbe: L'Abbé 图（Meta 四件套）；JSON studies=[{name,events_t,n_t,events_c,n_c}...]（2x2 四格，非 trials）；est_measure=RR/OR；气泡面积∝研究权重；合并线=DL 随机效应。",
     "dumbbell": "dumbbell: 哑铃图（v5.1，第 30 号图型；每行两点 from→to+连接线，横向形态，"
                  "强调逐条目差距）；JSON from/to 必填等长、labels 可选、from_label/to_label 图例名；"
