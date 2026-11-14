@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.8.0", self.zh)
-        self.assertIn("version: 7.8.0", self.en)
+        self.assertIn("version: 7.8.1", self.zh)
+        self.assertIn("version: 7.8.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.8.0", self.zh)
-        self.assertIn("version: 7.8.0", self.en)
+        self.assertIn("version: 7.8.1", self.zh)
+        self.assertIn("version: 7.8.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.8.0", self.zh)
-        self.assertIn("version: 7.8.0", self.en)
+        self.assertIn("version: 7.8.1", self.zh)
+        self.assertIn("version: 7.8.1", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.8.0", zh)
+        self.assertIn("version: 7.8.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.0", t, name)
+            self.assertIn("version: 7.8.1", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.0", t, name)
+            self.assertIn("version: 7.8.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.0", t, name)
+            self.assertIn("version: 7.8.1", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.0", t, name)
+            self.assertIn("version: 7.8.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7827,6 +7827,142 @@ class TestV78000(unittest.TestCase):
         self.assertEqual(d.get("hero_panel"), 0)
         self.assertIn("_command", d)
         self.assertIn("-t composite", d["_command"])
+
+
+class TestV78100(unittest.TestCase):
+    """v7.8.1：第四轮测试线 AF9-AF16 修复锁——
+    AF11 比值类 CI 舍入防 1.00 临床误读（P1）/AF9 隐式 hatch 不冒充+off 逃生门/
+    AF12 rob 摘要条图内数值/AF13 气泡语义注/AF15 rmst 双臂可辨/AF16 explain 补齐。
+    诚实账：rob 摘要=等权设计（docstring 明示，tester 前提不成立）；rmst 单臂契约本锁锁定。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _rd(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_fmt_ratio_ci_unit(self):
+        """helper 单元锁：Fleiss93 实锤案例 0.997→三位；常规两位；MD 无效值=0。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_shared import fmt_ratio_ci
+        self.assertEqual(fmt_ratio_ci(0.873, 0.764, 0.997, "RR"),
+                         ("0.873", "0.764", "0.997", True))
+        self.assertEqual(fmt_ratio_ci(0.873, 0.764, 0.97, "RR"),
+                         ("0.87", "0.76", "0.97", True))
+        self.assertEqual(fmt_ratio_ci(1.25, 0.99, 1.51, "OR")[1], "0.99")
+        self.assertEqual(fmt_ratio_ci(2.3, 1.1, 4.5, "HR"), ("2.30", "1.10", "4.50", True))
+        self.assertEqual(fmt_ratio_ci(0.4, -0.05, 0.85, "MD")[1], "-0.05")
+        self.assertEqual(fmt_ratio_ci(0.4, 0.05, 0.85, "MD"), ("0.40", "0.05", "0.85", True))
+
+    def test_labbe_pdf_text_no_1p00(self):
+        """Fleiss93 真数据渲染 PDF：图例含 0.997+不含 1 标注，缺陷形态 0.76~1.00 绝迹。"""
+        import fitz
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "l.pdf")
+            src = os.path.join(self.root, "examples", "realworld",
+                               "cardio_fleiss93_aspirin_labbe.json")
+            r = subprocess.run([sys.executable, GEN, "-t", "labbe", "-d", src, "-o", fp,
+                                "--dpi", "150"], capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            doc = fitz.open(fp)
+            txt = "".join(p.get_text() for p in doc)
+            doc.close()
+            self.assertIn("0.997", txt, "图例应升三位小数")
+            self.assertNotIn("0.76~1.00", txt, "缺陷形态 1.00 误读仍在")
+            self.assertIn("不含 1", txt)
+            self.assertIn("气泡面积", txt)
+
+    def test_forest_overall_adaptive_ci(self):
+        """forest overall CI 上界贴 1 时升三位（同族扫 AF11）。"""
+        import fitz
+        data = {"labels": ["A", "B"], "estimates": [0.9, 0.85],
+                "ci_low": [0.8, 0.76], "ci_high": [0.997, 0.97],
+                "measure": "RR", "overall": {"estimate": 0.873,
+                                             "ci_low": 0.764, "ci_high": 0.997}}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "f.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            out = os.path.join(td, "f.pdf")
+            r = subprocess.run([sys.executable, GEN, "-t", "forest", "-d", fp, "-o", out,
+                                "--dpi", "150"], capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            doc = fitz.open(out)
+            txt = "".join(p.get_text() for p in doc)
+            doc.close()
+            self.assertIn("0.997", txt)
+            self.assertNotIn("[0.76, 1.00]", txt)
+
+    def test_hatch_implicit_not_masquerading(self):
+        """AF9：默认品牌主题非 bar 图（cif）stderr 零 --hatch 行（隐式置位不冒充）。"""
+        data = {"time": [1, 2, 3, 4, 5], "event": [1, 0, 2, 1, 2],
+                "group": ["a", "a", "b", "b", "b"]}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "c.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "cif", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "60"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertNotIn("--hatch", r.stderr)
+
+    def test_hatch_off_escape(self):
+        """--hatch off 逃生门：rc=0（argparse 不再 exit 2）且真实关闭品牌斜纹（字节不同）。"""
+        import hashlib as _hb
+        data = {"labels": ["A", "B", "C"], "series": {"v": [3, 5, 4]}}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "b.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            digests = []
+            for extra in ([], ["--hatch", "off"]):
+                out = os.path.join(td, f"o_{len(digests)}.png")
+                r = subprocess.run([sys.executable, GEN, "-t", "bar", "-d", fp, "-o", out,
+                                    "--dpi", "70", "--arena", "off"] + extra,
+                                   capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0, r.stderr[-300:])
+                digests.append(_hb.md5(open(out, "rb").read()).hexdigest())
+            self.assertNotEqual(digests[0], digests[1],
+                                "--hatch off 输出与品牌默认斜纹相同——逃生门无效")
+
+    def test_explain_all_types(self):
+        """AF16：--explain 全图型覆盖（rmst/labbe/slope/volcano 曾缺）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_shared import CHART_NOTES
+        import gen_figure as _g
+        gens = {k for k in _g.GENERATORS
+                if k not in ("boxplot", "survival", "horizontal_bar")}
+        missing = sorted(gens - set(CHART_NOTES))
+        self.assertEqual(missing, [], f"--explain 仍缺图型: {missing}")
+        for ctype, kw in (("rmst", "rmst-tau"), ("labbe", "DL 随机效应"),
+                          ("slope", "left_label"), ("volcano", "log2fc")):
+            r = subprocess.run([sys.executable, GEN, "--explain", ctype],
+                               capture_output=True, text=True, timeout=60)
+            self.assertEqual(r.returncode, 0)
+            self.assertIn(kw, r.stdout, f"--explain {ctype} 缺关键词 {kw}")
+
+    def test_rob_summary_numbers_render(self):
+        """AF12：rob 摘要条渲染成功（图内数值为绘制层，人审+视觉门已验）。"""
+        src = os.path.join(self.root, "examples", "realworld",
+                           "evidence_rob2_metformin.json")
+        with tempfile.TemporaryDirectory() as td:
+            r = subprocess.run([sys.executable, GEN, "-t", "rob", "-d", src,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "70"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("67%", r.stderr)  # stderr 摘要构成保留
+
+    def test_rmst_single_arm_contract(self):
+        """诚实账·rmst τ 锁前置契约：单臂数据精确报错（τ 逻辑仅两臂路径可达）。"""
+        data = {"groups": {"A": [[1, 1], [2, 1], [3, 0]]}}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "r.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "rmst", "-d", fp,
+                                "-o", os.path.join(td, "o.png")],
+                               capture_output=True, text=True, timeout=240)
+            self.assertNotEqual(r.returncode, 0)
+            self.assertIn("两个组", r.stderr)
 
 
 if __name__ == "__main__":

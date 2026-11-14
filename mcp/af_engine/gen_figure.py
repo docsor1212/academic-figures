@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.8.0: Publication-quality academic figure generator.
+academic-figures v7.8.1: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -1235,9 +1235,7 @@ def _doctor_report(args, data):
         "--stats cox 仅 forest/subgroup 生效"),
         (bool(args.compare) and args.type != "roc", "--compare 仅 roc 生效"),
         (bool(args.egger) and args.type != "funnel", "--egger 仅 funnel 生效"),
-        (bool(args.hatch) and args.type not in ("bar", "grouped_bar", "hbar",
-                                                "horizontal_bar", "stacked_bar"),
-         "--hatch 仅 bar 系生效"),
+        (bool(args.hatch) and not getattr(args, "_hatch_implicit", False) and args.type not in ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar"), "--hatch 仅 bar 系生效"),
         (bool(args.area) and args.type != "venn", "--area 仅 venn 生效"),
         (bool(args.sheet) and not str(args.data or "").lower().endswith((".xlsx", ".xls")),
          "--sheet 仅 .xlsx/.xls 生效"),
@@ -2640,7 +2638,7 @@ def main():
     parser.add_argument("--no-trend", action="store_true", help="隐藏趋势线（散点图）")
     parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）"); parser.add_argument("--vmin", type=float, default=None, help="热图色阶下限")
     parser.add_argument("--vmax", type=float, default=None, help="热图色阶上限")
-    parser.add_argument("--horizontal", action="store_true", help="水平柱状图（即 hbar）"); parser.add_argument("--hatch", action="store_true", help="柱体加斜线填充（打印友好）")
+    parser.add_argument("--horizontal", action="store_true", help="水平柱状图（即 hbar）"); parser.add_argument("--hatch", nargs="?", const="on", default=None, metavar="on|off", help="柱体加斜线填充（打印友好）；--hatch off 显式关闭（含品牌默认斜纹）")
     parser.add_argument("--alternate", action="store_true",
                         help="GLM 风格：单系列柱子交替前两种主题色")
     parser.add_argument("--show-ratio", action="store_true", help="分组柱上标注倍率（如 4.96x）")
@@ -2885,13 +2883,13 @@ def main():
         if not args.type or not args.data or not args.out:
             parser.error("必须提供 -t/--type、-d/--data、-o/--out（或用 --demo 交互模式）")
 
-    if args.style == "glm-hatch":
-        args.theme = "glm"
-        args.hatch = True
+    if isinstance(args.hatch, str):  # v7.8.1 AF9 on|off 归一化（裸旗标=on；off/false/0/no=显式关）
+        args.hatch = args.hatch.strip().lower() not in ("off", "false", "0", "no")
 
-    if args.style == "glm-brand":
-        args.theme = "glm-brand"
-        args.hatch = True
+    if args.style in ("glm-hatch", "glm-brand"):
+        args.theme = "glm" if args.style == "glm-hatch" else "glm-brand"
+        if args.hatch is None:
+            args.hatch = True; args._hatch_implicit = True  # 隐式置位不冒充用户输入
 
     if args.style == "sketch": from af_draw import apply_sketch_style; apply_sketch_style()  # v7.6 手绘风
     if args.style in ("glm-brand", "nature-clean") and args.type == "line" \
@@ -2936,8 +2934,8 @@ def main():
         sys.exit(1)
 
     theme_key = resolve_theme(args.theme)
-    if theme_key == "glm-brand" and not args.hatch:
-        args.hatch = True  # v7.6 品牌斜纹默认开启（显式 --theme 别名同样生效）
+    if theme_key == "glm-brand" and args.hatch is None:
+        args.hatch = True; args._hatch_implicit = True  # v7.6 品牌斜纹默认开启（--hatch off 可关；隐式不打 [ignored]）
     if not theme_key:
         print(f"ERROR: 未知主题 '{args.theme}'。运行 --list-themes 查看全部配色。", file=sys.stderr)
         sys.exit(1)
@@ -3034,8 +3032,8 @@ def main():
         _ignored.append("--compare（仅 roc 生效）")
     if args.egger and args.type != "funnel":
         _ignored.append("--egger（仅 funnel 生效）")
-    if args.hatch and args.type not in ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar"):
-        _ignored.append("--hatch（仅 bar 系生效）")
+    if args.hatch and not getattr(args, "_hatch_implicit", False) and args.type not in ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar"):
+        _ignored.append("--hatch（仅 bar 系生效）")  # v7.8.1 AF9：隐式置位不冒充用户输入
     if args.area and args.type != "venn":
         _ignored.append("--area（仅 venn 生效）")
     if args.sheet and not str(args.data or "").lower().endswith((".xlsx", ".xls")):

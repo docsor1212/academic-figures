@@ -17,7 +17,7 @@ try:
     import af_v23_stats as _afstats
 except ImportError:  # 统计模块不在同目录时降级（标注函数自行判 None 提示）
     _afstats = None
-from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear, _SKETCH_MODE, hero_panel_mode
+from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear, _SKETCH_MODE, hero_panel_mode, fmt_ratio_ci
 
 
 def _darken_color(color, factor=0.55):
@@ -888,9 +888,10 @@ def gen_forest(data, ax, theme, cjk_fp, **kwargs):
         # Weighted point estimate (bubble)
         ax.scatter(est, i, c=theme["colors"][0], s=bubble_sizes[i], zorder=3,
                    edgecolors='black', linewidth=0.5)
-        # Effect estimate annotation on right
+        # Effect estimate annotation on right（v7.8.1 AF11：CI 自适应小数位防 1.00 误读）
+        _re_s, _rl_s, _rh_s, _ = fmt_ratio_ci(est, lo, hi, str(measure))
         ax.text(hi + (ax.get_xlim()[1] - ax.get_xlim()[0]) * 0.02, i,
-                f'{est:.2f} [{lo:.2f}, {hi:.2f}]', va='center', fontsize=8)
+                f'{_re_s} [{_rl_s}, {_rh_s}]', va='center', fontsize=8)
         # Events/Total on left (if provided)
         if events and i < len(events):
             ev = events[i]
@@ -916,8 +917,11 @@ def gen_forest(data, ax, theme, cjk_fp, **kwargs):
         diamond_y = [oy, oy - 0.2, oy, oy + 0.2, oy]
         ax.fill(diamond_x, diamond_y, color=theme["colors"][1], alpha=0.7, zorder=4,
                 hatch=HATCH_PATTERNS[1] if use_hatch else None)
+        _oe, _ol, _oh, _osig = fmt_ratio_ci(est_o, lo_o, hi_o, str(measure))
+        _onull = '1' if str(measure).upper() in ('RR', 'OR', 'HR') else '0'
+        _osfx = f'（不含 {_onull}）' if _osig else ''
         ax.text(hi_o + (ax.get_xlim()[1] - ax.get_xlim()[0]) * 0.02, oy,
-                f'Overall: {est_o:.2f} [{lo_o:.2f}, {hi_o:.2f}]', va='center',
+                f'Overall: {_oe} [{_ol}, {_oh}]{_osfx}', va='center',
                 fontsize=9, fontweight='bold')
 
     # Heterogeneity annotation
