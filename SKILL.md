@@ -404,7 +404,7 @@ Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.8.1** ratio-CI adaptive formatting (0.997 never prints as 1.00; labbe legend/forest overall+rows) + `--hatch on|off` escape + rob in-figure summary numbers + explain coverage complete; **v7.8.0** competitor-adoption docs (five-point contract, anti-redundancy audit, hero-panel spec, semantic color roles, reviewer cases); **v7.7.2** inline data `-d "A=10,B=8"` + suite `--verbose` milestones; **v7.7.1** theme default-marker truth lock + pixel contract + date release-locked; **v7.7.0** default arena on single-series bar (`--arena off` escape, `--pub-ready` auto-skip); **v7.6.0** default theme glm-brand + brand hatch; **v7.5.0** `--arena` debut. Older: see changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.8.1** ratio-CI adaptive decimals (0.997 ≠ 1.00) + `--hatch on|off` + rob summary numbers; **v7.8.0** adoption docs (five-point contract/anti-redundancy/hero panel/semantic roles/reviewer cases); **v7.7.2** inline data + `--verbose` suite; **v7.7.1** theme-marker truth lock + pixel contract; **v7.7.0** default arena + `--arena off`; **v7.6.0** default glm-brand; **v7.5.0** `--arena`. Older: see changelog.
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 

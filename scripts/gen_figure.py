@@ -1235,10 +1235,7 @@ def _doctor_report(args, data):
         "--stats cox 仅 forest/subgroup 生效"),
         (bool(args.compare) and args.type != "roc", "--compare 仅 roc 生效"),
         (bool(args.egger) and args.type != "funnel", "--egger 仅 funnel 生效"),
-        (bool(args.hatch) and not getattr(args, "_hatch_implicit", False)
-         and args.type not in ("bar", "grouped_bar", "hbar",
-                              "horizontal_bar", "stacked_bar"),
-         "--hatch 仅 bar 系生效"),
+        (bool(args.hatch) and not getattr(args, "_hatch_implicit", False) and args.type not in ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar"), "--hatch 仅 bar 系生效"),
         (bool(args.area) and args.type != "venn", "--area 仅 venn 生效"),
         (bool(args.sheet) and not str(args.data or "").lower().endswith((".xlsx", ".xls")),
          "--sheet 仅 .xlsx/.xls 生效"),
@@ -2886,21 +2883,13 @@ def main():
         if not args.type or not args.data or not args.out:
             parser.error("必须提供 -t/--type、-d/--data、-o/--out（或用 --demo 交互模式）")
 
-    if isinstance(args.hatch, str):
-        # v7.8.1 AF9：--hatch on|off 归一化（裸旗标=on；off/false/0/no=显式关）
+    if isinstance(args.hatch, str):  # v7.8.1 AF9 on|off 归一化（裸旗标=on；off/false/0/no=显式关）
         args.hatch = args.hatch.strip().lower() not in ("off", "false", "0", "no")
 
-    if args.style == "glm-hatch":
-        args.theme = "glm"
+    if args.style in ("glm-hatch", "glm-brand"):
+        args.theme = "glm" if args.style == "glm-hatch" else "glm-brand"
         if args.hatch is None:
-            args.hatch = True
-            args._hatch_implicit = True  # 隐式置位不冒充用户输入（域检查不打 [ignored]）
-
-    if args.style == "glm-brand":
-        args.theme = "glm-brand"
-        if args.hatch is None:
-            args.hatch = True
-            args._hatch_implicit = True
+            args.hatch = True; args._hatch_implicit = True  # 隐式置位不冒充用户输入
 
     if args.style == "sketch": from af_draw import apply_sketch_style; apply_sketch_style()  # v7.6 手绘风
     if args.style in ("glm-brand", "nature-clean") and args.type == "line" \
@@ -2946,8 +2935,7 @@ def main():
 
     theme_key = resolve_theme(args.theme)
     if theme_key == "glm-brand" and args.hatch is None:
-        args.hatch = True  # v7.6 品牌斜纹默认开启（显式 --hatch off 可关；隐式置位不打 [ignored]）
-        args._hatch_implicit = True
+        args.hatch = True; args._hatch_implicit = True  # v7.6 品牌斜纹默认开启（--hatch off 可关；隐式不打 [ignored]）
     if not theme_key:
         print(f"ERROR: 未知主题 '{args.theme}'。运行 --list-themes 查看全部配色。", file=sys.stderr)
         sys.exit(1)
@@ -3044,8 +3032,7 @@ def main():
         _ignored.append("--compare（仅 roc 生效）")
     if args.egger and args.type != "funnel":
         _ignored.append("--egger（仅 funnel 生效）")
-    if args.hatch and not getattr(args, "_hatch_implicit", False) \
-            and args.type not in ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar"):
+    if args.hatch and not getattr(args, "_hatch_implicit", False) and args.type not in ("bar", "grouped_bar", "hbar", "horizontal_bar", "stacked_bar"):
         _ignored.append("--hatch（仅 bar 系生效）")  # v7.8.1 AF9：隐式置位不冒充用户输入
     if args.area and args.type != "venn":
         _ignored.append("--area（仅 venn 生效）")
