@@ -24,7 +24,7 @@ when_to_use: >-
 ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_to_use/
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
-  version: 7.9.0
+  version: 7.9.1
   date: 2026-11-15
   author: docsor1212
   lang: zh
@@ -367,7 +367,7 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 
 ## 版本历史
 
-完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v7.9.0** CJK 探测回退链（嵌套解释器豆腐块根除）+字段假警告族根治（prisma/lang/log_rank 注册）+prisma 纳入守恒拦截+校验报错首行精确化+DCA 峰值精度自适应+色盲提示；**v7.8.2** rob 摘要标签上方单行+rmst τ 口径校准+τ 敏感提示；**v7.8.1** 比值类 CI 自适应（0.997≠1.00）+--hatch on|off+--explain 全覆盖；**v7.8.0** 竞品采纳文档批（五点图约/反冗余审计/主面板规格/语义配色角色/审稿案例库）+引擎批（hero_panel+分层栅格化）；**v7.7.2** --data inline 简写+套件 --verbose；**v7.7.1** 主题默认标记真值锁+像素契约；**v7.7.0** bar 单系列默认竞技场；**v7.6.0** 默认主题 glm-brand。更早版本见 changelog。
+完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v7.9.1** 热图格内文字 WCAG 自动反色+大矩阵标注门控（--annot）+--discrete/--cell-edge+diagram 文字反色+--palette 注入+prisma 箭头根修；**v7.9.0** CJK 探测回退链（嵌套解释器豆腐块根除）+字段假警告族根治（prisma/lang/log_rank 注册）+prisma 纳入守恒拦截+校验报错首行精确化+DCA 峰值精度自适应+色盲提示；**v7.8.2** rob 摘要标签上方单行+rmst τ 口径校准+τ 敏感提示；**v7.8.1** 比值类 CI 自适应（0.997≠1.00）+--hatch on|off+--explain 全覆盖；**v7.8.0** 竞品采纳文档批（五点图约/反冗余审计/主面板规格/语义配色角色/审稿案例库）+引擎批（hero_panel+分层栅格化）；**v7.7.2** --data inline 简写+套件 --verbose；**v7.7.1** 主题默认标记真值锁+像素契约；**v7.7.0** bar 单系列默认竞技场；**v7.6.0** 默认主题 glm-brand。更早版本见 changelog。
 
 ## 🚀 进阶版：论文配图一键生成 Pro
 

@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.9.0", self.zh)
-        self.assertIn("version: 7.9.0", self.en)
+        self.assertIn("version: 7.9.1", self.zh)
+        self.assertIn("version: 7.9.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.9.0", self.zh)
-        self.assertIn("version: 7.9.0", self.en)
+        self.assertIn("version: 7.9.1", self.zh)
+        self.assertIn("version: 7.9.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.9.0", self.zh)
-        self.assertIn("version: 7.9.0", self.en)
+        self.assertIn("version: 7.9.1", self.zh)
+        self.assertIn("version: 7.9.1", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.9.0", zh)
+        self.assertIn("version: 7.9.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.0", t, name)
+            self.assertIn("version: 7.9.1", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.0", t, name)
+            self.assertIn("version: 7.9.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.0", t, name)
+            self.assertIn("version: 7.9.1", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.0", t, name)
+            self.assertIn("version: 7.9.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -8156,6 +8156,222 @@ class TestV79000(unittest.TestCase):
     def _read(self, rel):
         with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
             return f.read()
+
+
+class TestV79100(unittest.TestCase):
+    """v7.9.1：第六轮批次2（可读性/配色家族）修复锁——
+    AF32/AF6b heatmap 格内文字按底色 WCAG 反色（原按数值阈值判黑白）/AF6 大矩阵标注
+    密度门控+字号自适应/AF38 diagram 块内文字随块底反色/AF43 --discrete 阶梯映射/
+    AF44 --cell-edge 格线/AF40 定性色阶提示/AF31 热图 --theme 提示/G1 --palette 注入/
+    AF24 prisma 竖向箭头终点用实际框高/AF37 slope 标签扩框入图/AF42 细元素 alpha 下限/
+    AF27 raincloud KDE 边界裁剪/AF33 PCA 载荷箭头色入主题。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _read(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_cell_text_color_wcag(self):
+        """AF32/AF38 helper 单元锁：暗底→白字、浅底→黑字（WCAG 相对亮度判据）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_shared import cell_text_color
+        self.assertEqual(cell_text_color("#2E5E8F"), "#ffffff")   # 深钢蓝→白
+        self.assertEqual(cell_text_color("#FFFFCC"), "#000000")   # 淡黄→黑
+        self.assertEqual(cell_text_color("#2b1a6f"), "#ffffff")   # magma 暗端→白（tester 实锤 1.00 对比案例）
+        self.assertEqual(cell_text_color((0.1, 0.1, 0.2)), "#ffffff")
+        self.assertEqual(cell_text_color((0.95, 0.93, 0.7)), "#000000")
+        self.assertEqual(cell_text_color("bogus"), "#000000")    # 非法输入兜底
+
+    def test_af32_heatmap_annot_contrast(self):
+        """AF32/AF6b：viridis 暗底色阶下格内数值颜色==按格底色 WCAG 反色
+        （原固定黑字 magma 对比 1.00 实锤不可读）。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib.pyplot as plt
+        import matplotlib.colors as mc
+        from af_draw import gen_heatmap
+        from af_shared import cell_text_color
+        m = [[-3 + 6 * j / 9 for j in range(10)] for _ in range(6)]
+        fig, ax = plt.subplots(figsize=(7, 4), dpi=80)
+        theme = {"font_size": 11, "colors": ["#2E5E8F"] * 2}
+        im = gen_heatmap({"matrix": m}, ax, theme, None, cmap="viridis")
+        fig.canvas.draw()
+        bad = [t for t in ax.texts
+               if mc.to_hex(t.get_color()) != cell_text_color(im.cmap(im.norm(
+                   float(t.get_text().replace("+", "")))))]
+        plt.close(fig)
+        # 允许格式化舍入落点在 norm 中点附近的边界个例
+        self.assertLessEqual(len(bad), 2, f"反色不匹配 {len(bad)} 个")
+
+    def test_af6_annot_density_gate(self):
+        """AF6：40x25 大矩阵 auto 模式自动隐藏格内数值并 stderr 提示（原无条件绘制必然压字）。"""
+        import random as _r
+        _r.seed(11)
+        data = {"row_labels": [f"R{i}" for i in range(40)],
+                "col_labels": [f"C{j}" for j in range(25)],
+                "matrix": [[_r.uniform(-3, 3) for _ in range(25)] for _ in range(40)]}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "h.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "heatmap", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--cmap", "viridis",
+                                "--width", "10", "--dpi", "70"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("过密", r.stderr)
+            self.assertIn("--annot on", r.stderr)
+
+    def test_af43_discrete_and_af44_cell_edge(self):
+        """AF43+AF44：--discrete 阶梯映射（BoundaryNorm+离散 colorbar）与
+        --cell-edge 格线（imshow 不支持 edgecolors→半整数边界 axvline/axhline）。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib.pyplot as plt
+        from matplotlib.colors import BoundaryNorm
+        from af_draw import gen_heatmap
+        m = [[1, 2, 3, 1], [2, 3, 1, 2], [3, 1, 2, 3]]
+        fig, ax = plt.subplots(figsize=(6, 4), dpi=80)
+        theme = {"font_size": 11, "colors": ["#2E5E8F"] * 2}
+        im = gen_heatmap({"matrix": m}, ax, theme, None, cmap="viridis",
+                         discrete=True, cell_edge=True)
+        fig.canvas.draw()
+        self.assertIsInstance(im.norm, BoundaryNorm)
+        self.assertGreaterEqual(len(ax.get_lines()), 4, "cell-edge 格线应存在")
+        plt.close(fig)
+        data = {"row_labels": ["R1", "R2", "R3"], "col_labels": ["C1", "C2", "C3", "C4"],
+                "matrix": m}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "h.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "heatmap", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--cmap", "viridis",
+                                "--discrete", "--cell-edge", "--dpi", "70"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+
+    def test_af40_qualitative_and_af31_theme_note(self):
+        """AF40：定性色阶（Set2）承载数值标度 stderr 提示；AF31：热图显式 --theme
+        提示配色由 --cmap 决定。"""
+        data = {"row_labels": ["R1", "R2"], "col_labels": ["C1", "C2"],
+                "matrix": [[1, 2], [3, 1]]}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "h.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "heatmap", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--cmap", "Set2",
+                                "--theme", "okabe-ito", "--dpi", "70"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("定性色阶", r.stderr)
+            self.assertIn("--cmap", r.stderr)
+
+    def test_g1_palette_injection(self):
+        """G1：--palette hex 序列注入——分类图系列色替换（stderr 通知）+非法 hex 精确报错。"""
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "b.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps({
+                "labels": ["A", "B", "C"],
+                "datasets": {"S1": [3, 4, 5], "S2": [2, 3, 4], "S3": [1, 2, 3]}}))
+            r = subprocess.run([sys.executable, GEN, "-t", "grouped_bar", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "70",
+                                "--palette", "#C1121F,#669BBC,#003049"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("--palette 已注入 3 色", r.stderr)
+            r2 = subprocess.run([sys.executable, GEN, "-t", "grouped_bar", "-d", fp,
+                                 "-o", os.path.join(td, "o2.png"), "--palette", "red,blue"],
+                                capture_output=True, text=True, timeout=240)
+            self.assertNotEqual(r2.returncode, 0)
+            self.assertIn("palette:", r2.stderr)
+
+    def test_af24_prisma_arrow_actual_height(self):
+        """AF24：竖向箭头终点=下一框实际高度 BH_BY[b]（原全局 BH 在中文长标签
+        不对称长高时箭头钻进下一框底下=半截被覆盖）。"""
+        src = self._read(os.path.join("scripts", "af_draw.py"))
+        self.assertIn("ys[b] + BH_BY[b]", src)
+        self.assertNotIn("ys[b] + BH)", src)
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "p.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps({
+                "records_identified": 1043, "duplicates_removed": 143,
+                "records_screened": 900, "records_excluded": 731,
+                "reports_sought": 169, "reports_not_retrieved": 12,
+                "reports_assessed": 157, "reports_excluded": 34,
+                "studies_included": 123, "lang": "zh",
+                "exclusion_reasons": {"排除：非人类研究": 18, "排除：综述/评论": 9, "排除：无对照组": 7}}))
+            r = subprocess.run([sys.executable, GEN, "-t", "prisma", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "90"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+
+    def test_af37_slope_labels_in_frame(self):
+        """AF37：slope 标签扩框入图——左端全同值时最下项标签不再掉出图框外。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib.pyplot as plt
+        from af_draw import gen_slope
+        data = {"items": {"药物A": [8.2, 26.7], "药物B": [8.2, 12.4], "安慰剂": [8.2, 7.9]},
+                "left_label": "基线", "right_label": "24个月"}
+        fig, ax = plt.subplots(figsize=(7, 5), dpi=80)
+        theme = {"font_size": 11, "colors": ["#2E5E8F", "#FFB627", "#6BA776"]}
+        theme["spines"] = []
+        theme["grid_alpha"] = 0.3
+        gen_slope(data, ax, theme, None)
+        fig.canvas.draw()
+        ax_bb = ax.get_window_extent()
+        out = [t for t in ax.texts
+               if not (ax_bb.x0 - 1 <= t.get_window_extent().x0
+                       and t.get_window_extent().x1 <= ax_bb.x1 + 60
+                       and t.get_window_extent().y0 >= ax_bb.y0 - 1)]
+        plt.close(fig)
+        self.assertEqual(len(out), 0,
+                         f"{len(out)} 个 slope 标签仍在图框外/下: "
+                         f"{[t.get_text()[:12] for t in out]}")
+
+    def test_af42_af27_af33_source_and_behavior(self):
+        """AF42 slope 去强调线 alpha 0.45 / AF27 raincloud KDE 尾部裁剪 /
+        AF33 PCA 载荷箭头色入主题（源码锁+行为冒烟）。"""
+        src = self._read(os.path.join("scripts", "af_draw.py"))
+        self.assertIn("to_rgba(accent, 0.45)", src)
+        self.assertIn("KDE 尾部裁剪", src)
+        src23 = self._read(os.path.join("scripts", "af_v23_charts.py"))
+        self.assertNotIn('"#E8A33D"', src23)
+        self.assertNotIn('"#8a6414"', src23)
+        # AF27 行为：全正值数据的密度云不越过 0
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from af_draw import gen_raincloud
+        rng = np.random.default_rng(3)
+        vals = np.abs(rng.normal(18, 6, 120)) + 0.5
+        fig, ax = plt.subplots(figsize=(6, 4), dpi=70)
+        theme = {"font_size": 11, "colors": ["#2E5E8F", "#FFB627", "#6BA776"]}
+        theme["spines"] = ["top", "right"]
+        theme["grid_alpha"] = 0.3
+        gen_raincloud({"datasets": {"随访": vals.tolist()}}, ax, theme, None)
+        fig.canvas.draw()
+        min_y = min(float(ln.get_ydata().min()) for ln in ax.get_lines()
+                    if ln.get_linestyle() != "None" and hasattr(ln.get_ydata(), "min")
+                    and len(np.atleast_1d(ln.get_ydata())) > 1
+                    and float(np.nanmin(ln.get_ydata())) < float(np.nanmax(ln.get_ydata())))
+        plt.close(fig)
+        self.assertGreaterEqual(min_y, 0, f"密度/箱线元素越过 0 下界（min={min_y:.3g}）")
+
+    def test_flags_domain_table_updated(self):
+        """新旗标域表注册（--list-flags 一致性）：--annot/--cell-edge/--discrete 归
+        heatmap，--palette 入通用旗标。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_shared import _FLAG_DOMAINS, _FLAGS_UNIVERSAL
+        self.assertEqual(_FLAG_DOMAINS["--annot"][0], ("heatmap",))
+        self.assertIn("heatmap", _FLAG_DOMAINS["--discrete"][0])
+        self.assertIn("--palette", _FLAGS_UNIVERSAL)
 
 
 if __name__ == "__main__":

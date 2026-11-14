@@ -728,14 +728,15 @@ def gen_pca(data, ax, theme, cjk_fp, **kwargs):
     import matplotlib.patches as _mpatches
     _sx = float(np.ptp(scores[:, 0])) or 1.0
     _sy = float(np.ptp(scores[:, 1])) or 1.0
+    _ac = theme["colors"][-1]  # v7.9.1 AF33：载荷箭头色入主题（原硬编码琥珀不随 --theme）
     for idx in top_idx:
         lx, ly = loadings[idx, 0] * scale_l, loadings[idx, 1] * scale_l
         ax.add_patch(_mpatches.FancyArrowPatch(
             (0, 0), (lx, ly), arrowstyle="->", mutation_scale=14,
-            color="#E8A33D", lw=1.3, zorder=5, shrinkA=0, shrinkB=0))
+            color=_ac, lw=1.3, zorder=5, shrinkA=0, shrinkB=0))
         label_texts.append(ax.text(
             lx + _sx * 0.012, ly + _sy * 0.012, feature_names[idx],
-            fontsize=max(6, theme["font_size"] - 2), color="#8a6414",
+            fontsize=max(6, theme["font_size"] - 2), color=_ac,
             fontproperties=_fp(cjk_fp, feature_names[idx]), zorder=7,
             ha="left", va="bottom"))
         _anchors.append((lx, ly))
