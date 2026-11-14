@@ -68,7 +68,7 @@
 | `--egger` | 仅 funnel（≥3 研究） | 其他图型 → `[ignored]` 显式告知 |
 | `--no-risk-table` / `--risk-times` | 仅 km（原始 `[时间,事件]` 格式） | 预计算曲线格式时 stderr 提示 |
 | `--hatch` | bar 系（bar/grouped_bar/hbar/stacked_bar） | 其他图型 → `[ignored]` 显式告知 |
-| `--cmap` / `--vmin` / `--vmax` | heatmap / cluster_heatmap | [ignored] 显式告知（stderr 提示，不静默） |
+| `--cmap` / `--vmin` / `--vmax` | heatmap / cluster_heatmap | [ignored] 显式告知（stderr 提示，不静默）。`--vmax` 高于数据上限=合法压标度技巧：colorbar 如实显示 [vmin, vmax] 标度（数据端点外色带无采样格属预期，可把连续色阶压进最亮段） |
 | `--trend` / `--no-trend` | scatter | [ignored] 显式告知（stderr 提示，不静默） |
 | `--sheet` | 仅 `--data *.xlsx` | CSV/JSON → `[ignored]` 显式告知 |
 | `--show-ratio` / `--ratio-base` | grouped_bar | [ignored] 显式告知（stderr 提示，不静默） |

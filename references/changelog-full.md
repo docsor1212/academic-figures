@@ -8,6 +8,33 @@
 
 <!-- 6.5.0 详情自 changelog.md 下沉（v6.8.0 发版，最近三版窗口滚动） -->
 
+## 7.9.0 — 2026-11-15
+
+**第六轮测试线批次1（正确性与假警告根治）**：
+
+- **CJK 探测回退链**：load_cjk_font 重构——进程内加载探测脚本优先，失败再回退子进程
+  （sys.executable 非空 → python3）。agent 嵌套/嵌入式解释器场景（sys.executable 为空串）
+  旧路径子进程失败被静默吞掉 → rc=0 中文全豆腐块（旗舰卖点在 agent 主路径失效）。
+- **通用字段假警告根治**：_KNOWN_DATA_FIELDS 补注册 prisma 全 schema 键
+  （records_identified/records_excluded/reports_excluded）与 lang、km log_rank/risk_table、
+  labbe events_t——合法键不再被"不是有效字段"假警告误导（records_identified 缺了报 ERROR、
+  有则假 WARNING 的自相矛盾消除）；顺带修复列表尾部缺逗号致 "title" 与 "events_t" 相邻
+  字面量拼接成 "titleevents_t" 的隐性 bug（events_t 实际未注册）。
+- **prisma 守恒校验独立化**：studies_included > reports_assessed（纳入数超过全文评估数的
+  不可能流程）现在无条件拦截，不再依赖 exclusion_reasons 键存在（原守卫嵌套在该键分支内）。
+- **校验类报错首行精确化**：以「图型: 」为前缀的 ValueError（含"校验失败"消息）首行直用
+  精确原因并点名违例字段与实值（volcano fc_cut=0 → "volcano: fc_cut=0 不满足 fc_cut>0"），
+  不再叠加瞬态重试/AF_DEBUG 等无关建议；volcano 约束违例逐字段点认（fc_cut/p_cut/top）。
+- **nomogram 结局尺防错尺**：outcome_scales 缺 points_at 时 stderr 显式警告（静默按线性
+  0~100 默认映射曾在总分上限≠100 的模型上画出错误概率刻度且不报错）。
+- **DCA 峰值精度自适应**：峰值净收益显示在 2 位小数把不同真值折叠成同串时（0.185/0.180
+  同显 +0.18，读者误判两模型等价）逐级升位到 3/4 位。
+- **色盲安全提示**：非色盲安全主题×≥3 系列时 stderr 一行提示（建议 --theme okabe-ito）；
+  默认主题 glm-brand 不变（品牌视觉），主题字典如实标注 colorblind_safe=False。
+- **可读性小修**：哑铃图连接线 #BBBBBB→#999999（细元素亮度）；--explain ridgeline/km/
+  volcano 形态补全（datasets 字典结构/患者级原始数据形态/轴标覆盖）；limits 登记 --vmax
+  压标度语义。581 测试（TestV79000 九项新锁）。
+
 ## 7.8.2 — 2026-11-14
 
 **第五轮复测修复（AF17-AF20）**：AF18 rob 摘要条数值标签移条带上方单行（段内两行

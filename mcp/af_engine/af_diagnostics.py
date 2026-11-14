@@ -123,9 +123,23 @@ _KNOWN_DATA_FIELDS = [
   "subgroups", "levels", "p_interaction", "p", "overall", "est_label", "log_x",
   "arcs", "share_y",
   "cause_labels", "compare_km", "percent", "time_unit", "y_max",
-  "domains", "judgements", "title"
-    "events_t", "n_t", "events_c", "n_c", "est_measure", "show_labels",
+  "domains", "judgements",
+  # v7.9.0 AF21/AF4：补注册被假警告误伤的合法键（prisma 校验器必收键+lang、km log_rank/risk_table、labbe events_t——
+  # 原 "title" 与 "events_t" 间缺逗号致相邻字面量拼接成 "titleevents_t"，events_t 实际未注册）
+  "records_identified", "records_excluded", "reports_excluded", "lang",
+  "log_rank", "risk_table",
+  "events_t", "n_t", "events_c", "n_c", "est_measure", "show_labels",
 ]
+
+
+def _is_validation_error(e):
+    """v7.9.0 AF10：校验类错误判定——ValueError 且消息符合引擎「<图型>: 」前缀约定。
+    校验类错误的原因已在消息里精确到字段/数值（如 volcano: fc_cut=0 不满足 fc_cut>0），
+    错误包装首行应直用精确原因，不再叠加瞬态重试/AF_DEBUG 等无关建议。"""
+    import re as _re
+    _m = str(e) or ""
+    return (type(e).__name__ == "ValueError"
+            and (bool(_re.match(r"^[a-z_]{2,24}: ", _m)) or "校验失败" in _m))
 
 
 def _diagnose_exception(e):
@@ -155,6 +169,10 @@ def _diagnose_exception(e):
                     break
         if why:
             tips.append(why)
+        # v7.9.0 AF10：校验类错误首行=精确原因（消息自带字段/实值），不再叠加
+        # 模式匹配/瞬态重试等建议（精确消息本身就是最短修复路径）
+        if _is_validation_error(e):
+            return str(e).strip(), f"{qual}: {e}", []
         tips.append("瞬态失败（超时/内存）会自动重试（--retries）；"
                       "反复失败请核对数据与参数")
         return zh, f"{qual}: {e}", tips[:3]
@@ -168,7 +186,8 @@ def _print_v3_error(e):
     print(f"└ 原始错误（保留可搜索）：{orig}", file=sys.stderr)
     for i, t in enumerate(tips, 1):
         print(f"建议{i}: {t}", file=sys.stderr)
-    print("仍失败：AF_DEBUG=1 重跑可输出完整技术细节（反馈问题时请附上）", file=sys.stderr)
+    if not _is_validation_error(e):  # v7.9.0 AF10：校验类错误不引导 AF_DEBUG（原因已精确）
+        print("仍失败：AF_DEBUG=1 重跑可输出完整技术细节（反馈问题时请附上）", file=sys.stderr)
 
 
 
