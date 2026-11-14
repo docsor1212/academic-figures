@@ -947,10 +947,10 @@ galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整�
     （`--no-direct-label` 关闭；显式 `--legend-loc` 优先）；
   - **标题层级**：glm-brand/nature-clean 主题标题加粗+左对齐；
   - Pro API options 白名单透传 style/theme（正则防护，引擎侧最终校验）。
-  - **dual_axis 组合图例保留**（55 机 agent 发现）：主流程无参重建图例仅含主轴
+  - **dual_axis 组合图例保留**（外部测试 agent 发现）：主流程无参重建图例仅含主轴
     handles，右轴系列（如 CRP）从图例消失；现保留 gen_dual_axis 内部组合图例。
     回归：模板 15 PDF 文本含右轴系列名。
-  - **复合图 KM 面板 median_auto 面板级透传**（55 机 agent 发现，82 等效移植）：
+  - **复合图 KM 面板 median_auto 面板级透传**（外部测试 agent 发现，本仓等效移植）：
     此前面板 kwargs 白名单缺失该键，composite 里 median_auto:false 被静默忽略——
     自动中位生存标签带错误单位复发。已修复+回归锁。
 
