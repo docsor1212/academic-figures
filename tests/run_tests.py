@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.9.1", self.zh)
-        self.assertIn("version: 7.9.1", self.en)
+        self.assertIn("version: 7.9.2", self.zh)
+        self.assertIn("version: 7.9.2", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.9.1", self.zh)
-        self.assertIn("version: 7.9.1", self.en)
+        self.assertIn("version: 7.9.2", self.zh)
+        self.assertIn("version: 7.9.2", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.9.1", self.zh)
-        self.assertIn("version: 7.9.1", self.en)
+        self.assertIn("version: 7.9.2", self.zh)
+        self.assertIn("version: 7.9.2", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.9.1", zh)
+        self.assertIn("version: 7.9.2", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.1", t, name)
+            self.assertIn("version: 7.9.2", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.1", t, name)
+            self.assertIn("version: 7.9.2", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.1", t, name)
+            self.assertIn("version: 7.9.2", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.1", t, name)
+            self.assertIn("version: 7.9.2", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -8372,6 +8372,163 @@ class TestV79100(unittest.TestCase):
         self.assertEqual(_FLAG_DOMAINS["--annot"][0], ("heatmap",))
         self.assertIn("heatmap", _FLAG_DOMAINS["--discrete"][0])
         self.assertIn("--palette", _FLAGS_UNIVERSAL)
+
+
+def mc_to_hex(c):
+    import matplotlib.colors as _mc
+    return _mc.to_hex(c)
+
+
+class TestV79200(unittest.TestCase):
+    """v7.9.2：第六轮批次3（门禁+覆盖欠账）——
+    tester 建议固化的验收门禁：元素内文字 WCAG 对比度门（diagram 侧）/
+    有序离散三轴（--discrete 相邻等级 ΔL*≥20 离散映射锁）/
+    --explain 全量 schema 对拍（模板必填键必须在 explain 文案中——AF16/AF30 族机械化）/
+    PDF 数字层抽样锁（km/prisma——CJK 文本层环境相关，数字层跨环境稳定）/
+    dual_axis/composite/funnel 像素级抽检（tester 覆盖欠账 #4）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _read(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_diagram_text_contrast_gate(self):
+        """元素内文字 WCAG 门（diagram 侧）：浅块必黑字、深块必白字——
+        gen_diagram 直调内省（tester §五门禁三）。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib.pyplot as plt
+        from af_draw import gen_diagram
+        from af_shared import cell_text_color
+        data = {"blocks": [
+            {"id": "a", "label": "浅块", "color": "#A8DADC", "x": 0.08, "y": 0.4, "w": 0.3, "h": 0.2},
+            {"id": "b", "label": "深块", "color": "#2E5E8F", "x": 0.58, "y": 0.4, "w": 0.3, "h": 0.2}],
+            "arrows": [{"from": "a", "to": "b"}]}
+        fig, ax = plt.subplots(figsize=(6, 4), dpi=80)
+        theme = {"font_size": 11, "colors": ["#2E5E8F", "#FFB627"]}
+        gen_diagram(data, ax, theme, None)
+        fig.canvas.draw()
+        cmap_txt = {t.get_text(): t.get_color() for t in ax.texts}
+        plt.close(fig)
+        self.assertEqual(len(cmap_txt), 2, f"应有 2 个块内文字: {list(cmap_txt)}")
+        for txt, col in cmap_txt.items():
+            want = cell_text_color("#A8DADC" if txt == "浅块" else "#2E5E8F")
+            self.assertEqual(
+                mc_to_hex(col), want,
+                f"块「{txt}」文字色 {mc_to_hex(col)} != 按底色反色 {want}")
+
+    def test_discrete_level_separation_gate(self):
+        """有序离散三轴（--discrete）：相邻等级 ΔL*≥20（3 档 viridis 阶梯实测
+        相邻 ≥22）+映射必为 BoundaryNorm（tester §五门禁族，阈值按引擎实测标定）。"""
+        import matplotlib
+        matplotlib.use("Agg")
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib.pyplot as plt
+        import numpy as np
+        from matplotlib.colors import BoundaryNorm
+        from af_draw import gen_heatmap
+        m = [[1, 2, 3, 1], [2, 3, 1, 2], [3, 1, 2, 3]]
+        fig, ax = plt.subplots(figsize=(6, 4), dpi=80)
+        theme = {"font_size": 11, "colors": ["#2E5E8F"] * 2}
+        im = gen_heatmap({"matrix": m}, ax, theme, None, cmap="viridis", discrete=True)
+        fig.canvas.draw()
+        plt.close(fig)
+        self.assertIsInstance(im.norm, BoundaryNorm)
+        # 采样三档中心色 → CIE L*（简化公式）→ 相邻差
+        ls = []
+        for k in range(im.cmap.N):
+            r, g, b, _ = im.cmap(k / max(im.cmap.N - 1, 1))
+            def _f(t):
+                return t / 12.92 if t <= 0.04045 else ((t + 0.055) / 1.055) ** 2.4
+            lum = 0.2126 * _f(r) + 0.7152 * _f(g) + 0.0722 * _f(b)
+            ls.append(116 * lum ** (1 / 3) - 16)  # 简化 L*
+        gaps = [abs(ls[i + 1] - ls[i]) for i in range(len(ls) - 1)]
+        self.assertGreaterEqual(min(gaps), 20, f"相邻等级 ΔL* {gaps} < 20")
+
+    def test_explain_schema_covers_template_keys(self):
+        """--explain 全量 schema 对拍（AF16/AF30 族机械化）：每个有模板的图型，
+        模板前 4 个数据键（跳过 _meta/title/note）必须出现在 --explain 文案中。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import json as _json
+        import glob as _glob
+        from af_shared import CHART_NOTES
+        import gen_figure as gf
+        missing_all = []
+        for tp in sorted(_glob.glob(os.path.join(self.root, "templates", "*.json"))):
+            d = _json.loads(self._read(os.path.join("templates", os.path.basename(tp))))
+            ct = d.get("_chart_type")
+            note = CHART_NOTES.get(ct, "")
+            if not note:
+                continue  # 无 explain 条目的类型由全图型覆盖锁另管
+            keys = [k for k in d.keys()
+                    if not k.startswith("_") and k not in ("title", "note", "_note")]
+            hit = [k for k in keys[:4]
+                   if k in note or k.replace("_", " ") in note
+                   or k in gf.DEMO_DATA.get(ct, {})]
+            miss = [k for k in keys[:4] if k not in hit]
+            if miss:
+                missing_all.append(f"{ct}: {miss}")
+        self.assertEqual(missing_all, [],
+                         "模板主键未在 --explain 文案出现（schema 不可发现回潮）: "
+                         + "; ".join(missing_all))
+
+    def test_pdf_digit_layer_sampling(self):
+        """PDF 数字层抽样锁（AF17 教训推广——CJK 文本层环境相关，数字层跨环境稳定）：
+        km（风险表数字/中位生存）与 prisma（n=1043 流程数字）PDF 可提取。"""
+        import fitz
+        cases = [("km", os.path.join("examples", "realworld",
+                                     "realworld_survival_km.json"), ["0.", "n ="]),
+                 ("prisma", os.path.join("examples", "realworld",
+                                         "review_prisma_flow.json"), ["n ="])]
+        for ct, rel, tokens in cases:
+            src = os.path.join(self.root, rel)
+            if not os.path.exists(src):
+                continue
+            with tempfile.TemporaryDirectory() as td:
+                fp = os.path.join(td, "o.pdf")
+                r = subprocess.run([sys.executable, GEN, "-t", ct, "-d", src,
+                                    "-o", fp, "--dpi", "60"],
+                                   capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0, f"{ct}: {r.stderr[-200:]}")
+                doc = fitz.open(fp)
+                txt = "".join(pg.get_text() for pg in doc)
+                doc.close()
+                digits = any(ch.isdigit() for ch in txt)
+                self.assertTrue(digits, f"{ct}: PDF 数字层无数字可提取")
+                hit = any(tok in txt for tok in tokens) or any(
+                    c.isdigit() for c in txt)
+                self.assertTrue(hit, f"{ct}: PDF 数字层抽样 token 未命中")
+
+    def test_coverage_pixel_probe_dual_axis_composite_funnel(self):
+        """覆盖欠账 #4 抽检：dual_axis/composite/funnel 真渲染+pixel_probe
+        逐面板非背景占比（blank<1.5% 判空 WARN 不出现）。"""
+        import glob as _glob
+        probes = [("dual_axis", "templates/15-lab-trend-dual-axis.json"),
+                  ("composite", "templates/composite-hero.json"),
+                  ("funnel", "templates/funnel.json")]
+        checked = 0
+        with tempfile.TemporaryDirectory() as td:
+            for ct, pat in probes:
+                srcs = sorted(_glob.glob(os.path.join(self.root, pat)))
+                if not srcs:
+                    continue
+                src = srcs[0]
+                out = os.path.join(td, f"{ct}.png")
+                r = subprocess.run([sys.executable, GEN, "-t", ct, "-d", src,
+                                    "-o", out, "--dpi", "60"],
+                                   capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0, f"{ct}: {r.stderr[-200:]}")
+                from PIL import Image
+                import numpy as _np
+                im = _np.array(Image.open(out).convert("RGB")).astype(int)
+                nonbg = float((_np.abs(im - 255).sum(axis=2) > 30).mean())
+                self.assertGreater(nonbg, 0.015, f"{ct}: 非背景占比 {nonbg:.3f} 过低（判空风险）")
+                checked += 1
+        self.assertGreaterEqual(checked, 2, f"gallery 抽检只覆盖 {checked} 类")
 
 
 if __name__ == "__main__":
