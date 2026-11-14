@@ -24,7 +24,7 @@ when_to_use: >-
 ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_to_use/
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
-  version: 7.8.1
+  version: 7.8.2
   date: 2026-11-14
   author: docsor1212
   lang: zh
@@ -367,7 +367,7 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 
 ## 版本历史
 
-完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v7.8.1** 比值类 CI 自适应格式化（0.997 不再印成 1.00；labbe/forest 三处）+--hatch on|off 逃生门+rob 摘要条图内数值+--explain 全覆盖；**v7.8.0** 竞品采纳文档批（五点图约/反冗余审计/主面板规格/语义配色角色/审稿案例库）+引擎批（hero_panel+分层栅格化）；**v7.7.2** --data inline 简写 "A=10,B=8"+套件 --verbose 里程碑；**v7.7.1** 主题默认标记真值锁+像素契约+date 随版；**v7.7.0** bar 单系列默认竞技场（--arena off 逃生门/--pub-ready 规避）；**v7.6.0** 默认主题 glm-brand+品牌斜纹；**v7.5.0** --arena 竞技场。更早版本见 changelog。
+完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v7.8.2** rob 摘要标签上方单行+rmst τ 口径校准+τ 敏感提示；**v7.8.1** 比值类 CI 自适应（0.997≠1.00）+--hatch on|off+--explain 全覆盖；近期：**v7.8.1** 比值类 CI 自适应格式化（0.997 不再印成 1.00；labbe/forest 三处）+--hatch on|off 逃生门+rob 摘要条图内数值+--explain 全覆盖；**v7.8.0** 竞品采纳文档批（五点图约/反冗余审计/主面板规格/语义配色角色/审稿案例库）+引擎批（hero_panel+分层栅格化）；**v7.7.2** --data inline 简写 "A=10,B=8"+套件 --verbose 里程碑；**v7.7.1** 主题默认标记真值锁+像素契约+date 随版；**v7.7.0** bar 单系列默认竞技场（--arena off 逃生门/--pub-ready 规避）；**v7.6.0** 默认主题 glm-brand+品牌斜纹；**v7.5.0** --arena 竞技场。更早版本见 changelog。
 
 ## 🚀 进阶版：论文配图一键生成 Pro
 

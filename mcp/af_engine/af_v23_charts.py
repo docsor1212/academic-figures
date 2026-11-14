@@ -1668,6 +1668,7 @@ def gen_rmst(data, ax, theme, cjk_fp, **kwargs):
         box.append(f"（95%CI {_fmt(dd['ci_low'])}~{_fmt(dd['ci_high'])}，{p_disp}）")
     if tau_auto:
         box.append("τ 自动=最小最大随访之半（--rmst-tau 可指定）")
+        print("rmst: τ 为自动值——ΔRMST 结论对 τ 敏感时请以 --rmst-tau 在多个随访阈值复核", file=sys.stderr)
     fp = cjk_fp if cjk_fp else None
     ax.text(0.98, 0.90, "\n".join(box), transform=ax.transAxes, ha="right", va="top",
             fontsize=theme["font_size"] - 1, linespacing=1.5,
@@ -1813,13 +1814,14 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
     order = ["L", "S", "H", "VH", "NI"]            # 自基线向上：低、顾虑、高、极高、无信息
     base = y_sum1
     htot = y_sum1 - y_sum0
-    # v7.8.1 AF12：每域只标最大段（百分比+计数，≥15%）——多段全标会在薄条带里
-    # 互相挤压（11%×3 相邻实锤）；次段靠颜色+图例传达，计数明细在 stderr。
+    # v7.8.2 AF18（复测修正）：标签放条带上方单行（ylim 反向：视觉上方=y_sum0 侧）——v7.8.1 的段内两行标签
+    # 在薄条带里被相邻段裁切/重叠（复测实锤）。每域标最大段（≥15%），次段靠
+    # 颜色+图例，计数明细在 stderr。
     _dom_label = {}
     for ci, k in enumerate(dkeys):
         _max_code = max(order, key=lambda c: counts[k][c])
         if counts[k][_max_code] / n >= 0.15:
-            _dom_label[ci] = (_max_code, counts[k][_max_code] / n)
+            _dom_label[ci] = counts[k][_max_code] / n
     for ci, k in enumerate(dkeys):
         cum = 0.0
         for code in order:
@@ -1828,13 +1830,12 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
                 continue
             ax.bar(ci, h, bottom=base - cum - h, width=0.62,
                    color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
-            if _dom_label.get(ci, (None, 0))[0] == code:
-                _frac = _dom_label[ci][1]
-                _tc = "#333333" if code in ("S", "NI") else "white"
-                ax.text(ci, base - cum - h / 2, f"{_frac * 100:.0f}%\n({counts[k][code]}/{n})",
-                        ha="center", va="center", fontsize=max(5.0, theme["font_size"] - 2),
-                        color=_tc, fontweight="bold", zorder=4)
             cum += h
+    for ci, _frac in _dom_label.items():
+        ax.text(ci, y_sum0 - 0.14, f"{_frac * 100:.0f}%（{counts[dkeys[ci]][max(order, key=lambda c: counts[dkeys[ci]][c])]}/{n}）",
+                ha="center", va="bottom", fontsize=max(5.0, theme["font_size"] - 2),
+                color="#333333", zorder=4,
+                fontproperties=cjk_fp if cjk_fp else None)
     if has_overall:
         oc = {"L": 0, "S": 0, "H": 0, "VH": 0, "NI": 0}
         for _, row in rows:
@@ -1847,13 +1848,12 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
                 continue
             ax.bar(x_overall, h, bottom=base - cum - h, width=0.62,
                    color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
-            if _max_code == code and oc[code] / n >= 0.15:
-                _frac = oc[code] / n
-                _tc = "#333333" if code in ("S", "NI") else "white"
-                ax.text(x_overall, base - cum - h / 2, f"{_frac * 100:.0f}%\n({oc[code]}/{n})",
-                        ha="center", va="center", fontsize=max(5.0, theme["font_size"] - 2),
-                        color=_tc, fontweight="bold", zorder=4)
-            cum += h
+        if oc[_max_code] / n >= 0.15:
+            ax.text(x_overall, y_sum0 - 0.14,
+                    f"{oc[_max_code] / n * 100:.0f}%（{oc[_max_code]}/{n}）",
+                    ha="center", va="bottom", fontsize=max(5.0, theme["font_size"] - 2),
+                    color="#333333", zorder=4,
+                    fontproperties=cjk_fp if cjk_fp else None)
 
     ax.axhline(y_sum1, color="#8A8A8A", linewidth=1.0, xmin=0.0,
                xmax=1.0, zorder=2)

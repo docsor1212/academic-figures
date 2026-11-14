@@ -181,7 +181,7 @@ CHART_NOTES = {
                  "抖动原始点雨）；schema 同 violin；--stats 通用；jitter(0~0.3)/cloud_scale(0~2.0，0=藏云)；零方差/单点组云退化并告知。",
     "slope": "slope: 斜率图（两时点/两组对比）；JSON items={名称:[前值,后值]}+left_label/right_label；--show-gap 标差值。",
     "volcano": "volcano: 火山图；JSON log2fc+pvalue 两数组必填（names/fc_cut/p_cut/top 可选）；阈值线与 top 基因标注自动。",
-    "rmst": "rmst: RMST 限制平均生存时间；JSON groups={臂名: [[时间,事件 0/1]...]} 恰好两臂（契约同 km）；--rmst-tau 指定 τ（缺省=最大随访之半）；自动输出每臂 RMST(95%CI)+ΔRMST。",
+    "rmst": "rmst: RMST 限制平均生存时间；JSON groups={臂名: [[时间,事件 0/1]...]} 恰好两臂（契约同 km）；--rmst-tau 指定 τ（缺省=最小最大随访之半，与 stderr 披露一致）；自动输出每臂 RMST(95%CI)+ΔRMST。",
     "labbe": "labbe: L'Abbé 图（Meta 四件套）；JSON studies=[{name,events_t,n_t,events_c,n_c}...]（2x2 四格，非 trials）；est_measure=RR/OR；气泡面积∝研究权重；合并线=DL 随机效应。",
     "dumbbell": "dumbbell: 哑铃图（v5.1，第 30 号图型；每行两点 from→to+连接线，横向形态，"
                  "强调逐条目差距）；JSON from/to 必填等长、labels 可选、from_label/to_label 图例名；"
