@@ -17,7 +17,12 @@ try:
     import af_v23_stats as _afstats
 except ImportError:  # 统计模块不在同目录时降级（标注函数自行判 None 提示）
     _afstats = None
-from af_shared import has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear, _SKETCH_MODE, hero_panel_mode, fmt_ratio_ci
+from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _ensure_ylabel_clear,
+                       _SKETCH_MODE, hero_panel_mode, fmt_ratio_ci, cell_text_color)
+
+# v7.9.1 AF40：定性色阶名单（承载有序/数值标度时 colorbar 语义易误读）
+_QUALITATIVE_CMAPS = {"Set1", "Set2", "Set3", "Pastel1", "Pastel2", "Accent",
+                      "Dark2", "Paired", "tab10", "tab20", "tab20b", "tab20c"}
 
 
 def _darken_color(color, factor=0.55):
@@ -595,15 +600,53 @@ def gen_heatmap(data, ax, theme, cjk_fp, **kwargs):
             vmin = vmin if vmin is not None else float(matrix.min())
             vmax = vmax if vmax is not None else float(matrix.max())
 
-    im = ax.imshow(matrix, cmap=cmap, vmin=vmin, vmax=vmax, aspect='auto')
+    # v7.9.1 AF40：定性色阶承载数值标度 → 提示（--discrete 才是正解）
+    _cmap_name = str(kwargs.get("cmap") or ("RdBu_r" if has_neg else "YlOrRd"))
+    if _cmap_name.split("_r")[0] in _QUALITATIVE_CMAPS and not kwargs.get("discrete"):
+        print(f"NOTICE: 定性色阶 {_cmap_name} 用于数值标度——colorbar 语义易误读；"
+              f"有序离散数据请加 --discrete（阶梯映射+离散色标）", file=sys.stderr)
 
-    # Text annotations
-    for i in range(matrix.shape[0]):
-        for j in range(matrix.shape[1]):
-            v = matrix[i, j]
-            color = 'white' if abs(v) > (abs(vmin) + abs(vmax)) / 2 * 0.7 else 'black'
-            ax.text(j, i, annot_fmt.format(v), ha='center', va='center',
-                    fontsize=9, fontweight='bold', color=color)
+    # v7.9.1 AF43：--discrete 离散映射（ListedColormap 采样+BoundaryNorm，colorbar 同步离散）
+    _norm = None
+    if kwargs.get("discrete"):
+        from matplotlib.colors import BoundaryNorm
+        _nd = min(max(int(np.ptp(matrix)) + 1, 2), 9)
+        _bounds = np.linspace(float(vmin), float(vmax), _nd + 1)
+        cmap = plt.get_cmap(cmap, _nd)
+        _norm = BoundaryNorm(_bounds, cmap.N)
+        im = ax.imshow(matrix, cmap=cmap, norm=_norm, aspect='auto')
+    else:
+        im = ax.imshow(matrix, cmap=cmap, vmin=vmin, vmax=vmax, aspect='auto')
+
+    # v7.9.1 AF44：--cell-edge 格线描边（低对比色阶下保结构；edge 色随底色明暗自动取反；
+    # imshow 不支持 edgecolors——以半整数边界 axvline/axhline 画格线）
+    if kwargs.get("cell_edge"):
+        _cm_probe = im.cmap
+        _ec = "#ffffff" if cell_text_color(_cm_probe(0.55)) == "#ffffff" else "#777777"
+        for _x in np.arange(0.5, matrix.shape[1] - 0.5, 1.0):
+            ax.axvline(_x, color=_ec, lw=0.6, zorder=3)
+        for _y in np.arange(0.5, matrix.shape[0] - 0.5, 1.0):
+            ax.axhline(_y, color=_ec, lw=0.6, zorder=3)
+
+    # v7.9.1 AF6+AF32/AF6b：格内数值=密度门控+按格底色亮度反色
+    # （原=无条件逐格绘制+9pt 死硬+按数值阈值判黑白——大矩阵必然压字、暗底黑字隐形）
+    _nr, _nc = matrix.shape[0], matrix.shape[1]
+    annot_mode = str(kwargs.get("annot") or "auto").strip().lower()
+    if annot_mode not in ("on", "off", "auto"):
+        annot_mode = "auto"
+    if annot_mode == "auto" and (_nr > 30 or _nc > 30):
+        annot_mode = "off"
+        print(f"NOTICE: 矩阵 {_nr}x{_nc} 过密——格内数值已自动隐藏"
+              f"（--annot on 可强制；或 cluster_heatmap --downsample 改数据）", file=sys.stderr)
+    if annot_mode != "off":
+        _afs = 9 if max(_nr, _nc) <= 15 else (7 if max(_nr, _nc) <= 30 else 6)
+        for i in range(_nr):
+            for j in range(_nc):
+                v = matrix[i, j]
+                _face = im.cmap(im.norm(v))
+                ax.text(j, i, annot_fmt.format(v), ha='center', va='center',
+                        fontsize=_afs, fontweight='bold',
+                        color=cell_text_color(_face))
 
     ax.set_xticks(range(len(col_labels)))
     use_cjk_cols = cjk_fp and any(has_cjk(l) for l in col_labels)
@@ -1541,7 +1584,7 @@ def gen_slope(data, ax, theme, cjk_fp, **kwargs):
         elif i == i_fall and deltas[i_fall] < 0:
             c, lw, z = "#D55E00", 2.2, 3
         else:
-            c, lw, z = to_rgba(accent, 0.32), 1.5, 2
+            c, lw, z = to_rgba(accent, 0.45), 1.5, 2  # v7.9.1 AF42：0.32 在白底过淡（细元素可见性下限）
         ax.plot([x0, x1], [lv[i], rv[i]], color=c, lw=lw, zorder=z,
                 marker="o", markersize=4, markerfacecolor=c)
 
@@ -1561,6 +1604,12 @@ def gen_slope(data, ax, theme, cjk_fp, **kwargs):
         return out
 
     ly, ry = _spread(lv), _spread(rv)
+    # v7.9.1 AF37：把 _spread 溢出的标签纳入 ylim（左端全同值时 spread 会把最下项
+    # 推到 ylim 外=标签掉出图框；扩框优于钳制——钳制会把多个标签挤到同一点互叠）
+    _all = list(lv) + list(rv) + list(ly) + list(ry)
+    _lo, _hi = min(_all), max(_all)
+    _m = ((_hi - _lo) * 0.06) or 1.0
+    ax.set_ylim(_lo - _m, _hi + _m)
     _fp = cjk_fp
     for i, n in enumerate(names):
         fp = _fp if _fp and has_cjk(n) else None
@@ -1795,6 +1844,11 @@ def gen_raincloud(data, ax, theme, cjk_fp, **kwargs):
                 kde = gaussian_kde(v)
                 grid = np.linspace(v.min() - 0.5 * v.std() - 1e-9, v.max() + 0.5 * v.std() + 1e-9, 80)
                 dens = kde(grid)
+                # v7.9.1 AF27：KDE 尾部裁剪到数据范围（时间/计数类数据密度云
+                # 曾越过 0 下界伸入无意义负值区——边界外密度=核平滑伪影）
+                if v.min() >= 0:
+                    _inside = grid >= 0
+                    grid, dens = grid[_inside], dens[_inside]
                 dens = dens / dens.max() * 0.28 * cloud_scale  # cs≤2.0：半宽≤0.56，与箱/邻组雨带不叠
                 ax.fill_betweenx(grid, i - dens, i, facecolor=color, alpha=0.45,
                                  edgecolor=color, linewidth=1.0, zorder=2)
@@ -2965,18 +3019,19 @@ def gen_diagram(data, ax, theme, cjk_fp, **kwargs):
                                    linewidth=1.2, alpha=0.9)
         ax.add_patch(patch)
 
-        # Block label (centered)
+        # Block label (centered) — v7.9.1 AF38：文字色按块底亮度自动反色（原固定白，浅块不可读）
+        _btcol = cell_text_color(bc)
         label_y = by + bh / 2
         if sub_label:
             label_y = by + bh * 0.65
         ax.text(bx + bw / 2, label_y, label,
                 ha='center', va='center', fontsize=theme["font_size"],
-                color='white', fontweight='bold',
+                color=_btcol, fontweight='bold',
                 fontproperties=cjk_fp if cjk_fp and has_cjk(label) else None)
         if sub_label:
             ax.text(bx + bw / 2, by + bh * 0.3, sub_label,
                     ha='center', va='center', fontsize=theme["font_size"] - 2,
-                    color='white', alpha=0.85,
+                    color=_btcol, alpha=0.85,
                     fontproperties=cjk_fp if cjk_fp and has_cjk(sub_label) else None)
 
     # Draw arrows
@@ -3380,7 +3435,9 @@ def gen_prisma(data, ax, theme, cjk_fp, **kwargs):
     _main_box("assessed", L["assessed"], assessed)
     _main_box("included", L["included_box"], included, color=final_color)
     for a, b in zip(order, order[1:]):
-        _arrow(SX + SW / 2, ys[a], SX + SW / 2, ys[b] + BH)
+        # v7.9.1 AF24：箭头终点用该框实际高度 BH_BY[b]（原全局 BH——中文长标签使
+        # 各框不对称长高时终点过冲钻进下一框底下=框间连接头被覆盖半截）
+        _arrow(SX + SW / 2, ys[a], SX + SW / 2, ys[b] + BH_BY[b])
 
     # side boxes + arrows
     def _scy(key):

@@ -69,6 +69,8 @@
 | `--no-risk-table` / `--risk-times` | 仅 km（原始 `[时间,事件]` 格式） | 预计算曲线格式时 stderr 提示 |
 | `--hatch` | bar 系（bar/grouped_bar/hbar/stacked_bar） | 其他图型 → `[ignored]` 显式告知 |
 | `--cmap` / `--vmin` / `--vmax` | heatmap / cluster_heatmap | [ignored] 显式告知（stderr 提示，不静默）。`--vmax` 高于数据上限=合法压标度技巧：colorbar 如实显示 [vmin, vmax] 标度（数据端点外色带无采样格属预期，可把连续色阶压进最亮段） |
+| `--annot on\|auto\|off` / `--cell-edge` / `--discrete` | heatmap | 其他图型 → `[ignored]` 显式告知。auto=超 30 行/列自动隐藏格内数值；--discrete=有序离散阶梯映射+离散色标；格内数值颜色按格底亮度自动反色（WCAG） |
+| `--palette "#hex,..."` | 全图型（通用） | 分类图=按序替换主题系列色；热图=按给定顺序构建连续色阶（浅端对齐低值）；非法 hex → exit 3 |
 | `--trend` / `--no-trend` | scatter | [ignored] 显式告知（stderr 提示，不静默） |
 | `--sheet` | 仅 `--data *.xlsx` | CSV/JSON → `[ignored]` 显式告知 |
 | `--show-ratio` / `--ratio-base` | grouped_bar | [ignored] 显式告知（stderr 提示，不静默） |

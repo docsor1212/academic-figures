@@ -96,6 +96,52 @@ def advise_colorblind(theme, n_series, stream=None):
         pass
 
 
+def cell_text_color(bg):
+    """v7.9.1 AF32/AF38：按底色选黑/白文字（WCAG 对比度判据，单一真源）。
+
+    bg 接受 hex 字符串（"#RRGGBB"）或 0~1 (r, g, b[, a]) 元组；返回 "#000000"
+    或 "#ffffff"。判据=相对亮度（WCAG 2.x 线性化），选对比度更高的一侧——
+    heatmap 格内数值（按格底色而非数值阈值）与 diagram 块内文字共用。"""
+    try:
+        if isinstance(bg, str):
+            bg = bg.strip()
+            if bg.startswith("#") and len(bg) >= 7:
+                bg = tuple(int(bg[i:i + 2], 16) / 255.0 for i in (1, 3, 5))
+            else:
+                return "#000000"
+        r, g, b = (float(v) for v in bg[:3])
+
+        def _lin(c):
+            return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4
+        lum = 0.2126 * _lin(r) + 0.7152 * _lin(g) + 0.0722 * _lin(b)
+        # 对白文字对比度 = (1.05)/(lum+0.05)；对黑文字 = (lum+0.05)/0.05
+        return "#ffffff" if (1.05 / (lum + 0.05)) >= ((lum + 0.05) / 0.05) else "#000000"
+    except Exception:
+        return "#000000"
+
+
+_HEX_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+
+
+def parse_palette(spec):
+    """v7.9.1 G1：--palette 外部配色注入解析——逗号/分号分隔的 hex 序列
+    （"#C1121F,#669BBC,..."，3~6 位 hex 均可）。非法即抛 ValueError（exit 3）。
+    分类图=按序替换主题色；heatmap=构建连续色阶（浅端对齐低值=按给定顺序）。"""
+    if not spec or not str(spec).strip():
+        raise ValueError("palette: 需要 hex 序列（如 \"#C1121F,#669BBC,#003049\"）")
+    out = []
+    for tok in re.split(r"[,;]", str(spec)):
+        t = tok.strip()
+        if not t:
+            continue
+        if not _HEX_RE.match(t):
+            raise ValueError(f"palette: 非法颜色 '{t}'——请给 #RRGGBB 或 #RGB hex")
+        out.append(t if len(t) == 7 else "#" + "".join(c * 2 for c in t[1:]))
+    if len(out) < 2:
+        raise ValueError("palette: 至少 2 个颜色（分类系列或色阶两端）")
+    return out
+
+
 
 def _ensure_ylabel_clear(ax, fig=None, max_pad=24.0):
     """Mechanism-level: auto-increase y-label labelpad until it clears tick labels.
@@ -361,6 +407,9 @@ _FLAG_DOMAINS = {
     "--cmap": (("heatmap", "cluster_heatmap"), None),
     "--vmin": (("heatmap", "cluster_heatmap"), None),
     "--vmax": (("heatmap", "cluster_heatmap"), None),
+    "--annot": (("heatmap",), "on|auto|off：格内数值标注（auto=大矩阵自动隐藏，v7.9.1）"),
+    "--cell-edge": (("heatmap",), "格线描边（v7.9.1；低对比色阶下保结构）"),
+    "--discrete": (("heatmap",), "离散色阶（ListedColormap+BoundaryNorm，有序离散标度；v7.9.1）"),
     "--trend": (("scatter",), None),
     "--show-ratio": (("grouped_bar",), None),
     "--ratio-base": (("grouped_bar",), None),
@@ -379,7 +428,7 @@ _FLAG_DOMAINS = {
 _FLAGS_UNIVERSAL = ("--title --xlabel --ylabel --subtitle --source --style --theme --journal "
                     "--column --size --width --height --dpi --format --multi-format --cjk "
                     "--legend/--no-legend --legend-loc --legend-outside --show-values --summary "
-                    "--verify --doctor --audit --repro --pub-ready --timeout --retries --debug "
+                    "--verify --doctor --audit --repro --pub-ready --timeout --retries --debug --palette "
                     "--explain --suggest --list-types --list-themes --batch --pipeline")
 
 

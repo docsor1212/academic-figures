@@ -1,6 +1,6 @@
 ---
 name: academic-figures
-version: 7.9.0
+version: 7.9.1
 description: >-
   Publication-ready scientific figures from one command — 40 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
@@ -37,7 +37,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.9.0
+  version: 7.9.1
   date: 2026-11-15
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -405,7 +405,7 @@ Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.9.0** CJK detection fallback chain (nested-interpreter tofu root-fix) + false field-warning fix + prisma conservation guard + precise validation errors + DCA peak precision; **v7.8.2** rob labels above strip + rmst tau caliber + tau-sensitivity note; **v7.8.1** ratio-CI adaptive decimals (0.997 ≠ 1.00) + `--hatch on|off`; **v7.8.0** doc pack (five-point contract / anti-redundancy / hero spec) + engine pack (hero_panel + rasterization); earlier versions in changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.9.1** heatmap cell-text WCAG contrast + annot gate + --discrete/--cell-edge/--palette + diagram contrast + prisma arrow fix; **v7.9.0** CJK detection fallback + field-warning fix + prisma conservation + precise errors + DCA precision; **v7.8.2** rob labels above strip + rmst tau caliber; **v7.8.1** ratio-CI adaptive decimals (0.997 ≠ 1.00) + `--hatch on|off`; **v7.8.0** doc+engine packs (hero_panel + rasterization); earlier in changelog.
 
 ## 🚀 Pro Edition
 

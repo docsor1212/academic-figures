@@ -10,7 +10,8 @@
 
 | 版本 | 日期 | 首条要点 |
 |---|---|---|
-| **v7.9.0（当前）** | 2026-11-15 | 第六轮测试线批次1（正确性与假警告根治）：CJK 字体探测三级回退链（嵌套解释器 sys.executable 为空不再静默豆腐块）+通用字段假警告族根治（prisma 全 schema 键与 lang、km log_rank/risk_table、labbe events_t 注册，含缺逗号连字隐性 bug）+prisma 纳入数守恒校验独立化（included>assessed 不可能流程拦截）+校验类报错首行精确化（点名违例字段与实值，去无关建议）+nomogram 结局尺缺 points_at 显式警告+DCA 峰值精度自适应（0.185/0.180 不再同显 +0.18）+色盲安全提示（非安全主题×≥3 系列 stderr 一行，默认主题不动）+哑铃连接线加深+ridgeline/km/volcano explain 形态补全；581 测试 |
+| **v7.9.1（当前）** | 2026-11-15 | 第六轮测试线批次2（可读性/配色家族）：热图格内数值按底色 WCAG 自动反色（原按数值阈值判黑白——暗底色阶黑字 1.00:1 隐形实锤）+大矩阵标注密度门控（--annot on|auto|off）+diagram 块内文字随块底反色+热图 --discrete 有序离散阶梯映射+--cell-edge 格线+定性色阶语义提示+热图 --theme 提示+`--palette` 外部配色注入（G1 能力缺口）+prisma 竖向箭头终点按实际框高（中文长标签半截根因）+slope 标签扩框入图+去强调线 alpha 下限+raincloud KDE 边界裁剪+PCA 载荷箭头色入主题；591 测试 |
+| v7.9.0 | 2026-11-15 | 第六轮测试线批次1（正确性与假警告根治）：CJK 字体探测三级回退链（嵌套解释器 sys.executable 为空不再静默豆腐块）+通用字段假警告族根治（prisma 全 schema 键与 lang、km log_rank/risk_table、labbe events_t 注册，含缺逗号连字隐性 bug）+prisma 纳入数守恒校验独立化（included>assessed 不可能流程拦截）+校验类报错首行精确化（点名违例字段与实值，去无关建议）+nomogram 结局尺缺 points_at 显式警告+DCA 峰值精度自适应（0.185/0.180 不再同显 +0.18）+色盲安全提示（非安全主题×≥3 系列 stderr 一行，默认主题不动）+哑铃连接线加深+ridgeline/km/volcano explain 形态补全；581 测试 |
 | v7.8.2 | 2026-11-14 | 第五轮复测修复（AF17-AF20）：rob 摘要条数值标签移条带上方单行（段内两行在薄条带被裁切/重叠——v7.8.1 复测实锤）+--explain rmst τ 口径校准（缺省=最小最大随访之半，与 stderr 披露一致）+自动 τ 渲染追加 τ 敏感性复核提示+limits 登记 PDF 文本层 CJK 提取环境相关（读屏用 --alt）；571 测试 |
 | v7.8.1 | 2026-11-14 | 测试线四图型深测修复（AF9-AF16）：比值类 CI 自适应格式化（上界贴 1 升三位小数+不含 1 标注——防 0.997 印成 1.00 的临床误读，labbe 图例/forest overall/逐行三处）+`--hatch off` 逃生门与隐式置位不冒充用户输入+rob 摘要条图内数值（每域最大段 百分比+计数）+labbe 气泡面积注+rmst 双臂面积可辨+--explain 补齐 slope/volcano/rmst/labbe；571 测试 |
 | v7.8.0 | 2026-11-13 | 竞品调研采纳·文档批+引擎批同版：composite-layouts 反冗余审计+主面板规格+叙事排序三节、color-guide 语义配色角色表、prompt-cards 五点图约+审稿人模拟两卡、SKILL 问题优先门、quickstart 交付命名约定、新建 reviewer-cases.md（10 审稿返修案例）——引擎批（composite hero_panel 字段+scatter 大点数分层栅格化）同版随行 |
@@ -67,32 +68,35 @@
 ## 最近版本详情 Recent Details
 
 
+## 7.9.1 — 2026-11-15
+
+**第六轮测试线批次2（可读性/配色家族）**：
+
+- **热图格内数值自动反色**：按格底色 WCAG 相对亮度选黑/白（原按数值阈值——暗底色阶 7/7 全部 <3:1、
+  magma 1.00:1 隐形实锤）；cell_text_color() 单一真源，diagram 块内文字共用（原固定白，浅块 1.2:1）。
+- **大矩阵标注密度门控**：auto 超 30 行/列自动隐藏+stderr 提示；--annot on|off 显式控制+字号自适应。
+- **--discrete 有序离散色阶**+**--cell-edge 格线**（热图）：BoundaryNorm 阶梯映射+离散 colorbar
+  （原连续插值把等级差压到 ΔL* 12~19）；低对比色阶下格线保结构。
+- **--palette 外部配色注入**（G1 能力缺口）：hex 序列，分类图替换系列色/热图构建色阶（浅端对齐低值）。
+- **双提示**：定性色阶承载数值标度语义提示+热图 --theme 格色由 --cmap 决定提示。
+- **几何/主题小修**：prisma 竖箭头终点用实际框高（中文长标签半截根因）+slope 标签扩框入图+去强调线
+  alpha 0.45+raincloud KDE 边界裁剪+PCA 载荷箭头色入主题。
+
 ## 7.9.0 — 2026-11-15
 
 **第六轮测试线批次1（正确性与假警告根治）**：
 
-- **CJK 探测回退链**：`load_cjk_font` 重构——进程内加载探测脚本优先，失败再回退
-  子进程（sys.executable 非空 → python3）。agent 嵌套/嵌入式解释器场景
-  （sys.executable 为空串）旧路径子进程失败被静默吞掉 → rc=0 中文全豆腐块。
-- **通用字段假警告根治**：`_KNOWN_DATA_FIELDS` 补注册 prisma 全 schema 键
-  （records_identified/records_excluded/reports_excluded）与 lang、km
-  log_rank/risk_table、labbe events_t——合法键不再被"不是有效字段"误导；
-  顺带修复列表尾部缺逗号致 `"title"` 与 `"events_t"` 相邻字面量拼接的隐性 bug。
-- **prisma 守恒校验独立化**：studies_included > reports_assessed（纳入数超过
-  全文评估数的不可能流程）现在无条件拦截，不再依赖 exclusion_reasons 键存在。
-- **校验类报错首行精确化**：以「图型: 」为前缀的 ValueError（含"校验失败"消息）
-  首行直用精确原因并点名违例字段与实值（volcano fc_cut=0 → "volcano:
-  fc_cut=0 不满足 fc_cut>0"），不再叠加瞬态重试/AF_DEBUG 等无关建议。
-- **nomogram 结局尺防错尺**：outcome_scales 缺 points_at 时 stderr 显式警告
-  （静默按线性 0~100 默认映射曾在总分上限≠100 的模型上画出错误概率刻度）。
-- **DCA 峰值精度自适应**：峰值净收益显示在 2 位小数把不同真值折叠成同串时
-  （0.185/0.180 同显 +0.18）逐级升位到 3/4 位，读者不再误判两模型等价。
-- **色盲安全提示**：非色盲安全主题×≥3 系列时 stderr 一行提示（建议
-  --theme okabe-ito）；默认主题 glm-brand 不变（品牌视觉），主题字典如实标注
-  colorblind_safe=False。
-- **可读性小修**：哑铃图连接线 #BBBBBB→#999999（细元素亮度）；`--explain`
-  ridgeline/km/volcano 形态补全（datasets 字典结构/患者级原始数据形态/轴标覆盖）；
-  limits 登记 --vmax 压标度语义。
+- **CJK 探测回退链**：进程内加载探测脚本优先→子进程回退——agent 嵌套/嵌入式解释器
+  （sys.executable 空串）旧路径静默吞错→rc=0 中文全豆腐块，根除。
+- **通用字段假警告根治**：_KNOWN_DATA_FIELDS 补注册 prisma 全 schema 键+lang、km
+  log_rank/risk_table、labbe events_t（顺带修 title/events_t 缺逗号连字隐性 bug）。
+- **prisma 守恒校验独立化**：studies_included > reports_assessed 不可能流程无条件拦截
+  （原守卫嵌套在 exclusion_reasons 分支内曾放行 200>169）。
+- **校验类报错首行精确化**：以「图型: 」为前缀的 ValueError 首行直用精确原因并点名违例字段
+  与实值（fc_cut=0 → "volcano: fc_cut=0 不满足 fc_cut>0"），去瞬态重试/AF_DEBUG 无关建议。
+- **防错尺与精度**：nomogram 结局尺缺 points_at 显式警告（静默线性默认曾画错概率刻度）+
+  DCA 峰值精度自适应（0.185/0.180 不再同显 +0.18）+色盲提示（非安全主题×≥3 系列）+
+  哑铃连接线加深+ridgeline/km/volcano explain 形态补全+limits 登记 --vmax 压标度语义。
 
 ## 7.8.2 — 2026-11-14
 

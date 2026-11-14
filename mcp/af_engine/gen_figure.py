@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.9.0: Publication-quality academic figure generator.
+academic-figures v7.9.1: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -48,7 +48,7 @@ except ImportError:  # v2.3 新图型/统计模块不在同目录时降级
 # ── v4.0.0 模块化第四刀：绘制层拆至 af_draw（生成器）/af_shared（叶工具）──
 from af_shared import (has_cjk, HATCH_PATTERNS, _STYLE_NO_GRID, _SKETCH_MODE,
                         _ensure_ylabel_clear, CHART_NOTES, DEMO_DATA, list_flags_query, parse_inline_data, hero_panel_mode,
-                        add_sig_bracket_arg, add_sig_auto_arg, load_cjk_font, advise_colorblind)
+                        add_sig_bracket_arg, add_sig_auto_arg, load_cjk_font, advise_colorblind, parse_palette)
 from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, suggest_arena_note,
                      pairwise_vs_first, draw_bootstrap_brackets, annotate_bootstrap_stats, draw_stat_brackets,
                      annotate_auto_stats, annotate_multi_stats, gen_bar,
@@ -70,9 +70,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── Style presets ──────────────────────────────────────────────────────
 THEMES = {
-    # v7.9.0 AF29：默认主题 glm-brand（品牌视觉标识，user-mandated）。NOT colorblind-safe
-    # （主题字典 colorblind_safe: False 如实标注；色盲安全场景用 okabe-ito，3+ 系列
-    # 时渲染 stderr 会提示）。glm/okabe-ito 语义色见各主题注释。
+    # v7.9.0 AF29：默认主题 glm-brand（品牌视觉标识）。NOT colorblind-safe（字典如实标注；
+    # 色盲安全场景用 okabe-ito，3+ 系列渲染时 stderr 提示）。语义色见各主题注释。
     # The old matplotlib-default palette is preserved as "classic".
     "classic": {
         "figsize": (10, 6),
@@ -561,8 +560,7 @@ def generate_alt_text(chart_type, data, title=""):
     return alt_text_core(chart_type, data, title)
 
 # ── Font helpers ───────────────────────────────────────────────────────
-# load_cjk_font 已下沉 af_shared（v7.9.0 AF3：进程内探测优先回退链，根治嵌套解释器
-# sys.executable 为空串时静默豆腐块）；本文件经顶部 from af_shared import 引用。
+# load_cjk_font 已下沉 af_shared（v7.9.0 AF3 回退链：进程内探测→子进程），经顶部 import 引用。
 
 
 
@@ -1741,14 +1739,9 @@ def validate_data(data, chart_type):
                 and vals["reports_assessed"] != sought - not_ret:
             fatal.append(f"prisma 数字自洽校验失败: reports_assessed ({vals['reports_assessed']}) != "
                          f"reports_sought - reports_not_retrieved ({sought - not_ret})")
-        # v7.9.0 AF22：纳入≤全文评估守恒独立化（原嵌套在 exclusion_reasons 存在时才检查，
-        # 缺该键的不可能流程 200>169 曾照常出图）
-        _inc_only = vals.get("studies_included")
-        if _inc_only is not None and vals.get("reports_assessed") is not None \
-                and _inc_only > vals["reports_assessed"]:
-            fatal.append(f"prisma 数字自洽校验失败: studies_included ({_inc_only}) > "
-                         f"reports_assessed ({vals['reports_assessed']})——纳入研究数不可能超过"
-                         f"评估全文的报告数，请复核流程数字（若含多报告归并请以评估数为准）")
+        _inc_only = vals.get("studies_included")  # v7.9.0 AF22：纳入≤评估守恒独立化（原嵌套分支曾放行 200>169）
+        if _inc_only is not None and vals.get("reports_assessed") is not None and _inc_only > vals["reports_assessed"]:
+            fatal.append(f"prisma 数字自洽校验失败: studies_included ({_inc_only}) > reports_assessed ({vals['reports_assessed']})——纳入研究数不可能超过全文评估的报告数，请复核流程数字")
         reasons = data.get("exclusion_reasons")
         if reasons is not None:
             if not isinstance(reasons, dict) or not reasons:
@@ -2629,6 +2622,8 @@ def main():
     parser.add_argument("--no-trend", action="store_true", help="隐藏趋势线（散点图）")
     parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）"); parser.add_argument("--vmin", type=float, default=None, help="热图色阶下限")
     parser.add_argument("--vmax", type=float, default=None, help="热图色阶上限")
+    parser.add_argument("--annot", nargs="?", const="auto", default=None, metavar="on|auto|off", help="热图格内数值标注（v7.9.1：auto=超 30 行/列自动隐藏）；--cell-edge 格线描边（低对比色阶保结构）"); parser.add_argument("--cell-edge", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--discrete", action="store_true", help="热图离散色阶（有序离散标度：阶梯映射+离散色标，v7.9.1）"); parser.add_argument("--palette", default=None, metavar='"#hex,#hex,..."', help="外部配色注入（v7.9.1）：分类图按序替换主题系列色，热图按给定顺序构建连续色阶（浅端对齐低值）")
     parser.add_argument("--horizontal", action="store_true", help="水平柱状图（即 hbar）"); parser.add_argument("--hatch", nargs="?", const="on", default=None, metavar="on|off", help="柱体加斜线填充（打印友好）；--hatch off 显式关闭（含品牌默认斜纹）")
     parser.add_argument("--alternate", action="store_true",
                         help="GLM 风格：单系列柱子交替前两种主题色")
@@ -2927,6 +2922,9 @@ def main():
     theme_key = resolve_theme(args.theme)
     if theme_key == "glm-brand" and args.hatch is None:
         args.hatch = True; args._hatch_implicit = True  # v7.6 品牌斜纹默认开启（--hatch off 可关；隐式不打 [ignored]）
+    _pal = parse_palette(args.palette) if getattr(args, "palette", None) else None  # v7.9.1 G1 注入
+    if _pal:
+        print(f"NOTICE: --palette 已注入 {len(_pal)} 色（主题系列色已替换；热图按给定顺序构建色阶）", file=sys.stderr)
     if not theme_key:
         print(f"ERROR: 未知主题 '{args.theme}'。运行 --list-themes 查看全部配色。", file=sys.stderr)
         sys.exit(1)
@@ -2936,6 +2934,10 @@ def main():
         print(f"配色已联动 {theme_key} 主题（显式 --theme 可覆盖）", file=sys.stderr)
     args.theme = theme_key
     theme = THEMES[theme_key]
+    if _pal:  # v7.9.1 G1：palette 覆盖系列色（theme 定型后；热图色阶走 payload）
+        theme = dict(theme); theme["colors"] = _pal
+    if getattr(args, "theme", None) and args.type in ("heatmap", "cluster_heatmap"):
+        print("NOTICE: 热图单元格配色由 --cmap/--vmin/--vmax 决定（--theme 只影响轴/文字），格色不变属预期", file=sys.stderr)  # v7.9.1 AF31
 
     # ── v3.2：自动行为透明化（[auto] 前缀显式告知）──
     if args.journal and getattr(args, "width", None):
@@ -3043,10 +3045,9 @@ def main():
     for _w in _field_nearmiss_warnings(data):
         print(f"WARNING: {_w}", file=sys.stderr)
 
-    # v7.9.0 AF29：非色盲安全主题×多系列 stderr 提示（默认主题不动，仅提示）
     _sv = next((v for v in (data.get("series"), data.get("datasets"),
                data.get("groups")) if isinstance(v, dict)), None)
-    advise_colorblind(THEMES.get(theme_key, {}), len(_sv) if _sv else None)
+    advise_colorblind(THEMES.get(theme_key, {}), len(_sv) if _sv else None)  # v7.9.0 AF29 色盲提示
 
     fatal_msgs, warn_msgs = validate_data(data, args.type)
     for w in warn_msgs:
@@ -3178,6 +3179,8 @@ def main():
         "cmap": args.cmap,
         "vmin": args.vmin,
         "vmax": args.vmax,
+        "annot": args.annot, "cell_edge": bool(getattr(args, "cell_edge", False)),
+        "discrete": bool(getattr(args, "discrete", False)), "palette": _pal,
         "horizontal": args.horizontal or args.type in ("hbar", "horizontal_bar"),
         "hatch": args.hatch, "sig_bracket": getattr(args, "sig_bracket", False),
         "sig_auto": getattr(args, "sig_auto", False),
