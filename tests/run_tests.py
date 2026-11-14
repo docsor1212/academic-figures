@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.8.1", self.zh)
-        self.assertIn("version: 7.8.1", self.en)
+        self.assertIn("version: 7.8.2", self.zh)
+        self.assertIn("version: 7.8.2", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.8.1", self.zh)
-        self.assertIn("version: 7.8.1", self.en)
+        self.assertIn("version: 7.8.2", self.zh)
+        self.assertIn("version: 7.8.2", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.8.1", self.zh)
-        self.assertIn("version: 7.8.1", self.en)
+        self.assertIn("version: 7.8.2", self.zh)
+        self.assertIn("version: 7.8.2", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.8.1", zh)
+        self.assertIn("version: 7.8.2", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.1", t, name)
+            self.assertIn("version: 7.8.2", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.1", t, name)
+            self.assertIn("version: 7.8.2", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.1", t, name)
+            self.assertIn("version: 7.8.2", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.8.1", t, name)
+            self.assertIn("version: 7.8.2", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -7857,7 +7857,10 @@ class TestV78100(unittest.TestCase):
         self.assertEqual(fmt_ratio_ci(0.4, 0.05, 0.85, "MD"), ("0.40", "0.05", "0.85", True))
 
     def test_labbe_pdf_text_no_1p00(self):
-        """Fleiss93 真数据渲染 PDF：图例含 0.997+不含 1 标注，缺陷形态 0.76~1.00 绝迹。"""
+        """Fleiss93 真数据渲染：AF11 门禁双层断言——
+        PDF 文本层只断数字形态（0.997 在/0.76~1.00 绝迹；数字层跨环境稳定——
+        第五轮复测实锤 CJK 字形在部分环境会整段丢 ToUnicode，"不含 1"等 CJK
+        断言因此改图对象内省层=Text artist 恒持真 unicode，环境无关）。"""
         import fitz
         with tempfile.TemporaryDirectory() as td:
             fp = os.path.join(td, "l.pdf")
@@ -7871,8 +7874,26 @@ class TestV78100(unittest.TestCase):
             doc.close()
             self.assertIn("0.997", txt, "图例应升三位小数")
             self.assertNotIn("0.76~1.00", txt, "缺陷形态 1.00 误读仍在")
-            self.assertIn("不含 1", txt)
-            self.assertIn("气泡面积", txt)
+            # CJK 标注内容走内省层（环境无关）：图例 Text artist 持真 unicode
+            sys.path.insert(0, os.path.join(self.root, "scripts"))
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+            import json as _json
+            from af_v23_charts import gen_labbe
+            from af_shared import fmt_ratio_ci  # noqa: F401 确认可导入
+            import gen_figure as _gf
+            d = _json.loads(self._rd(os.path.join("examples", "realworld",
+                                                  "cardio_fleiss93_aspirin_labbe.json")))
+            _fig, _ax = plt.subplots(figsize=(8, 6))
+            gen_labbe(d, _ax, _gf.THEMES[_gf.resolve_theme(None)], None)
+            _texts = "｜".join(t.get_text() for t in _ax.texts)
+            _leg = _ax.get_legend()
+            if _leg is not None:
+                _texts += "｜" + "｜".join(t.get_text() for t in _leg.get_texts())
+            self.assertIn("不含 1", _texts, "图例 artist 层应有「不含 1」显著标注")
+            self.assertIn("气泡面积", _texts)
+            plt.close(_fig)
 
     def test_forest_overall_adaptive_ci(self):
         """forest overall CI 上界贴 1 时升三位（同族扫 AF11）。"""
@@ -7951,6 +7972,21 @@ class TestV78100(unittest.TestCase):
                                capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0, r.stderr[-300:])
             self.assertIn("67%", r.stderr)  # stderr 摘要构成保留
+
+    def test_rmst_tau_note_and_explain_caliber(self):
+        """AF19/AF20：--explain rmst τ 口径=stderr 披露口径（最小最大随访之半）；
+        自动 τ 渲染 stderr 含 τ 敏感性复核提示（colon 真数据）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_shared import CHART_NOTES
+        self.assertIn("最小最大随访之半", CHART_NOTES["rmst"])
+        self.assertNotIn("缺省=最大随访之半", CHART_NOTES["rmst"])
+        src = os.path.join(self.root, "examples", "realworld", "oncology_colon_rmst.json")
+        with tempfile.TemporaryDirectory() as td:
+            r = subprocess.run([sys.executable, GEN, "-t", "rmst", "-d", src,
+                                "-o", os.path.join(td, "o.png"), "--dpi", "60"],
+                               capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("对 τ 敏感", r.stderr)
 
     def test_rmst_single_arm_contract(self):
         """诚实账·rmst τ 锁前置契约：单臂数据精确报错（τ 逻辑仅两臂路径可达）。"""
