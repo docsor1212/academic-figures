@@ -36,8 +36,8 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.8.0
-  date: 2026-11-13
+  version: 7.8.1
+  date: 2026-11-14
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -404,7 +404,7 @@ Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.8.0** competitor-adoption docs (five-point contract, anti-redundancy audit, hero-panel spec, semantic color roles, reviewer cases); **v7.7.2** inline data `-d "A=10,B=8"` + suite `--verbose` milestones; **v7.7.1** theme default-marker truth lock + pixel contract + date release-locked; **v7.7.0** default arena on single-series bar (`--arena off` escape, `--pub-ready` auto-skip); **v7.6.0** default theme glm-brand + brand hatch; **v7.5.0** `--arena` debut. Older: see changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.8.1** ratio-CI adaptive formatting (0.997 never prints as 1.00; labbe legend/forest overall+rows) + `--hatch on|off` escape + rob in-figure summary numbers + explain coverage complete; **v7.8.0** competitor-adoption docs (five-point contract, anti-redundancy audit, hero-panel spec, semantic color roles, reviewer cases); **v7.7.2** inline data `-d "A=10,B=8"` + suite `--verbose` milestones; **v7.7.1** theme default-marker truth lock + pixel contract + date release-locked; **v7.7.0** default arena on single-series bar (`--arena off` escape, `--pub-ready` auto-skip); **v7.6.0** default theme glm-brand + brand hatch; **v7.5.0** `--arena` debut. Older: see changelog.
 cluster-heatmap label fonts (P3 polish pack); **v4.5.0** independent-testing fixes; **v4.4.0**
 volcano plot; earlier versions in changelog.
 

@@ -8,6 +8,17 @@
 
 <!-- 6.5.0 详情自 changelog.md 下沉（v6.8.0 发版，最近三版窗口滚动） -->
 
+## 7.8.1 — 2026-11-14
+
+**测试线四图型深测修复（AF9-AF16）**：AF11（P1）比值类 CI 格式化门——L'Abbé
+图例 RR 上界 0.997 舍成 1.00 致临床判读反转（RR 无效值=1），`fmt_ratio_ci`
+自适应升三位+「不含 1」标注，应用 labbe 图例/forest Overall/逐行三处；AF9 品牌
+隐式 hatch 置位不冒充用户输入（非 bar 图不再误报 [ignored] --hatch）+`--hatch
+on|off` 逃生门；AF12 rob 摘要条每域最大段图内标注（百分比+计数）；AF13 L'Abbé
+气泡面积注；AF15 rmst 双臂面积 alpha 0.22+第二臂斜纹；AF16 --explain 补齐
+slope/volcano/rmst/labbe。AF10/AF14 P3 记录缓办。rob 摘要等权为设计决策
+（docstring 明示）。571 测试。
+
 ## 7.8.0 — 2026-11-13
 
 **竞品调研采纳（文档批+引擎批同版）**：五点图约（五问预检仪式）+反冗余三层递进

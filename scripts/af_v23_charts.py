@@ -1645,7 +1645,8 @@ def gen_rmst(data, ax, theme, cjk_fp, **kwargs):
         ts = list(t_seq[keep]) + ([tau] if t_seq[keep][-1] < tau else [])
         ss = list(s_seq[keep]) + ([s_seq[keep][-1]] * (1 if ts[-1] == tau and t_seq[keep][-1] < tau else 0))
         ax.step(ts, ss, where="post", color=c, linewidth=2, label=gname, zorder=3)
-        ax.fill_between(ts, ss, 0, step="post", color=c, alpha=0.15, zorder=2)
+        ax.fill_between(ts, ss, 0, step="post", color=c, alpha=0.22,
+                        hatch="///" if i > 0 else None, ec="none", zorder=2)  # v7.8.1 AF15：双臂面积可辨
 
     ax.axvline(tau, color="#8A8A8A", linestyle="--", linewidth=1.2, zorder=1)
     ax.set_xlim(0, tau * 1.06)                      # 右留白：τ 线不贴边
@@ -1812,6 +1813,13 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
     order = ["L", "S", "H", "VH", "NI"]            # 自基线向上：低、顾虑、高、极高、无信息
     base = y_sum1
     htot = y_sum1 - y_sum0
+    # v7.8.1 AF12：每域只标最大段（百分比+计数，≥15%）——多段全标会在薄条带里
+    # 互相挤压（11%×3 相邻实锤）；次段靠颜色+图例传达，计数明细在 stderr。
+    _dom_label = {}
+    for ci, k in enumerate(dkeys):
+        _max_code = max(order, key=lambda c: counts[k][c])
+        if counts[k][_max_code] / n >= 0.15:
+            _dom_label[ci] = (_max_code, counts[k][_max_code] / n)
     for ci, k in enumerate(dkeys):
         cum = 0.0
         for code in order:
@@ -1820,11 +1828,18 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
                 continue
             ax.bar(ci, h, bottom=base - cum - h, width=0.62,
                    color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
+            if _dom_label.get(ci, (None, 0))[0] == code:
+                _frac = _dom_label[ci][1]
+                _tc = "#333333" if code in ("S", "NI") else "white"
+                ax.text(ci, base - cum - h / 2, f"{_frac * 100:.0f}%\n({counts[k][code]}/{n})",
+                        ha="center", va="center", fontsize=max(5.0, theme["font_size"] - 2),
+                        color=_tc, fontweight="bold", zorder=4)
             cum += h
     if has_overall:
         oc = {"L": 0, "S": 0, "H": 0, "VH": 0, "NI": 0}
         for _, row in rows:
             oc[row["Overall"]] += 1
+        _max_code = max(order, key=lambda c: oc[c])
         cum = 0.0
         for code in order:
             h = oc[code] / n * htot
@@ -1832,6 +1847,12 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
                 continue
             ax.bar(x_overall, h, bottom=base - cum - h, width=0.62,
                    color=_COLOR[code], edgecolor="white", linewidth=0.8, zorder=3)
+            if _max_code == code and oc[code] / n >= 0.15:
+                _frac = oc[code] / n
+                _tc = "#333333" if code in ("S", "NI") else "white"
+                ax.text(x_overall, base - cum - h / 2, f"{_frac * 100:.0f}%\n({oc[code]}/{n})",
+                        ha="center", va="center", fontsize=max(5.0, theme["font_size"] - 2),
+                        color=_tc, fontweight="bold", zorder=4)
             cum += h
 
     ax.axhline(y_sum1, color="#8A8A8A", linewidth=1.0, xmin=0.0,
@@ -1892,6 +1913,7 @@ def gen_rob(data, ax, theme, cjk_fp, **kwargs):
 # ── labbe L'Abbé 图（v6.3 第 40 号图型，Meta 四件套收官：forest/funnel/galbraith/labbe） ──
 
 def gen_labbe(data, ax, theme, cjk_fp, **kwargs):
+    from af_shared import fmt_ratio_ci  # v7.8.1 AF11（函数内懒加载：af_shared 顶部反向 import 本模块，顶层引会成环）
     """L'Abbé 图（处理组 vs 对照组事件率散点，Meta 分析效应直观化）。
 
     x=对照组事件率，y=处理组事件率；对角线 y=x 为无效应线（RR=1），
@@ -1967,8 +1989,10 @@ def gen_labbe(data, ax, theme, cjk_fp, **kwargs):
                 color="#999999", path_effects=_stroke, zorder=2)
     if pooled is not None:
         xg = np.linspace(1e-4, hi_ax, 64)
+        _e, _l, _h, _sig = fmt_ratio_ci(rr, lo, min(hi, 99), measure)
+        _sig_s = "，不含 1" if _sig else ""
         ax.plot(xg, rr * xg, color=c_main, lw=1.6, zorder=3,
-                label=f"合并 {measure}={rr:.2f}（{lo:.2f}~{min(hi, 99):.2f}，随机效应）")
+                label=f"合并 {measure}={_e}（{_l}~{_h}，随机效应{_sig_s}）")
 
     # 点面积 ∝ 研究权重（1/方差归一到 [30, 320]）
     var = np.maximum(1.0 / np.maximum(et, 1) - 1.0 / nt + 1.0 / np.maximum(ec, 1) - 1.0 / nc, 1e-8)
@@ -1976,6 +2000,9 @@ def gen_labbe(data, ax, theme, cjk_fp, **kwargs):
     sizes = 30 + 290 * (w / w.max())
     ax.scatter(pc, pt, s=sizes, color=c_main, alpha=0.75,
                edgecolor="#333333", linewidth=0.9, zorder=4)
+    # v7.8.1 AF13：气泡面积语义图内自解释（面积∝研究权重 1/方差）
+    ax.text(0.98, 0.02, "气泡面积∝研究权重（1/方差）", transform=ax.transAxes,
+            ha="right", va="bottom", fontsize=fs_s, color="#999999")
 
     show_all = data.get("show_labels")
     show_all = (len(names) <= 12) if show_all is None else bool(show_all)
