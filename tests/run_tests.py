@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.0.0", self.zh)
-        self.assertIn("version: 8.0.0", self.en)
+        self.assertIn("version: 8.0.1", self.zh)
+        self.assertIn("version: 8.0.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.0.0", self.zh)
-        self.assertIn("version: 8.0.0", self.en)
+        self.assertIn("version: 8.0.1", self.zh)
+        self.assertIn("version: 8.0.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.0.0", self.zh)
-        self.assertIn("version: 8.0.0", self.en)
+        self.assertIn("version: 8.0.1", self.zh)
+        self.assertIn("version: 8.0.1", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.0.0", zh)
+        self.assertIn("version: 8.0.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.0", t, name)
+            self.assertIn("version: 8.0.1", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.0", t, name)
+            self.assertIn("version: 8.0.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.0", t, name)
+            self.assertIn("version: 8.0.1", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.0", t, name)
+            self.assertIn("version: 8.0.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -8555,23 +8555,29 @@ class TestV80000(unittest.TestCase):
         self.assertIn("def gate_strict(", src)
         self.assertIn("def layout_semantic(", src)
 
-    def test_strict_gate_rejects_synthetic_overlap(self):
-        """R6：strict 闸对强行重叠的图（标签 bb 直接压节点）exit 2 拒绝交付。"""
+    def test_strict_gate_rejects_and_allows(self):
+        """R6：strict 闸——装不下的文本（下限拒绝）rc!=0；正常图 strict rc=0
+        （与 basic 同输出）。v2 英寸引擎下 fit 文本下限=守门闸的第一道。"""
         data = {"blocks": [
-            {"id": "A", "label": "A", "x": 0.0, "y": 0.0, "w": 1.4, "h": 0.7, "color": "#56B4E9"},
-            {"id": "B", "label": "B", "x": 2.2, "y": 0.0, "w": 1.4, "h": 0.7, "color": "#FFB627"}],
-            "arrows": [{"from": "A", "to": "B", "label": "x" * 30}]}
+            {"id": "A", "label": "A very very extremely long label text",
+             "x": 0.0, "y": 0.0, "w": 0.5, "h": 0.3, "color": "#56B4E9"},
+            {"id": "B", "label": "B", "x": 2.2, "y": 0.0, "w": 1.4, "h": 0.7,
+             "color": "#FFB627"}],
+            "arrows": [{"from": "A", "to": "B"}]}
         with tempfile.TemporaryDirectory() as td:
             fp = os.path.join(td, "f.json")
             io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
             r = subprocess.run([sys.executable, GEN, "-t", "diagram", "-d", fp,
                                 "-o", os.path.join(td, "o.png"), "--gate", "strict",
-                                "--dpi", "60"], capture_output=True, text=True, timeout=240)
-            self.assertNotEqual(r.returncode, 0, "strict 闸必须拒绝重叠交付")
+                                "--dpi", "60"], capture_output=True, text=True,
+                               timeout=240)
+            self.assertNotEqual(r.returncode, 0,
+                                "装不下的文本必须被拒绝（拒绝溢出渲染）")
             r2 = subprocess.run([sys.executable, GEN, "-t", "diagram", "-d", fp,
                                  "-o", os.path.join(td, "o2.png"), "--dpi", "60"],
                                 capture_output=True, text=True, timeout=240)
-            self.assertEqual(r2.returncode, 0, r2.stderr[-200:])
+            self.assertNotEqual(r2.returncode, 0,
+                                "溢出拒绝与闸无关（fit 无条件生效）")
 
     def test_word_join_number_unit(self):
         """R3 词粘合：「48周」「12.5mg」数字与单位不得拆行。"""
@@ -8582,9 +8588,11 @@ class TestV80000(unittest.TestCase):
         import af_flow
         fig, ax = plt.subplots()
         af_flow.trim_limits(ax, [{"x": 0, "y": 0, "w": 1, "h": 1}], ratio_hint=False)
-        w = af_flow._wrap_cjk("48周主要终点", 6)
-        self.assertEqual(len(w), 1, f"48周被拆行: {w}")
-        joined = af_flow._wrap_cjk("12周 无病生存", 5)
+        _uw = af_flow.measure_in(ax, "0", 9)[0]   # 单位宽（数字 ASCII）
+        w = af_flow._wrap("48周主要终点", 6 * _uw, _uw)
+        self.assertTrue(any("48周" in ln for ln in w),
+                        f"数字与单位被拆开: {w}")
+        joined = af_flow._wrap("12周 无病生存", 5 * _uw, _uw)
         self.assertTrue(any("12周" in ln for ln in joined), f"12周 被拆: {joined}")
         plt.close(fig)
 

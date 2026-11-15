@@ -2952,7 +2952,8 @@ def gen_diagram(data, ax, theme, cjk_fp, **kwargs):
                     [{"id": bb.get("id"), "label": bb.get("label", bb.get("id")),
                       "sublabel": bb.get("sublabel"), "color": bb.get("color"),
                       "shape": bb.get("shape", "round")} for bb in blocks],
-                    data.get("arrows", []), layout="chain")
+                    data.get("arrows", []), layout="chain",
+                    ax=ax, fs=theme.get("font_size", 11), cjk_fp=cjk_fp)
                 break
             else:
                 raise ValueError("diagram: blocks 缺 x/y/w/h 坐标（或整组省略以启用自动布局）")
@@ -2994,7 +2995,8 @@ def gen_flow(data, ax, theme, cjk_fp, **kwargs):
     direction = str(data.get("direction", "TB")).strip().upper()
     if direction not in ("TB", "LR"):
         raise ValueError("flow: direction 只支持 'TB' | 'LR'")
-    blocks = af_flow.layout_semantic(nodes, edges, layout=layout, direction=direction)
+    blocks = af_flow.layout_semantic(nodes, edges, layout=layout, direction=direction,
+                                     ax=ax, fs=theme.get("font_size", 11), cjk_fp=cjk_fp)
     arrows = [{"from": e["from"], "to": e["to"], **{k: v for k, v in e.items()
                if k in ("label", "dashed", "color", "label_color")}}
               for e in edges]
