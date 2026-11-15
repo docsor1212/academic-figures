@@ -2733,7 +2733,7 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
     # Clear the default axis created by plt.subplots
     ax.remove()
 
-    # v7.8.0 hero_panel：主面板跨全行+1.35:1 双列（B1 规格——思想/参数取竞品调研，
+    # v7.8.0 hero_panel：主面板跨全行+1.35:1 双列（B1 规格——跨工具调研沉淀，
     # 实现自有）。hero 优先级高于 pos/span：合法时布局由本块接管，两者忽略。
     # 仅 3-6 面板支持；>6 或索引非法打 WARNING 回退均等网格（不静默）。
     _hero_ok, _hp = hero_panel_mode(data, panels)

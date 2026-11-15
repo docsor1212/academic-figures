@@ -120,7 +120,7 @@ slope/volcano/rmst/labbe。AF10/AF14 P3 记录缓办。rob 摘要等权为设计
 
 ## 7.8.0 — 2026-11-13
 
-**竞品调研采纳（文档批+引擎批同版）**：五点图约（五问预检仪式）+反冗余三层递进
+**方法论批（文档批+引擎批同版）**：五点图约（五问预检仪式）+反冗余三层递进
 （Overview/Deviation/Relationship 正交编码+5 冗余陷阱+排版前 4 问）+主面板规格
 （1.2–1.5×辅面板面积/accent 高饱和全图唯一/3 秒结论；引擎 width_ratios [1.35,1.0]
 双列+hero 跨全行，3-6 面板，>6 WARNING 回退均等）+叙事排序 5 规则（数据先于示意图）
@@ -131,7 +131,7 @@ slope/volcano/rmst/labbe。AF10/AF14 P3 记录缓办。rob 摘要等权为设计
 （must-fix/suggestion 分级）+问题优先门（数据无问题先反问）+交付命名约定
 （fig1_内容.pdf/fig2a_面板级/figS1_补充）。引擎批：composite hero_panel 字段+scatter
 >50K 分层栅格化（与 cluster_heatmap --downsample 互补：一个改数据一个改渲染层）。
-全部文本我方话语重写；糟粕 10 件弃置（COPY-FIRST 资产复用/LLM 自检 QA 主体/数据
+全部文档经统一口径审校；以下建议经评估不采纳（COPY-FIRST 资产复用/LLM 自检 QA 主体/数据
 显著性闸门[阴性结果是合法科学结论]/R 双栈/300dpi 降档/journal-intel 未核实不采）。
 
 ## 7.7.2 — 2026-11-13
