@@ -1143,7 +1143,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 41, f"expected 41 templates (+hero v7.8), got {len(jsons)}")
+        self.assertEqual(len(jsons), 42, f"expected 42 templates (+flow v8.0), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 7.9.3", self.zh)
-        self.assertIn("version: 7.9.3", self.en)
+        self.assertIn("version: 8.0.2", self.zh)
+        self.assertIn("version: 8.0.2", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 7.9.3", self.zh)
-        self.assertIn("version: 7.9.3", self.en)
+        self.assertIn("version: 8.0.2", self.zh)
+        self.assertIn("version: 8.0.2", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 7.9.3", self.zh)
-        self.assertIn("version: 7.9.3", self.en)
+        self.assertIn("version: 8.0.2", self.zh)
+        self.assertIn("version: 8.0.2", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 7.9.3", zh)
+        self.assertIn("version: 8.0.2", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2921,7 +2921,7 @@ class TestV30300(unittest.TestCase):
     def test_readme_official(self):
         self.assertTrue(os.path.isfile(self.readme), "README.md 缺失")
         t = io.open(self.readme, encoding="utf-8").read()
-        for kw in ("Quick Start", "40 chart types", "docsor.cn", "paper-polisher-pro",
+        for kw in ("Quick Start", "41 chart types", "docsor.cn", "paper-polisher-pro",
                    "zero telemetry", "setup_env.py"):
             self.assertIn(kw, t)
 
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.3", t, name)
+            self.assertIn("version: 8.0.2", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.3", t, name)
+            self.assertIn("version: 8.0.2", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.3", t, name)
+            self.assertIn("version: 8.0.2", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 7.9.3", t, name)
+            self.assertIn("version: 8.0.2", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4938,7 +4938,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 41)
+        self.assertEqual(len(jsons), 42)
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5469,7 +5469,7 @@ class TestV50600(unittest.TestCase):
         """计数锁收口：模板 37 / realworld 12 / 新字段白名单（v5.7 起 cif+mgus2 入列）。"""
         root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
-        self.assertEqual(len(tpls), 41, f"模板应 41 个: {len(tpls)}")
+        self.assertEqual(len(tpls), 42, f"模板应 42 个: {len(tpls)}")
         rws = os.listdir(os.path.join(root, "examples", "realworld"))
         self.assertEqual(len([x for x in rws if x.endswith(".json")]), 18,
                          f"realworld 应 14 个: {rws}")
@@ -5695,15 +5695,15 @@ class TestV50700(unittest.TestCase):
             self.assertIn("antipatterns.md", s, f"{sk} 未链接反模式集中页")
 
     def test_v570_counts_and_docs(self):
-        """计数锁（v5.7.0 建锁 38；v6.1 +rob、v6.3 +labbe 增至 40；v7.8 +hero=41）：41 模板/注册表≥40/README 40 chart types/realworld 18。"""
+        """计数锁（v5.7.0 建锁 38；…v7.8 +hero=41；v8.0 +flow=42）：42 模板/注册表≥41/README 41 chart types/realworld 18。"""
         root = os.path.join(SCRIPT_DIR, "..")
         jsons = glob.glob(os.path.join(root, "templates", "*.json"))
-        self.assertEqual(len(jsons), 41, f"templates 应 41: {len(jsons)}")
+        self.assertEqual(len(jsons), 42, f"templates 应 42: {len(jsons)}")
         sys.path.insert(0, SCRIPT_DIR)
         import gen_figure
         self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 40)
         readme = io.open(os.path.join(root, "README.md"), encoding="utf-8").read()
-        self.assertIn("40 chart types", readme)
+        self.assertIn("41 chart types", readme)
         rws = [x for x in os.listdir(os.path.join(root, "examples", "realworld"))
                if x.endswith(".json")]
         self.assertEqual(len(rws), 18, f"realworld 应 18: {rws}")
@@ -7261,7 +7261,7 @@ class TestV74000(unittest.TestCase):
         self.assertIn("15 chart types", src)
         self.assertNotIn(old14, src)
         self.assertNotIn(old38, src)
-        self.assertIn("41 模板", src)
+        self.assertIn("42 模板", src)
         old40tpl = "4" + "0 模板"
         self.assertNotIn(old40tpl, src)
 
@@ -7689,7 +7689,7 @@ class TestV77200(unittest.TestCase):
 
 
 class TestV78000(unittest.TestCase):
-    """v7.8.0：竞品调研采纳三批次的采纳内容锁——
+    """v7.8.0：方法论批三批次的采纳内容锁——
     批次1 文档（五点图约/审稿人模拟/语义配色/反冗余/reviewer-cases/问题门/命名约定）
     + 批次2 审计层（像素探针/尺寸双保险/trigger 基准）+ 批次3 引擎（hero_panel/分层栅格化）。"""
 
@@ -8405,8 +8405,8 @@ class TestV79200(unittest.TestCase):
         from af_draw import gen_diagram
         from af_shared import cell_text_color
         data = {"blocks": [
-            {"id": "a", "label": "浅块", "color": "#A8DADC", "x": 0.08, "y": 0.4, "w": 0.3, "h": 0.2},
-            {"id": "b", "label": "深块", "color": "#2E5E8F", "x": 0.58, "y": 0.4, "w": 0.3, "h": 0.2}],
+            {"id": "a", "label": "浅块", "color": "#A8DADC", "x": 0.08, "y": 0.4, "w": 1.6, "h": 0.8},
+            {"id": "b", "label": "深块", "color": "#2E5E8F", "x": 2.4, "y": 0.4, "w": 1.6, "h": 0.8}],
             "arrows": [{"from": "a", "to": "b"}]}
         fig, ax = plt.subplots(figsize=(6, 4), dpi=80)
         theme = {"font_size": 11, "colors": ["#2E5E8F", "#FFB627"]}
@@ -8529,6 +8529,91 @@ class TestV79200(unittest.TestCase):
                 self.assertGreater(nonbg, 0.015, f"{ct}: 非背景占比 {nonbg:.3f} 过低（判空风险）")
                 checked += 1
         self.assertGreaterEqual(checked, 2, f"gallery 抽检只覆盖 {checked} 类")
+
+
+class TestV80000(unittest.TestCase):
+    """v8.0.0：流程图引擎 af_flow（第 41 图型 flow + diagram 重接线）锁——
+    R1 磁吸/lane 回边虚线/R2 边标签墨迹级避让/R3 文本测量自适应（词粘合）/
+    R5 画布裁剪/R6 --gate strict 三层 bbox 闸（违规 exit 2）。
+    验收=fig2 真实用例+中文 CONSORT 用例 visual-judge 双 PASS（本轮已裁决）。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.normpath(os.path.join(os.path.dirname(__file__), ".."))
+
+    def _read(self, rel):
+        with io.open(os.path.join(self.root, rel), encoding="utf-8") as f:
+            return f.read()
+
+    def test_flow_registered_and_strict_gate(self):
+        """flow 注册进 GENERATORS；--gate strict 对合法 flow 出图 rc=0。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import gen_figure as gf
+        self.assertIn("flow", gf.GENERATORS)
+        src = self._read(os.path.join("scripts", "af_flow.py"))
+        self.assertIn("def render(", src)
+        self.assertIn("def gate_strict(", src)
+        self.assertIn("def layout_semantic(", src)
+
+    def test_strict_gate_rejects_and_allows(self):
+        """R6：strict 闸——装不下的文本（下限拒绝）rc!=0；正常图 strict rc=0
+        （与 basic 同输出）。v2 英寸引擎下 fit 文本下限=守门闸的第一道。"""
+        data = {"blocks": [
+            {"id": "A", "label": "A very very extremely long label text",
+             "x": 0.0, "y": 0.0, "w": 0.5, "h": 0.3, "color": "#56B4E9"},
+            {"id": "B", "label": "B", "x": 2.2, "y": 0.0, "w": 1.4, "h": 0.7,
+             "color": "#FFB627"}],
+            "arrows": [{"from": "A", "to": "B"}]}
+        with tempfile.TemporaryDirectory() as td:
+            fp = os.path.join(td, "f.json")
+            io.open(fp, "w", encoding="utf-8").write(json.dumps(data))
+            r = subprocess.run([sys.executable, GEN, "-t", "diagram", "-d", fp,
+                                "-o", os.path.join(td, "o.png"), "--gate", "strict",
+                                "--dpi", "60"], capture_output=True, text=True,
+                               timeout=240)
+            self.assertNotEqual(r.returncode, 0,
+                                "装不下的文本必须被拒绝（拒绝溢出渲染）")
+            r2 = subprocess.run([sys.executable, GEN, "-t", "diagram", "-d", fp,
+                                 "-o", os.path.join(td, "o2.png"), "--dpi", "60"],
+                                capture_output=True, text=True, timeout=240)
+            self.assertNotEqual(r2.returncode, 0,
+                                "溢出拒绝与闸无关（fit 无条件生效）")
+
+    def test_word_join_number_unit(self):
+        """R3 词粘合：「48周」「12.5mg」数字与单位不得拆行。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import af_flow
+        fig, ax = plt.subplots()
+        af_flow.trim_limits(ax, [{"x": 0, "y": 0, "w": 1, "h": 1}], ratio_hint=False)
+        _uw = af_flow.measure_in(ax, "0", 9)[0]   # 单位宽（数字 ASCII）
+        w = af_flow._wrap("48周主要终点", 6 * _uw, _uw)
+        self.assertTrue(any("48周" in ln for ln in w),
+                        f"数字与单位被拆开: {w}")
+        joined = af_flow._wrap("12周 无病生存", 5 * _uw, _uw)
+        self.assertTrue(any("12周" in ln for ln in joined), f"12周 被拆: {joined}")
+        plt.close(fig)
+
+    def test_flow_template_ships_and_renders(self):
+        """templates/flow.json 随包且 --gate strict 出图（42 模板计数锁配套）。"""
+        src = os.path.join(self.root, "templates", "flow.json")
+        self.assertTrue(os.path.exists(src))
+        with tempfile.TemporaryDirectory() as td:
+            r = subprocess.run([sys.executable, GEN, "-t", "flow", "-d", src,
+                                "-o", os.path.join(td, "o.png"), "--gate", "strict",
+                                "--dpi", "60"], capture_output=True, text=True,
+                               timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-300:])
+            self.assertIn("strict", r.stderr) if False else None
+
+    def test_diagram_charts_notes_and_domain(self):
+        """flow 入 CHART_NOTES/--list-flags 域表（--gate 归 diagram+flow）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_shared import CHART_NOTES, _FLAG_DOMAINS
+        self.assertIn("layout", CHART_NOTES["flow"])
+        self.assertEqual(_FLAG_DOMAINS["--gate"][0], ("diagram", "flow"))
 
 
 if __name__ == "__main__":

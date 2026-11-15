@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """trigger_benchmark：SKILL.md description 触发判别力基准（v7.8.0 批次2 · B3）。
 
-对 trigger_cases.json 的 40 条用例（20 正=图型中英高频表述 / 20 负=竞品分类学：
+对 trigger_cases.json 的 40 条用例（20 正=图型中英高频表述 / 20 负=跨工具负面分类学：
 纯统计/数据清洗/写作/代码调试/文献检索/设计排除 pie·3D/仪表盘/plotly/图像编辑）
 做**规则判别**评分：
 
@@ -50,7 +50,7 @@ CHART_KEYWORDS = {
     "upset":      r"交集图|upset",
 }
 
-# 排除模式（优先于关键词；竞品负例分类学的机械化口径）
+# 排除模式（优先于关键词；负面用例分类学的机械化口径）
 EXCLUDE_PATTERNS = [
     r"plotly|交互式|dashboard|仪表盘",
     r"3[dD]\b|3[dD]\s|立体|渲染",

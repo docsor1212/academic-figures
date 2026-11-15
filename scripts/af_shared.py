@@ -256,6 +256,7 @@ CHART_NOTES = {
     "violin": "violin: 小提琴图；JSON datasets/series={组名: 数值数组}+labels 组名列表，或 CSV 每列一分布。",
     "composite": "composite: 多面板组合图；JSON panels 数组（每面板 type+data，可选 layout/span/pos/hero_panel 主面板索引/panel_labels），参考文档 §组合图。",
     "diagram": "diagram: 架构/流程图（CONSORT 式）；JSON blocks [{id,label,x,y,w,h,color,sublabel}]+arrows、background=light。",
+    "flow": "flow: 语义流程图（v8.0.0，第 42 号图型）——只给语义不给坐标：nodes=[{id,label,sublabel,color,shape}]+edges=[{from,to,label,dashed,color}]、layout=chain|layered、direction=TB|LR、groups/annotations 可选；引擎自动布局+磁吸逐段箭头+回边 lane 绕行+标签避让+文本自适应+画布裁剪；--gate strict=三层 bbox 断言（违规 exit 2）。",
     "prisma": "prisma: PRISMA 2020 系统综述流程图；JSON 需 records_identified/studies_included，"
               "数字自洽性自动校验（对不上报 ERROR 拒绝出图）；lang=zh 输出中文标准版；"
               "参考文档 §PRISMA 流程图。",
@@ -372,6 +373,7 @@ DEMO_DATA = {
                 "group": ["CR", "CR", "PR", "PR", "PR", "PR", "SD", "SD", "SD", "PD", "PD", "PD"],
                 "milestones": [[8.2], [9.5], [6.1], [7.0], [10.2], [], [5.5], [], [], [], [], []], "ongoing": [True, True, True, False, True, False, False, False, False, False, False, False], "ref_lines": [12, 24]},
     "dual_axis": {"labels": ["0周", "4周", "8周", "12周"], "left": {"DAS28": [5.8, 4.2, 3.5, 3.0]}, "right": {"CRP(mg/L)": [42, 30, 22, 16]}},
+    "flow": {"layout": "chain", "nodes": [{"id": "A", "label": "纳入", "sublabel": "n=240", "color": "#2E5E8F"}, {"id": "B", "label": "随机分组", "sublabel": "1:1", "color": "#FFB627"}, {"id": "C", "label": "干预", "sublabel": "12 周", "color": "#6BA776"}, {"id": "D", "label": "随访", "sublabel": "48 周", "color": "#5BA0A0"}], "edges": [{"from": "A", "to": "B"}, {"from": "B", "to": "C", "label": "ITT"}, {"from": "C", "to": "D"}, {"from": "D", "to": "B", "label": "脱落再入组", "dashed": True}]},
     "prisma": {"records_identified": 128, "duplicates_removed": 23, "records_excluded": 61, "reports_not_retrieved": 3, "exclusion_reasons": {"人群不符": 5, "干预不符": 7, "数据不可用": 4}, "studies_included": 25},
 }
 
@@ -415,6 +417,7 @@ _FLAG_DOMAINS = {
     "--ratio-base": (("grouped_bar",), None),
     "--downsample": (("cluster_heatmap",), None),
     "--rmst-tau": (("rmst",), None),
+    "--gate": (("diagram", "flow"), "basic|strict：strict=三层 bbox 断言（节点×边标签×箭头），违规 exit 2"),
     "--cox-time": (("forest", "subgroup"), None),
     "--cox-event": (("forest", "subgroup"), None),
     "--cox-cols": (("forest", "subgroup"), None),

@@ -2733,7 +2733,7 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
     # Clear the default axis created by plt.subplots
     ax.remove()
 
-    # v7.8.0 hero_panel：主面板跨全行+1.35:1 双列（B1 规格——思想/参数取竞品调研，
+    # v7.8.0 hero_panel：主面板跨全行+1.35:1 双列（B1 规格——跨工具调研沉淀，
     # 实现自有）。hero 优先级高于 pos/span：合法时布局由本块接管，两者忽略。
     # 仅 3-6 面板支持；>6 或索引非法打 WARNING 回退均等网格（不静默）。
     _hero_ok, _hp = hero_panel_mode(data, panels)
@@ -2924,189 +2924,95 @@ def gen_composite(data, ax, theme, cjk_fp, **kwargs):
 
 
 def gen_diagram(data, ax, theme, cjk_fp, **kwargs):
-    """Architecture/flow diagram with colored blocks, arrows, and groupings.
+    """Architecture/flow diagram（v8.0.0 起布局/路由委托 af_flow 引擎——
+    磁吸逐段箭头+lane 回边+标签避让+文本自适应+画布裁剪+三层 bbox 闸）。
 
-    JSON format:
-    {
-      "background": "light",  // always light (white) for publication
-      "blocks": [
-        {"id": "A", "label": "Input", "x": 0, "y": 0, "w": 2, "h": 1,
-         "color": "#56B4E9", "shape": "round"},  // shape: "round" (default) or "rect"
-        ...
-      ],
-      "arrows": [
-        {"from": "A", "to": "B", "label": "flow", "style": "->"},
-        ...
-      ],
-      "groups": [
-        {"blocks": ["A", "B"], "label": "Phase 1", "color": "#009E73", "style": "dashed"},
-        ...
-      ],
-      "annotations": [
-        {"text": "Step 1: predict", "x": 1, "y": -1, "fontsize": 9, "color": "#E69F00"},
-        ...
-      ]
-    }
-    """
-    from matplotlib.patches import FancyBboxPatch, FancyArrowPatch, Rectangle
-    from matplotlib.lines import Line2D
-
+    JSON（坐标可选——不给 x/y/w/h 时按语义自动布局）：
+      {"background": "light",
+       "blocks": [{"id":"A","label":"Input","sublabel":"...","x":0,"y":0,"w":2,"h":1,
+                   "color":"#56B4E9","shape":"round|rect"}, ...],
+       "arrows": [{"from":"A","to":"B","label":"flow","style":"->","dashed":true,
+                   "color":"..."}, ...],
+       "groups": [{"blocks":["A","B"],"label":"Phase 1","color":"#009E73","style":"dashed"}],
+       "annotations": [{"text":"...","x":1,"y":-1,"fontsize":9,"color":"..."}]}
+    kwargs: gate="basic"|"strict"（strict=三层 bbox 断言，违规 exit 2）、
+            orthogonal=True（曼哈顿折线）、autolayout=True（无坐标块自动横链布局）。"""
+    import af_flow
     blocks = data.get("blocks", [])
-    arrows = data.get("arrows", [])
-    groups = data.get("groups", [])
-    annotations = data.get("annotations", [])
-    bg = data.get("background", "light")
-
-    text_color = '#1a1a1a'
-    arrow_color = '#555555'
-
-    # Build block lookup
-    block_map = {}
+    if not isinstance(blocks, list) or not blocks:
+        raise ValueError("diagram: 需要 'blocks'（非空块对象列表）")
     for b in blocks:
-        block_map[b["id"]] = b
-
-    # Draw group backgrounds first (behind blocks)
-    for grp in groups:
-        grp_blocks = grp.get("blocks", [])
-        if not grp_blocks:
-            continue
-        # Calculate bounding box of grouped blocks
-        xs_min, xs_max = [], []
-        ys_min, ys_max = [], []
-        for bid in grp_blocks:
-            if bid in block_map:
-                b = block_map[bid]
-                xs_min.append(b["x"])
-                xs_max.append(b["x"] + b["w"])
-                ys_min.append(b["y"])
-                ys_max.append(b["y"] + b["h"])
-        if not xs_min:
-            continue
-        pad = 0.3
-        gx, gy = min(xs_min) - pad, min(ys_min) - pad
-        gw, gh = max(xs_max) - min(xs_min) + 2 * pad, max(ys_max) - min(ys_min) + 2 * pad
-        grp_color = grp.get("color", "#888888")
-        grp_style = grp.get("style", "dashed")
-        rect = Rectangle((gx, gy), gw, gh, linewidth=2,
-                         edgecolor=grp_color, facecolor='none',
-                         linestyle=grp_style, alpha=0.8)
-        ax.add_patch(rect)
-        # Group label
-        if grp.get("label"):
-            ax.text(gx + 0.15, gy + gh - 0.15, grp["label"],
-                    fontsize=theme["font_size"] - 1, color=grp_color,
-                    fontweight='bold', va='top', ha='left',
-                    fontproperties=cjk_fp if cjk_fp and has_cjk(grp["label"]) else None)
-
-    # Draw blocks
-    for b in blocks:
-        bx, by = b["x"], b["y"]
-        bw, bh = b["w"], b["h"]
-        bc = b.get("color", theme["colors"][0])
-        label = b.get("label", b["id"])
-        shape = b.get("shape", "round")
-        sub_label = b.get("sublabel", None)  # smaller text below main label
-
-        if shape == "rect":
-            patch = FancyBboxPatch((bx, by), bw, bh,
-                                   boxstyle="square,pad=0",
-                                   facecolor=bc, edgecolor=bc,
-                                   linewidth=1.5, alpha=0.85)
-        else:
-            patch = FancyBboxPatch((bx, by), bw, bh,
-                                   boxstyle="round,pad=0.1",
-                                   facecolor=bc, edgecolor='white',
-                                   linewidth=1.2, alpha=0.9)
-        ax.add_patch(patch)
-
-        # Block label (centered) — v7.9.1 AF38：文字色按块底亮度自动反色（原固定白，浅块不可读）
-        _btcol = cell_text_color(bc)
-        label_y = by + bh / 2
-        if sub_label:
-            label_y = by + bh * 0.65
-        ax.text(bx + bw / 2, label_y, label,
-                ha='center', va='center', fontsize=theme["font_size"],
-                color=_btcol, fontweight='bold',
-                fontproperties=cjk_fp if cjk_fp and has_cjk(label) else None)
-        if sub_label:
-            ax.text(bx + bw / 2, by + bh * 0.3, sub_label,
-                    ha='center', va='center', fontsize=theme["font_size"] - 2,
-                    color=_btcol, alpha=0.85,
-                    fontproperties=cjk_fp if cjk_fp and has_cjk(sub_label) else None)
-
-    # Draw arrows
-    for arr in arrows:
-        from_id = arr["from"]
-        to_id = arr["to"]
-        if from_id not in block_map or to_id not in block_map:
-            continue
-        fb, tb = block_map[from_id], block_map[to_id]
-
-        # Calculate connection points (edge of blocks facing each other)
-        fx_center = fb["x"] + fb["w"] / 2
-        fy_center = fb["y"] + fb["h"] / 2
-        tx_center = tb["x"] + tb["w"] / 2
-        ty_center = tb["y"] + tb["h"] / 2
-
-        # Determine arrow start/end at block edges
-        if abs(fx_center - tx_center) > abs(fy_center - ty_center):
-            # Horizontal connection
-            if fx_center < tx_center:
-                start = (fb["x"] + fb["w"], fy_center)
-                end = (tb["x"], ty_center)
+        for k in ("id",):
+            if k not in b:
+                raise ValueError(f"diagram: blocks 每项须含 '{k}'")
+        if not all(k in b for k in ("x", "y", "w", "h")):
+            if kwargs.get("autolayout") or not any(
+                    "x" in bb for bb in blocks):
+                blocks = af_flow.layout_semantic(
+                    [{"id": bb.get("id"), "label": bb.get("label", bb.get("id")),
+                      "sublabel": bb.get("sublabel"), "color": bb.get("color"),
+                      "shape": bb.get("shape", "round")} for bb in blocks],
+                    data.get("arrows", []), layout="chain",
+                    ax=ax, fs=theme.get("font_size", 11), cjk_fp=cjk_fp)
+                break
             else:
-                start = (fb["x"], fy_center)
-                end = (tb["x"] + tb["w"], ty_center)
-        else:
-            # Vertical connection
-            if fy_center < ty_center:
-                start = (fx_center, fb["y"] + fb["h"])
-                end = (tx_center, tb["y"])
-            else:
-                start = (fx_center, fb["y"])
-                end = (tx_center, tb["y"] + tb["h"])
+                raise ValueError("diagram: blocks 缺 x/y/w/h 坐标（或整组省略以启用自动布局）")
+    violations, ratio = af_flow.render(
+        ax, ax.figure, blocks, data.get("arrows", []),
+        groups=data.get("groups", []), annotations=data.get("annotations", []),
+        theme=theme, cjk_fp=cjk_fp, gate=kwargs.get("gate", "basic"),
+        orthogonal=bool(kwargs.get("orthogonal")))
+    if kwargs.get("gate") == "strict" and violations:
+        print("GATE STRICT FAIL（三层 bbox 闸违规清单）:", file=sys.stderr)
+        for v in violations:
+            print(f"  ✗ {v}", file=sys.stderr)
+        raise ValueError(f"diagram: strict 闸 {len(violations)} 项违规——拒绝交付")
+    print(f"flow: {len(blocks)} 节点 {len(data.get('arrows', []))} 边"
+          f"（内容占比 {ratio:.0%}）", file=sys.stderr)
+    return "diagram"
 
-        arr_style = arr.get("style", "->")
-        arr_color = arr.get("color", arrow_color)
-        connection_style = f"arc3,rad={arr.get('rad', 0)}"
 
-        arrow = FancyArrowPatch(start, end,
-                                arrowstyle=arr_style,
-                                connectionstyle=connection_style,
-                                color=arr_color, linewidth=1.5,
-                                mutation_scale=15)
-        ax.add_patch(arrow)
+def gen_flow(data, ax, theme, cjk_fp, **kwargs):
+    """flow（v8.0.0，第 42 号图型）：语义 JSON 流程图——用户只给节点/边语义，
+    引擎自动布局（横链/分层）+磁吸逐段箭头+lane 回边+标签避让+文本自适应+裁剪。
 
-        # Arrow label
-        if arr.get("label"):
-            mid_x = (start[0] + end[0]) / 2
-            mid_y = (start[1] + end[1]) / 2
-            ax.text(mid_x, mid_y + 0.15, arr["label"],
-                    ha='center', va='bottom', fontsize=theme["font_size"] - 2,
-                    color=text_color,
-                    bbox=dict(boxstyle='round,pad=0.15', facecolor='white',
-                              alpha=0.8, edgecolor='none'),
-                    fontproperties=cjk_fp if cjk_fp and has_cjk(arr["label"]) else None)
-
-    # Draw annotations
-    for ann in annotations:
-        ax.text(ann["x"], ann["y"], ann["text"],
-                ha=ann.get("ha", 'center'), va=ann.get("va", 'center'),
-                fontsize=ann.get("fontsize", theme["font_size"]),
-                color=ann.get("color", text_color),
-                fontweight=ann.get("weight", 'normal'),
-                fontproperties=cjk_fp if cjk_fp and has_cjk(ann["text"]) else None)
-
-    # Set up axis limits
-    all_x = [b["x"] + b["w"] for b in blocks] + [b["x"] for b in blocks]
-    all_y = [b["y"] + b["h"] for b in blocks] + [b["y"] for b in blocks]
-    if all_x and all_y:
-        ax.set_xlim(min(all_x) - 1, max(all_x) + 1)
-        ax.set_ylim(min(all_y) - 1.5, max(all_y) + 1.5)
-
-    ax.set_aspect('equal')
-    ax.axis('off')
-
+    JSON: {"layout": "chain"|"layered", "direction": "TB"|"LR",
+           "nodes": [{"id":"A","label":"...","sublabel":"...","color":"#...",
+                      "shape":"round|rect"}, ...],
+           "edges": [{"from":"A","to":"B","label":"...","dashed":true,"color":"..."}],
+           "groups": [...], "annotations": [...], "title": "..."}"""
+    import af_flow
+    nodes = data.get("nodes")
+    edges = data.get("edges", [])
+    if not isinstance(nodes, list) or len(nodes) < 2:
+        raise ValueError("flow: 需要 'nodes'（≥2 个节点对象）")
+    for n in nodes:
+        if not n.get("id"):
+            raise ValueError("flow: nodes 每项须含 'id'")
+    layout = str(data.get("layout", "chain")).strip().lower()
+    if layout not in ("chain", "layered"):
+        raise ValueError("flow: layout 只支持 'chain' | 'layered'")
+    direction = str(data.get("direction", "TB")).strip().upper()
+    if direction not in ("TB", "LR"):
+        raise ValueError("flow: direction 只支持 'TB' | 'LR'")
+    blocks = af_flow.layout_semantic(nodes, edges, layout=layout, direction=direction,
+                                     ax=ax, fs=theme.get("font_size", 11), cjk_fp=cjk_fp)
+    arrows = [{"from": e["from"], "to": e["to"], **{k: v for k, v in e.items()
+               if k in ("label", "dashed", "color", "label_color")}}
+              for e in edges]
+    violations, ratio = af_flow.render(
+        ax, ax.figure, blocks, arrows,
+        groups=data.get("groups", []), annotations=data.get("annotations", []),
+        theme=theme, cjk_fp=cjk_fp, gate=kwargs.get("gate", "basic"),
+        orthogonal=bool(kwargs.get("orthogonal")))
+    if kwargs.get("gate") == "strict" and violations:
+        print("GATE STRICT FAIL（三层 bbox 闸违规清单）:", file=sys.stderr)
+        for v in violations:
+            print(f"  ✗ {v}", file=sys.stderr)
+        raise ValueError(f"flow: strict 闸 {len(violations)} 项违规——拒绝交付")
+    n_back = sum(1 for e in edges if e.get("dashed"))
+    print(f"flow: {len(nodes)} 节点 {len(edges)} 边（layout={layout}，虚线回边 {n_back}，"
+          f"内容占比 {ratio:.0%}）", file=sys.stderr)
     return "diagram"
 
 
@@ -5105,7 +5011,7 @@ _SUGGEST_TYPE_ZH = {
     "stacked_bar": "堆叠柱状图", "heatmap": "热图", "scatter": "散点图",
     "line": "折线图", "dual_axis": "双轴图", "box": "箱线图",
     "forest": "森林图", "km": "生存曲线", "roc": "ROC 曲线",
-    "violin": "小提琴图", "composite": "组合图", "diagram": "流程示意图",
+    "violin": "小提琴图", "composite": "组合图", "diagram": "流程示意图", "flow": "流程图",
     "prisma": "PRISMA 流程图", "funnel": "Meta 漏斗图",
     "bland_altman": "Bland-Altman 一致性", "pca": "PCA 降维",
     "paired": "配对图", "venn": "韦恩图", "cluster_heatmap": "聚类热图",
@@ -5150,6 +5056,7 @@ _RAW_GENERATORS = {
     "violin": gen_violin,
     "composite": gen_composite,
     "diagram": gen_diagram,
+    "flow": gen_flow,
     "prisma": gen_prisma,
     "slope": gen_slope,
     "volcano": gen_volcano,
