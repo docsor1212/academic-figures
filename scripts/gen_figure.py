@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v7.9.3: Publication-quality academic figure generator.
+academic-figures v8.0.0: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -54,7 +54,7 @@ from af_draw import (GENERATORS, apply_base_style, _darken_color, _sig_stars, su
                      annotate_auto_stats, annotate_multi_stats, gen_bar,
                      gen_heatmap, gen_scatter, gen_line, gen_box,
                      gen_forest, gen_violin, gen_km, gen_roc, gen_stacked_bar,
-                     gen_dual_axis, gen_composite, gen_diagram, gen_prisma,
+                     gen_dual_axis, gen_composite, gen_diagram, gen_flow, gen_prisma,
                      gen_slope, gen_volcano, gen_upset, gen_waterfall, waterfall_alt, validate_raincloud, raincloud_alt,
                      validate_waterfall, gen_swimmer, swimmer_alt, alt_text_core,
                      validate_swimmer,
@@ -70,8 +70,8 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ── Style presets ──────────────────────────────────────────────────────
 THEMES = {
-    # v7.9.0 AF29：默认主题 glm-brand（品牌视觉标识）。NOT colorblind-safe（字典如实标注；
-    # 色盲安全场景用 okabe-ito，3+ 系列渲染时 stderr 提示）。语义色见各主题注释。
+    # v7.9.0 AF29：默认 glm-brand（品牌标识）。NOT colorblind-safe（字典如实标注；
+    # 色盲安全场景用 okabe-ito，3+ 系列 stderr 提示）。语义色见各主题注释。
     # The old matplotlib-default palette is preserved as "classic".
     "classic": {
         "figsize": (10, 6),
@@ -559,8 +559,7 @@ def generate_alt_text(chart_type, data, title=""):
         return _afcharts.alt_extra(chart_type, data, title)
     return alt_text_core(chart_type, data, title)
 
-# ── Font helpers ───────────────────────────────────────────────────────
-# load_cjk_font 已下沉 af_shared（v7.9.0 AF3 回退链：进程内探测→子进程），经顶部 import 引用。
+# ── Font helpers ── load_cjk_font 已下沉 af_shared（v7.9.0 AF3 回退链），经顶部 import 引用。
 
 
 
@@ -1658,7 +1657,7 @@ def validate_data(data, chart_type):
                 # v4.5 R2-4：未知面板类型前置拒绝（原静默画 "Unknown type" 文本框）
                 # v4.7：upset 为自管类型（内部 GridSpec 拆轴），不可作面板
                 _pt = p.get("type")
-                if _pt not in GENERATORS or _pt in ("composite", "diagram", "upset"):
+                if _pt not in GENERATORS or _pt in ("composite", "diagram", "flow", "upset"):
                     fatal.append(f"composite: 面板 {i} type '{_pt}' 无效"
                                  "（可用：除 composite/diagram/upset 外的全部图型）")
                     continue
@@ -1694,6 +1693,10 @@ def validate_data(data, chart_type):
         blocks = data.get("blocks", [])
         if not isinstance(blocks, list) or not blocks:
             fatal.append("diagram 需要 'blocks'（非空块对象列表）")
+    elif chart_type == "flow":
+        nodes = data.get("nodes", [])
+        if not isinstance(nodes, list) or len(nodes) < 2: fatal.append("flow 需要 'nodes'（≥2 个节点对象）")
+        if data.get("layout") not in (None, "chain", "layered"): fatal.append("flow: layout 只支持 chain | layered")
 
     # ── prisma: PRISMA 2020 flow, counts + arithmetic consistency gates ──
     elif chart_type == "prisma":
@@ -2546,6 +2549,7 @@ def main():
                "｜ Meta 森林+漏斗+径向 -t forest/funnel/galbraith ｜ 亚组森林 -t subgroup（原始数据一键拟合加 --stats cox）"
                "｜ 组学 -t volcano/-t cluster_heatmap ｜ 多面板 -t composite（share_y 统一尺度）"
                "｜ 偏倚风险 -t rob（robvis 同款交通灯）｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
+    parser.add_argument("--gate", default="basic", choices=["basic", "strict"], help="流程图/示意图渲染闸（v8.0.0）：strict=渲染后跑三层 bbox 断言（节点×边标签×箭头线段），任何非零交集 exit 2 拒绝交付")
     parser.add_argument("--type", "-t", choices=list(GENERATORS.keys()),
                         help="图型（如 bar/box/violin/km/roc/forest/prisma，--demo 可看菜单）")
     parser.add_argument("--data", "-d", help="输入数据文件（.json / .csv / .tsv / .xlsx）；支持 inline 简写 \"A=10,B=8,C=5\"（单系列，等价 labels+series value）")
@@ -3179,11 +3183,10 @@ def main():
         "cmap": args.cmap,
         "vmin": args.vmin,
         "vmax": args.vmax,
-        "annot": args.annot, "cell_edge": bool(getattr(args, "cell_edge", False)),
-        "discrete": bool(getattr(args, "discrete", False)), "palette": _pal,
+        "annot": args.annot, "cell_edge": bool(getattr(args, "cell_edge", False)), "discrete": bool(getattr(args, "discrete", False)), "palette": _pal,
         "horizontal": args.horizontal or args.type in ("hbar", "horizontal_bar"),
         "hatch": args.hatch, "sig_bracket": getattr(args, "sig_bracket", False),
-        "sig_auto": getattr(args, "sig_auto", False),
+        "sig_auto": getattr(args, "sig_auto", False), "gate": getattr(args, "gate", "basic"),
         "direct_label": getattr(args, "direct_label", False),
         "alternate": args.alternate,
         "show_ratio": args.show_ratio,
@@ -3219,7 +3222,7 @@ def main():
                   file=sys.stderr)
 
     # composite/diagram/upset manage their own axes and styling
-    is_self_managed = extra in ("composite", "diagram", "upset")
+    is_self_managed = extra in ("composite", "diagram", "flow", "upset")
 
     # v4.7 D-12：--title 对自管图型不生效——按 [ignored] 透明告知承诺显式提示
     if is_self_managed and getattr(args, "title", None):

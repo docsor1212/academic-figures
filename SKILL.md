@@ -1,7 +1,7 @@
 ---
 name: academic-figures
 description: >-
-  Publication-ready scientific figures from one command — 40 chart types (bar, slope,
+  Publication-ready scientific figures from one command — 41 chart types (bar, slope,
   volcano, ridgeline, dumbbell, grouped bar, scatter, heatmap,
   forest plot (incl. Cox), KM survival curve with risk table,
   competing-risk cumulative incidence (Aalen-Johansen),
@@ -36,8 +36,8 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 7.9.3
-  date: 2026-11-15
+  version: 8.0.0
+  date: 2026-11-16
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
   requires: {python: ">=3.8", pip: [matplotlib, numpy, pymupdf, scipy, openpyxl]}
@@ -61,13 +61,13 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 ```
 
 ## Section Nav
-[Capabilities & Boundaries](#capabilities--boundaries-read-before-first-run) ｜ [Quick Start](#quick-start) ｜ [Chart Types](#chart-types) ｜ Decision Tree ｜ [Color Themes](#color-themes) ｜ [Journal Presets](#journal-submission-presets-v20) ｜ [--stats](#auto-significance--stats-auto) ｜ [Templates](#scenario-templates-v26-covering-the-40-chart-types-incl-nomogramrcssubgroupgalbraithcif) ｜ [Validation & Exit Codes](#data-validation--exit-codes-v20--v28-grading) ｜ [CJK](#cjk--chinese-support) ｜ [Output Formats](#output-formats) ｜ [Data Input](#data-input) ｜ [Key Flags](#key-flags) ｜ [Alt Text](#accessibility--alt-text) ｜ [Related tools](#related-tools) ｜ [Safety](#safety--data-behavior-statement) ｜ [Negative Triggers](#negative-triggers-do-not-trigger-this-skill-for) ｜ [File Index](#file-index--30-second-routing) ｜ [Version History](#version-history) ｜ [Pro](#-pro-edition)
+[Capabilities & Boundaries](#capabilities--boundaries-read-before-first-run) ｜ [Quick Start](#quick-start) ｜ [Chart Types](#chart-types) ｜ Decision Tree ｜ [Color Themes](#color-themes) ｜ [Journal Presets](#journal-submission-presets-v20) ｜ [--stats](#auto-significance--stats-auto) ｜ [Templates](#scenario-templates-v26-covering-the-41-chart-types-incl-nomogramrcssubgroupgalbraithcif) ｜ [Validation & Exit Codes](#data-validation--exit-codes-v20--v28-grading) ｜ [CJK](#cjk--chinese-support) ｜ [Output Formats](#output-formats) ｜ [Data Input](#data-input) ｜ [Key Flags](#key-flags) ｜ [Alt Text](#accessibility--alt-text) ｜ [Related tools](#related-tools) ｜ [Safety](#safety--data-behavior-statement) ｜ [Negative Triggers](#negative-triggers-do-not-trigger-this-skill-for) ｜ [File Index](#file-index--30-second-routing) ｜ [Version History](#version-history) ｜ [Pro](#-pro-edition)
 
 ## Capabilities & Boundaries (read before first run)
 
 | Capability | What it does | What it does NOT / boundary | Where to look |
 |------------|--------------|------------------------------|---------------|
-| Chart engine | 40 types, one command, 600dpi; byte-deterministic output | No interactive exploration (static files only); no 3-D plots | Chart Types ↑ |
+| Chart engine | 41 types, one command, 600dpi; byte-deterministic output | No interactive exploration (static files only); no 3-D plots | Chart Types ↑ |
 | Prediction-model eval | calibration: binned values in [0,1]; dca: thresholds strictly ascending in open (0,1), 1-6 models; nomogram: 1-12 variables, 1-3 outcome scales; rcs: ≥5 fitted-spline grid points; subgroup: 1-12 variables × 2-8 levels; cif: time+event integer codes (0/1/2+), single cohort | No auto-binning; nomogram/rcs visualize your fitted model (no fitting); subgroup too — or `--stats cox` one-command auto-fit (per-layer Cox HR + LR P-interaction, Efron core, v5.8); cif has no multi-arm groups (use `-t km`) | Chart Types ↑ |
 | Chart picking | `--suggest` (auto), `--wizard` (guided), `--quick` (auto-pick+render), `--explain TYPE` | Suggestions are structural heuristics — confirm the statistical meaning yourself | quickstart.md |
 | Stats | KM risk table/log-rank/median CI; Cox (Efron+PH); ROC DeLong; bootstrap CI; Egger | No Bayesian methods; no sample-size/power calculation | advanced.md |
@@ -183,6 +183,7 @@ python3 scripts/gen_figure.py -t heatmap -d data.json -o heatmap.png --cjk \
 | Composite | **Composite** | `-t composite` | Multi-panel A+B+C (⚠ no nested composite/diagram/upset panels); `panel_labels:true` corner letters (v4.1); `span:[rows,cols]` multi-cell panels with overlap detection (v4.3) |
 | Flow | **Diagram** | `-t diagram` | Architecture/flow blocks, arrows, groupings, annotations |
 | Review | **PRISMA Flow** | `-t prisma` | PRISMA 2020 review flow; counts auto-validated (must add up), EN/ZH wording via `lang` |
+| Flow | **Semantic Flowchart** | `-t flow` | Semantic JSON (nodes/edges, zero coordinates); auto-layout chain/layered; magnet arrows, lane back-edges, ink-verified labels; `--gate strict` triple-bbox gate |
 
 Scan the Category column at a glance; getting-started path in `references/quickstart.md`, full command cheatsheet in `references/cheatsheet.md`.
 
@@ -245,7 +246,7 @@ median survival 95% CI (`--no-median` opts out; never-reached honestly labeled);
 no-in-figure-legend journals: `gen_legend.py` renders the journal legend from the SAME
 data JSON. Deep dive: `references/advanced.md`.
 
-## Scenario Templates (v2.6; covering the 40 chart types incl. nomogram/rcs/subgroup/galbraith/cif/labbe)
+## Scenario Templates (v2.6; covering the 41 chart types incl. nomogram/rcs/subgroup/galbraith/cif/labbe)
 
 `templates/` ships 40 end-to-end templates (scenario + per-type quick templates), each with a ready-to-run `_command` + caption note. Full index: `templates/README.md`.
 
@@ -378,7 +379,7 @@ announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir de
 |------------------------------------------|------|
 | First time / not sure which chart | `references/quickstart.md` |
 | `--list-flags [TYPE]` | Flag-domain query: per-type flags + out-of-domain flags ([ignored] preview); no arg = full overview (v6.7) |
-| One-page command skeleton for all 40 types | `references/cheatsheet.md` |
+| One-page command skeleton for all 41 types | `references/cheatsheet.md` |
 | Copy-paste scenario cards (13 complete workflows) | `references/scenario-cards.md` |
 | Real-data gallery (reproducible JSONs + commands; rendered previews: github.com/docsor1212/academic-figures/tree/main/examples/gallery) | `examples/gallery/` |
 
@@ -396,7 +397,7 @@ announced on stderr with an `[auto]` prefix. Debug switches and demo temp-dir de
 | Call from Python | `references/python-api.md` |
 | Version history | `references/changelog.md` (version index + last-3 details; full archive in `references/changelog-full.md`) |
 
-Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal legends) +
+Code layout: `scripts/gen_figure.py` (main, 41 types) + `gen_legend.py` (journal legends) +
 `audit_pdf.py` (font gate) + `verify_overlap_pixel.py` (overlap verifier) + `setup_env.py` +
 `journal/*.json` (9 presets, named above); `templates/` (40, each with a `_command`), `examples/`
 (incl. `realworld/`), `tests/run_tests.py` (full suite). Remaining references:
@@ -404,7 +405,7 @@ Code layout: `scripts/gen_figure.py` (main, 40 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v7.9.3** copy sanitization (zero code diff); **v7.9.2** suite gates (WCAG / ΔL* / schema audit / PDF digits); **v7.9.1** heatmap cell-text WCAG contrast + annot gate + --discrete/--cell-edge/--palette + diagram contrast + prisma arrow fix; **v7.9.0** CJK detection fallback + field-warning fix + prisma conservation + precise errors + DCA precision; **v7.8.2** rob labels above strip + rmst tau caliber; **v7.8.1** ratio-CI adaptive decimals (0.997 ≠ 1.00) + `--hatch on|off`; **v7.8.0** doc+engine packs (hero_panel + rasterization); earlier in changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v8.0.0** `-t flow` semantic flowcharts + diagram engine rewrite (magnet arrows / lane back-edges / ink-verified labels / --gate strict); **v7.9.3** copy sanitization; **v7.9.2** suite gates; **v7.9.1** heatmap WCAG contrast + --discrete/--cell-edge/--palette; **v7.9.0** CJK fallback + field-warning fix + prisma conservation + precise errors. Earlier in changelog.
 
 ## 🚀 Pro Edition
 
