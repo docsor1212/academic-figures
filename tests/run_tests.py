@@ -2697,15 +2697,14 @@ class TestV30000Docs(unittest.TestCase):
             self.assertNotIn(banned, self.zh)
         for banned in ("Paper-workflow toolkit", "Entire family", "same author"):
             self.assertNotIn(banned, self.en)
-        # v4.9 Pro 导流信息校准（用户 10-10 令）：价格/分辨率以服务端事实为准，
-        # 旧值与内部推广话术禁回潮；¥3 与 600dpi 必须在双语 Pro 段可见
-        for banned in ("¥0.5", "0.5/次", "转推入口", "300dpi"):
+        # v4.9 Pro 导流校准（用户 10-10 令）已被 2026-11-17 平台安全扫描裁决取代：
+        # 8.0.3 被拒第 10 条定性「提示词广告推广——主文档末尾含付费 Pro 云端服务
+        # 推广」→ Pro 付费段（¥3/按次计费/搜索 academic-figures-pro）全文档禁回潮，
+        # 双语一致锁定；价格事实只存服务端 config.PRICE 单一来源
+        for banned in ("¥0.5", "0.5/次", "转推入口", "300dpi",
+                       "¥3", "按次计费", "搜索 `academic-figures-pro`"):
             self.assertNotIn(banned, self.zh)
             self.assertNotIn(banned, self.en)
-        self.assertIn("¥3", self.zh)
-        self.assertIn("600dpi", self.zh)
-        self.assertIn("¥3", self.en)
-        self.assertIn("600dpi", self.en)
         self.assertNotIn("paper-polisher", self.zh.replace("paper-polisher-pro", ""))
 
 
