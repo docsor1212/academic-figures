@@ -61,7 +61,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 ```
 
 ## Section Nav
-[Capabilities & Boundaries](#capabilities--boundaries-read-before-first-run) ｜ [Quick Start](#quick-start) ｜ [Chart Types](#chart-types) ｜ Decision Tree ｜ [Color Themes](#color-themes) ｜ [Journal Presets](#journal-submission-presets-v20) ｜ [--stats](#auto-significance--stats-auto) ｜ [Templates](#scenario-templates-v26-covering-the-41-chart-types-incl-nomogramrcssubgroupgalbraithcif) ｜ [Validation & Exit Codes](#data-validation--exit-codes-v20--v28-grading) ｜ [CJK](#cjk--chinese-support) ｜ [Output Formats](#output-formats) ｜ [Data Input](#data-input) ｜ [Key Flags](#key-flags) ｜ [Alt Text](#accessibility--alt-text) ｜ [Related tools](#related-tools) ｜ [Safety](#safety--data-behavior-statement) ｜ [Negative Triggers](#negative-triggers-do-not-trigger-this-skill-for) ｜ [File Index](#file-index--30-second-routing) ｜ [Version History](#version-history)
+[Capabilities & Boundaries](#capabilities--boundaries-read-before-first-run) ｜ [Quick Start](#quick-start) ｜ [Chart Types](#chart-types) ｜ Decision Tree ｜ [Color Themes](#color-themes) ｜ [Journal Presets](#journal-submission-presets-v20) ｜ [--stats](#auto-significance--stats-auto) ｜ [Templates](#scenario-templates-v26-covering-the-41-chart-types-incl-nomogramrcssubgroupgalbraithcif) ｜ [Validation & Exit Codes](#data-validation--exit-codes-v20--v28-grading) ｜ [CJK](#cjk--chinese-support) ｜ [Output Formats](#output-formats) ｜ [Data Input](#data-input) ｜ [Key Flags](#key-flags) ｜ [Alt Text](#accessibility--alt-text) ｜ [Related tools](#related-tools) ｜ [Safety](#safety--data-behavior-statement) ｜ [Negative Triggers](#negative-triggers-do-not-trigger-this-skill-for) ｜ [File Index](#file-index--30-second-routing) ｜ [Version History](#version-history) ｜ [Pro](#-pro-edition)
 
 ## Capabilities & Boundaries (read before first run)
 
@@ -407,3 +407,9 @@ Code layout: `scripts/gen_figure.py` (main, 41 types) + `gen_legend.py` (journal
 
 Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v8.0.4** role palette + snake layout + routing root-fixes; **v8.0.3** label-system finalization; **v8.0.2** copy sanitization; **v8.0.1/8.0.0** `-t flow` semantic flowcharts + diagram engine rewrite (absolute-inch layout, magnet arrows, lane back-edges, ink-verified labels, --gate strict triple-bbox gate); **v7.9.x** WCAG contrast, gates, sanitization packs. Earlier in changelog.
 
+## 🚀 Pro Edition
+
+No Python environment, or need team-scale batch rendering? **academic-figures-pro** offers the same
+render engine as a cloud service (SkillHub, ¥3/render, submission-grade 600dpi TIFF+PNG).
+Search `academic-figures-pro` on SkillHub.
+> Batch rendering, 600dpi cloud TIFF+PNG, no Python needed → **academic-figures-pro** (¥3/render, Alipay).
