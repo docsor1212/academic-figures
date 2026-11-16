@@ -36,7 +36,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 8.0.3
+  version: 8.0.4
   date: 2026-11-16
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -405,7 +405,7 @@ Code layout: `scripts/gen_figure.py` (main, 41 types) + `gen_legend.py` (journal
 
 ## Version History
 
-Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v8.0.3** label-system finalization; **v8.0.2** copy sanitization; **v8.0.1/8.0.0** `-t flow` semantic flowcharts + diagram engine rewrite (absolute-inch layout, magnet arrows, lane back-edges, ink-verified labels, --gate strict triple-bbox gate); **v7.9.x** WCAG contrast, gates, sanitization packs. Earlier in changelog.
+Full bilingual history: `references/changelog.md` (index + recent details; full archive: `references/changelog-full.md`). Recent: **v8.0.4** role palette + snake layout + routing root-fixes; **v8.0.3** label-system finalization; **v8.0.2** copy sanitization; **v8.0.1/8.0.0** `-t flow` semantic flowcharts + diagram engine rewrite (absolute-inch layout, magnet arrows, lane back-edges, ink-verified labels, --gate strict triple-bbox gate); **v7.9.x** WCAG contrast, gates, sanitization packs. Earlier in changelog.
 
 ## 🚀 Pro Edition
 
