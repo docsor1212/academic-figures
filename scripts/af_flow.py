@@ -208,10 +208,16 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
     bmap = {b["id"]: b for b in blocks}
 
     if layout == "chain":
+        # 富余宽度均匀分配进列间距（--width 横幅契约：内容铺满画布宽，
+        # 不留大片空白；间距上限 2.4in 防节点过少时拉散）
+        _target = ax.figure.get_size_inches()[0] - 2 * CANVAS_PAD_X
+        _total_w = sum(b["w"] for b in blocks)
+        _n = max(len(blocks) - 1, 1)
+        _gap = min(2.4, max(COL_GAP, (_target - _total_w) / _n))
         x = 0.0
         for b in blocks:
             b["x"], b["y"] = x, 0.0
-            x += b["w"] + COL_GAP
+            x += b["w"] + _gap
         return blocks
     # layered：最长路径分层（回边不计层）
     indeg = {i: 0 for i in ids}
@@ -279,7 +285,7 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
                 bmap[i]["x"] = x
                 bmap[i]["y"] = y_cursor
                 x += bmap[i]["w"] + COL_GAP
-            y_cursor += row_h + ROW_GAP + (LANE_LABEL_ALLOW if _labeled else 0)
+            y_cursor += row_h + ROW_GAP + (0.68 if _labeled else 0)   # 带标签边预留 1.3in 行距（白底标签 0.29+双侧 0.12 气垫 + 余量）
     return blocks
 
 
@@ -347,14 +353,32 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False):
         side = sgn
     p0, p1 = magnet(src, dst)
     _skip = (src["id"], dst["id"])
-    if not orthogonal and not _seg_hits(p0, p1, blocks, _skip):
-        if key == "H" and abs(p0[1] - p1[1]) > 0.05:
-            gx = (p0[0] + p1[0]) / 2
-            return [(p0[0], p0[1]), (gx, p0[1]), (gx, p1[1]), (p1[0], p1[1])], side
-        if key == "V" and abs(p0[0] - p1[0]) > 0.05:
-            gy = (p0[1] + p1[1]) / 2
-            return [(p0[0], p0[1]), (p0[0], gy), (p1[0], gy), (p1[0], p1[1])], side
-        return [p0, p1], side
+    print(f"DBG-route {src['id']}->{dst['id']} lv={lane_level} key={key} direct_hit={_seg_hits(p0, p1, blocks, _skip)}",
+          file=sys.stderr)
+    if not orthogonal:
+        # ① 直连干净→直连
+        if not _seg_hits(p0, p1, blocks, _skip):
+            if key == "H" and abs(p0[1] - p1[1]) > 0.05:
+                gx = (p0[0] + p1[0]) / 2
+                return [(p0[0], p0[1]), (gx, p0[1]), (gx, p1[1]), (p1[0], p1[1])], side
+            if key == "V" and abs(p0[0] - p1[0]) > 0.05:
+                gy = (p0[1] + p1[1]) / 2
+                return [(p0[0], p0[1]), (p0[0], gy), (p1[0], gy), (p1[0], p1[1])], side
+            return [p0, p1], side
+        # ② 直连穿框→正交肘（多走廊位逐段验证；v2 首版此分支被直连条件
+        #    错误包含——擦角 0.04 触发 lane 后肘被剥夺，lane 纵段横穿两列）
+        for _off in (0.0, 0.35, -0.35, 0.7, -0.7):
+            if key == "H" and abs(p0[1] - p1[1]) > 0.05:
+                gx = (p0[0] + p1[0]) / 2 + _off
+                _cand = [(p0[0], p0[1]), (gx, p0[1]), (gx, p1[1]), (p1[0], p1[1])]
+            elif key == "V" and abs(p0[0] - p1[0]) > 0.05:
+                gy = (p0[1] + p1[1]) / 2 + _off
+                _cand = [(p0[0], p0[1]), (p0[0], gy), (p1[0], gy), (p1[0], p1[1])]
+            else:
+                break
+            if all(not _seg_hits(_cand[k], _cand[k + 1], blocks, _skip)
+                   for k in range(3)):
+                return _cand, side
     if not orthogonal:
         sx0, sy0, sx1, sy1 = _bbox(src)
         dx0, dy0, dx1, dy1 = _bbox(dst)
@@ -389,8 +413,18 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False):
                 (dx1 if sd > 0 else dx0, (dy0 + dy1) / 2)]
 
     def _segs_hit(pts):
-        return any(_seg_hits(pts[k], pts[k + 1], blocks, _skip)
-                   for k in range(len(pts) - 1))
+        for k in range(len(pts) - 1):
+            if _seg_hits(pts[k], pts[k + 1], blocks, _skip):
+                return True
+        # 顶点检查：拐点/端点不得落在非端点框内（弯在框里=judge 必抓）
+        for (px, py) in pts:
+            for b in blocks:
+                if b["id"] in _skip:
+                    continue
+                x0, y0, x1, y1 = _bbox(b)
+                if x0 - 0.01 < px < x1 + 0.01 and y0 - 0.01 < py < y1 + 0.01:
+                    return True
+        return False
 
     for _lv in (max(lane_level, 1), max(lane_level, 1) + 1, max(lane_level, 1) + 2):
         for _try_side in (side, -side):
@@ -454,19 +488,18 @@ def _orient_of(route_pts):
 def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
                      fs=9.0, color="#444444", dashed_hint=False,
                      line_segs=()):
-    """R2：measure-then-resolve——逐候选画→墨迹实测→碰撞→移除重试；
-    两行折行兜底；引线仅在真正远置时使用（意图明确）。返回 (artist, bb)。"""
-    if len(route_pts) >= 4:
-        _best, _blen = route_pts[1], -1.0
-        for k in range(1, len(route_pts) - 2):
-            (ax_, ay_), (bx_, by_) = route_pts[k], route_pts[k + 1]
-            _L = abs(bx_ - ax_) + abs(by_ - ay_)
-            if _L > _blen:
-                _blen, _best = _L, ((ax_ + bx_) / 2, (ay_ + by_) / 2)
-        mid = _best
-    else:
-        mid = ((route_pts[0][0] + route_pts[-1][0]) / 2,
-               (route_pts[0][1] + route_pts[-1][1]) / 2)
+    """R2：measure-then-resolve——候选生成于**每条线段的两侧**（单一绝对坐标
+    系，无帧混用），逐候选画→墨迹实测→碰撞→移除重试；窄间隙自动折两行；
+    全失败→框行上方+垂直引线。返回 (artist, bb)。"""
+    # 锚点段集合：全部线段，长段优先
+    segs = list(zip(route_pts[:-1], route_pts[1:]))
+    seg_info = []
+    for (a, b) in segs:
+        mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        L = abs(b[0] - a[0]) + abs(b[1] - a[1])
+        orient = "H" if abs(b[0] - a[0]) >= abs(b[1] - a[1]) else "V"
+        seg_info.append({"mx": mx, "my": my, "orient": orient, "L": L})
+    seg_info.sort(key=lambda m: -m["L"])
 
     def _ink_bb(t):
         fig.canvas.draw()
@@ -478,7 +511,7 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
 
     def _hit(bb):
         for b in blocks:
-            if _overlap(bb, _bbox(b), 0.05):
+            if _overlap(bb, _bbox(b), 0.12):
                 return True
         for pb in placed_boxes:
             if _overlap(bb, pb, 0.02):
@@ -491,66 +524,110 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
 
     _w, _h = measure_in(ax, text, fs, fp)
     _txt = text
+    # 窄间隙预判：锚点贴近某框缘（间隙 < 行高×2.6）→ 两行折行
     if "\n" not in _txt and " " in _txt:
         for b in blocks:
             x0, y0, x1, y1 = _bbox(b)
-            if x0 - 0.3 <= mid[0] <= x1 + 0.3 and min(abs(mid[1] - y0),
-                                                      abs(mid[1] - y1)) < _h * 2.6:
-                _txt = _txt.replace(" ", "\n", 1)
+            for m in seg_info:
+                if x0 - 0.3 <= m["mx"] <= x1 + 0.3 and \
+                        min(abs(m["my"] - y0), abs(m["my"] - y1)) < _h * 2.6:
+                    _txt = _txt.replace(" ", "\n", 1)
+                    break
+            if "\n" in _txt:
                 break
     _h2 = measure_in(ax, _txt, fs, fp, ls=1.15)[1]
     _w2 = max((measure_in(ax, ln, fs, fp)[0] for ln in _txt.split("\n")),
               default=_w)
-    if _orient_of(route_pts) == "V":
-        _bt = max(_bbox(b)[3] for b in blocks)
-        _bb0 = min(_bbox(b)[1] for b in blocks)
-        if _orient_of(route_pts) == "V":
-            attempts = [(_w2 / 2 + 0.12, 0.0, "center", False),
-                        (-_w2 / 2 - 0.12, 0.0, "center", False),
-                        (0.0, _h2 / 2 + 0.07, "bottom", False),
-                        (0.0, -_h2 / 2 - 0.07, "top", False)]
-        else:
-            attempts = [(0.0, _h2 / 2 + 0.07, "bottom", False),          # 段上方
-                        (0.0, -_h2 / 2 - 0.07, "top", False),            # 段下方
-                        (0.0, _bt + _h2 / 2 + 0.16 - mid[1], "bottom", True),
-                        (0.0, _bb0 - _h2 / 2 - 0.16 - mid[1], "top", True),
-                        (_w2 / 2 + 0.12, 0.0, "center", False),
-                        (-_w2 / 2 - 0.12, 0.0, "center", False)]
-    else:
-        _bt = max(_bbox(b)[3] for b in blocks)
-        _bb0 = min(_bbox(b)[1] for b in blocks)
-        attempts = [(0.0, _h2 / 2 + 0.07, "bottom", False),              # 段上方
-                    (0.0, -_h2 / 2 - 0.07, "top", False),                # 段下方
-                    (0.0, _bt + _h2 / 2 + 0.16 - mid[1], "bottom", True),
-                    (0.0, _bb0 - _h2 / 2 - 0.16 - mid[1], "top", True),
-                    (_w2 / 2 + 0.12, 0.0, "center", False),
-                    (-_w2 / 2 - 0.12, 0.0, "center", False)]
-    for (dx, dy, va, _leader) in attempts:
-        cx, cy = mid[0] + dx, mid[1] + dy
+    _fp_t = fp if fp and has_cjk_local(text) else None
+
+    def _try(cx, cy, va):
         t = ax.text(cx, cy, _txt, ha="center", va=va, fontsize=fs, color=color,
                     style="italic", linespacing=1.15,
-                    bbox=dict(boxstyle="round,pad=0.12", facecolor="white",
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                               edgecolor="none", alpha=0.92),
+                    fontproperties=_fp_t, zorder=6)
+        bb = _ink_bb(t)
+        if "no" in _txt and "exclusion" in _txt:
+            _why = []
+            for b in blocks:
+                if _overlap(bb, _bbox(b), 0.12):
+                    _why.append(f"box:{b['id']}")
+            for pi, pb in enumerate(placed_boxes):
+                if _overlap(bb, pb, 0.02):
+                    _why.append(f"placed{pi}")
+            for (q0, q1) in line_segs:
+                if _overlap(bb, (min(q0[0], q1[0]), min(q0[1], q1[1]),
+                                 max(q0[0], q1[0]), max(q0[1], q1[1])), 0.05):
+                    _why.append("line")
+            print(f"DBG no-exc ({cx:.2f},{cy:.2f}) bb y[{bb[1]:.2f}~{bb[3]:.2f}] "
+                  f"x[{bb[0]:.2f}~{bb[2]:.2f}] REJECT={_why or 'PASS'}", file=sys.stderr)
+        if not _hit(bb):
+            placed_boxes.append(bb)
+            return t, bb
+        t.remove()
+        return None, None
+
+    # 候选生成（绝对坐标）：每段两侧，长段优先；末段补框行上/下+引线位
+    tried = 0
+    for m in seg_info:
+        if m["orient"] == "V":
+            # V 跨行段（CONSORT 主列）：标签放行间带内、竖段旁侧——带由布局
+            # 预留（ROW_GAP+标签带），物理无框，零引线（文献标准形态）
+            cands = [(m["mx"] + _w2 / 2 + 0.16, m["my"], "center"),
+                     (m["mx"] - _w2 / 2 - 0.16, m["my"], "center")]
+        else:
+            cands = [(m["mx"], m["my"] + _h2 / 2 + 0.07, "bottom"),
+                     (m["mx"], m["my"] - _h2 / 2 - 0.07, "top")]
+        for (cx, cy, va) in cands:
+            t, bb = _try(cx, cy, va)
+            if t is not None:
+                return t, bb
+            tried += 1
+    # 框行上/下（x=最长段中点 x）+ 垂直引线（fig2 PASS 形态）
+    _bt = max(_bbox(b)[3] for b in blocks)
+    _bb0 = min(_bbox(b)[1] for b in blocks)
+    _mx_long = seg_info[0]["mx"]
+    for (cx, cy, va) in ((_mx_long, _bt + _h2 / 2 + 0.14, "bottom"),
+                         (_mx_long, _bb0 - _h2 / 2 - 0.14, "top")):
+        t, bb = _try(cx, cy, va)
+        if t is not None:
+            ax.plot([_mx_long, _mx_long], [min(_midy(route_pts), cy),
+                      max(_midy(route_pts), cy)],
+                    color=color, lw=0.7, alpha=0.75, zorder=5)
+            return t, bb
+        t.remove()
+    # 折行重试于框行上方
+    if "\n" not in _txt and " " in _txt:
+        _txt2 = _txt.replace(" ", "\n", 1)
+        _h3 = measure_in(ax, _txt2, fs, fp, ls=1.15)[1]
+        _w3 = max((measure_in(ax, ln, fs, fp)[0] for ln in _txt2.split("\n")),
+                  default=_w)
+        t, bb = _try(_mx_long, _bt + _h3 / 2 + 0.14, "bottom")
+        if t is not None:
+            ax.plot([_mx_long, _mx_long], [min(_midy(route_pts), cy), cy],
+                    color=color, lw=0.7, alpha=0.75, zorder=5)
+            return t, bb
+        t.remove()
+    # 全失败→远置框行上方 mid x 处+垂直引线（唯一远置分支，意图明确）
+    cx, cy = _mx_long, _bb0 - _h2 / 2 - 0.2
+    t, bb = _try(cx, cy, "top")
+    if t is None:
+        t = ax.text(cx, cy, _txt, ha="center", va="top", fontsize=fs,
+                    color=color, style="italic",
                     fontproperties=fp if fp and has_cjk_local(text) else None,
                     zorder=6)
         bb = _ink_bb(t)
-        if not _hit(bb):
-            placed_boxes.append(bb)
-            if _leader:   # 垂直引线：边中点连到标签近侧缘（fig2 PASS 形态）
-                _ly1 = bb[1] if va == "bottom" else bb[3]
-                ax.plot([mid[0], mid[0]], [mid[1], _ly1], color=color, lw=0.7,
-                        alpha=0.75, zorder=5)
-            return t, bb
-        t.remove()
-    cx, cy = mid[0] - _w2 - 0.5, mid[1]
-    t = ax.text(cx, cy, _txt, ha="center", va="center", fontsize=fs, color=color,
-                style="italic", linespacing=1.15,
-                fontproperties=fp if fp and has_cjk_local(text) else None, zorder=6)
-    bb = _ink_bb(t)
-    ax.plot([bb[2] + 0.03, mid[0]], [cy, mid[1]], color=color, lw=0.7,
+    ax.plot([_mx_long, _mx_long], [_bb0, cy], color=color, lw=0.7,
             alpha=0.75, zorder=5)
     placed_boxes.append(bb)
     return t, bb
+
+
+def _midy(route_pts):
+    if len(route_pts) >= 4:
+        (a, b) = route_pts[1], route_pts[2]
+        return (a[1] + b[1]) / 2
+    return (route_pts[0][1] + route_pts[-1][1]) / 2
 
 
 # ── R6 三层 bbox 闸 ────────────────────────────────────────────────────
@@ -613,9 +690,15 @@ def trim_limits(ax, blocks, extra_pts=(), pad=0.4, ratio_hint=True,
     x0, x1 = min(xs) - px, max(xs) + px
     y0, y1 = min(ys) - pb_, max(ys) + pt_
     fig = ax.figure
-    fig.set_size_inches(max(x1 - x0, 2.0), max(y1 - y0, 1.5))
-    ax.set_position([0, 0, 1, 1])
+    # 用户宽度契约：fig 宽=最大(用户请求宽, 内容宽)；范围=fig 宽（1 unit=1in
+    # 保持），内容在画布内居中（v2 初版覆盖用户宽致右半空白+标签远角漂移）
+    _user_w = fig.get_size_inches()[0]
+    _range_w = max(_user_w, x1 - x0)
+    _cx = (x0 + x1) / 2
+    x0, x1 = _cx - _range_w / 2, _cx + _range_w / 2
     if set_lim:
+        fig.set_size_inches(_range_w, max(y1 - y0, 1.5))
+        ax.set_position([0, 0, 1, 1])
         ax.set_xlim(x0, x1)
         ax.set_ylim(y0, y1)
     if ratio_hint:
@@ -762,13 +845,13 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                              lw=0.4, zorder=5))
         if e.get("label"):
             fp_e = cjk_fp if cjk_fp and has_cjk_local(e["label"]) else None
-            _own_mid = (pts[len(pts) // 2 - 1], pts[len(pts) // 2]) if len(pts) > 2 \
-                else (pts[0], pts[1])
+            # 白底标签只避让**其他边**的线段（自身段有白垫可贴线，graphviz 同款）
+            _own_keys = {(round(q0[0], 3), round(q0[1], 3), round(q1[0], 3),
+                          round(q1[1], 3)) for q0, q1 in
+                         zip(pts[:-1], pts[1:])}
             _other = [(q0, q1) for (q0, q1) in route_lines
-                      if not (abs(q0[0] - _own_mid[0][0]) < 1e-6
-                              and abs(q0[1] - _own_mid[0][1]) < 1e-6
-                              and abs(q1[0] - _own_mid[1][0]) < 1e-6
-                              and abs(q1[1] - _own_mid[1][1]) < 1e-6)]
+                      if (round(q0[0], 3), round(q0[1], 3), round(q1[0], 3),
+                          round(q1[1], 3)) not in _own_keys]
             t, bb = place_edge_label(ax, fig, e["label"], pts, blocks,
                                      label_bboxes, fp=fp_e,
                                      fs=max(8.0, fs - 2),
