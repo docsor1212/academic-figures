@@ -2989,14 +2989,44 @@ def gen_flow(data, ax, theme, cjk_fp, **kwargs):
     for n in nodes:
         if not n.get("id"):
             raise ValueError("flow: nodes 每项须含 'id'")
+    if kwargs.get("palette") and all(n.get("color") for n in nodes):
+        # [ignored] 透明告知承诺：显式 color 优先于 --palette（合法优先级），
+        # 但全量覆盖时 palette 实际未参与——必须显式告知，禁止静默无效。
+        print("[ignored] --palette 未生效：所有节点已带显式 color（显式优先）。"
+              "如需注入配色，移除节点 color 字段即可", file=sys.stderr)
+    # v8.0.4 flow 专属默认系列（Teal Coral 顶刊精修，源自降饱和派生）：
+    # [0]=主链基色（引擎同族明度阶梯）[-1]=终点强调色，中间=分支浅填充。
+    # --palette 时 [0]/[-1] 同规则生效——任意注入板自动获得角色化雅致分配。
+    _FLOW_SERIES = ["#336672", "#A7C4C6", "#BF8078"]
+    theme = dict(theme)
+    theme["colors"] = kwargs.get("palette") or _FLOW_SERIES
     layout = str(data.get("layout", "chain")).strip().lower()
-    if layout not in ("chain", "layered"):
-        raise ValueError("flow: layout 只支持 'chain' | 'layered'")
+    if layout not in ("chain", "layered", "snake"):
+        raise ValueError("flow: layout 只支持 'chain' | 'layered' | 'snake'")
+    _cols = data.get("columns")
+    if _cols is not None:
+        try:
+            _cols = int(_cols)
+        except (TypeError, ValueError):
+            raise ValueError(f"flow: columns 需为整数，收到 {_cols!r}")
+        if not (2 <= _cols <= 8):
+            raise ValueError(f"flow: columns 超出许可区间 [2, 8]，收到 {_cols}")
     direction = str(data.get("direction", "TB")).strip().upper()
     if direction not in ("TB", "LR"):
         raise ValueError("flow: direction 只支持 'TB' | 'LR'")
+    # 数据级字号（v8.0.4）：语义 JSON 可携 font_size——论文图按目标排版宽度
+    # 反推作者字号（如 12in 宽链图投 6.5in 版心 → font_size 16 落版后 ≈8pt）
+    _fs = data.get("font_size") or theme.get("font_size", 11)
+    try:
+        _fs = float(_fs)
+    except (TypeError, ValueError):
+        raise ValueError(f"flow: font_size 需为数值，收到 {_fs!r}")
+    if not (6 <= _fs <= 40):
+        raise ValueError(f"flow: font_size 超出许可区间 [6, 40]，收到 {_fs}")
+    theme["font_size"] = _fs   # render() 内部同样从 theme 读 fs，保持同源
     blocks = af_flow.layout_semantic(nodes, edges, layout=layout, direction=direction,
-                                     ax=ax, fs=theme.get("font_size", 11), cjk_fp=cjk_fp)
+                                     columns=_cols,
+                                     ax=ax, fs=_fs, cjk_fp=cjk_fp)
     arrows = [{"from": e["from"], "to": e["to"], **{k: v for k, v in e.items()
                if k in ("label", "dashed", "color", "label_color")}}
               for e in edges]

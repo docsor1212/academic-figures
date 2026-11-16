@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.0.2", self.zh)
-        self.assertIn("version: 8.0.2", self.en)
+        self.assertIn("version: 8.0.4", self.zh)
+        self.assertIn("version: 8.0.4", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.0.2", self.zh)
-        self.assertIn("version: 8.0.2", self.en)
+        self.assertIn("version: 8.0.4", self.zh)
+        self.assertIn("version: 8.0.4", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.0.2", self.zh)
-        self.assertIn("version: 8.0.2", self.en)
+        self.assertIn("version: 8.0.4", self.zh)
+        self.assertIn("version: 8.0.4", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.0.2", zh)
+        self.assertIn("version: 8.0.4", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.2", t, name)
+            self.assertIn("version: 8.0.4", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.2", t, name)
+            self.assertIn("version: 8.0.4", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.2", t, name)
+            self.assertIn("version: 8.0.4", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.2", t, name)
+            self.assertIn("version: 8.0.4", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3553,8 +3553,9 @@ class TestV40000(unittest.TestCase):
         gf_lines = sum(1 for _ in open(os.path.join(root, "scripts", "gen_figure.py"),
                                        encoding="utf-8"))
         # v5.8.0 松绑 3400→3600：subgroup --stats cox 一键亚组拟合入列；
+        # v8.0.4 松绑 3600→3620：flow columns validate-first + snake 布局参数入列；
         # 拆分计划见 docs/ADR-0001（af_draw/gen_figure 巨石模块分阶段拆解）
-        self.assertLess(gf_lines, 3600, f"gen_figure.py 应 <3600 行（当前 {gf_lines}）")
+        self.assertLess(gf_lines, 3620, f"gen_figure.py 应 <3620 行（当前 {gf_lines}）")
 
     def test_subtitle_source_flags_render(self):
         with tempfile.TemporaryDirectory() as td:
@@ -8614,6 +8615,215 @@ class TestV80000(unittest.TestCase):
         from af_shared import CHART_NOTES, _FLAG_DOMAINS
         self.assertIn("layout", CHART_NOTES["flow"])
         self.assertEqual(_FLAG_DOMAINS["--gate"][0], ("diagram", "flow"))
+
+
+class TestV80400(unittest.TestCase):
+    """v8.0.4 闸测试：角色化配色/蛇形布局/apex 机械断言/错层白隙/
+    [ignored] 透明告知/font_size 数据键。根因全部来自真实渲染实证
+    （visual-judge 四轮+论文 fig2 审核双闸）。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _flow_env(self):
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        return plt
+
+    _NODES = [{"id": "A", "label": "Incident", "sublabel": "failure observed"},
+              {"id": "B", "label": "Register", "sublabel": "class + escape"},
+              {"id": "C", "label": "Recur ×2", "sublabel": "same class"},
+              {"id": "D", "label": "Tool patch", "sublabel": "same day, lowest layer"},
+              {"id": "E", "label": "Probe", "sublabel": "mechanical assert"},
+              {"id": "F", "label": "EXTINCT", "sublabel": "provisional", "shape": "round"}]
+    _EDGES = [{"from": "A", "to": "B"},
+              {"from": "B", "to": "C", "label": "record ≠ fix"},
+              {"from": "C", "to": "D"},
+              {"from": "D", "to": "E"},
+              {"from": "E", "to": "F"},
+              {"from": "F", "to": "B", "label": "recurrence", "dashed": True}]
+
+    def test_role_palette_ladder_and_terminal_accent(self):
+        """角色化配色：明度阶梯单调（起点深→下游浅）+终点唯一强调；
+        回边不得污染角色判定（F 有出边但属回边→仍是终点强调）。"""
+        plt = self._flow_env()
+        import af_flow
+        fig, ax = plt.subplots()
+        blocks = af_flow.layout_semantic(self._NODES, self._EDGES,
+                                         layout="chain", ax=ax, fs=11)
+        rc = af_flow._role_colors(blocks,
+                                  [{"from": e["from"], "to": e["to"]}
+                                   for e in self._EDGES],
+                                  ["#336672", "#A7C4C6", "#BF8078"])
+        def _lum(h):
+            r, g, b = (int(h[i:i + 2], 16) / 255 for i in (1, 3, 5))
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b
+        chain = [rc[i] for i in range(5)]           # A..E 主链阶梯
+        lums = [_lum(c) for c in chain]
+        self.assertTrue(all(b > a for a, b in zip(lums, lums[1:])),
+                        f"明度阶梯必须单调递增: {list(zip(chain, lums))}")
+        self.assertEqual(rc[5], "#BF8078",
+                         f"回边终点 F 必须获唯一强调色: {rc[5]}")
+        self.assertEqual(len({c for c in chain}), len(chain),
+                         "阶梯色不得重复（同深度同色仅限并行支路）")
+        plt.close(fig)
+
+    def test_snake_layout_column_grid_alignment(self):
+        """snake：列宽跨行取最大+列内居中→换行边两端中心精确共线；
+        奇数行反序蛇形。C→D 类垂直边必须 0 偏移。"""
+        plt = self._flow_env()
+        import af_flow
+        fig, ax = plt.subplots()
+        blocks = af_flow.layout_semantic(self._NODES, self._EDGES,
+                                         layout="snake", columns=3, ax=ax, fs=11)
+        bm = {b["id"]: b for b in blocks}
+        self.assertAlmostEqual(
+            bm["C"]["x"] + bm["C"]["w"] / 2,
+            bm["D"]["x"] + bm["D"]["w"] / 2, places=9,
+            msg="snake 列网格对齐：C/D 中心必须共线")
+        self.assertLess(bm["D"]["y"], bm["C"]["y"], "次行必须在首行下方")
+        self.assertLess(bm["A"]["x"], bm["B"]["x"])
+        self.assertLess(bm["E"]["x"], bm["D"]["x"],
+                        "奇数行反序：次行 D→E→F 应右→左排布")
+        plt.close(fig)
+
+    def test_apex_never_inside_box_data_unit(self):
+        """apex 机械断言（数据单位，1unit=1in）：全部箭头三角尖止于描边
+        外沿（负咬合 EDGE_NIB=-0.01），绝不进入任何框填充。"""
+        plt = self._flow_env()
+        from matplotlib.patches import Polygon
+        import numpy as np
+        import af_flow, af_draw
+        for layout, cols in (("chain", None), ("snake", 3)):
+            d = {"layout": layout, "nodes": self._NODES, "edges": self._EDGES}
+            if cols:
+                d["columns"] = cols
+            fig = plt.figure(figsize=(10.2, 6), dpi=100)
+            ax = fig.add_subplot(111)
+            theme = {"font_size": 11,
+                     "colors": ["#336672", "#A7C4C6", "#BF8078"], "dpi": 600}
+            af_draw.gen_flow(d, ax, theme, None, gate="basic")
+            fig.canvas.draw()
+            blocks = af_flow.layout_semantic(
+                self._NODES, self._EDGES, layout=layout, ax=ax, fs=11)
+            half = af_flow.EDGE_NIB * 0 + 1.0 / 72 / 2   # 半描边（lw 1pt）
+            n_arrows = 0
+            for pt in ax.patches:
+                if not isinstance(pt, Polygon):
+                    continue
+                verts = np.asarray(pt.get_path().vertices)
+                if len(verts) in (3, 4) and np.allclose(verts[0], verts[-1]):
+                    verts = verts[:-1]
+                if len(verts) != 3:
+                    continue
+                n_arrows += 1
+                (ax_, ay_) = verts[0]
+                for b in blocks:
+                    x0, y0, x1, y1 = af_flow._bbox(b)
+                    self.assertFalse(
+                        x0 - half < ax_ < x1 + half and y0 - half < ay_ < y1 + half,
+                        f"{layout}: apex ({ax_:.3f},{ay_:.3f}) 入框 {b['id']}")
+            self.assertEqual(n_arrows, len(self._EDGES),
+                             f"{layout}: 箭头数 {n_arrows}≠{len(self._EDGES)}")
+            plt.close(fig)
+
+    def test_stagger_guarantees_head_gap(self):
+        """EDGE_STAGGER ≥ 2×箭头头半宽：同缘多箭头体间白隙（0.13 实测粘连）。"""
+        import af_flow
+        self.assertGreaterEqual(af_flow.EDGE_STAGGER,
+                                2 * af_flow.HEAD_LEN * 0.42 + 0.01,
+                                "错层步距不足：同缘双箭头头部将粘连")
+
+    def test_tail_slot_never_coincides_head_slot(self):
+        """尾槽并入同侧头槽（走完整渲染管线取真值）：回边尾端与前边箭头
+        头位零重合（T 分岔根除），头位全唯一（同点叠撞根除）。"""
+        plt = self._flow_env()
+        from matplotlib.patches import Polygon
+        import numpy as np
+        import af_draw
+        d = {"layout": "snake", "columns": 3, "nodes": self._NODES,
+             "edges": self._EDGES}
+        fig = plt.figure(figsize=(10.2, 6), dpi=100)
+        ax = fig.add_subplot(111)
+        theme = {"font_size": 11, "colors": ["#336672", "#A7C4C6", "#BF8078"],
+                 "dpi": 600}
+        af_draw.gen_flow(d, ax, theme, None, gate="basic")
+        fig.canvas.draw()
+        tips, tails = [], []
+        for pt in ax.patches:
+            if isinstance(pt, Polygon):
+                verts = np.asarray(pt.get_path().vertices)
+                if len(verts) in (3, 4) and np.allclose(verts[0], verts[-1]):
+                    verts = verts[:-1]
+                if len(verts) == 3:
+                    tips.append((round(float(verts[0][0]), 2),
+                                 round(float(verts[0][1]), 2)))
+        for ln in ax.lines:
+            xd, yd = np.asarray(ln.get_xdata()), np.asarray(ln.get_ydata())
+            tails.append((round(float(xd[0]), 2), round(float(yd[0]), 2)))
+        self.assertEqual(len(tips), len(set(tips)),
+                         f"箭头头位同点叠撞: {sorted(tips)}")
+        self.assertEqual(len(set(tips) & set(tails)), 0,
+                         f"尾端与头位重合（T 分岔）: {set(tips) & set(tails)}")
+        plt.close(fig)
+
+    def test_palette_ignored_notice_full_explicit_color(self):
+        """[ignored] 透明告知：全节点显式 color 时 --palette 静默无效必须告知。"""
+        import io, contextlib
+        plt = self._flow_env()
+        import af_draw
+        nodes = [dict(n, color="#4477AA") for n in self._NODES]
+        d = {"layout": "chain", "nodes": nodes,
+             "edges": [{"from": e["from"], "to": e["to"]}
+                       for e in self._EDGES if not e.get("dashed")]}
+        fig = plt.figure(figsize=(10, 4), dpi=80)
+        ax = fig.add_subplot(111)
+        theme = {"font_size": 11, "colors": ["#56B4E9"], "dpi": 100}
+        err = io.StringIO()
+        with contextlib.redirect_stderr(err):
+            af_draw.gen_flow(d, ax, theme, None, gate="basic",
+                             palette=["#FF0000", "#00FF00"])
+        self.assertIn("[ignored] --palette 未生效", err.getvalue(),
+                      "全显式色覆盖时必须输出 [ignored] 告知")
+        plt.close(fig)
+
+    def test_font_size_data_key_bounds(self):
+        """数据级 font_size：许可区间 [6,40]，越界/非数值报精确校验错。"""
+        plt = self._flow_env()
+        import af_draw
+        base = {"layout": "chain", "nodes": self._NODES[:2],
+                "edges": [{"from": "A", "to": "B"}]}
+        for bad in (5, 41, "abc"):
+            d = dict(base, font_size=bad)
+            fig = plt.figure(figsize=(8, 2), dpi=80)
+            ax = fig.add_subplot(111)
+            theme = {"font_size": 11, "colors": ["#56B4E9"], "dpi": 100}
+            with self.assertRaises(ValueError) as cm:
+                af_draw.gen_flow(d, ax, theme, None, gate="basic")
+            self.assertIn("font_size", str(cm.exception))
+            plt.close(fig)
+        fig = plt.figure(figsize=(8, 2), dpi=80)
+        ax = fig.add_subplot(111)
+        theme = {"font_size": 11, "colors": ["#56B4E9"], "dpi": 100}
+        af_draw.gen_flow(dict(base, font_size=16), ax, theme, None, gate="basic")
+        plt.close(fig)   # 合法值不抛
+
+    def test_validate_data_accepts_snake_and_columns(self):
+        """validate_data 放行 snake + columns（越界 columns fatal）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from gen_figure import validate_data
+        good = {"layout": "snake", "columns": 3, "nodes": self._NODES,
+                "edges": self._EDGES}
+        fatal, _ = validate_data(good, "flow")
+        self.assertFalse([f for f in fatal if "layout" in f],
+                         "snake 必须被 validate_data 放行")
+        fatal2, _ = validate_data(dict(good, columns=9), "flow")
+        self.assertTrue(any("columns" in f for f in fatal2),
+                         "columns 越界必须 fatal")
+        fatal3, _ = validate_data(dict(good, layout="spiral"), "flow")
+        self.assertTrue(any("layout" in f for f in fatal3),
+                         "未知 layout 必须 fatal")
 
 
 if __name__ == "__main__":

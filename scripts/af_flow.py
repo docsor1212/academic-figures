@@ -25,8 +25,10 @@ import sys
 LANE_GAP = 0.45          # 回边 lane 与内容外缘的最小间距
 LANE_STAGGER = 0.38      # 多条回边错层步距
 MAGNET_PAD = 0.02        # 箭头起点与框边的微距
-EDGE_NIB = 0.06          # 箭头终点向目标框内的咬合量（尖端视觉落框缘线上）
-EDGE_STAGGER = 0.13      # 同一框边上多箭头的错位步距
+EDGE_NIB = -0.01         # 箭头终点回退量（负=尖端止于描边外沿，绝不入框填充；
+                         # 正值咬入经 600dpi 逐像素实测=系统性刺框 13-18px）
+EDGE_STAGGER = 0.18      # 同一框边上多箭头的错位步距（>2×箭头头半宽 0.134，
+                         # 同缘多箭头体之间保证白隙——0.13 实测两头部粘连 9px）
 LABEL_PAD = 0.10         # 边标签与任意元素的强制间隙
 FONT_FLOOR = 8.0         # 文本缩放下限（pt；期刊预设字号以下不再缩）
 BOX_PAD_X = 0.15         # 框内水平内边距
@@ -169,9 +171,12 @@ def fit_text(ax, label, sub, box_w_in, box_h_in, fs, fp_l=None, fp_s=None):
 
 # ── 布局（R4：语义→坐标，英寸空间） ────────────────────────────────────
 def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
-                    fs=11, cjk_fp=None):
+                    fs=11, cjk_fp=None, columns=None):
     """-t flow 自动布局。英寸空间：行高/列宽由实测文本尺寸累计，
-    带标签的边预留标签带（ELK edgeLabels 语义）。返回 blocks 列表。"""
+    带标签的边预留标签带（ELK edgeLabels 语义）。返回 blocks 列表。
+    layout="snake"：链式环绕（v8.0.4，R4 收官）——每 columns 个节点换行、
+    奇数行反序（蛇形），横向边行内直连、换行边正交直降、回边走行间槽，
+    宽高比 ≈2:1，论文版心缩放后字号不再跌破可读下限。"""
     ids = [n["id"] for n in nodes]
     idset = set(ids)
     for e in edges:
@@ -208,10 +213,48 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
     bmap = {b["id"]: b for b in blocks}
 
     if layout == "chain":
+        # 富余宽度均匀分配进列间距（--width 横幅契约：内容铺满画布宽，
+        # 不留大片空白；间距上限 2.4in 防节点过少时拉散）
+        _target = ax.figure.get_size_inches()[0] - 2 * CANVAS_PAD_X
+        _total_w = sum(b["w"] for b in blocks)
+        _n = max(len(blocks) - 1, 1)
+        _gap = min(2.4, max(COL_GAP, (_target - _total_w) / _n))
+        _row_h = max(b["h"] for b in blocks)
         x = 0.0
         for b in blocks:
-            b["x"], b["y"] = x, 0.0
-            x += b["w"] + COL_GAP
+            # v8.0.4 行内**垂直居中**（旧版 y=0 底对齐）：异高框（副标题换行）
+            # 中心不齐 → 相邻边轴线断差（judge 实测 69px）。居中后同行共轴。
+            b["x"], b["y"] = x, (_row_h - b["h"]) / 2
+            x += b["w"] + _gap
+        return blocks
+    if layout == "snake":
+        # 链式环绕（R4 收官）：columns 列蛇形折行，行内垂直居中+列网格对齐
+        # （列宽=跨行最大值、列内水平居中→换行边两端中心精确共线，
+        # C→D 类垂直边退化为单一直线；judge 实测：逐行独立排版致 453px 中心
+        # 偏移+Z 折）
+        n = len(blocks)
+        cols = max(2, int(columns or max(2, math.ceil(math.sqrt(n)))))
+        rows = []
+        r = 0
+        while r * cols < n:
+            seg = [b["id"] for b in blocks[r * cols:(r + 1) * cols]]
+            rows.append(seg[::-1] if r % 2 else seg)   # 奇数行反序=蛇形
+            r += 1
+        col_w = [max(bmap[rows[ri][ci]]["w"] for ri in range(len(rows))
+                     if ci < len(rows[ri])) for ci in range(cols)]
+        col_x = [0.0]
+        for cw in col_w[:-1]:
+            col_x.append(col_x[-1] + cw + COL_GAP)
+        _labeled_any = any(e.get("label") for e in edges)
+        y_cursor = 0.0
+        for ri, seg in enumerate(rows):
+            row_h = max(bmap[i]["h"] for i in seg)
+            for ci, i in enumerate(seg):
+                bmap[i]["x"] = col_x[ci] + (col_w[ci] - bmap[i]["w"]) / 2
+                bmap[i]["y"] = y_cursor + (row_h - bmap[i]["h"]) / 2  # 行内共轴
+            y_cursor += row_h + ROW_GAP + (0.68 if _labeled_any else 0)
+        for i in ids:   # 镜像：首行在顶
+            bmap[i]["y"] = y_cursor - bmap[i]["y"] - bmap[i]["h"]
         return blocks
     # layered：最长路径分层（回边不计层）
     indeg = {i: 0 for i in ids}
@@ -270,16 +313,40 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
         rows = {}
         for i in ids:
             rows.setdefault(layer[i], []).append(i)
+        # v8.0.4 ELK barycenter：父行先放，子行按父质心 x 排序——
+        # 父子列对齐使主链边退化为干净直降/短肘（旧版固定顺序致父行
+        # 与子行错位，子边被迫 lane 大绕行）。
+        _parents = {}
+        for e in edges:
+            if (e["from"], e["to"]) not in back:
+                _parents.setdefault(e["to"], []).append(e["from"])
         y_cursor = 0.0
-        for lv_i in sorted(rows, reverse=True):
+        for lv_i in sorted(rows):
             row = rows[lv_i]
+
+            def _bx(pid):
+                b = bmap[pid]
+                return b["x"] + b["w"] / 2 if "x" in b else 0.0
+            row.sort(key=lambda i: (
+                sum(_bx(p) for p in _parents.get(i) or [i])
+                / max(len(_parents.get(i) or [i]), 1),
+                ids.index(i)))
             row_h = max(bmap[i]["h"] for i in row)
             x = 0.0
             for i in row:
                 bmap[i]["x"] = x
-                bmap[i]["y"] = y_cursor
+                bmap[i]["y"] = y_cursor + (row_h - bmap[i]["h"]) / 2   # 行内垂直居中（读取序向下增长，放完统一镜像）
                 x += bmap[i]["w"] + COL_GAP
-            y_cursor += row_h + ROW_GAP + (LANE_LABEL_ALLOW if _labeled else 0)
+            # 行级对中：整行平移使其父质心加权中心对齐父行（ELK barycenter
+            # 定位步）——父列对齐后主链边退化为直降，lane 大绕行不再触发
+            _ps = [_parents.get(i) or [i] for i in row]
+            _pm = sum(sum(_bx(p) for p in ps) / len(ps) for ps in _ps) / len(row)
+            _rm = sum(bmap[i]["x"] + bmap[i]["w"] / 2 for i in row) / len(row)
+            for i in row:
+                bmap[i]["x"] += _pm - _rm
+            y_cursor += row_h + ROW_GAP + (0.68 if _labeled else 0)   # 带标签边预留 1.3in 行距（白底标签 0.29+双侧 0.12 气垫 + 余量）
+        for i in ids:   # 镜像回画布方向（sources 在顶）
+            bmap[i]["y"] = y_cursor - bmap[i]["y"] - bmap[i]["h"]
     return blocks
 
 
@@ -293,20 +360,27 @@ def _overlap(a, b, pad=0.0):
                 or a[3] + pad <= b[1] or b[3] + pad <= a[1])
 
 
-def magnet(src, dst, attach_in=0, attach_out=0):
-    """R1：吸附框边（终点咬入 EDGE_NIB，尖端视觉落框缘线上）。"""
+def magnet(src, dst, attach_in=0, attach_out=0, force_key=None):
+    """R1：吸附框边（终点咬入 EDGE_NIB=负值→尖端止于描边外沿）。
+    v8.0.4：轴线对齐的边共享同一出线坐标（随目标入线槽错层）；
+    force_key 强制 H/V 出入边方向（路由换向回退用）。"""
     sx0, sy0, sx1, sy1 = _bbox(src)
     dx0, dy0, dx1, dy1 = _bbox(dst)
     scx, scy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
     dcx, dcy = (dx0 + dx1) / 2, (dy0 + dy1) / 2
-    if abs(dcx - scx) >= abs(dcy - scy):
+    _k = force_key or ("H" if abs(dcx - scx) >= abs(dcy - scy) else "V")
+    if _k == "H":
         sy = scy + attach_out * EDGE_STAGGER
         dy = dcy - attach_in * EDGE_STAGGER
+        if abs(dcy - scy) <= 0.25:
+            sy = dy  # 同行对齐：起终点共 y（错层槽由入端统一决定）
         if dcx >= scx:
             return (sx1, sy), (dx0 + EDGE_NIB, dy)
         return (sx0, sy), (dx1 - EDGE_NIB, dy)
     sx = scx + attach_out * EDGE_STAGGER
     dx = dcx - attach_in * EDGE_STAGGER
+    if abs(dcx - scx) <= 0.25:
+        sx = dx  # 同列对齐：起终点共 x（直降无 Z 折）
     if dcy >= scy:
         return (sx, sy1), (dx, dy0 + EDGE_NIB)
     return (sx, sy0), (dx, dy1 - EDGE_NIB)
@@ -339,60 +413,103 @@ def _lane_y(blocks, side, level):
            (bots - LANE_GAP - LANE_STAGGER * level)
 
 
-def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False):
+def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
+          attach_in=0, attach_out=0):
     """R1/R4：直连（干净）→离轴 3 段正交肘（多走廊位验证）→lane 绕行
-    （双侧×错层验证）。肘与 lane 统一「验证通过者优先」，无 lane_level 硬闸。"""
+    （双侧×错层验证）。肘与 lane 统一「验证通过者优先」，无 lane_level 硬闸。
+    v8.0.4：attach 错层在入口传入 magnet——所有分支（直连/肘/lane）端点
+    统一吃错层，杜绝多边同点叠撞（蛇形 F→B 回边与 A→B 同点实测抓获）。"""
     key, sgn = _edge_between(src, dst)
     if side is None:
         side = sgn
-    p0, p1 = magnet(src, dst)
+    p0, p1 = magnet(src, dst, attach_in=attach_in, attach_out=attach_out)
     _skip = (src["id"], dst["id"])
-    if not orthogonal and not _seg_hits(p0, p1, blocks, _skip):
-        if key == "H" and abs(p0[1] - p1[1]) > 0.05:
-            gx = (p0[0] + p1[0]) / 2
-            return [(p0[0], p0[1]), (gx, p0[1]), (gx, p1[1]), (p1[0], p1[1])], side
-        if key == "V" and abs(p0[0] - p1[0]) > 0.05:
-            gy = (p0[1] + p1[1]) / 2
-            return [(p0[0], p0[1]), (p0[0], gy), (p1[0], gy), (p1[0], p1[1])], side
-        return [p0, p1], side
     if not orthogonal:
-        sx0, sy0, sx1, sy1 = _bbox(src)
-        dx0, dy0, dx1, dy1 = _bbox(dst)
-        for _off in (0.0, 0.35, -0.35, 0.7, -0.7):
+        # ① 直连干净→直连
+        if not _seg_hits(p0, p1, blocks, _skip):
             if key == "H" and abs(p0[1] - p1[1]) > 0.05:
-                gx = (p0[0] + p1[0]) / 2 + _off
-                _cand = [(p0[0], p0[1]), (gx, p0[1]), (gx, p1[1]), (p1[0], p1[1])]
-            elif key == "V" and abs(p0[0] - p1[0]) > 0.05:
-                gy = (p0[1] + p1[1]) / 2 + _off
-                _cand = [(p0[0], p0[1]), (p0[0], gy), (p1[0], gy), (p1[0], p1[1])]
+                gx = (p0[0] + p1[0]) / 2
+                return [(p0[0], p0[1]), (gx, p0[1]), (gx, p1[1]), (p1[0], p1[1])], side
+            if key == "V" and abs(p0[0] - p1[0]) > 0.05:
+                gy = (p0[1] + p1[1]) / 2
+                return [(p0[0], p0[1]), (p0[0], gy), (p1[0], gy), (p1[0], p1[1])], side
+            return [p0, p1], side
+        # ② 直连穿框→正交肘：走廊**限定在两锚点之间**（v8.0.4 根修两处——
+        #    旧版 H 键误用 Y 中值当 X 走廊（轴向错用），且走廊无界扫描可落在
+        #    目标框远侧 → 末段整段横穿目标框内部，而 _seg_hits 的端点豁免
+        #    把目标框整体豁免导致零检出（visual-judge 实锤「箭头穿框」根因）。
+        #    走廊限位后末段永远从附着边外侧进线，穿框在构造上不可能。）
+        #    v8.0.4 轴向回退：主轴向走廊区间空/全堵时换垂直轴向重试（force_key
+        #    换边磁吸）——蛇形回边 F→B 因此改走行间槽（H 走廊仅 0.16in 且
+        #    出口 T 压在 E→F 边上，judge 实锤）。
+        def _elbow_scan(k, q0, q1):
+            if k == "H":
+                _lo = min(q0[0], q1[0]) + 0.3
+                _hi = max(q0[0], q1[0]) - 0.3
+                _mid = (q0[0] + q1[0]) / 2
             else:
-                break
-            if all(not _seg_hits(_cand[k], _cand[k + 1], blocks, _skip)
-                   for k in range(3)):
-                return _cand, side
+                _lo = min(q0[1], q1[1]) + 0.3
+                _hi = max(q0[1], q1[1]) - 0.3
+                _mid = (q0[1] + q1[1]) / 2
+            if _lo > _hi:
+                return None
+            _step = 0.3
+            while _step <= max(_hi - _lo, 0.3) + 0.3:
+                for _g in (_mid, _mid - _step, _mid + _step):
+                    if not (_lo <= _g <= _hi):
+                        continue
+                    _cand = ([(q0[0], q0[1]), (_g, q0[1]), (_g, q1[1]), (q1[0], q1[1])]
+                             if k == "H" else
+                             [(q0[0], q0[1]), (q0[0], _g), (q1[0], _g), (q1[0], q1[1])])
+                    if all(not _seg_hits(_cand[k2], _cand[k2 + 1], blocks, _skip)
+                           for k2 in range(3)):
+                        return _cand
+                _step += 0.3
+            return None
+
+        for _k in (key, "V" if key == "H" else "H"):
+            _q0, _q1 = (p0, p1) if _k == key else \
+                magnet(src, dst, attach_in=attach_in, attach_out=attach_out,
+                       force_key=_k)
+            _found = _elbow_scan(_k, _q0, _q1)
+            if _found is not None:
+                return _found, side
     sx0, sy0, sx1, sy1 = _bbox(src)
     dx0, dy0, dx1, dy1 = _bbox(dst)
 
     def _lane_pts(sd, lv):
+        # 终点与磁吸同纪律：负咬合回退（EDGE_NIB=-0.01），尖端止于描边外沿——
+        # v8.0.4 补：lane 终点原先裸取框边线（apex 压描边中心=刺外沿 4px@600dpi，
+        # 论文 fig2 回边实测抓获）
         if key == "H":
             ly = _lane_y(blocks, sd, lv)
             return [((sx0 + sx1) / 2, sy1 if sd > 0 else sy0),
                     ((sx0 + sx1) / 2, ly),
                     ((dx0 + dx1) / 2, ly),
-                    ((dx0 + dx1) / 2, dy1 if sd > 0 else dy0)]
+                    ((dx0 + dx1) / 2, (dy1 - EDGE_NIB) if sd > 0 else (dy0 + EDGE_NIB))]
         lx = (max(_bbox(b)[2] for b in blocks) + LANE_GAP + LANE_STAGGER * lv) \
             if sd > 0 else \
             (min(_bbox(b)[0] for b in blocks) - LANE_GAP - LANE_STAGGER * lv)
         return [(sx1 if sd > 0 else sx0, (sy0 + sy1) / 2),
                 (lx, (sy0 + sy1) / 2),
                 (lx, (dy0 + dy1) / 2),
-                (dx1 if sd > 0 else dx0, (dy0 + dy1) / 2)]
+                ((dx1 - EDGE_NIB) if sd > 0 else (dx0 + EDGE_NIB), (dy0 + dy1) / 2)]
 
     def _segs_hit(pts):
-        return any(_seg_hits(pts[k], pts[k + 1], blocks, _skip)
-                   for k in range(len(pts) - 1))
+        for k in range(len(pts) - 1):
+            if _seg_hits(pts[k], pts[k + 1], blocks, _skip):
+                return True
+        # 顶点检查：拐点/端点不得落在非端点框内（弯在框里=judge 必抓）
+        for (px, py) in pts:
+            for b in blocks:
+                if b["id"] in _skip:
+                    continue
+                x0, y0, x1, y1 = _bbox(b)
+                if x0 - 0.01 < px < x1 + 0.01 and y0 - 0.01 < py < y1 + 0.01:
+                    return True
+        return False
 
-    for _lv in (max(lane_level, 1), max(lane_level, 1) + 1, max(lane_level, 1) + 2):
+    for _lv in range(max(lane_level, 1), max(lane_level, 1) + 9):
         for _try_side in (side, -side):
             _cand = _lane_pts(_try_side, _lv)
             if not _segs_hit(_cand):
@@ -454,19 +571,18 @@ def _orient_of(route_pts):
 def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
                      fs=9.0, color="#444444", dashed_hint=False,
                      line_segs=()):
-    """R2：measure-then-resolve——逐候选画→墨迹实测→碰撞→移除重试；
-    两行折行兜底；引线仅在真正远置时使用（意图明确）。返回 (artist, bb)。"""
-    if len(route_pts) >= 4:
-        _best, _blen = route_pts[1], -1.0
-        for k in range(1, len(route_pts) - 2):
-            (ax_, ay_), (bx_, by_) = route_pts[k], route_pts[k + 1]
-            _L = abs(bx_ - ax_) + abs(by_ - ay_)
-            if _L > _blen:
-                _blen, _best = _L, ((ax_ + bx_) / 2, (ay_ + by_) / 2)
-        mid = _best
-    else:
-        mid = ((route_pts[0][0] + route_pts[-1][0]) / 2,
-               (route_pts[0][1] + route_pts[-1][1]) / 2)
+    """R2：measure-then-resolve——候选生成于**每条线段的两侧**（单一绝对坐标
+    系，无帧混用），逐候选画→墨迹实测→碰撞→移除重试；窄间隙自动折两行；
+    全失败→框行上方+垂直引线。返回 (artist, bb)。"""
+    # 锚点段集合：全部线段，长段优先
+    segs = list(zip(route_pts[:-1], route_pts[1:]))
+    seg_info = []
+    for (a, b) in segs:
+        mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
+        L = abs(b[0] - a[0]) + abs(b[1] - a[1])
+        orient = "H" if abs(b[0] - a[0]) >= abs(b[1] - a[1]) else "V"
+        seg_info.append({"mx": mx, "my": my, "orient": orient, "L": L})
+    seg_info.sort(key=lambda m: -m["L"])
 
     def _ink_bb(t):
         fig.canvas.draw()
@@ -478,7 +594,7 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
 
     def _hit(bb):
         for b in blocks:
-            if _overlap(bb, _bbox(b), 0.05):
+            if _overlap(bb, _bbox(b), 0.12):
                 return True
         for pb in placed_boxes:
             if _overlap(bb, pb, 0.02):
@@ -491,66 +607,96 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
 
     _w, _h = measure_in(ax, text, fs, fp)
     _txt = text
+    # 窄间隙预判：锚点贴近某框缘（间隙 < 行高×2.6）→ 两行折行
     if "\n" not in _txt and " " in _txt:
         for b in blocks:
             x0, y0, x1, y1 = _bbox(b)
-            if x0 - 0.3 <= mid[0] <= x1 + 0.3 and min(abs(mid[1] - y0),
-                                                      abs(mid[1] - y1)) < _h * 2.6:
-                _txt = _txt.replace(" ", "\n", 1)
+            for m in seg_info:
+                if x0 - 0.3 <= m["mx"] <= x1 + 0.3 and \
+                        min(abs(m["my"] - y0), abs(m["my"] - y1)) < _h * 2.6:
+                    _txt = _txt.replace(" ", "\n", 1)
+                    break
+            if "\n" in _txt:
                 break
     _h2 = measure_in(ax, _txt, fs, fp, ls=1.15)[1]
     _w2 = max((measure_in(ax, ln, fs, fp)[0] for ln in _txt.split("\n")),
               default=_w)
-    if _orient_of(route_pts) == "V":
-        _bt = max(_bbox(b)[3] for b in blocks)
-        _bb0 = min(_bbox(b)[1] for b in blocks)
-        if _orient_of(route_pts) == "V":
-            attempts = [(_w2 / 2 + 0.12, 0.0, "center", False),
-                        (-_w2 / 2 - 0.12, 0.0, "center", False),
-                        (0.0, _h2 / 2 + 0.07, "bottom", False),
-                        (0.0, -_h2 / 2 - 0.07, "top", False)]
-        else:
-            attempts = [(0.0, _h2 / 2 + 0.07, "bottom", False),          # 段上方
-                        (0.0, -_h2 / 2 - 0.07, "top", False),            # 段下方
-                        (0.0, _bt + _h2 / 2 + 0.16 - mid[1], "bottom", True),
-                        (0.0, _bb0 - _h2 / 2 - 0.16 - mid[1], "top", True),
-                        (_w2 / 2 + 0.12, 0.0, "center", False),
-                        (-_w2 / 2 - 0.12, 0.0, "center", False)]
-    else:
-        _bt = max(_bbox(b)[3] for b in blocks)
-        _bb0 = min(_bbox(b)[1] for b in blocks)
-        attempts = [(0.0, _h2 / 2 + 0.07, "bottom", False),              # 段上方
-                    (0.0, -_h2 / 2 - 0.07, "top", False),                # 段下方
-                    (0.0, _bt + _h2 / 2 + 0.16 - mid[1], "bottom", True),
-                    (0.0, _bb0 - _h2 / 2 - 0.16 - mid[1], "top", True),
-                    (_w2 / 2 + 0.12, 0.0, "center", False),
-                    (-_w2 / 2 - 0.12, 0.0, "center", False)]
-    for (dx, dy, va, _leader) in attempts:
-        cx, cy = mid[0] + dx, mid[1] + dy
+    _fp_t = fp if fp and has_cjk_local(text) else None
+
+    def _try(cx, cy, va):
         t = ax.text(cx, cy, _txt, ha="center", va=va, fontsize=fs, color=color,
                     style="italic", linespacing=1.15,
-                    bbox=dict(boxstyle="round,pad=0.12", facecolor="white",
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
                               edgecolor="none", alpha=0.92),
-                    fontproperties=fp if fp and has_cjk_local(text) else None,
-                    zorder=6)
+                    fontproperties=_fp_t, zorder=6)
         bb = _ink_bb(t)
         if not _hit(bb):
             placed_boxes.append(bb)
-            if _leader:   # 垂直引线：边中点连到标签近侧缘（fig2 PASS 形态）
-                _ly1 = bb[1] if va == "bottom" else bb[3]
-                ax.plot([mid[0], mid[0]], [mid[1], _ly1], color=color, lw=0.7,
-                        alpha=0.75, zorder=5)
             return t, bb
         t.remove()
-    cx, cy = mid[0] - _w2 - 0.5, mid[1]
-    t = ax.text(cx, cy, _txt, ha="center", va="center", fontsize=fs, color=color,
-                style="italic", linespacing=1.15,
-                fontproperties=fp if fp and has_cjk_local(text) else None, zorder=6)
-    bb = _ink_bb(t)
-    ax.plot([bb[2] + 0.03, mid[0]], [cy, mid[1]], color=color, lw=0.7,
+        return None, None
+
+    # 候选生成（绝对坐标）：每段两侧，长段优先；末段补框行上/下+引线位
+    tried = 0
+    for m in seg_info:
+        if m["orient"] == "V":
+            # V 跨行段（CONSORT 主列）：标签放行间带内、竖段旁侧——带由布局
+            # 预留（ROW_GAP+标签带），物理无框，零引线（文献标准形态）
+            cands = [(m["mx"] + _w2 / 2 + 0.16, m["my"], "center"),
+                     (m["mx"] - _w2 / 2 - 0.16, m["my"], "center")]
+        else:
+            cands = [(m["mx"], m["my"] + _h2 / 2 + 0.07, "bottom"),
+                     (m["mx"], m["my"] - _h2 / 2 - 0.07, "top")]
+        for (cx, cy, va) in cands:
+            t, bb = _try(cx, cy, va)
+            if t is not None:
+                return t, bb
+            tried += 1
+    # 框行上/下（x=最长段中点 x）+ 垂直引线（fig2 PASS 形态）
+    _bt = max(_bbox(b)[3] for b in blocks)
+    _bb0 = min(_bbox(b)[1] for b in blocks)
+    _mx_long = seg_info[0]["mx"]
+    for (cx, cy, va) in ((_mx_long, _bt + _h2 / 2 + 0.14, "bottom"),
+                         (_mx_long, _bb0 - _h2 / 2 - 0.14, "top")):
+        t, bb = _try(cx, cy, va)
+        if t is not None:
+            ax.plot([_mx_long, _mx_long], [min(_midy(route_pts), cy),
+                      max(_midy(route_pts), cy)],
+                    color=color, lw=0.7, alpha=0.75, zorder=5)
+            return t, bb
+        t.remove()
+    # 折行重试于框行上方
+    if "\n" not in _txt and " " in _txt:
+        _txt2 = _txt.replace(" ", "\n", 1)
+        _h3 = measure_in(ax, _txt2, fs, fp, ls=1.15)[1]
+        _w3 = max((measure_in(ax, ln, fs, fp)[0] for ln in _txt2.split("\n")),
+                  default=_w)
+        t, bb = _try(_mx_long, _bt + _h3 / 2 + 0.14, "bottom")
+        if t is not None:
+            ax.plot([_mx_long, _mx_long], [min(_midy(route_pts), cy), cy],
+                    color=color, lw=0.7, alpha=0.75, zorder=5)
+            return t, bb
+        t.remove()
+    # 全失败→远置框行上方 mid x 处+垂直引线（唯一远置分支，意图明确）
+    cx, cy = _mx_long, _bb0 - _h2 / 2 - 0.2
+    t, bb = _try(cx, cy, "top")
+    if t is None:
+        t = ax.text(cx, cy, _txt, ha="center", va="top", fontsize=fs,
+                    color=color, style="italic",
+                    fontproperties=fp if fp and has_cjk_local(text) else None,
+                    zorder=6)
+        bb = _ink_bb(t)
+    ax.plot([_mx_long, _mx_long], [_bb0, cy], color=color, lw=0.7,
             alpha=0.75, zorder=5)
     placed_boxes.append(bb)
     return t, bb
+
+
+def _midy(route_pts):
+    if len(route_pts) >= 4:
+        (a, b) = route_pts[1], route_pts[2]
+        return (a[1] + b[1]) / 2
+    return (route_pts[0][1] + route_pts[-1][1]) / 2
 
 
 # ── R6 三层 bbox 闸 ────────────────────────────────────────────────────
@@ -613,9 +759,15 @@ def trim_limits(ax, blocks, extra_pts=(), pad=0.4, ratio_hint=True,
     x0, x1 = min(xs) - px, max(xs) + px
     y0, y1 = min(ys) - pb_, max(ys) + pt_
     fig = ax.figure
-    fig.set_size_inches(max(x1 - x0, 2.0), max(y1 - y0, 1.5))
-    ax.set_position([0, 0, 1, 1])
+    # 用户宽度契约：fig 宽=最大(用户请求宽, 内容宽)；范围=fig 宽（1 unit=1in
+    # 保持），内容在画布内居中（v2 初版覆盖用户宽致右半空白+标签远角漂移）
+    _user_w = fig.get_size_inches()[0]
+    _range_w = max(_user_w, x1 - x0)
+    _cx = (x0 + x1) / 2
+    x0, x1 = _cx - _range_w / 2, _cx + _range_w / 2
     if set_lim:
+        fig.set_size_inches(_range_w, max(y1 - y0, 1.5))
+        ax.set_position([0, 0, 1, 1])
         ax.set_xlim(x0, x1)
         ax.set_ylim(y0, y1)
     if ratio_hint:
@@ -628,6 +780,96 @@ def trim_limits(ax, blocks, extra_pts=(), pad=0.4, ratio_hint=True,
 def _text_color(bg):
     from af_shared import cell_text_color
     return cell_text_color(bg)
+
+
+def _blend_hex(c1, c2, t):
+    """线性混色：t=0 取 c1，t=1 取 c2（hex in/out）。"""
+    a = [int(c1[i:i + 2], 16) for i in (1, 3, 5)]
+    b = [int(c2[i:i + 2], 16) for i in (1, 3, 5)]
+    m = [round(a[i] + (b[i] - a[i]) * t) for i in range(3)]
+    return "#" + "".join(f"{v:02x}" for v in m)
+
+
+def _tint(c, t):
+    return _blend_hex(c, "#ffffff", t)
+
+
+def _shade(c, t):
+    return _blend_hex(c, "#000000", t)
+
+
+def _role_colors(blocks, arrows, colors):
+    """顶刊角色化配色（v8.0.4）：替代多饱和色轮转的杂色感——
+
+    - 主链基色 = colors[0]，沿流程深度自动衍生**同族明度阶梯**
+      （起点最深 → 下游渐浅），并行支路同深度同色（语义对齐）；
+    - 终点节点（最深行的汇点）= colors[-1] **唯一强调色**（60-30-10 收束）；
+    - 侧支出汇点（如 CONSORT Excluded，深度<最深行）随所在层阶梯色，
+      不抢强调色的视觉焦点；
+    - 饱和度纪律由默认系列保证（基色 S≈37%），显式 color > --palette > 本函数。
+
+    返回 {block_index: hex}（仅无显式 color 的节点）。"""
+    ids = [b.get("id") for b in blocks]
+    idx = {nid: i for i, nid in enumerate(ids) if nid is not None}
+    n = len(blocks)
+    # v8.0.4 断环：回边（DFS 栈内重访，如 EXTINCT→Register 回退）不计入
+    # 出度/深度——否则终点节点永不触发强调色、BFS 深度被环污染（论文 fig2 实测）
+    fwd_of = {}
+    for e in arrows:
+        fwd_of.setdefault(e.get("from"), []).append(e.get("to"))
+    back = set()
+    _seen, _stack = set(), []
+
+    def _dfs(u):
+        _seen.add(u)
+        _stack.append(u)
+        for v in fwd_of.get(u, []):
+            if v not in _seen:
+                _dfs(v)
+            elif v in _stack:
+                back.add((u, v))
+        _stack.pop()
+
+    for nid in ids:
+        if nid not in _seen:
+            _dfs(nid)
+    outdeg = [0] * n
+    indeg = [0] * n
+    depth = [0] * n
+    adj = [[] for _ in range(n)]
+    for e in arrows:
+        s, d = idx.get(e.get("from")), idx.get(e.get("to"))
+        if s is None or d is None or (e.get("from"), e.get("to")) in back:
+            continue
+        outdeg[s] += 1
+        indeg[d] += 1
+        adj[s].append(d)
+    # BFS 深度（取最深路径；环时 depth 只增不回退，安全）
+    from collections import deque
+    q = deque(i for i in range(n) if indeg[i] == 0)
+    seen = set(q)
+    while q:
+        u = q.popleft()
+        for v in adj[u]:
+            depth[v] = max(depth[v], depth[u] + 1)
+            if v not in seen:
+                seen.add(v)
+                q.append(v)
+    maxd = max(depth) if depth else 0
+    base = colors[0]
+    accent = colors[-1] if len(colors) >= 2 else _tint(base, 0.35)
+    lo = _shade(base, 0.12)      # 阶梯深端（起点）
+    hi = _tint(base, 0.46)       # 阶梯浅端（下游）
+    out = {}
+    for i in range(n):
+        if maxd == 0:
+            out[i] = base
+        elif outdeg[i] == 0 and depth[i] == maxd:
+            out[i] = accent                                   # 终点：唯一强调
+        else:
+            t = depth[i] / maxd if maxd else 0.0
+            out[i] = _blend_hex(lo, hi, t)                    # 同族明度阶梯
+    return out
 
 
 # ── 渲染管线（diagram/flow 共用单一事实源） ──────────────────────────────
@@ -675,6 +917,9 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     ax.axis("off")
 
     # ── 2) 边路由 ──
+    # attach 错层按「同侧接入」分组计数（物理侧= (node,key,±1)）；**尾槽并入
+    # 同侧头槽**——出边尾端若与先行入边箭头头位重合即视觉 T 分岔（蛇形回边
+    # 尾=E→F 头位实测），错层必须跨入/出统一排序。
     route_pts, route_lines, route_meta = [], [], []
     attach_out, attach_in = {}, {}
     for i, e in enumerate(arrows):
@@ -682,15 +927,14 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
         if s is None or t is None:
             continue
         lv, side = lanes.get(i, (0, 1))
+        key, sgn = _edge_between(s, t)
+        _outk, _ink = (e["from"], key, sgn), (e["to"], key, -sgn)
+        ao = attach_out.get(_outk, 0) + attach_in.get(_outk, 0)
+        ai = attach_in.get(_ink, 0) + attach_out.get(_ink, 0)
         pts, side = route(s, t, blocks, lane_level=lv, side=side,
-                          orthogonal=orthogonal)
-        ao = attach_out.get((e["from"], tuple(round(v, 2) for v in pts[0])), 0)
-        ai = attach_in.get((e["to"], tuple(round(v, 2) for v in pts[-1])), 0)
-        if lv == 0 and len(pts) == 2:
-            p0, p1 = magnet(s, t, attach_out=ao, attach_in=ai)
-            pts = [p0, p1]
-            attach_out[(e["from"], tuple(round(v, 2) for v in p0))] = ao + 1
-            attach_in[(e["to"], tuple(round(v, 2) for v in p1))] = ai + 1
+                          orthogonal=orthogonal, attach_in=ai, attach_out=ao)
+        attach_out[_outk] = attach_out.get(_outk, 0) + 1
+        attach_in[_ink] = attach_in.get(_ink, 0) + 1
         route_pts.append(pts)
         route_meta.append((e, pts))
         for k in range(len(pts) - 1):
@@ -698,24 +942,34 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
 
     # ── 3) 画块（文本自适应）──
     label_artists, label_bboxes = [], []
-    for b in blocks:
+    # v8.0.4 顶刊角色化配色：同族明度阶梯 + 终点唯一强调色，
+    # 替代 v8.0.3 色轮循环（多饱和色并列=杂色感的机制根因）。
+    _tc = (theme or {}).get("colors", ["#56B4E9"])
+    _rc = _role_colors(blocks, arrows, _tc)
+    for bi, b in enumerate(blocks):
         fp_l = cjk_fp if cjk_fp and has_cjk_local(b.get("label", "")) else None
         fp_s = cjk_fp if cjk_fp and has_cjk_local(b.get("sublabel") or "") else None
         lab_lines, sub_lines, fs_m, fs_s = fit_text(
             ax, b.get("label", b.get("id", "")), b.get("sublabel"),
             b["w"], b["h"], fs, fp_l, fp_s)
-        bc = b.get("color") or (theme or {}).get("colors", ["#56B4E9"])[0]
+        # 优先级：显式 color > 角色化配色（明度阶梯/终点强调）
+        bc = b.get("color") or _rc.get(bi, _tc[0])
         shape = b.get("shape", "round")
+        # 顶刊描边纪律：描边=同色加深（完整度），填充满 alpha（印刷不发灰）。
+        # v8.0.4 根修：round 样式 pad 由 0.1 → 0（rounding_size 只圆角不扩框）——
+        # 旧 pad=0.1 使可视框四周大于几何 bbox 0.1in，箭头按 bbox 吸附即整体
+        # 扎入可视框内（visual-judge 实锤的「箭头穿框/箭头埋框」唯一根因）。
+        _ec = _shade(bc, 0.22)
         if shape == "rect":
             patch = FancyBboxPatch((b["x"], b["y"]), b["w"], b["h"],
                                    boxstyle="square,pad=0", facecolor=bc,
-                                   edgecolor=bc, linewidth=1.5, alpha=0.85,
+                                   edgecolor=_ec, linewidth=1.2, alpha=1.0,
                                    zorder=3)
         else:
             patch = FancyBboxPatch((b["x"], b["y"]), b["w"], b["h"],
-                                   boxstyle="round,pad=0.1", facecolor=bc,
-                                   edgecolor=bc, linewidth=1.0, alpha=0.9,
-                                   zorder=3)
+                                   boxstyle="round,pad=0,rounding_size=0.14",
+                                   facecolor=bc, edgecolor=_ec,
+                                   linewidth=1.0, alpha=1.0, zorder=3)
         ax.add_patch(patch)
         tcol = _text_color(bc)
         lab_h = measure_in(ax, "\n".join(lab_lines), fs_m, fp_l, ls=LINE_K)[1]
@@ -762,13 +1016,13 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                              lw=0.4, zorder=5))
         if e.get("label"):
             fp_e = cjk_fp if cjk_fp and has_cjk_local(e["label"]) else None
-            _own_mid = (pts[len(pts) // 2 - 1], pts[len(pts) // 2]) if len(pts) > 2 \
-                else (pts[0], pts[1])
+            # 白底标签只避让**其他边**的线段（自身段有白垫可贴线，graphviz 同款）
+            _own_keys = {(round(q0[0], 3), round(q0[1], 3), round(q1[0], 3),
+                          round(q1[1], 3)) for q0, q1 in
+                         zip(pts[:-1], pts[1:])}
             _other = [(q0, q1) for (q0, q1) in route_lines
-                      if not (abs(q0[0] - _own_mid[0][0]) < 1e-6
-                              and abs(q0[1] - _own_mid[0][1]) < 1e-6
-                              and abs(q1[0] - _own_mid[1][0]) < 1e-6
-                              and abs(q1[1] - _own_mid[1][1]) < 1e-6)]
+                      if (round(q0[0], 3), round(q0[1], 3), round(q1[0], 3),
+                          round(q1[1], 3)) not in _own_keys]
             t, bb = place_edge_label(ax, fig, e["label"], pts, blocks,
                                      label_bboxes, fp=fp_e,
                                      fs=max(8.0, fs - 2),
@@ -785,14 +1039,40 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                 fontproperties=cjk_fp if cjk_fp and has_cjk_local(ann["text"])
                 else None, zorder=5)
 
-    # ── 7) 闸 ──
-    extra = [p for pts in route_pts for p in pts]
-    ratio = trim_limits(ax, blocks, extra,
-                        pad_x=CANVAS_PAD_X,
-                        pad_top=CANVAS_PAD_Y + LANE_LABEL_ALLOW,
-                        pad_bot=CANVAS_PAD_Y + LANE_LABEL_ALLOW,
-                        set_lim=False)
+    # ── 7) 画布终裁（R5）：墨水包围盒 + 统一边距，1unit=1in 契约随 resize 保持。
+    # v8.0.4 替换旧几何预留裁剪（按 lane 预留对称扩边=judged 实锤的
+    # 「左侧整条空白/上下失衡」根因）；占比改按**面积**诚实计算。
+    fig.canvas.draw()
+    _rend = fig.canvas.get_renderer()
+    _bbs = []
+    for _a in (*ax.patches, *ax.lines, *ax.texts):
+        try:
+            _bbs.append(_a.get_window_extent(_rend))
+        except Exception:
+            pass
+    _inv = ax.transData.inverted()
+    _pts = _inv.transform([(_b.x0, _b.y0) for _b in _bbs] +
+                          [(_b.x1, _b.y1) for _b in _bbs])
+    _ix0 = min(p[0] for p in _pts)
+    _ix1 = max(p[0] for p in _pts)
+    _iy0 = min(p[1] for p in _pts)
+    _iy1 = max(p[1] for p in _pts)
+    # 自适应边距（v8.0.4）：按内容尺寸比例取边距、常数封顶——封顶值已按
+    # savefig bbox_inches='tight' 的 pad_inches=0.1 第二层边距校准（双层叠加
+    # 会稀释面积占比：论文 fig2 实测引擎 0.28+save 0.2 → 面积 71.8%<75% DoD）。
+    _pad_x = min(0.18, max((_ix1 - _ix0) * 0.04, 0.10))
+    _pad_y = min(0.20, max((_iy1 - _iy0) * 0.12, 0.10))
+    _lx0, _ly0 = _ix0 - _pad_x, _iy0 - _pad_y
+    _lx1, _ly1 = _ix1 + _pad_x, _iy1 + _pad_y
+    ax.set_xlim(_lx0, _lx1)
+    ax.set_ylim(_ly0, _ly1)
+    fig.set_size_inches(max(_lx1 - _lx0, 1.5), max(_ly1 - _ly0, 1.5))
+    ax.set_position([0, 0, 1, 1])
+    ratio = ((_ix1 - _ix0) * (_iy1 - _iy0)) / max((_lx1 - _lx0) * (_ly1 - _ly0), 1e-9)
     ax.axis("off")
+    fig.canvas.draw()  # 终裁后刷新变换，闸门按最终几何测量
+
+    # ── 8) 闸 ──
     violations = []
     if gate == "strict":
         violations = gate_strict(ax, fig, blocks, label_bboxes, route_lines,

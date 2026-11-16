@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v8.0.2: Publication-quality academic figure generator.
+academic-figures v8.0.4: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -1696,7 +1696,9 @@ def validate_data(data, chart_type):
     elif chart_type == "flow":
         nodes = data.get("nodes", [])
         if not isinstance(nodes, list) or len(nodes) < 2: fatal.append("flow 需要 'nodes'（≥2 个节点对象）")
-        if data.get("layout") not in (None, "chain", "layered"): fatal.append("flow: layout 只支持 chain | layered")
+        if data.get("layout") not in (None, "chain", "layered", "snake"): fatal.append("flow: layout 只支持 chain | layered | snake")
+        _cols = data.get("columns")
+        if _cols is not None and (not str(_cols).lstrip("-").isdigit() or not 2 <= int(_cols) <= 8): fatal.append(f"flow: columns 需为 [2, 8] 整数，收到 {_cols!r}")  # v8.0.4 validate-first [2,8]（渲染层同锁）
 
     # ── prisma: PRISMA 2020 flow, counts + arithmetic consistency gates ──
     elif chart_type == "prisma":
@@ -2627,7 +2629,7 @@ def main():
     parser.add_argument("--cmap", default=None, help="热图配色映射（colormap）"); parser.add_argument("--vmin", type=float, default=None, help="热图色阶下限")
     parser.add_argument("--vmax", type=float, default=None, help="热图色阶上限")
     parser.add_argument("--annot", nargs="?", const="auto", default=None, metavar="on|auto|off", help="热图格内数值标注（v7.9.1：auto=超 30 行/列自动隐藏）；--cell-edge 格线描边（低对比色阶保结构）"); parser.add_argument("--cell-edge", action="store_true", help=argparse.SUPPRESS)
-    parser.add_argument("--discrete", action="store_true", help="热图离散色阶（有序离散标度：阶梯映射+离散色标，v7.9.1）"); parser.add_argument("--palette", default=None, metavar='"#hex,#hex,..."', help="外部配色注入（v7.9.1）：分类图按序替换主题系列色，热图按给定顺序构建连续色阶（浅端对齐低值）")
+    parser.add_argument("--discrete", action="store_true", help="热图离散色阶（有序离散标度：阶梯映射+离散色标，v7.9.1）"); parser.add_argument("--palette", default=None, metavar='"#hex,#hex,..."', help="外部配色注入（v7.9.1）：分类图按序替换主题系列色，热图按给定顺序构建连续色阶（浅端对齐低值）；flow 图取首色为主链基色、尾色为终点强调色，自动衍生同族明度阶梯（v8.0.4）")
     parser.add_argument("--horizontal", action="store_true", help="水平柱状图（即 hbar）"); parser.add_argument("--hatch", nargs="?", const="on", default=None, metavar="on|off", help="柱体加斜线填充（打印友好）；--hatch off 显式关闭（含品牌默认斜纹）")
     parser.add_argument("--alternate", action="store_true",
                         help="GLM 风格：单系列柱子交替前两种主题色")
@@ -2940,8 +2942,7 @@ def main():
     theme = THEMES[theme_key]
     if _pal:  # v7.9.1 G1：palette 覆盖系列色（theme 定型后；热图色阶走 payload）
         theme = dict(theme); theme["colors"] = _pal
-    if getattr(args, "theme", None) and args.type in ("heatmap", "cluster_heatmap"):
-        print("NOTICE: 热图单元格配色由 --cmap/--vmin/--vmax 决定（--theme 只影响轴/文字），格色不变属预期", file=sys.stderr)  # v7.9.1 AF31
+    if getattr(args, "theme", None) and args.type in ("heatmap", "cluster_heatmap"): print("NOTICE: 热图单元格配色由 --cmap/--vmin/--vmax 决定（--theme 只影响轴/文字），格色不变属预期", file=sys.stderr)  # v7.9.1 AF31
 
     # ── v3.2：自动行为透明化（[auto] 前缀显式告知）──
     if args.journal and getattr(args, "width", None):
