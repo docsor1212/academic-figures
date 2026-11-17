@@ -9074,11 +9074,12 @@ class TestV80600(unittest.TestCase):
         d = parse_mermaid(
             "flowchart LR\n    subgraph Sites\n    A(x) --> B[y]\n    end\n"
             "    subgraph DCC\n    C{q} --> D[(db)]\n    end\n    B --> C\n")
-        self.assertEqual(d["layout"], "swimlane")
-        self.assertEqual(d["lanes"], ["Sites", "DCC"])
-        lane_by_id = {n["id"]: n["lane"] for n in d["nodes"]}
-        self.assertEqual(lane_by_id["A"], 0)
-        self.assertEqual(lane_by_id["C"], 1)
+        # v8.0.6 质量决策：subgraph→groups（layered 既有已验证能力）——
+        # swimlane 引擎 experimental，mermaid 默认路径不接
+        self.assertEqual(d["layout"], "layered")
+        groups = {g["label"]: g["blocks"] for g in d.get("groups", [])}
+        self.assertEqual(groups.get("Sites"), ["A", "B"])
+        self.assertEqual(groups.get("DCC"), ["C", "D"])
 
     def test_from_mermaid_end_to_end_strict(self):
         """--from-mermaid 端到端：经典+subgraph 两例 strict 渲染。"""

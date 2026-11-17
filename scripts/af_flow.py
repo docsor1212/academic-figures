@@ -305,9 +305,9 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
             bmap[i]["y"] = col_ys[ci]
             col_ys[ci] += bmap[i]["h"] + ROW_GAP
         _max_col_h = max(col_ys) - ROW_GAP
-        for i in ids:   # 镜像：首个节点在顶
-            bmap[i]["y"] = _max_col_h - bmap[i]["y"] - bmap[i]["h"] + 0.72
-        _lane_h = _max_col_h + 0.72 + 0.30
+        for i in ids:   # 镜像：首个节点在顶（顶=H+0.95，band 底=H+0.72→间隙 0.23）
+            bmap[i]["y"] = _max_col_h - bmap[i]["y"] - bmap[i]["h"] + 0.95
+        _lane_h = _max_col_h + 0.95 + 0.30
         _geo = [{"x": col_x[ci] - 0.18, "w": col_w[ci] + 0.36,
                  "y": 0.0, "h": _lane_h, "label": _lane_names[ci]}
                 for ci in range(len(_lane_names))]
@@ -480,6 +480,11 @@ def _edge_between(src, dst):
 def _lane_y(blocks, side, level):
     tops = max(_bbox(b)[3] for b in blocks)
     bots = min(_bbox(b)[1] for b in blocks)
+    if "_lanes_geo" in blocks[0]:
+        # swimlane：lane 绕行走泳道标题带之外（带 0.5+间隙）——
+        # 旧值落在带内=回边穿标题带（judge 实锤）
+        tops += 0.62
+        bots -= 0.62
     return (tops + LANE_GAP + LANE_STAGGER * level) if side > 0 else \
            (bots - LANE_GAP - LANE_STAGGER * level)
 
@@ -1289,10 +1294,11 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                                    _g["w"], 0.5, facecolor=_shade(_tc[0], 0.80),
                                    edgecolor=_shade(_tc[0], 0.55),
                                    linewidth=1.0, zorder=1))
+            _band_c = _shade(_tc[0], 0.80)
             ax.text(_g["x"] + _g["w"] / 2, _g["y"] + _g["h"] - 0.25,
                     _g["label"], ha="center", va="center",
                     fontsize=_fs_lane - 1, fontweight="bold",
-                    color=_shade(_tc[0], 0.45), zorder=2)
+                    color=_text_color(_band_c), zorder=2)
 
     label_artists, label_bboxes = [], []
     # v8.0.4 顶刊角色化配色：同族明度阶梯 + 终点唯一强调色，

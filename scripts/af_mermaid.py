@@ -190,10 +190,19 @@ def parse_mermaid(text):
     if not nodes_by_id:
         raise ValueError("mermaid: 未发现任何节点定义（需 flowchart 声明+节点）")
     nodes = [nodes_by_id[i] for i in order]
-    out = {"layout": "layered" if not lanes else "swimlane",
-           "direction": direction, "nodes": nodes, "edges": edges}
+    # v8.0.6 决策：subgraph → groups（layered 布局虚线框，既有已验证能力）。
+    # swimlane 引擎已实现但视觉质量未达顶刊（judge 两轮 6 类缺陷在修）——
+    # mermaid 默认路径不接 experimental 布局，质量红线优先。
+    out = {"layout": "layered", "direction": direction,
+           "nodes": nodes, "edges": edges}
     if lanes:
-        out["lanes"] = lanes
+        _groups = []
+        for lname in lanes:
+            _blk = [nid for nid in order if node_lane.get(nid) == lname]
+            if _blk:
+                _groups.append({"blocks": _blk, "label": lname})
+        if _groups:
+            out["groups"] = _groups
         for n in nodes:
             n["lane"] = lanes.index(node_lane[n["id"]]) \
                 if n["id"] in node_lane else 0
