@@ -183,7 +183,7 @@ python3 scripts/gen_figure.py -t heatmap -d data.json -o heatmap.png --cjk \
 | Composite | **Composite** | `-t composite` | Multi-panel A+B+C (⚠ no nested composite/diagram/upset panels); `panel_labels:true` corner letters (v4.1); `span:[rows,cols]` multi-cell panels with overlap detection (v4.3) |
 | Flow | **Diagram** | `-t diagram` | Architecture/flow blocks, arrows, groupings, annotations |
 | Review | **PRISMA Flow** | `-t prisma` | PRISMA 2020 review flow; counts auto-validated (must add up), EN/ZH wording via `lang` |
-| Flow | **Semantic Flowchart** | `-t flow` | Semantic JSON (nodes/edges, zero coordinates); auto-layout chain/layered; magnet arrows, lane back-edges, ink-verified labels; `--gate strict` triple-bbox gate |
+| Flow | **Semantic Flowchart** | `-t flow` | Semantic JSON (nodes/edges, zero coordinates); layouts chain/layered/snake; 14 semantic shapes (decision diamond, database cylinder, I/O, terminal, subprocess...) + role palette; edge types thick/bidirectional/open/dashed; magnet arrows, lane back-edges, ink-verified labels; `--gate strict` triple-bbox + area gates |
 
 Scan the Category column at a glance; getting-started path in `references/quickstart.md`, full command cheatsheet in `references/cheatsheet.md`.
 

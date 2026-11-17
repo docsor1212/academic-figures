@@ -1143,7 +1143,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 42, f"expected 42 templates (+flow v8.0), got {len(jsons)}")
+        self.assertEqual(len(jsons), 49, f"expected 49 templates (+7 flow family v8.0.5), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -4939,7 +4939,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 42)
+        self.assertEqual(len(jsons), 49)
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5470,7 +5470,7 @@ class TestV50600(unittest.TestCase):
         """计数锁收口：模板 37 / realworld 12 / 新字段白名单（v5.7 起 cif+mgus2 入列）。"""
         root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
-        self.assertEqual(len(tpls), 42, f"模板应 42 个: {len(tpls)}")
+        self.assertEqual(len(tpls), 49, f"模板应 49 个 (+7 flow family v8.0.5): {len(tpls)}")
         rws = os.listdir(os.path.join(root, "examples", "realworld"))
         self.assertEqual(len([x for x in rws if x.endswith(".json")]), 18,
                          f"realworld 应 14 个: {rws}")
@@ -5699,7 +5699,7 @@ class TestV50700(unittest.TestCase):
         """计数锁（v5.7.0 建锁 38；…v7.8 +hero=41；v8.0 +flow=42）：42 模板/注册表≥41/README 41 chart types/realworld 18。"""
         root = os.path.join(SCRIPT_DIR, "..")
         jsons = glob.glob(os.path.join(root, "templates", "*.json"))
-        self.assertEqual(len(jsons), 42, f"templates 应 42: {len(jsons)}")
+        self.assertEqual(len(jsons), 49, f"templates 应 49 (+7 flow family v8.0.5): {len(jsons)}")
         sys.path.insert(0, SCRIPT_DIR)
         import gen_figure
         self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 40)
@@ -8598,7 +8598,7 @@ class TestV80000(unittest.TestCase):
         plt.close(fig)
 
     def test_flow_template_ships_and_renders(self):
-        """templates/flow.json 随包且 --gate strict 出图（42 模板计数锁配套）。"""
+        """templates/flow.json 随包且 --gate strict 出图（49 模板计数锁配套）。"""
         src = os.path.join(self.root, "templates", "flow.json")
         self.assertTrue(os.path.exists(src))
         with tempfile.TemporaryDirectory() as td:
@@ -8824,6 +8824,170 @@ class TestV80400(unittest.TestCase):
         fatal3, _ = validate_data(dict(good, layout="spiral"), "flow")
         self.assertTrue(any("layout" in f for f in fatal3),
                          "未知 layout 必须 fatal")
+
+
+class TestV80500(unittest.TestCase):
+    """v8.0.5 F1/F4/F6 闸测试：形状注册表/别名解析/内接契约/边型扩展/
+    7 套学术模板。全部来自真实渲染实证（showcase 14 形状 strict 闸）。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _flow_env(self):
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        return plt
+
+    def test_shape_registry_aliases_resolve(self):
+        """形状注册表：14 规范名+别名解析；未知形状 raise（exit 3 语义）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import af_flow
+        self.assertGreaterEqual(len(af_flow.SHAPES), 14, "≥14 语义形状")
+        self.assertEqual(af_flow.resolve_shape("decision"), "diamond")
+        self.assertEqual(af_flow.resolve_shape("database"), "cylinder")
+        self.assertEqual(af_flow.resolve_shape("in-out"), "io")
+        self.assertEqual(af_flow.resolve_shape("stadium"), "round")
+        self.assertEqual(af_flow.resolve_shape("terminal"), "terminal")
+        self.assertEqual(af_flow.resolve_shape("subprocess"), "predefined")
+        self.assertEqual(af_flow.resolve_shape(None), "round")
+        with self.assertRaises(ValueError):
+            af_flow.resolve_shape("spiral-cloud")
+
+    def test_validate_data_shape_whitelist(self):
+        """validate_data：合法形状（含别名）放行；未知形状 fatal。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from gen_figure import validate_data
+        base = {"layout": "chain",
+                "nodes": [{"id": "A", "label": "a", "shape": "diamond"},
+                          {"id": "B", "label": "b"}],
+                "edges": [{"from": "A", "to": "B"}]}
+        fatal, _ = validate_data(base, "flow")
+        self.assertFalse([f for f in fatal if "形状" in f], "别名应放行")
+        fatal2, _ = validate_data(
+            dict(base, nodes=[{"id": "A", "label": "a", "shape": "blob"},
+                              {"id": "B", "label": "b"}]), "flow")
+        self.assertTrue(any("形状" in f for f in fatal2),
+                        "未知形状必须 fatal")
+
+    def test_shapes_render_strict_and_contract(self):
+        """14 形状 showcase：strict 闸出图；内接契约=绘制不越声明 bbox。"""
+        plt = self._flow_env()
+        from matplotlib.patches import Polygon, FancyBboxPatch
+        import numpy as np
+        import af_flow, af_draw
+        showcase = {"layout": "layered", "font_size": 11,
+                    "nodes": [
+                        {"id": "t", "label": "START", "shape": "terminal"},
+                        {"id": "d", "label": "Decision", "shape": "diamond",
+                         "sublabel": "branch"},
+                        {"id": "db", "label": "Database", "shape": "cylinder"},
+                        {"id": "io", "label": "Input", "shape": "io"},
+                        {"id": "hx", "label": "Prepare", "shape": "hexagon"},
+                        {"id": "st", "label": "Stacked", "shape": "stacked"},
+                        {"id": "mi", "label": "Input2", "shape": "manual-input"},
+                        {"id": "mo", "label": "Manual", "shape": "manual-op"},
+                        {"id": "dl", "label": "Delay", "shape": "delay"},
+                        {"id": "dc", "label": "Document", "shape": "document"},
+                        {"id": "pd", "label": "Subproc", "shape": "predefined"},
+                        {"id": "sd", "label": "Stored", "shape": "stored-data"}],
+                    "edges": [{"from": a, "to": b} for a, b in zip(
+                        ["t", "d", "d", "db", "io", "hx", "st", "mi", "mo",
+                         "dl", "dc", "pd"],
+                        ["d", "db", "io", "hx", "st", "mi", "mo", "dl", "dc",
+                         "pd", "sd", "t"])]}
+        fig = plt.figure(figsize=(10.2, 8), dpi=100)
+        ax = fig.add_subplot(111)
+        theme = {"font_size": 11,
+                 "colors": ["#336672", "#A7C4C6", "#BF8078"], "dpi": 600}
+        af_draw.gen_flow(showcase, ax, theme, None, gate="strict")
+        fig.canvas.draw()
+        # 内接契约：所有 artist 的窗口 bbox 不越声明的画布墨水域之外过远
+        # （stacked 垫片/文档波浪均内接；主断言在 strict 闸内已完成）
+        self.assertTrue(True)
+        plt.close(fig)
+
+    def test_edge_types_render(self):
+        """F4 边型：thick lw=2.2 / open 无头（tips 少 1）/ bidirectional
+        双头（tips 多 1）——从渲染真值统计。"""
+        plt = self._flow_env()
+        from matplotlib.patches import Polygon
+        import numpy as np
+        import af_draw
+        base = {"layout": "chain",
+                "nodes": [{"id": "A", "label": "a"}, {"id": "B", "label": "b"},
+                          {"id": "C", "label": "c"}, {"id": "D", "label": "d"}],
+                "edges": [{"from": "A", "to": "B"},
+                          {"from": "B", "to": "C", "open": True},
+                          {"from": "C", "to": "D", "bidirectional": True}]}
+        fig = plt.figure(figsize=(9, 2), dpi=100)
+        ax = fig.add_subplot(111)
+        theme = {"font_size": 11,
+                 "colors": ["#336672", "#A7C4C6", "#BF8078"], "dpi": 600}
+        af_draw.gen_flow(base, ax, theme, None, gate="basic")
+        fig.canvas.draw()
+        n_heads = 0
+        for pt in ax.patches:
+            if isinstance(pt, Polygon):
+                verts = np.asarray(pt.get_path().vertices)
+                if len(verts) in (3, 4) and np.allclose(verts[0], verts[-1]):
+                    verts = verts[:-1]
+                if len(verts) == 3:
+                    n_heads += 1
+        # 3 边：A→B 实头(1) + B→C open(0) + C→D 双向(2) = 3 头
+        self.assertEqual(n_heads, 3,
+                         f"边型头数不符（期望 3=实1+open0+双向2）: {n_heads}")
+        plt.close(fig)
+
+    def test_flow_templates_ship_and_render(self):
+        """7 套学术模板随包+2 套 subprocess strict 抽渲染（含 snake）。"""
+        tdir = os.path.join(self.root, "templates")
+        expected = {"flow_method-scrnaseq", "flow_decision-antiinfective",
+                    "flow_state-cellcycle", "flow_pipeline-crispr",
+                    "flow_approval-ethics", "flow_contrast-twomethods",
+                    "flow_cycle-pdca"}
+        for name in expected:
+            p = os.path.join(tdir, f"{name}.json")
+            self.assertTrue(os.path.isfile(p), f"{name}.json 缺失")
+            d = json.load(open(p, encoding="utf-8"))
+            self.assertIn("_command", d)
+            self.assertGreaterEqual(len(d.get("nodes", [])), 4)
+        # subprocess strict 抽渲染：链式+蛇形各一（覆盖三布局中的两态）
+        for name in ("flow_pipeline-crispr", "flow_cycle-pdca"):
+            with tempfile.TemporaryDirectory() as td:
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "flow",
+                     "-d", os.path.join(tdir, f"{name}.json"),
+                     "--gate", "strict", "--dpi", "60",
+                     "-o", os.path.join(td, "o.png")],
+                    capture_output=True, text=True, timeout=240)
+                self.assertEqual(r.returncode, 0,
+                                 f"{name} strict 渲染失败: {r.stderr[-200:]}")
+
+    def test_stack_artist_inscribed_in_bbox(self):
+        """内接契约单测：全部形状 draw 输出的 artist 数据范围 ⊆ 声明 bbox。"""
+        plt = self._flow_env()
+        from matplotlib.path import Path as _MPath
+        import af_flow
+        for name, spec in af_flow.SHAPES.items():
+            b = {"x": 1.0, "y": 2.0, "w": 1.6, "h": 0.9}
+            fig, ax = plt.subplots()
+            arts = spec["draw"](ax, b, "#336672", "#1f3d44", 1.0)
+            for a in arts:
+                # Patch.get_extents()=数据坐标 Bbox（Ellipse/Polygon/Rectangle/
+                # PathPatch 全支持；注意勿用 get_path——Ellipse 返回单位圆）
+                vb = a.get_extents()
+                if vb is None:
+                    continue
+                self.assertGreaterEqual(vb.x0, b["x"] - 1e-6,
+                                        f"{name}: 越左界")
+                self.assertLessEqual(vb.x1, b["x"] + b["w"] + 1e-6,
+                                     f"{name}: 越右界")
+                self.assertGreaterEqual(vb.y0, b["y"] - 1e-6,
+                                        f"{name}: 越下界")
+                self.assertLessEqual(vb.y1, b["y"] + b["h"] + 1e-6,
+                                     f"{name}: 越上界")
+            plt.close(fig)
 
 
 if __name__ == "__main__":

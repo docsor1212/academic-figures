@@ -1699,6 +1699,12 @@ def validate_data(data, chart_type):
         if data.get("layout") not in (None, "chain", "layered", "snake"): fatal.append("flow: layout 只支持 chain | layered | snake")
         _cols = data.get("columns")
         if _cols is not None and (not str(_cols).lstrip("-").isdigit() or not 2 <= int(_cols) <= 8): fatal.append(f"flow: columns 需为 [2, 8] 整数，收到 {_cols!r}")  # v8.0.4 validate-first [2,8]（渲染层同锁）
+        # v8.0.5 F1：形状白名单前置校验（渲染层 resolve_shape 同锁）
+        from af_flow import SHAPES as _SH
+        _canon = set(_SH) | {a for s in _SH.values() for a in s["aliases"]}
+        for _n in nodes:
+            if isinstance(_n, dict) and _n.get("shape") and str(_n["shape"]).strip().lower() not in _canon:
+                fatal.append(f"flow: 未知形状 '{_n['shape']}'——可用: {', '.join(sorted(_SH))} 及别名")
 
     # ── prisma: PRISMA 2020 flow, counts + arithmetic consistency gates ──
     elif chart_type == "prisma":

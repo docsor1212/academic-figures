@@ -675,6 +675,53 @@ Draw colored blocks connected by arrows, with optional group boxes and annotatio
   - `fontsize`, `color`, `weight`, `ha`, `va` (optional): Styling
 
 
+## 语义流程图（`-t flow`，v8.0）
+
+语义 JSON 零坐标——只声明节点与边，引擎自动布局+路由+避让+裁剪。
+
+```json
+{
+  "layout": "chain | layered | snake",
+  "columns": 3,
+  "font_size": 16,
+  "direction": "TB",
+  "nodes": [
+    {"id": "qc", "label": "Viability QC", "sublabel": "threshold 80%",
+     "shape": "diamond", "color": "#336672"}
+  ],
+  "edges": [
+    {"from": "qc", "to": "lib", "label": "pass", "thick": true},
+    {"from": "lib", "to": "ref", "dashed": true}
+  ]
+}
+```
+
+- `layout`：`chain` 横链（--width 铺满）/ `layered` 分层（TB 自上而下，barycenter 对齐）/ `snake` 环绕折行（`columns` 2-8 指定每行节点数，长链宽高比 ~2:1 版心缩放后字号可读）
+- `font_size`（可选）：数据级字号 6-40（按目标版心宽反推，如 12in 横幅投 6.5in 版心用 16 → 落版约 8.5pt）
+- 节点 `shape`（v8.0.5，14 种+别名）：
+
+| 形状 | 语义 | 别名 |
+|---|---|---|
+| `round` | 过程（圆角） | stadium, event, rounded, pill |
+| `rect` | 过程（直角） | process, box |
+| `diamond` | 决策分支 | decision, question |
+| `cylinder` | 数据库/存储 | database, db, datastore |
+| `io` | 数据输入输出 | parallelogram, data, in-out |
+| `hexagon` | 准备条件 | prepare |
+| `terminal` | 起止（双圆） | start, stop, double-circle |
+| `stacked` | 多文档/多进程堆叠 | multi-process, stack |
+| `manual-input` | 人工输入（斜顶） | input |
+| `manual-op` | 人工操作（倒梯形） | manual, operation |
+| `delay` | 延迟等待 | — |
+| `document` | 文档输出 | doc |
+| `predefined` | 预定义子流程 | subprocess, subroutine |
+| `stored-data` | 存储数据（哑铃） | stored, disk |
+
+  非矩形形状文本区自动内接收缩，框尺寸按形状系数自动放大（文字装不下时引擎放大而非报错）；箭头入出点贴合实际轮廓（斜顶/菱形顶点）。
+- 节点 `color`（可选）：显式色优先；缺省=角色化配色（同族明度阶梯沿流程深度+终点唯一强调色）。`--palette "#hex,..."` 注入自定义板（首色=基色、尾色=强调色）。
+- 边字段（v8.0.5）：`label` 文字 / `dashed` 虚线（回边）/ `thick` 粗线 / `bidirectional` 双头 / `open` 无头线 / `color` / `label_color`
+- `--gate strict`：三层 bbox 断言+面积占比闸，违规 exit 2 拒绝交付（投稿图必开）
+
 ## PRISMA 流程图（`-t prisma`，v2.1.0 新增）
 
 PRISMA 2020 系统综述流程图。必需字段：`records_identified`、`studies_included`。
