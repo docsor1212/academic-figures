@@ -3001,8 +3001,10 @@ def gen_flow(data, ax, theme, cjk_fp, **kwargs):
     theme = dict(theme)
     theme["colors"] = kwargs.get("palette") or _FLOW_SERIES
     layout = str(data.get("layout", "chain")).strip().lower()
-    if layout not in ("chain", "layered", "snake"):
-        raise ValueError("flow: layout 只支持 'chain' | 'layered' | 'snake'")
+    if layout not in ("chain", "layered", "snake", "swimlane"):
+        raise ValueError("flow: layout 只支持 'chain' | 'layered' | 'snake' | 'swimlane'")
+    if layout == "swimlane" and not data.get("lanes"):
+        raise ValueError("flow: layout=swimlane 需要 'lanes'（名称列表）")
     _cols = data.get("columns")
     if _cols is not None:
         try:
@@ -3025,7 +3027,7 @@ def gen_flow(data, ax, theme, cjk_fp, **kwargs):
         raise ValueError(f"flow: font_size 超出许可区间 [6, 40]，收到 {_fs}")
     theme["font_size"] = _fs   # render() 内部同样从 theme 读 fs，保持同源
     blocks = af_flow.layout_semantic(nodes, edges, layout=layout, direction=direction,
-                                     columns=_cols,
+                                     columns=_cols, lanes=data.get("lanes"),
                                      ax=ax, fs=_fs, cjk_fp=cjk_fp)
     arrows = [{"from": e["from"], "to": e["to"], **{k: v for k, v in e.items()
                if k in ("label", "dashed", "color", "label_color", "thick",
