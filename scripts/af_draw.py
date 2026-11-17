@@ -3028,7 +3028,8 @@ def gen_flow(data, ax, theme, cjk_fp, **kwargs):
                                      columns=_cols,
                                      ax=ax, fs=_fs, cjk_fp=cjk_fp)
     arrows = [{"from": e["from"], "to": e["to"], **{k: v for k, v in e.items()
-               if k in ("label", "dashed", "color", "label_color")}}
+               if k in ("label", "dashed", "color", "label_color", "thick",
+                        "bidirectional", "open")}}
               for e in edges]
     violations, ratio = af_flow.render(
         ax, ax.figure, blocks, arrows,

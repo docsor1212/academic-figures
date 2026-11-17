@@ -21,6 +21,10 @@ R1 磁吸逐段箭头零穿框+lane 回边+虚线生效；R2 边标签墨迹级�
 import math
 import sys
 
+# v8.0.5 F1：形状注册表绘制原语在模块层解析（draw 闭包非 render 局部作用域）
+from matplotlib.patches import (FancyBboxPatch, Polygon, Rectangle, Ellipse,
+                                PathPatch)
+
 # ── 常量（单位=英寸；pt→inch 换算 1pt=1/72in） ──────────────────────────
 LANE_GAP = 0.45          # 回边 lane 与内容外缘的最小间距
 LANE_STAGGER = 0.38      # 多条回边错层步距
@@ -205,8 +209,13 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
                                       for ln in sub_lines), default=0.3))
             h_text += measure_in(ax, "\n".join(sub_lines), max(fs - 2, fs * 0.8),
                                  _fp_s, ls=LINE_K)[1] + 0.05
-        w = min(4.6, max(w_text + 2 * BOX_PAD_X + 0.08, 1.5))
-        h = max(h_text + 2 * BOX_PAD_Y + 0.06, 0.62)
+        # v8.0.5 F1：非矩形形状按文本内接系数放大框（菱形×0.54 可用区→
+        # 框=需求/tw），文本需求在 layout 期就满足——render 期 fit_text
+        # 不再因形状收缩而拒（顶刊体验=引擎自动放大，而非报错）
+        _spec = SHAPES[resolve_shape(n.get("shape", "round"))]
+        _tw, _th = _spec["tb"]
+        w = min(4.6, max((w_text + 2 * BOX_PAD_X + 0.08) / _tw, 1.5))
+        h = max((h_text + 2 * BOX_PAD_Y + 0.06) / _th, 0.62)
         blocks.append({"id": n["id"], "label": _lab, "sublabel": _sub,
                        "w": w, "h": h, "color": n.get("color"),
                        "shape": n.get("shape", "round")})
@@ -381,9 +390,22 @@ def magnet(src, dst, attach_in=0, attach_out=0, force_key=None):
     dx = dcx - attach_in * EDGE_STAGGER
     if abs(dcx - scx) <= 0.25:
         sx = dx  # 同列对齐：起终点共 x（直降无 Z 折）
-    if dcy >= scy:
-        return (sx, sy1), (dx, dy0 + EDGE_NIB)
-    return (sx, sy0), (dx, dy1 - EDGE_NIB)
+    # v8.0.5 边贴合：非平顶/平底形状（斜顶/顶点/收腰）入出点按**实际轮廓
+    # 高度**取——at_t/at_b 语义=该 x 处轮廓边的 y 分数（1.0=bbox 顶 dy1，
+    # 0.0=bbox 底 dy0）。入点在边外 |EDGE_NIB| 处，出点在边线上。
+    _ss = resolve_shape(src.get("shape", "round"))
+    _ds = resolve_shape(dst.get("shape", "round"))
+    if dcy >= scy:   # 目标在上：源顶出 / 目标底边入（外偏 |NIB|=下方向）
+        _ofx, _oy = _edge_fit(_ss, "t", (sx - sx0) / max(sx1 - sx0, 1e-9))
+        _ifx, _iy = _edge_fit(_ds, "b", (dx - dx0) / max(dx1 - dx0, 1e-9))
+        return ((sx0 + _ofx * (sx1 - sx0), sy0 + _oy * (sy1 - sy0)),
+                (dx0 + _ifx * (dx1 - dx0),
+                 dy0 + _iy * (dy1 - dy0) + EDGE_NIB))
+    _ofx, _oy = _edge_fit(_ss, "b", (sx - sx0) / max(sx1 - sx0, 1e-9))
+    _ifx, _iy = _edge_fit(_ds, "t", (dx - dx0) / max(dx1 - dx0, 1e-9))
+    return ((sx0 + _ofx * (sx1 - sx0), sy0 + _oy * (sy1 - sy0)),
+            (dx0 + _ifx * (dx1 - dx0),
+             dy0 + _iy * (dy1 - dy0) - EDGE_NIB))  # 顶边入=框外上方 |NIB|
 
 
 def _seg_hits(p0, p1, blocks, skip_ids):
@@ -477,10 +499,29 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
     sx0, sy0, sx1, sy1 = _bbox(src)
     dx0, dy0, dx1, dy1 = _bbox(dst)
 
+    def _v_corridor_y(x, y_from, going_up=True, sd=1, lv=1):
+        """x 列上方（或下方）首个障碍的下/上沿-0.15；无障碍→lane 高度。
+        v8.0.5：V lane 直升段穿中间层框（形状放大后布局变密实锤）→
+        首段先升到障碍之下，横移到 lane x 后再升。"""
+        _ly = _lane_y(blocks, sd, lv)
+        best = _ly
+        for b in blocks:
+            if b["id"] in _skip:
+                continue
+            bx0, by0, bx1, by1 = _bbox(b)
+            if bx0 - 0.05 <= x <= bx1 + 0.05:
+                if going_up and by0 > y_from + 0.05 and by0 - 0.15 < best:
+                    best = by0 - 0.15
+                if not going_up and by1 < y_from - 0.05 and by1 + 0.15 > best:
+                    best = by1 + 0.15
+        return best
+
     def _lane_pts(sd, lv):
-        # 终点与磁吸同纪律：负咬合回退（EDGE_NIB=-0.01），尖端止于描边外沿——
-        # v8.0.4 补：lane 终点原先裸取框边线（apex 压描边中心=刺外沿 4px@600dpi，
-        # 论文 fig2 回边实测抓获）
+        # 终点与磁吸同纪律：负咬合回退（EDGE_NIB=-0.01），尖端止于描边外沿。
+        # v8.0.5 边贴合：V lane 终点按形状实际轮廓高度取（斜顶/顶点）；
+        # 首末垂直段经走廊探测避障（5 段 L-L-L 形，judge 实锤穿层根除）
+        _ss = resolve_shape(src.get("shape", "round"))
+        _ds = resolve_shape(dst.get("shape", "round"))
         if key == "H":
             ly = _lane_y(blocks, sd, lv)
             return [((sx0 + sx1) / 2, sy1 if sd > 0 else sy0),
@@ -490,10 +531,31 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
         lx = (max(_bbox(b)[2] for b in blocks) + LANE_GAP + LANE_STAGGER * lv) \
             if sd > 0 else \
             (min(_bbox(b)[0] for b in blocks) - LANE_GAP - LANE_STAGGER * lv)
-        return [(sx1 if sd > 0 else sx0, (sy0 + sy1) / 2),
-                (lx, (sy0 + sy1) / 2),
-                (lx, (dy0 + dy1) / 2),
-                ((dx1 - EDGE_NIB) if sd > 0 else (dx0 + EDGE_NIB), (dy0 + dy1) / 2)]
+        _dfx = ((dx0 + dx1) / 2 - dx0) / max(dx1 - dx0, 1e-9)
+        _ly = _lane_y(blocks, sd, lv)
+        if sd > 0:   # 上行 lane：从源顶出、目标顶入
+            _ofx, _oy = _edge_fit(_ss, "t", ((sx0 + sx1) / 2 - sx0) / max(sx1 - sx0, 1e-9))
+            _ifx, _iy = _edge_fit(_ds, "t", _dfx)
+            _px = sx0 + _ofx * (sx1 - sx0)
+            _py = sy0 + _oy * (sy1 - sy0)
+            _yv1 = _v_corridor_y(_px, _py, going_up=True, sd=sd, lv=lv)
+            _qx = dx0 + _ifx * (dx1 - dx0)
+            _yv2 = _v_corridor_y(_qx, dy0 + _iy * (dy1 - dy0), going_up=True, sd=sd, lv=lv)
+            _yv2 = max(_yv2, min(_yv1, dy0 + _iy * (dy1 - dy0) + 0.3))
+            return [(_px, _py), (_px, _yv1), (lx, _yv1), (lx, _yv2),
+                    (_qx, _yv2), (dx0 + _ifx * (dx1 - dx0),
+                                  dy0 + _iy * (dy1 - dy0) - EDGE_NIB)]
+        _ofx, _oy = _edge_fit(_ss, "b", ((sx0 + sx1) / 2 - sx0) / max(sx1 - sx0, 1e-9))
+        _ifx, _iy = _edge_fit(_ds, "b", _dfx)
+        _px = sx0 + _ofx * (sx1 - sx0)
+        _py = sy0 + _oy * (sy1 - sy0)
+        _yv1 = _v_corridor_y(_px, _py, going_up=False, sd=sd, lv=lv)
+        _qx = dx0 + _ifx * (dx1 - dx0)
+        _yv2 = _v_corridor_y(_qx, dy0 + _iy * (dy1 - dy0), going_up=False, sd=sd, lv=lv)
+        _yv2 = min(_yv2, max(_yv1, dy0 + _iy * (dy1 - dy0) - 0.3))
+        return [(_px, _py), (_px, _yv1), (lx, _yv1), (lx, _yv2),
+                (_qx, _yv2), (dx0 + _ifx * (dx1 - dx0),
+                              dy0 + _iy * (dy1 - dy0) + EDGE_NIB)]
 
     def _segs_hit(pts):
         for k in range(len(pts) - 1):
@@ -664,7 +726,6 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
                       max(_midy(route_pts), cy)],
                     color=color, lw=0.7, alpha=0.75, zorder=5)
             return t, bb
-        t.remove()
     # 折行重试于框行上方
     if "\n" not in _txt and " " in _txt:
         _txt2 = _txt.replace(" ", "\n", 1)
@@ -780,6 +841,231 @@ def trim_limits(ax, blocks, extra_pts=(), pad=0.4, ratio_hint=True,
 def _text_color(bg):
     from af_shared import cell_text_color
     return cell_text_color(bg)
+
+
+# ── F1 形状注册表（v8.0.5）：语义形状绘制原语 + 文本内接系数 ─────────────
+# 契约与 round/rect 完全一致：几何 bbox = 声明 b["x..w"]，全部绘制内接其中
+# （磁吸/strict 闸/apex 断言零特判）；draw() 返回 artist 或 artist 列表。
+# tb = (w_frac, h_frac)：fit_text 可用区系数（菱形内接矩形×0.55 等）；
+# ty = 文字中心相对 bbox 中心的 y 偏移分数（cylinder 偏下避顶部椭圆）。
+# 形状语义对齐 mermaid v11.3+ 官方命名（学术高频 12 形子集）。
+
+def _sh_round(ax, b, fc, ec, lw):
+    return [FancyBboxPatch((b["x"], b["y"]), b["w"], b["h"],
+                           boxstyle="round,pad=0,rounding_size=0.14",
+                           facecolor=fc, edgecolor=ec, linewidth=lw, zorder=3)]
+
+
+def _sh_rect(ax, b, fc, ec, lw):
+    return [FancyBboxPatch((b["x"], b["y"]), b["w"], b["h"],
+                           boxstyle="square,pad=0", facecolor=fc, edgecolor=ec,
+                           linewidth=lw, zorder=3)]
+
+
+def _sh_poly(pts):
+    def _draw(ax, b, fc, ec, lw):
+        return [Polygon([(b["x"] + px * b["w"], b["y"] + py * b["h"])
+                         for (px, py) in pts], closed=True,
+                        facecolor=fc, edgecolor=ec, linewidth=lw, zorder=3)]
+    return _draw
+
+
+def _sh_diamond(ax, b, fc, ec, lw):
+    return _sh_poly([(0.5, 1.0), (1.0, 0.5), (0.5, 0.0), (0.0, 0.5)])(
+        ax, b, fc, ec, lw)
+
+
+def _sh_cylinder(ax, b, fc, ec, lw):
+    """数据库圆柱：底椭圆+矩形身+顶椭圆（顶椭圆盖住身顶边=经典投影画法）。"""
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    ry = h * 0.10
+    from matplotlib.patches import Ellipse
+    bottom = Ellipse((x + w / 2, y + ry), w, 2 * ry, facecolor=fc,
+                     edgecolor=ec, linewidth=lw, zorder=3)
+    body = Rectangle((x, y + ry), w, h - 2 * ry, facecolor=fc,
+                     edgecolor="none", zorder=3)
+    top = Ellipse((x + w / 2, y + h - ry), w, 2 * ry, facecolor=fc,
+                  edgecolor=ec, linewidth=lw, zorder=3)
+    # 身体侧边两条竖线（矩形边被 none 藏了，重画左右边）
+    side_l = Rectangle((x, y + ry), 0.004, h - 2 * ry, facecolor=ec,
+                       edgecolor="none", zorder=3)
+    side_r = Rectangle((x + w - 0.004, y + ry), 0.004, h - 2 * ry,
+                       facecolor=ec, edgecolor="none", zorder=3)
+    return [bottom, body, side_l, side_r, top]
+
+
+def _sh_dblcircle(ax, b, fc, ec, lw):
+    """起止双圆：外描边环+内填充圆。"""
+    from matplotlib.patches import Ellipse
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    outer = Ellipse((x + w / 2, y + h / 2), w, h, facecolor=fc,
+                    edgecolor=ec, linewidth=lw * 1.4, zorder=3)
+    inner = Ellipse((x + w / 2, y + h / 2), w * 0.86, h * 0.86,
+                    facecolor=fc, edgecolor=ec, linewidth=lw, zorder=3)
+    return [outer, inner]
+
+
+def _sh_stacked(ax, b, fc, ec, lw):
+    """多文档/多进程堆叠：主框内缩，垫片向外——bbox 外沿=最外垫片（
+    内接契约：绘制绝不越出声明 bbox，磁吸/闸零特判）。"""
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    dx = min(0.10, w * 0.12)
+    dy = min(0.10, h * 0.12)
+    back = FancyBboxPatch((x, y), w, h,
+                          boxstyle="square,pad=0", facecolor=fc,
+                          edgecolor=ec, linewidth=lw * 0.8, zorder=2)
+    mid = FancyBboxPatch((x + dx / 2, y + dy / 2), w - dx, h - dy,
+                         boxstyle="square,pad=0", facecolor=fc,
+                         edgecolor=ec, linewidth=lw * 0.8, zorder=2)
+    main = FancyBboxPatch((x + dx, y + dy), w - 2 * dx, h - 2 * dy,
+                          boxstyle="square,pad=0",
+                          facecolor=fc, edgecolor=ec, linewidth=lw, zorder=3)
+    return [back, mid, main]
+
+
+def _sh_predefined(ax, b, fc, ec, lw):
+    """预定义子流程：矩形+左右双竖线。"""
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    main = FancyBboxPatch((x, y), w, h, boxstyle="square,pad=0",
+                          facecolor=fc, edgecolor=ec, linewidth=lw, zorder=3)
+    off = min(0.10 * w, 0.18)
+    l1 = Rectangle((x + off, y), 0.008, h, facecolor=ec,
+                   edgecolor="none", zorder=3)
+    l2 = Rectangle((x + w - off, y), 0.008, h, facecolor=ec,
+                   edgecolor="none", zorder=3)
+    return [main, l1, l2]
+
+
+def _sh_document(ax, b, fc, ec, lw):
+    """文档形状：矩形+底边波浪（贝塞尔）。"""
+    from matplotlib.path import Path as _MPath
+    from matplotlib.patches import PathPatch
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    wav = h * 0.14
+    verts = [(x, y + wav), (x, y + h), (x + w, y + h), (x + w, y + wav),
+             (x + w * 0.75, y + wav - wav * 0.9),
+             (x + w * 0.5, y + wav + wav * 0.9),
+             (x + w * 0.25, y + wav - wav * 0.9), (x, y + wav)]
+    codes = [_MPath.MOVETO, _MPath.LINETO, _MPath.LINETO, _MPath.LINETO,
+             _MPath.CURVE4, _MPath.CURVE4, _MPath.CURVE4, _MPath.LINETO]
+    patch = PathPatch(_MPath(verts, codes), facecolor=fc, edgecolor=ec,
+                      linewidth=lw, zorder=3)
+    return [patch]
+
+
+def _sh_delay(ax, b, fc, ec, lw):
+    """延迟：左侧直角+右侧半圆（rounding=h/2 仅右缘达成半圆观感）。"""
+    from matplotlib.patches import FancyBboxPatch as _FBP
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    patch = _FBP((x, y), w, h,
+                 boxstyle=f"round,pad=0,rounding_size={h / 2:.4f}",
+                 facecolor=fc, edgecolor=ec, linewidth=lw, zorder=3)
+    # 左缘重画直边（round 把四角全圆了，用窄条补左直边；内接 x+0.001）
+    bar = Rectangle((x + 0.001, y + 0.001), 0.004, h - 0.002,
+                    facecolor=ec, edgecolor="none", zorder=3)
+    return [patch, bar]
+
+
+def _sh_stored_data(ax, b, fc, ec, lw):
+    """存储数据（横向圆柱/哑铃）：**单轮廓**——左右半圆弧+上下直腰，
+    多边形弧采样（judge 实锤：双椭圆描边在填充内交叉=韦恩透镜观感）。"""
+    import numpy as _np
+    x, y, w, h = b["x"], b["y"], b["w"], b["h"]
+    rx = h * 0.5
+    cy = y + h / 2
+    n = 13
+    # 弧序：上直腰（左→右）→右弧（顶→底）→下直腰→左弧（底→顶）闭合
+    angs = _np.linspace(math.pi / 2, -math.pi / 2, n)   # 顶→底
+    right = [(x + w - rx + rx * math.cos(a), cy + rx * math.sin(a))
+             for a in angs]
+    left = [(x + rx + rx * math.cos(a), cy - rx * math.sin(a))
+            for a in angs]                               # 底→顶（y 镜像）
+    pts = ([(x + rx, y + h)] + right + [(x + rx, y)] + left)
+    return [Polygon(pts, closed=True, facecolor=fc, edgecolor=ec,
+                    linewidth=lw, zorder=3)]
+
+
+SHAPES = {
+    "round":        {"draw": _sh_round,   "tb": (0.94, 0.90), "ty": 0.0,
+                     "aliases": ("stadium", "stadium-shape", "event", "rounded", "pill")},
+    "rect":         {"draw": _sh_rect,    "tb": (0.94, 0.90), "ty": 0.0,
+                     "aliases": ("process", "rectangle", "box")},
+    "diamond":      {"draw": _sh_diamond, "tb": (0.54, 0.50), "ty": 0.0,
+                     "aliases": ("decision", "question", "decision-node")},
+    "cylinder":     {"draw": _sh_cylinder, "tb": (0.86, 0.62), "ty": -0.06,
+                     "aliases": ("database", "db", "datastore", "storage")},
+    "io":           {"draw": _sh_poly([(0.14, 1.0), (1.0, 1.0), (0.86, 0.0), (0.0, 0.0)]),
+                     "tb": (0.72, 0.80), "ty": 0.0,
+                     "aliases": ("parallelogram", "data", "in-out")},
+    "hexagon":      {"draw": _sh_poly([(0.22, 1.0), (0.78, 1.0), (1.0, 0.5), (0.78, 0.0), (0.22, 0.0), (0.0, 0.5)]),
+                     "tb": (0.68, 0.72), "ty": 0.0,
+                     "aliases": ("prepare", "prep")},
+    "terminal":     {"draw": _sh_dblcircle, "tb": (0.52, 0.58), "ty": 0.0,
+                     "aliases": ("start-end", "double-circle", "start", "stop")},
+    "stacked":      {"draw": _sh_stacked, "tb": (0.72, 0.76), "ty": 0.0,
+                     "aliases": ("multi-process", "stack", "multi-document")},
+    "manual-input": {"draw": _sh_poly([(0.0, 0.0), (0.0, 0.74), (1.0, 1.0), (1.0, 0.0)]),
+                     "tb": (0.84, 0.66), "ty": -0.04,
+                     "aliases": ("input", "sloped")},
+    "manual-op":    {"draw": _sh_poly([(0.14, 1.0), (0.86, 1.0), (1.0, 0.0), (0.0, 0.0)]),
+                     "tb": (0.72, 0.80), "ty": 0.0,
+                     "aliases": ("manual", "operation", "trapezoid")},
+    "delay":        {"draw": _sh_delay, "tb": (0.78, 0.86), "ty": 0.0,
+                     "aliases": ("half-rounded",)},
+    "document":     {"draw": _sh_document, "tb": (0.88, 0.76), "ty": 0.04,
+                     "aliases": ("doc",)},
+    "predefined":   {"draw": _sh_predefined, "tb": (0.74, 0.88), "ty": 0.0,
+                     "aliases": ("subprocess", "subroutine", "framed")},
+    "stored-data":  {"draw": _sh_stored_data, "tb": (0.62, 0.66), "ty": 0.0,
+                     "aliases": ("stored", "bow-tie", "disk")},
+}
+
+
+# ── F1 边贴合（v8.0.5）：非平顶/平底形状的入出点高度修正 ──────────────
+# judge 实锤：斜顶形状（manual-input）入边落 bbox 顶=悬空 80px。机制=
+# 每形状声明 top/bottom 的「覆盖域+高度函数」：magnet/route 入出点按
+# 落点 x 分数取**实际轮廓高度**，覆盖域外钳制到域内（箭头永远贴形）。
+# 平顶形状缺省 None=1.0/0.0 全覆盖。H 键斜边（io 左右）留 v8.0.6。
+
+_SHAPE_EDGE = {
+    # diamond：顶/底点在中心，但多出边（是/否分支）需错层→span 放宽到
+    # 斜边全域（at_t/at_b 即斜边高度，出点永远贴轮廓）
+    "diamond":      {"span_t": (0.08, 0.92), "at_t": lambda fx: 1.0 - abs(fx - 0.5) * 2,
+                     "span_b": (0.08, 0.92), "at_b": lambda fx: 1.0 - abs(fx - 0.5) * 2},
+    "manual-input": {"span_t": (0.0, 1.0), "at_t": lambda fx: 0.74 + 0.26 * fx},
+    "io":           {"span_t": (0.14, 1.0), "at_t": lambda fx: 1.0,
+                     "span_b": (0.0, 0.86), "at_b": lambda fx: 0.0},
+    "hexagon":      {"span_t": (0.22, 0.78), "at_t": lambda fx: 1.0,
+                     "span_b": (0.22, 0.78), "at_b": lambda fx: 0.0},
+    "manual-op":    {"span_t": (0.14, 0.86), "at_t": lambda fx: 1.0,
+                     "span_b": (0.0, 1.0), "at_b": lambda fx: 0.0},
+}
+
+
+def _edge_fit(shape, side, fx):
+    """返回 (clamp 后 fx, 边高 y 分数)。side="t"|"b"。平形状→(fx, 1|0)；
+    单侧声明（如 manual-input 仅斜顶）另一侧取缺省平边。"""
+    spec = _SHAPE_EDGE.get(shape) or {}
+    key_s, key_a = (("span_t", "at_t") if side == "t" else ("span_b", "at_b"))
+    if key_s not in spec:
+        return fx, (1.0 if side == "t" else 0.0)
+    lo, hi = spec[key_s]
+    fx_c = min(max(fx, lo), hi)
+    return fx_c, spec[key_a](fx_c)
+
+
+def resolve_shape(name):
+    if not name or name == "round":
+        return "round"
+    n = str(name).strip().lower()
+    if n in SHAPES:
+        return n
+    for canon, spec in SHAPES.items():
+        if n in spec["aliases"]:
+            return canon
+    raise ValueError(
+        f"flow: 未知形状 '{name}'——可用: {', '.join(sorted(SHAPES))} "
+        f"(别名含 {', '.join(a for s in SHAPES.values() for a in s['aliases'][:2])} 等)")
 
 
 def _blend_hex(c1, c2, t):
@@ -949,31 +1235,25 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     for bi, b in enumerate(blocks):
         fp_l = cjk_fp if cjk_fp and has_cjk_local(b.get("label", "")) else None
         fp_s = cjk_fp if cjk_fp and has_cjk_local(b.get("sublabel") or "") else None
-        lab_lines, sub_lines, fs_m, fs_s = fit_text(
-            ax, b.get("label", b.get("id", "")), b.get("sublabel"),
-            b["w"], b["h"], fs, fp_l, fp_s)
         # 优先级：显式 color > 角色化配色（明度阶梯/终点强调）
         bc = b.get("color") or _rc.get(bi, _tc[0])
-        shape = b.get("shape", "round")
+        # v8.0.5 F1 形状注册表：14 语义形状（几何 bbox 契约不变——磁吸/闸零特判）
+        shape = resolve_shape(b.get("shape", "round"))
+        spec = SHAPES[shape]
         # 顶刊描边纪律：描边=同色加深（完整度），填充满 alpha（印刷不发灰）。
-        # v8.0.4 根修：round 样式 pad 由 0.1 → 0（rounding_size 只圆角不扩框）——
-        # 旧 pad=0.1 使可视框四周大于几何 bbox 0.1in，箭头按 bbox 吸附即整体
-        # 扎入可视框内（visual-judge 实锤的「箭头穿框/箭头埋框」唯一根因）。
         _ec = _shade(bc, 0.22)
-        if shape == "rect":
-            patch = FancyBboxPatch((b["x"], b["y"]), b["w"], b["h"],
-                                   boxstyle="square,pad=0", facecolor=bc,
-                                   edgecolor=_ec, linewidth=1.2, alpha=1.0,
-                                   zorder=3)
-        else:
-            patch = FancyBboxPatch((b["x"], b["y"]), b["w"], b["h"],
-                                   boxstyle="round,pad=0,rounding_size=0.14",
-                                   facecolor=bc, edgecolor=_ec,
-                                   linewidth=1.0, alpha=1.0, zorder=3)
-        ax.add_patch(patch)
+        lw = 1.2 if shape == "rect" else 1.0
+        for _a in spec["draw"](ax, b, bc, _ec, lw):
+            ax.add_patch(_a)
         tcol = _text_color(bc)
+        # 非矩形形状：fit_text 按内接区系数缩（菱形×0.54 等），
+        # 文字中心随 ty 偏移（cylinder 偏下避顶椭圆）
+        _tw, _th = spec["tb"]
+        lab_lines, sub_lines, fs_m, fs_s = fit_text(
+            ax, b.get("label", b.get("id", "")), b.get("sublabel"),
+            b["w"] * _tw, b["h"] * _th, fs, fp_l, fp_s)
         lab_h = measure_in(ax, "\n".join(lab_lines), fs_m, fp_l, ls=LINE_K)[1]
-        mid_y = b["y"] + b["h"] / 2
+        mid_y = b["y"] + b["h"] / 2 + spec["ty"] * b["h"]
         if sub_lines:
             sub_h = measure_in(ax, "\n".join(sub_lines), fs_s, fp_s,
                                ls=LINE_K)[1]
@@ -989,31 +1269,48 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                     va="center", fontsize=fs_s, color=tcol, alpha=0.85,
                     fontproperties=fp_s, zorder=4, linespacing=LINE_K)
 
-    # ── 4) 画箭头（折线+实体头三角）──
+    # ── 4) 画箭头（折线+实体头三角；v8.0.5 F4 边型 thick/bidirectional/open）──
     for (e, pts) in route_meta:
         col = e.get("color", arrow_color)
         ls = (0, (5, 3)) if e.get("dashed") else "-"
-        lw = 1.4 if e.get("dashed") else 1.5
+        lw = 2.2 if e.get("thick") else (1.4 if e.get("dashed") else 1.5)
         _head, _tail = pts[-1], pts[-2]
         _dx, _dy = _head[0] - _tail[0], _head[1] - _tail[1]
         _L = math.hypot(_dx, _dy) or 1.0
         _ux, _uy = _dx / _L, _dy / _L
         _base = (_head[0] - _ux * HEAD_LEN, _head[1] - _uy * HEAD_LEN)
+        # open=True：无头→shaft 画到 apex（留头回退只该在有头时发生——
+        # judge 实锤：无头线短 HEAD_LEN=96px 悬空观感）
+        _shaft_end = _head if e.get("open") else _base
         if len(pts) > 2:
-            xs = [p[0] for p in pts[:-1]] + [_base[0]]
-            ys = [p[1] for p in pts[:-1]] + [_base[1]]
+            xs = [p[0] for p in pts[:-1]] + [_shaft_end[0]]
+            ys = [p[1] for p in pts[:-1]] + [_shaft_end[1]]
             ax.plot(xs, ys, color=col, lw=lw, linestyle=ls, zorder=2,
                     solid_capstyle="butt")
         else:
-            ax.plot([_tail[0], _base[0]], [_tail[1], _base[1]], color=col,
-                    lw=lw, linestyle=ls, zorder=2, solid_capstyle="butt")
+            ax.plot([_tail[0], _shaft_end[0]], [_tail[1], _shaft_end[1]],
+                    color=col, lw=lw, linestyle=ls, zorder=2,
+                    solid_capstyle="butt")
         _px, _py = -_uy, _ux
-        ax.add_patch(Polygon([_head, (_base[0] + _px * HEAD_LEN * 0.42,
-                                      _base[1] + _py * HEAD_LEN * 0.42),
-                              (_base[0] - _px * HEAD_LEN * 0.42,
-                               _base[1] - _py * HEAD_LEN * 0.42)],
-                             closed=True, facecolor=col, edgecolor=col,
-                             lw=0.4, zorder=5))
+        # open=True：无头线（开放连接）；默认实体箭头
+        if not e.get("open"):
+            ax.add_patch(Polygon([_head, (_base[0] + _px * HEAD_LEN * 0.42,
+                                          _base[1] + _py * HEAD_LEN * 0.42),
+                                  (_base[0] - _px * HEAD_LEN * 0.42,
+                                   _base[1] - _py * HEAD_LEN * 0.42)],
+                                 closed=True, facecolor=col, edgecolor=col,
+                                 lw=0.4, zorder=5))
+        # bidirectional=True：起点反向箭头（双头）。apex 与终点头同纪律负咬合
+        # （v8.0.5 补：apex=_tail 裸压源框边线=600dpi 刺描边同型缺陷）
+        if e.get("bidirectional"):
+            _apex0 = (_tail[0] + _ux * abs(EDGE_NIB), _tail[1] + _uy * abs(EDGE_NIB))
+            _b2 = (_apex0[0] + _ux * HEAD_LEN, _apex0[1] + _uy * HEAD_LEN)
+            ax.add_patch(Polygon([_apex0, (_b2[0] + _px * HEAD_LEN * 0.42,
+                                           _b2[1] + _py * HEAD_LEN * 0.42),
+                                  (_b2[0] - _px * HEAD_LEN * 0.42,
+                                   _b2[1] - _py * HEAD_LEN * 0.42)],
+                                 closed=True, facecolor=col, edgecolor=col,
+                                 lw=0.4, zorder=5))
         if e.get("label"):
             fp_e = cjk_fp if cjk_fp and has_cjk_local(e["label"]) else None
             # 白底标签只避让**其他边**的线段（自身段有白垫可贴线，graphviz 同款）
