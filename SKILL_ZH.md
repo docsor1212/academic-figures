@@ -24,8 +24,8 @@ when_to_use: >-
 ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_to_use/
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
-  version: 8.0.5
-  date: 2026-11-16
+  version: 8.0.6
+  date: 2026-11-19
   author: docsor1212
   lang: zh
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -133,7 +133,7 @@ python3 scripts/gen_figure.py -t bar -d data.json -o fig --pub-ready
 | 组合 | **组合图** | `-t composite` | 多面板A+B+C，每面板任意图表类型（⚠面板内不可嵌套 composite/diagram/upset）；`panel_labels:true` 自动加粗面板角标（v4.1）；`span:[行,列]` 跨行跨列拼版+占位重叠检测（v4.3） |
 | 流程 | **流程图** | `-t diagram` | 架构/流程块、箭头、分组标注，CONSORT式研究设计 |
 | 系统综述 | **PRISMA流程图** | `-t prisma` | PRISMA 2020 系统综述流程图；数字自洽自动校验（对不上拒绝出图），`lang=zh` 中文标准版 |
-| 流程 | **语义流程图** | `-t flow` | 语义 JSON 零坐标；布局 chain/layered/snake；14 种语义形状（决策菱形/数据库圆柱/IO/起止等）+角色化配色；边型 thick/双头/无头/虚线；磁吸箭头/lane 回边/墨迹级标签；--gate strict 三层闸+占比闸 |
+| 流程 | **语义流程图** | `-t flow` | 语义 JSON 零坐标；布局 chain/layered/snake/泳道（多角色）；14 种语义形状+角色化配色；边型 thick/双头/无头/虚线；`--from-mermaid` 直接吃 mermaid 源；--gate strict 三层闸+占比闸 |
 
 按「类别」列速览；上手路径见 `references/quickstart.md`，完整命令速查见 `references/cheatsheet.md`。
 

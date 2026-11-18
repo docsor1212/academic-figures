@@ -2579,8 +2579,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.0.5", self.zh)
-        self.assertIn("version: 8.0.5", self.en)
+        self.assertIn("version: 8.0.6", self.zh)
+        self.assertIn("version: 8.0.6", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2677,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.0.5", self.zh)
-        self.assertIn("version: 8.0.5", self.en)
+        self.assertIn("version: 8.0.6", self.zh)
+        self.assertIn("version: 8.0.6", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2711,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.0.5", self.zh)
-        self.assertIn("version: 8.0.5", self.en)
+        self.assertIn("version: 8.0.6", self.zh)
+        self.assertIn("version: 8.0.6", self.en)
 
 
 
@@ -2779,7 +2779,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.0.5", zh)
+        self.assertIn("version: 8.0.6", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2952,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.5", t, name)
+            self.assertIn("version: 8.0.6", t, name)
 
 
 
@@ -3043,7 +3043,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.5", t, name)
+            self.assertIn("version: 8.0.6", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3164,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.5", t, name)
+            self.assertIn("version: 8.0.6", t, name)
 
 
 
@@ -3233,7 +3233,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.5", t, name)
+            self.assertIn("version: 8.0.6", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -8988,6 +8988,124 @@ class TestV80500(unittest.TestCase):
                 self.assertLessEqual(vb.y1, b["y"] + b["h"] + 1e-6,
                                      f"{name}: 越上界")
             plt.close(fig)
+
+
+
+
+class TestV80600(unittest.TestCase):
+    """v8.0.6 F3/F5 闸测试：swimlane 布局/泳道归属校验/mermaid 解析映射/
+    端到端 --from-mermaid 渲染。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _flow_env(self):
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        return plt
+
+    def test_swimlane_lane_geometry_and_validation(self):
+        """swimlane：列宽跨节点取最大+列内水平居中+首节点在顶；归属越界 fatal。"""
+        plt = self._flow_env()
+        import af_flow
+        fig, ax = plt.subplots()
+        nodes = [{"id": "A", "label": "Enrol", "lane": 0},
+                 {"id": "B", "label": "CRF", "lane": 0, "shape": "document"},
+                 {"id": "C", "label": "Query", "lane": 1, "shape": "diamond"},
+                 {"id": "D", "label": "DB", "lane": 1, "shape": "cylinder"}]
+        edges = [{"from": "A", "to": "C"}, {"from": "C", "to": "D"}]
+        blocks = af_flow.layout_semantic(
+            nodes, edges, layout="swimlane", lanes=["Sites", "DCC"],
+            ax=ax, fs=11)
+        bm = {b["id"]: b for b in blocks}
+        self.assertGreater(bm["A"]["y"], bm["B"]["y"], "首节点在顶")
+        self.assertAlmostEqual(bm["A"]["x"], bm["B"]["x"], delta=0.01,
+                               msg="lane 内水平居中")
+        self.assertGreater(bm["C"]["x"], bm["B"]["x"], "lane 1 在 lane 0 右侧")
+        self.assertIn("_lanes_geo", bm["A"], "泳道几何随块携带")
+        self.assertEqual(len(bm["A"]["_lanes_geo"]), 2)
+        with self.assertRaises(ValueError):
+            af_flow.layout_semantic(
+                [{"id": "A", "label": "x", "lane": 5},
+                 {"id": "B", "label": "y"}], [],
+                layout="swimlane", lanes=["L0"], ax=ax, fs=11)
+        plt.close(fig)
+
+    def test_validate_data_swimlane(self):
+        """validate_data：swimlane+lanes 放行；缺 lanes fatal。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from gen_figure import validate_data
+        base = {"layout": "swimlane", "lanes": ["A", "B"],
+                "nodes": [{"id": "x", "label": "x", "lane": 0},
+                          {"id": "y", "label": "y", "lane": 1}],
+                "edges": [{"from": "x", "to": "y"}]}
+        fatal, _ = validate_data(base, "flow")
+        self.assertFalse([f for f in fatal if "swimlane" in f or "lanes" in f])
+        fatal2, _ = validate_data(
+            {k: v for k, v in base.items() if k != "lanes"}, "flow")
+        self.assertTrue(any("lanes" in f for f in fatal2),
+                        "swimlane 缺 lanes 必须 fatal")
+
+    def test_mermaid_parse_shapes_and_edges(self):
+        """F5：mermaid 经典语法 → 形状/边型/subgraph→泳道映射。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        d = parse_mermaid(
+            "flowchart TD\n    A[Start] -->|go| B(Proc)\n"
+            "    B --> C{Check}\n    C -->|ok| D[(DB)]\n"
+            "    C -->|bad| E[[Sub]]\n    D ==> F>Flag]\n")
+        shapes = {n["id"]: n["shape"] for n in d["nodes"]}
+        self.assertEqual(shapes["A"], "rect")
+        self.assertEqual(shapes["B"], "round")
+        self.assertEqual(shapes["C"], "diamond")
+        self.assertEqual(shapes["D"], "cylinder")
+        self.assertEqual(shapes["E"], "predefined")
+        edges = {(e["from"], e["to"]): e for e in d["edges"]}
+        self.assertIn("go", edges[("A", "B")].get("label", ""))
+        self.assertTrue(edges[("D", "F")].get("thick"), "D==>F 为 thick")
+        # 端饰简化：->无 o/x 端=实线
+        self.assertNotIn("open", edges[("A", "B")])
+        # 未知形状语法拒绝
+    def test_mermaid_subgraph_becomes_swimlane(self):
+        """subgraph 对 → layout=swimlane + lanes 按出现序。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        d = parse_mermaid(
+            "flowchart LR\n    subgraph Sites\n    A(x) --> B[y]\n    end\n"
+            "    subgraph DCC\n    C{q} --> D[(db)]\n    end\n    B --> C\n")
+        # v8.0.6 质量决策：subgraph→groups（layered 既有已验证能力）——
+        # swimlane 引擎 experimental，mermaid 默认路径不接
+        self.assertEqual(d["layout"], "layered")
+        groups = {g["label"]: g["blocks"] for g in d.get("groups", [])}
+        self.assertEqual(groups.get("Sites"), ["A", "B"])
+        self.assertEqual(groups.get("DCC"), ["C", "D"])
+
+    def test_from_mermaid_end_to_end_strict(self):
+        """--from-mermaid 端到端：经典+subgraph 两例 strict 渲染。"""
+        with tempfile.TemporaryDirectory() as td:
+            p1 = os.path.join(td, "a.mmd")
+            open(p1, "w", encoding="utf-8").write(
+                "flowchart TB\n    A[RCT] --> B{Eligible?}\n"
+                "    B -->|Yes| C(Randomised)\n    B -->|No| D[Excluded]\n"
+                "    C --> E[(eCRF)]\n")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "--from-mermaid", p1,
+                 "--gate", "strict", "--dpi", "60",
+                 "-o", os.path.join(td, "o1.png")],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r.returncode, 0, r.stderr[-200:])
+            p2 = os.path.join(td, "b.mmd")
+            open(p2, "w", encoding="utf-8").write(
+                "flowchart LR\n    subgraph Sites\n    A(x) --> B[y]\n"
+                "    end\n    subgraph DCC\n    C{q} --> D[(db)]\n"
+                "    end\n    B --> C\n")
+            r2 = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "--from-mermaid", p2,
+                 "--gate", "strict", "--dpi", "60",
+                 "-o", os.path.join(td, "o2.png")],
+                capture_output=True, text=True, timeout=240)
+            self.assertEqual(r2.returncode, 0, r2.stderr[-200:])
 
 
 if __name__ == "__main__":

@@ -175,12 +175,15 @@ def fit_text(ax, label, sub, box_w_in, box_h_in, fs, fp_l=None, fp_s=None):
 
 # ── 布局（R4：语义→坐标，英寸空间） ────────────────────────────────────
 def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
-                    fs=11, cjk_fp=None, columns=None):
+                    fs=11, cjk_fp=None, columns=None, lanes=None):
     """-t flow 自动布局。英寸空间：行高/列宽由实测文本尺寸累计，
     带标签的边预留标签带（ELK edgeLabels 语义）。返回 blocks 列表。
     layout="snake"：链式环绕（v8.0.4，R4 收官）——每 columns 个节点换行、
     奇数行反序（蛇形），横向边行内直连、换行边正交直降、回边走行间槽，
-    宽高比 ≈2:1，论文版心缩放后字号不再跌破可读下限。"""
+    宽高比 ≈2:1，论文版心缩放后字号不再跌破可读下限。
+    layout="swimlane"（v8.0.6，F3）：泳道布局——lanes=[名称...] 顺序即
+    泳道次序，节点 "lane": 索引/名称归属；TB=垂直列（左→右）、LR=水平行。
+    泳道背景条+标题带由 render 依 _lanes_geo 绘制（块层 z=1）。"""
     ids = [n["id"] for n in nodes]
     idset = set(ids)
     for e in edges:
@@ -218,6 +221,7 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
         h = max((h_text + 2 * BOX_PAD_Y + 0.06) / _th, 0.62)
         blocks.append({"id": n["id"], "label": _lab, "sublabel": _sub,
                        "w": w, "h": h, "color": n.get("color"),
+                       "_lane": n.get("lane", 0),
                        "shape": n.get("shape", "round")})
     bmap = {b["id"]: b for b in blocks}
 
@@ -264,6 +268,51 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
             y_cursor += row_h + ROW_GAP + (0.68 if _labeled_any else 0)
         for i in ids:   # 镜像：首行在顶
             bmap[i]["y"] = y_cursor - bmap[i]["y"] - bmap[i]["h"]
+        return blocks
+    if layout == "swimlane":
+        # 泳道（F3 v8.0.6）：lanes=[名称...]，节点 "lane": 索引/名称归属；
+        # TB=垂直列（左→右）、LR=水平行。列宽=lane 内最大节点宽+padding；
+        # lane 内节点自上而下堆叠+水平居中；跨 lane 边由磁吸/路由照常处理。
+        # 背景条+标题带几何写进 _lanes_geo（render 块层 z=1 绘制）。
+        if not lanes:
+            raise ValueError("flow: layout=swimlane 需要 'lanes'（名称列表）")
+        _lane_names = [str(x) for x in lanes]
+        _lidx = {}
+        for i in ids:
+            lv = bmap[i].get("_lane", 0)
+            if isinstance(lv, str):
+                if lv not in _lane_names:
+                    raise ValueError(f"flow: 节点 {i} lane '{lv}' 不在 lanes 中")
+                _lidx[i] = _lane_names.index(lv)
+            else:
+                _lidx[i] = int(lv)
+        for i in ids:
+            if not (0 <= _lidx[i] < len(_lane_names)):
+                raise ValueError(f"flow: 节点 {i} lane 索引 {_lidx[i]} 越界")
+        col_w = [0.0] * len(_lane_names)
+        for i in ids:
+            ci = _lidx[i]
+            col_w[ci] = max(col_w[ci], bmap[i]["w"])
+        col_w = [cw + 0.5 for cw in col_w]
+        col_x = [0.0]
+        for cw in col_w[:-1]:
+            col_x.append(col_x[-1] + cw + 0.30)
+        col_ys = [0.0] * len(_lane_names)
+        _max_col_h = 0.0
+        for i in ids:   # 按 lane 分组堆叠（读取序=声明序，自上而下）
+            ci = _lidx[i]
+            bmap[i]["x"] = col_x[ci] + (col_w[ci] - bmap[i]["w"]) / 2
+            bmap[i]["y"] = col_ys[ci]
+            col_ys[ci] += bmap[i]["h"] + ROW_GAP
+        _max_col_h = max(col_ys) - ROW_GAP
+        for i in ids:   # 镜像：首个节点在顶（顶=H+0.95，band 底=H+0.72→间隙 0.23）
+            bmap[i]["y"] = _max_col_h - bmap[i]["y"] - bmap[i]["h"] + 0.95
+        _lane_h = _max_col_h + 0.95 + 0.30
+        _geo = [{"x": col_x[ci] - 0.18, "w": col_w[ci] + 0.36,
+                 "y": 0.0, "h": _lane_h, "label": _lane_names[ci]}
+                for ci in range(len(_lane_names))]
+        for i in ids:
+            bmap[i]["_lanes_geo"] = _geo   # 共享引用，render 画一次
         return blocks
     # layered：最长路径分层（回边不计层）
     indeg = {i: 0 for i in ids}
@@ -431,6 +480,11 @@ def _edge_between(src, dst):
 def _lane_y(blocks, side, level):
     tops = max(_bbox(b)[3] for b in blocks)
     bots = min(_bbox(b)[1] for b in blocks)
+    if "_lanes_geo" in blocks[0]:
+        # swimlane：lane 绕行走泳道标题带之外（带 0.5+间隙）——
+        # 旧值落在带内=回边穿标题带（judge 实锤）
+        tops += 0.62
+        bots -= 0.62
     return (tops + LANE_GAP + LANE_STAGGER * level) if side > 0 else \
            (bots - LANE_GAP - LANE_STAGGER * level)
 
@@ -1227,10 +1281,28 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
             route_lines.append((pts[k], pts[k + 1]))
 
     # ── 3) 画块（文本自适应）──
+    # ── 2.6) 泳道背景（F3 v8.0.6）：layout=swimlane 时块携带 _lanes_geo
+    _tc = (theme or {}).get("colors", ["#56B4E9"])
+    if blocks and "_lanes_geo" in blocks[0]:
+        _fs_lane = fs
+        for _g in blocks[0]["_lanes_geo"]:
+            ax.add_patch(Rectangle((_g["x"], _g["y"]), _g["w"], _g["h"],
+                                   facecolor=_shade(_tc[0], 0.92),
+                                   edgecolor=_shade(_tc[0], 0.55),
+                                   linewidth=1.0, zorder=1))
+            ax.add_patch(Rectangle((_g["x"], _g["y"] + _g["h"] - 0.5),
+                                   _g["w"], 0.5, facecolor=_shade(_tc[0], 0.80),
+                                   edgecolor=_shade(_tc[0], 0.55),
+                                   linewidth=1.0, zorder=1))
+            _band_c = _shade(_tc[0], 0.80)
+            ax.text(_g["x"] + _g["w"] / 2, _g["y"] + _g["h"] - 0.25,
+                    _g["label"], ha="center", va="center",
+                    fontsize=_fs_lane - 1, fontweight="bold",
+                    color=_text_color(_band_c), zorder=2)
+
     label_artists, label_bboxes = [], []
     # v8.0.4 顶刊角色化配色：同族明度阶梯 + 终点唯一强调色，
     # 替代 v8.0.3 色轮循环（多饱和色并列=杂色感的机制根因）。
-    _tc = (theme or {}).get("colors", ["#56B4E9"])
     _rc = _role_colors(blocks, arrows, _tc)
     for bi, b in enumerate(blocks):
         fp_l = cjk_fp if cjk_fp and has_cjk_local(b.get("label", "")) else None
