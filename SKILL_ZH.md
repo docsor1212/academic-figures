@@ -24,7 +24,7 @@ when_to_use: >-
 ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_to_use/
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
-  version: 8.0.6
+  version: 8.0.7
   date: 2026-11-19
   author: docsor1212
   lang: zh
