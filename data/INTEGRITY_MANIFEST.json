@@ -1,0 +1,86 @@
+{
+ "files": {
+  "references/advanced.md": {
+   "bytes": 12417,
+   "sha256": "eb494b5122bc553c969636871c1447c394aa9939b0097db3b9c20d491237c02f"
+  },
+  "references/antipatterns.md": {
+   "bytes": 5159,
+   "sha256": "dd24dcfc68baa50af877212e42eff1c4b42845a20eb82a0e57220a556041a101"
+  },
+  "references/changelog-full.md": {
+   "bytes": 130863,
+   "sha256": "0cbf77bcdf9d9ee6550560dbe3bac97e5e9ae2a5abe0eb7b27f64e0266f14453"
+  },
+  "references/changelog.md": {
+   "bytes": 39044,
+   "sha256": "f8f20626cf727590f7ec6509a490ead17988c932d84e4039324d321c0f237a89"
+  },
+  "references/cheatsheet.md": {
+   "bytes": 6961,
+   "sha256": "467bfa79525bdcc7e0621f341bfd22021e80ba4bd85df6fd617adffa56aa8bf2"
+  },
+  "references/clinical-lab-trends.md": {
+   "bytes": 4209,
+   "sha256": "51213551649578e6effc72ee05d3ebe87e29cb1e40fc64f283decd36da365ff6"
+  },
+  "references/color-guide.md": {
+   "bytes": 5761,
+   "sha256": "249cd2587b03ac03d4ec39b05cd504867f8c7eaebc1e4a4d9f32b70128ad4b93"
+  },
+  "references/combo-guide.md": {
+   "bytes": 4028,
+   "sha256": "e6753b1b0ca7c068d7fad096e6612f15ad85bb187ea19adda57c1e2c3d96b800"
+  },
+  "references/composite-layouts.md": {
+   "bytes": 7884,
+   "sha256": "d76dbbec0883da2fe407daafccf616d7b96511dac793896501b04a472a2ce3e8"
+  },
+  "references/data-formats.md": {
+   "bytes": 29276,
+   "sha256": "46f7f80f753bbc1510bc6df1739c1d0118ced753491100fd3d21dfc47cf520b1"
+  },
+  "references/faq.md": {
+   "bytes": 16765,
+   "sha256": "3ef1f11e8befa3d901a309cd4e17c29aec7f5a20d035c15852766c134973a893"
+  },
+  "references/limits.md": {
+   "bytes": 15783,
+   "sha256": "7084871f6be21551fdbed91e761055ced8cd7b48c0ddf72f0ba3cf8913d83563"
+  },
+  "references/pitfalls.md": {
+   "bytes": 22868,
+   "sha256": "abaae3db6a1ca1c66e57841b2a60bc7b7d05cccebbea38108f6f52a3f1c42713"
+  },
+  "references/prompt-cards.md": {
+   "bytes": 11219,
+   "sha256": "14d664158a4425f9b2a19af0a5ed469cef86e894c370bfec166f4ce75408975b"
+  },
+  "references/python-api.md": {
+   "bytes": 6003,
+   "sha256": "9b418f2bad75ed63c9afe95768615fa6029c46cea601eddd851ec14e76780a17"
+  },
+  "references/quickstart.md": {
+   "bytes": 5294,
+   "sha256": "e8dad07f0dd7199422763709908e6d853a900cec65cfea91823926b83bd05166"
+  },
+  "references/reverse-engineering-colors.md": {
+   "bytes": 3252,
+   "sha256": "ba92b515f598f21c9170d7fb711ea7d5788381ec19fc7cb848509de464c006a5"
+  },
+  "references/reviewer-cases.md": {
+   "bytes": 4409,
+   "sha256": "ba45259d6643e0c1768619b2cc007ed6b63f97101859c4f99e0f020bb27c9dea"
+  },
+  "references/scenario-cards.md": {
+   "bytes": 8782,
+   "sha256": "be6e43ff9de91174d6ce4ba9f1b016f0750f337127acaadecaf2e064c18a402b"
+  },
+  "references/v1.5-upgrade-analysis.md": {
+   "bytes": 4725,
+   "sha256": "5e901931348c7cb3510b3c1a1c8f112b85415a881cb7e996ed406b63251d251a"
+  }
+ },
+ "generated_by": "af-trunk-rebuild (v8.0.8, data+references only)",
+ "scope": "data/ + references/ data files"
+}
