@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v8.0.8: Publication-quality academic figure generator.
+academic-figures v8.0.9: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -2559,6 +2559,7 @@ def main():
                "｜ 组学 -t volcano/-t cluster_heatmap ｜ 多面板 -t composite（share_y 统一尺度）"
                "｜ 偏倚风险 -t rob（robvis 同款交通灯）｜ 投稿包 --pub-ready ｜ 场景卡 references/scenario-cards.md ｜ 对智能体说 references/prompt-cards.md")
     parser.add_argument("--gate", default="basic", choices=["basic", "strict"], help="流程图/示意图渲染闸（v8.0.0）：strict=渲染后跑三层 bbox 断言（节点×边标签×箭头线段），任何非零交集 exit 2 拒绝交付")
+    parser.add_argument("--dump-flow-routes", default=None, metavar="PATH", help="QC 边车：flow 渲染后把路由/块几何快照写 JSON（几何闸测试真值源，v8.0.9）")
     parser.add_argument("--type", "-t", choices=list(GENERATORS.keys()),
                         help="图型（如 bar/box/violin/km/roc/forest/prisma，--demo 可看菜单）")
     parser.add_argument("--data", "-d", help="输入数据文件（.json / .csv / .tsv / .xlsx）；支持 inline 简写 \"A=10,B=8,C=5\"（单系列，等价 labels+series value）")
@@ -3118,7 +3119,13 @@ def main():
         if isinstance(obj, str):
             return has_cjk(obj)
         if isinstance(obj, dict):
-            return any(_scan_cjk(k) for k in obj.keys()) or any(_scan_cjk(v) for v in obj.values())
+            # v8.0.9 根修：下划线前缀 meta 键（_note/_command 等模板元数据，
+            # 永不渲染）不参与 CJK 判定——meta 中文会翻全局字体链前插，改变
+            # 拉丁文本测量→布局漂移→路由决策翻转（clinical 模板实测：同数据
+            # 带 _note 即 strict FAIL）
+            return any(_scan_cjk(k) or _scan_cjk(v)
+                       for k, v in obj.items()
+                       if not (isinstance(k, str) and k.startswith("_")))
         if isinstance(obj, (list, tuple)):
             return any(_scan_cjk(v) for v in obj)
         return False
@@ -3228,6 +3235,10 @@ def main():
     for _a2_try in (1, 2):
         try:
             extra = gen_func(data, ax, theme, cjk_fp, **kwargs)
+            if getattr(args, "dump_flow_routes", None) and args.type == "flow":
+                import af_flow as _af_geo
+                with open(args.dump_flow_routes, "w", encoding="utf-8") as _fg:
+                    json.dump(_af_geo.LAST_GEOM, _fg, ensure_ascii=False)
             break
         except MemoryError:
             plt.close(fig)
