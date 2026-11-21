@@ -36,7 +36,7 @@ ZCode skill auto-discovery reads ONLY the frontmatter whitelist keys
 (name / description / when_to_use / license / metadata); a description over
 1024 chars is silently dropped (root cause of the v2.x discovery failure).
 Keys moved out of frontmatter (info preserved):
-  version: 8.0.9
+  version: 8.1.0
   date: 2026-11-21
   author: docsor1212
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
@@ -183,7 +183,7 @@ python3 scripts/gen_figure.py -t heatmap -d data.json -o heatmap.png --cjk \
 | Composite | **Composite** | `-t composite` | Multi-panel A+B+C (⚠ no nested composite/diagram/upset panels); `panel_labels:true` corner letters (v4.1); `span:[rows,cols]` multi-cell panels with overlap detection (v4.3) |
 | Flow | **Diagram** | `-t diagram` | Architecture/flow blocks, arrows, groupings, annotations |
 | Review | **PRISMA Flow** | `-t prisma` | PRISMA 2020 review flow; counts auto-validated (must add up), EN/ZH wording via `lang` |
-| Flow | **Semantic Flowchart** | `-t flow` | Semantic JSON (zero coordinates); layouts chain/layered/snake/swimlane; 14 semantic shapes + role palette; edge types thick/bidirectional/open/dashed; `--from-mermaid` imports mermaid sources directly; magnet arrows, lane back-edges, ink-verified labels; `--gate strict` triple-bbox + area gates |
+| Flow | **Semantic Flowchart** | `-t flow` | Semantic JSON (zero coordinates); layouts chain/layered/snake/swimlane (TB columns + LR rows with rotated lane titles); 14 semantic shapes + role palette; edge types thick/bidirectional/open/dashed; `--from-mermaid` imports mermaid sources directly; magnet arrows, lane back-edges, ink-verified labels; `--gate strict` triple-bbox + area gates |
 
 Scan the Category column at a glance; getting-started path in `references/quickstart.md`, full command cheatsheet in `references/cheatsheet.md`.
 

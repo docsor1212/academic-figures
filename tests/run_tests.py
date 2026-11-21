@@ -755,7 +755,9 @@ class TestDemoAndExampleSchemas(unittest.TestCase):
             self.skipTest("no examples dir")
         canonical = {"dual": "dual_axis", "stacked": "stacked_bar",
                      "box": "box", "roc": "roc", "km": "km",
-                     "arena": "bar"}  # v7.5 --arena 是 bar 的风格旗标非独立图型
+                     "arena": "bar",  # v7.5 --arena 是 bar 的风格旗标非独立图型
+                     "flow_swimlane": "flow",  # v8.1.0 泳道 examples 均 -t flow
+                     "flow_swimlane_lr": "flow"}
         for fname in sorted(os.listdir(examples_dir)):
             if not fname.endswith(".json"):
                 continue
@@ -1143,7 +1145,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 51, f"expected 51 templates (+7 flow family v8.0.5 +2 swimlane v8.0.9), got {len(jsons)}")
+        self.assertEqual(len(jsons), 52, f"expected 52 templates (+7 flow family v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2579,8 +2581,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.0.9", self.zh)
-        self.assertIn("version: 8.0.9", self.en)
+        self.assertIn("version: 8.1.0", self.zh)
+        self.assertIn("version: 8.1.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2677,8 +2679,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.0.9", self.zh)
-        self.assertIn("version: 8.0.9", self.en)
+        self.assertIn("version: 8.1.0", self.zh)
+        self.assertIn("version: 8.1.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2713,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.0.9", self.zh)
-        self.assertIn("version: 8.0.9", self.en)
+        self.assertIn("version: 8.1.0", self.zh)
+        self.assertIn("version: 8.1.0", self.en)
 
 
 
@@ -2779,7 +2781,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.0.9", zh)
+        self.assertIn("version: 8.1.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2952,7 +2954,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.9", t, name)
+            self.assertIn("version: 8.1.0", t, name)
 
 
 
@@ -3043,7 +3045,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.9", t, name)
+            self.assertIn("version: 8.1.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3164,7 +3166,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.9", t, name)
+            self.assertIn("version: 8.1.0", t, name)
 
 
 
@@ -3233,7 +3235,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.9", t, name)
+            self.assertIn("version: 8.1.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -4939,7 +4941,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 51)   # v8.0.9 +2 swimlane
+        self.assertEqual(len(jsons), 52)   # v8.0.9 +2 swimlane, v8.1.0 +1 LR
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5470,7 +5472,7 @@ class TestV50600(unittest.TestCase):
         """计数锁收口：模板 37 / realworld 12 / 新字段白名单（v5.7 起 cif+mgus2 入列）。"""
         root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
-        self.assertEqual(len(tpls), 51, f"模板应 51 个 (+7 flow family v8.0.5 +2 swimlane v8.0.9): {len(tpls)}")
+        self.assertEqual(len(tpls), 52, f"模板应 52 个 (+7 flow v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0): {len(tpls)}")
         rws = os.listdir(os.path.join(root, "examples", "realworld"))
         self.assertEqual(len([x for x in rws if x.endswith(".json")]), 18,
                          f"realworld 应 14 个: {rws}")
@@ -5699,7 +5701,7 @@ class TestV50700(unittest.TestCase):
         """计数锁（v5.7.0 建锁 38；…v7.8 +hero=41；v8.0 +flow=42）：42 模板/注册表≥41/README 41 chart types/realworld 18。"""
         root = os.path.join(SCRIPT_DIR, "..")
         jsons = glob.glob(os.path.join(root, "templates", "*.json"))
-        self.assertEqual(len(jsons), 51, f"templates 应 51 (+7 flow family v8.0.5 +2 swimlane v8.0.9): {len(jsons)}")
+        self.assertEqual(len(jsons), 52, f"templates 应 52 (+7 flow v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0): {len(jsons)}")
         sys.path.insert(0, SCRIPT_DIR)
         import gen_figure
         self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 40)
@@ -8946,16 +8948,16 @@ class TestV80500(unittest.TestCase):
                     "flow_state-cellcycle", "flow_pipeline-crispr",
                     "flow_approval-ethics", "flow_contrast-twomethods",
                     "flow_cycle-pdca", "flow_swimlane-clinical",
-                    "flow_swimlane-incident"}
+                    "flow_swimlane-incident", "flow_swimlane-lr-journal"}
         for name in expected:
             p = os.path.join(tdir, f"{name}.json")
             self.assertTrue(os.path.isfile(p), f"{name}.json 缺失")
             d = json.load(open(p, encoding="utf-8"))
             self.assertIn("_command", d)
             self.assertGreaterEqual(len(d.get("nodes", [])), 4)
-        # subprocess strict 抽渲染：链式+蛇形+泳道各一（覆盖四布局全态）
+        # subprocess strict 抽渲染：链式+蛇形+泳道 TB/LR 各一（全布局态）
         for name in ("flow_pipeline-crispr", "flow_cycle-pdca",
-                     "flow_swimlane-clinical"):
+                     "flow_swimlane-clinical", "flow_swimlane-lr-journal"):
             with tempfile.TemporaryDirectory() as td:
                 r = subprocess.run(
                     [sys.executable, GEN, "-t", "flow",
@@ -9126,94 +9128,25 @@ class TestV80700(unittest.TestCase):
         return plt
 
     def test_swimlane_regression_snapshot(self):
-        plt = self._flow_env()
-        from matplotlib.patches import Polygon, FancyBboxPatch
-        import numpy as np
-        import af_flow, af_draw
-        d = {"layout": "swimlane", "font_size": 11,
-             "lanes": ["Clinical sites", "Data coordinating centre",
-                        "Sponsor / regulatory"],
-             "nodes": [
-                 {"id": "enroll", "label": "Enrol participants",
-                  "sublabel": "inclusion check", "lane": 0},
-                 {"id": "crf", "label": "Complete eCRF",
-                  "sublabel": "site data entry", "lane": 0, "shape": "document"},
-                 {"id": "query", "label": "Data query raised",
-                  "sublabel": "edit-check fail", "lane": 1, "shape": "hexagon"},
-                 {"id": "sitefix", "label": "Site response",
-                  "sublabel": "source-verified", "lane": 0, "shape": "manual-op"},
-                 {"id": "lock", "label": "Database lock",
-                  "sublabel": "all queries closed", "lane": 1, "shape": "diamond"},
-                 {"id": "tlf", "label": "TLF generation",
-                  "sublabel": "SAP-ordered", "lane": 1, "shape": "predefined"},
-                 {"id": "review", "label": "DMS review",
-                  "sublabel": "clinically meaningful?", "lane": 2,
-                  "shape": "diamond"},
-                 {"id": "dossier", "label": "Regulatory dossier",
-                  "sublabel": "CSR section", "lane": 2, "shape": "document"},
-                 {"id": "archive", "label": "Trial archive",
-                  "sublabel": "10-year retention", "lane": 2,
-                  "shape": "cylinder"}],
-             "edges": [
-                 {"from": "enroll", "to": "crf"},
-                 {"from": "crf", "to": "query"},
-                 {"from": "query", "to": "sitefix", "label": "48 h SLA"},
-                 {"from": "sitefix", "to": "query", "label": "re-check",
-                  "dashed": True},
-                 {"from": "query", "to": "lock", "thick": True},
-                 {"from": "lock", "to": "tlf"},
-                 {"from": "tlf", "to": "review"},
-                 {"from": "review", "to": "dossier", "label": "accept",
-                  "thick": True},
-                 {"from": "dossier", "to": "archive"},
-                 {"from": "review", "to": "tlf", "label": "rework",
-                  "dashed": True}]}
-        # v8.0.9：发布管线同款 fig（10,6@600）——进程内探针的测量漂移会
-        # 翻转路由决策（假绿/假败根除），快照基线=CLI 真几何
-        fig = plt.figure(figsize=(10, 6), dpi=600)
-        ax = fig.add_subplot(111)
-        theme = {"font_size": 11,
-                 "colors": ["#336672", "#A7C4C6", "#BF8078"], "dpi": 600}
-        af_draw.gen_flow(d, ax, theme, None, gate="strict")
-        fig.canvas.draw()
-        boxes = [(p.get_bbox().x0, p.get_bbox().y0, p.get_bbox().width,
-                  p.get_bbox().height)
-                 for p in ax.patches
-                 if isinstance(p, FancyBboxPatch) and p.get_zorder() == 3]
-        self.assertGreaterEqual(len(boxes), 2, "FancyBboxPatch 主框存在"
-                                "（圆形/菱形等非 bbox 类由 apex 断言覆盖）")
-        # apex 全贴框外沿
-        n = bad = 0
-        for pt in ax.patches:
-            if isinstance(pt, Polygon):
-                verts = np.asarray(pt.get_path().vertices)
-                if len(verts) in (3, 4) and np.allclose(verts[0], verts[-1]):
-                    verts = verts[:-1]
-                if len(verts) != 3:
-                    continue
-                n += 1
-                (ax_, ay_) = verts[0]
-                for (x0, y0, w0, h0) in boxes:
-                    half = 1.0 / 72 / 2
-                    if (x0 - half < ax_ < x0 + w0 + half
-                            and y0 - half < ay_ < y0 + h0 + half):
-                        bad += 1
-        self.assertEqual(bad, 0, f"apex 入框 {bad} 处")
-        self.assertEqual(n, 10, "10 支箭头")
-        # 结构锁：band 底与首行节点顶间隙 ≥0.20in（节点不侵带）
-        geo = None
-        for b in af_flow.layout_semantic(
-                d["nodes"], d["edges"], layout="swimlane",
-                lanes=d["lanes"], ax=ax, fs=11):
-            geo = b.get("_lanes_geo")
-            break
-        self.assertIsNotNone(geo)
-        # band 底=lane_h-0.5；首行节点顶从渲染真值取
-        node_tops = [y0 for (_, y0, _, _) in boxes]
-        band_bottoms = [g["y"] + g["h"] - 0.5 for g in geo]
-        self.assertTrue(all(
-            any(nt >= bb for bb in band_bottoms) or True for nt in node_tops))
-        plt.close(fig)
+        """v8.1.0：回归快照改 **CLI 真值基座**（--dump-flow-routes sidecar）。
+        进程内渲染存在不可救药的套件序污染（先行 CJK 测试注册字体/改
+        rcParams→测量漂移→路由翻转，rcParams 隔离仍不够——font_manager
+        缓存与 canvas 状态跨测试存活），CLI 子进程=零污染真值。"""
+        geom = TestV80900()._route_records(TestV80900._showcase())
+        # 结构锁：9 节点 10 边 3 泳道全路由
+        self.assertEqual(len(geom["blocks"]), 9, "9 节点")
+        self.assertEqual(len(geom["routes"]), 10, "10 条边全部路由")
+        self.assertEqual(len(geom["lanes_geo"]), 3, "3 泳道带")
+        # 形状锁：语义形状在场
+        shapes = {b["shape"] for b in geom["blocks"]}
+        self.assertIn("document", shapes)
+        self.assertIn("cylinder", shapes)
+        self.assertIn("diamond", shapes)
+        self.assertIn("hexagon", shapes)
+        self.assertIn("predefined", shapes)
+        self.assertIn("manual-op", shapes)
+        # 机械几何八检（judge R6-R17 全套闸）
+        TestV80900()._geometry_audit(geom)
 
 
 class TestV80900(unittest.TestCase):
@@ -9399,17 +9332,20 @@ class TestV80900(unittest.TestCase):
             for k in range(len(r["pts"]) - 1):
                 (ax_, ay_), (bx_, by_) = r["pts"][k], r["pts"][k + 1]
                 if abs(ax_ - bx_) < 1e-9:
-                    vr_.append((ax_, min(ay_, by_), max(ay_, by_),
+                    vr_.append(("v", ax_, min(ay_, by_), max(ay_, by_),
+                                f'{r["from"]}->{r["to"]}'))
+                elif abs(ay_ - by_) < 1e-9:
+                    vr_.append(("h", ay_, min(ax_, bx_), max(ax_, bx_),
                                 f'{r["from"]}->{r["to"]}'))
         for i in range(len(vr_)):
             for j in range(i + 1, len(vr_)):
                 a, b = vr_[i], vr_[j]
-                if a[3] == b[3]:
+                if a[4] == b[4] or a[0] != b[0]:
                     continue
                 self.assertFalse(
-                    abs(a[0] - b[0]) < 0.12
-                    and min(a[2], b[2]) - max(a[1], b[1]) > 0.2,
-                    f'共线树干 {a[3]}(x{a[0]:.2f}) vs {b[3]}(x{b[0]:.2f})')
+                    abs(a[1] - b[1]) < 0.12
+                    and min(a[3], b[3]) - max(a[2], b[2]) > 0.2,
+                    f'共线树干({a[0]}) {a[4]} vs {b[4]}')
         # ⑥⁺⁺ 头域压印：后续边段不得侵入先行边头域矩形（tip 沿进入方向
         # 后延 0.16、横向 ±0.08——judge R10：rework 虚线压印 TLF→review 头）
         import math as _m
@@ -9460,6 +9396,13 @@ class TestV80900(unittest.TestCase):
                             by_lo - 0.02 <= ay_ <= by_hi + 0.02,
                             f'{r["from"]}->{r["to"]} seg{k} 水平总线 '
                             f'y={ay_:.2f} 越出带纵域')
+        # ⑦ 标签必须整体落在泳道带域内（judge R14：白边距标签归属不明）
+        lg_ = geom.get("lanes_geo") or []
+        for L in geom.get("labels") or []:
+            x0, y0, x1, y1 = L["bb"]
+            self.assertTrue(
+                x0 >= bx_lo + 0.0 and y0 >= by_lo and x1 <= bx_hi and y1 <= by_hi,
+                f'标签出带域 bb=({x0:.2f},{y0:.2f},{x1:.2f},{y1:.2f})')
 
     def test_swimlane_geometry_gate(self):
         """机械几何闸（judge R6 探针固化）：showcase 四检全零。"""
@@ -9542,6 +9485,294 @@ class TestV80900(unittest.TestCase):
                 capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0,
                              f"swimlane 模板 strict 渲染失败: {r.stderr[-200:]}")
+
+
+class TestV81000(unittest.TestCase):
+    """v8.1.0 泳道 LR（左竖排标题行带+行间隙走廊）+ mermaid subgraph→泳道
+    直通（TB）+ zone 方向感知：CLI 真几何审计+方向契约+映射契约。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _cli_geom(self, data_obj):
+        with tempfile.TemporaryDirectory() as td:
+            dp = os.path.join(td, "d.json")
+            json.dump(data_obj, open(dp, "w", encoding="utf-8"))
+            gp = os.path.join(td, "geom.json")
+            op = os.path.join(td, "o.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d", dp,
+                 "--gate", "strict", "--dpi", "600",
+                 "--dump-flow-routes", gp, "-o", op],
+                capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0,
+                             f"CLI 渲染失败: {r.stderr[-300:]}")
+            return json.load(open(gp, encoding="utf-8"))
+
+    def _lr_showcase(self):
+        d = json.loads(json.dumps(TestV80900._showcase()))
+        d["direction"] = "LR"
+        return d
+
+    def _geometry_audit(self, geom):
+        """复用 TestV80900 八检（LR zone 方向感知版）。"""
+        helper = TestV80900()
+        import af_flow
+        from collections import defaultdict
+        bmap = {b["id"]: b for b in geom["blocks"]}
+        rec = geom["routes"]
+        polys = {bid: helper._poly_of(af_flow, b) for bid, b in bmap.items()}
+        for r in rec:
+            for tag, pid, p in (("src", r["from"], r["pts"][0]),
+                                ("dst", r["to"], r["pts"][-1])):
+                dd = helper._pt_dist_poly(p[0], p[1], polys[pid])
+                inside = af_flow._pt_in_soft(p[0], p[1], bmap[pid])
+                if inside:
+                    self.assertLessEqual(
+                        dd, 0.03,
+                        f'{r["from"]}->{r["to"]} {tag}端埋入 {pid} {dd:.3f}in')
+                else:
+                    self.assertLessEqual(
+                        dd, 0.02,
+                        f'{r["from"]}->{r["to"]} {tag}端浮离 {pid} {dd:.3f}in')
+        for r in rec:
+            for k in range(len(r["pts"]) - 1):
+                for bid, b in bmap.items():
+                    pen = af_flow._seg_soft_pen(r["pts"][k], r["pts"][k + 1], b)
+                    self.assertLessEqual(
+                        pen, 0.05,
+                        f'{r["from"]}->{r["to"]} seg{k} 穿 {bid} {pen:.3f}in')
+        # ⑦ 双轴共线 + ⑨ 标签带域（R14 批）
+        runs_ = []
+        for r in rec:
+            for k in range(len(r["pts"]) - 1):
+                (ax_, ay_), (bx_, by_) = r["pts"][k], r["pts"][k + 1]
+                if abs(ax_ - bx_) < 1e-9:
+                    runs_.append(("v", ax_, min(ay_, by_), max(ay_, by_),
+                                  f'{r["from"]}->{r["to"]}'))
+                elif abs(ay_ - by_) < 1e-9:
+                    runs_.append(("h", ay_, min(ax_, bx_), max(ax_, bx_),
+                                  f'{r["from"]}->{r["to"]}'))
+        for i in range(len(runs_)):
+            for j in range(i + 1, len(runs_)):
+                a, b = runs_[i], runs_[j]
+                if a[4] == b[4] or a[0] != b[0]:
+                    continue
+                self.assertFalse(
+                    abs(a[1] - b[1]) < 0.12
+                    and min(a[3], b[3]) - max(a[2], b[2]) > 0.2,
+                    f'共线树干({a[0]}) {a[4]} vs {b[4]}')
+        lg_ = geom.get("lanes_geo") or []
+        if lg_:
+            # v8.1.0 R15：标签带域排除 LR 标题竖条（白字标签不落深色竖条）
+            bx_lo = min(g["x"] + (0.42 if g.get("dir") == "LR" else 0)
+                        for g in lg_)
+            bx_hi = max(g["x"] + g["w"] for g in lg_)
+            by_lo = min(g["y"] for g in lg_)
+            by_hi = max(g["y"] + g["h"] for g in lg_)
+            for L in geom.get("labels") or []:
+                x0, y0, x1, y1 = L["bb"]
+                self.assertTrue(
+                    x0 >= bx_lo and y0 >= by_lo and x1 <= bx_hi and y1 <= by_hi,
+                    f'标签出带域/落竖条 bb=({x0:.2f},{y0:.2f},{x1:.2f},{y1:.2f})')
+
+    def test_lr_swimlane_geometry_gate(self):
+        """LR showcase：strict+八检（CLI 真几何）。"""
+        geom = self._cli_geom(self._lr_showcase())
+        self.assertEqual(len(geom["routes"]), 10)
+        self._geometry_audit(geom)
+        # 带域检查（水平带域）
+        lg = geom.get("lanes_geo") or []
+        self.assertTrue(lg and all(g.get("dir") == "LR" for g in lg))
+        bx_lo = min(g["x"] for g in lg)
+        bx_hi = max(g["x"] + g["w"] for g in lg)
+        by_lo = min(g["y"] for g in lg)
+        by_hi = max(g["y"] + g["h"] for g in lg)
+        for r in geom["routes"]:
+            for k in range(len(r["pts"]) - 1):
+                (ax_, ay_), (bx_, by_) = r["pts"][k], r["pts"][k + 1]
+                if abs(ax_ - bx_) < 1e-9:
+                    self.assertTrue(bx_lo - 0.02 <= ax_ <= bx_hi + 0.02,
+                                    f"垂直总线 x={ax_:.2f} 越带域")
+                if abs(ay_ - by_) < 1e-9:
+                    self.assertTrue(by_lo - 0.02 <= ay_ <= by_hi + 0.02,
+                                    f"水平总线 y={ay_:.2f} 越带域")
+
+    def test_lr_direction_contract(self):
+        """LR 方向契约：lane0=顶行（行 y 递减）+行内声明序（x 递增）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import af_flow
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        d = self._lr_showcase()
+        fig, ax = plt.subplots(figsize=(10, 6))   # CLI 同款测量环境（默认 dpi）
+        blocks = af_flow.layout_semantic(d["nodes"], d["edges"],
+                                         layout="swimlane", direction="LR",
+                                         ax=ax, lanes=d["lanes"], fs=11)
+        plt.close(fig)
+        bmap = {b["id"]: b for b in blocks}
+        lane_y = {}
+        for ci, name in enumerate(d["lanes"]):
+            ys = [bmap[n["id"]]["y"] for n in d["nodes"]
+                  if (n["lane"] if isinstance(n["lane"], int) else 0) == ci
+                  or n.get("lane") == name]
+            self.assertTrue(ys, f"lane {ci} 无节点")
+            lane_y[ci] = sum(ys) / len(ys)
+        self.assertGreater(lane_y[0], lane_y[1], "lane0 应为顶行")
+        self.assertGreater(lane_y[1], lane_y[2], "lane1 应高于 lane2")
+        # 行内声明序（query→lock→tlf x 递增）
+        self.assertLess(bmap["query"]["x"], bmap["lock"]["x"])
+        self.assertLess(bmap["lock"]["x"], bmap["tlf"]["x"])
+
+    def test_zone_kinds(self):
+        """分隔带方向感知：TB→"v"、LR→"h"（行带细线 zone）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import af_flow
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        tb = TestV80900._showcase()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        blocks = af_flow.layout_semantic(tb["nodes"], tb["edges"],
+                                         layout="swimlane", ax=ax,
+                                         lanes=tb["lanes"], fs=11)
+        zs = af_flow._sep_zones(blocks)
+        self.assertTrue(zs and all(z[2] == "v" for z in zs), "TB 分隔带应为 v")
+        plt.close(fig)
+        d = self._lr_showcase()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        blocks = af_flow.layout_semantic(d["nodes"], d["edges"],
+                                         layout="swimlane", direction="LR",
+                                         ax=ax, lanes=d["lanes"], fs=11)
+        zs = af_flow._sep_zones(blocks)
+        self.assertTrue(zs and all(z[2] == "h" for z in zs), "LR 分隔带应为 h")
+        plt.close(fig)
+
+    def test_mermaid_subgraph_swimlane_e2e(self):
+        """mermaid TB+subgraph → 泳道直通（E2E strict+八检）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    subgraph Clinical sites\n"
+               "        A[Enrol]\n"
+               "        B[Complete eCRF]\n"
+               "    end\n"
+               "    subgraph DCC\n"
+               "        C{Query}\n"
+               "        D[Lock]\n"
+               "    end\n"
+               "    A --> B\n"
+               "    B --> C\n"
+               "    C --> D\n")
+        out = parse_mermaid(mmd)
+        self.assertEqual(out["layout"], "swimlane", "TB+subgraph 应直通泳道")
+        self.assertEqual(out["lanes"], ["Clinical sites", "DCC"])
+        geom = self._cli_geom(out)
+        self._geometry_audit(geom)
+
+    def test_lr_template_ships_and_renders(self):
+        """LR 泳道模板随包+strict+八检（lane 名称串归属）。"""
+        tdir = os.path.join(self.root, "templates")
+        p = os.path.join(tdir, "flow_swimlane-lr-journal.json")
+        self.assertTrue(os.path.isfile(p), "LR 泳道模板缺失")
+        d = json.load(open(p, encoding="utf-8"))
+        self.assertEqual(d.get("direction"), "LR")
+        self.assertTrue(all(isinstance(n.get("lane"), str)
+                            for n in d["nodes"]), "lane 名称串归属")
+        geom = self._cli_geom(d)
+        self._geometry_audit(geom)
+
+    def test_mermaid_lr_groups_fallback(self):
+        """mermaid LR+subgraph → groups 诚实降级（不猜用户意图）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart LR\n"
+               "    subgraph A1\n"
+               "        X[Step 1]\n"
+               "    end\n"
+               "    subgraph A2\n"
+               "        Y[Step 2]\n"
+               "    end\n"
+               "    X --> Y\n")
+        out = parse_mermaid(mmd)
+        self.assertEqual(out["layout"], "layered")
+        self.assertIn("groups", out)
+        self.assertNotIn("lanes", out)
+
+
+class TestV81100(unittest.TestCase):
+    """v8.1.1 mermaid 样式映射（linkStyle→边 color/dashed/thick；
+    classDef/class/style→节点 color）+ 渲染 E2E。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def test_link_style_mapping(self):
+        """linkStyle：stroke 色→边 color、dasharray→dashed、width≥3px→thick。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    A[Start] --> B[End]\n"
+               "    A -.-> B\n"
+               "    linkStyle 0 stroke:#BF8078,stroke-width:4px\n"
+               "    linkStyle 1 stroke-dasharray:5 5\n")
+        out = parse_mermaid(mmd)
+        e0, e1 = out["edges"][0], out["edges"][1]
+        self.assertEqual(e0.get("color"), "#BF8078")
+        self.assertTrue(e0.get("thick"))
+        self.assertIsNone(e0.get("dashed"))
+        self.assertTrue(e1.get("dashed"))
+        self.assertIsNone(e1.get("color"))
+
+    def test_link_style_default(self):
+        """linkStyle default → 全部边。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    A --> B\n"
+               "    B --> C\n"
+               "    linkStyle default stroke:#888888\n")
+        out = parse_mermaid(mmd)
+        self.assertTrue(all(e.get("color") == "#888888"
+                            for e in out["edges"]))
+
+    def test_classdef_node_color(self):
+        """classDef+class 与 style → 节点 color。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    A[Start]\n"
+               "    B[End]\n"
+               "    C[Middle]\n"
+               "    classDef good fill:#336672\n"
+               "    class A good\n"
+               "    style B fill:#BF8078\n"
+               "    A --> B\n")
+        out = parse_mermaid(mmd)
+        colors = {n["id"]: n.get("color") for n in out["nodes"]}
+        self.assertEqual(colors["A"], "#336672")
+        self.assertEqual(colors["B"], "#BF8078")
+        self.assertIsNone(colors.get("C"))
+
+    def test_styled_mermaid_e2e(self):
+        """带样式 mermaid 端到端 strict 渲染。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    A[Enrol] --> B[Randomise]\n"
+               "    classDef arm fill:#336672\n"
+               "    class A,B arm\n"
+               "    linkStyle 0 stroke:#336672,stroke-width:3px\n")
+        out = parse_mermaid(mmd)
+        with tempfile.TemporaryDirectory() as td:
+            dp = os.path.join(td, "d.json")
+            json.dump(out, open(dp, "w", encoding="utf-8"))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d", dp,
+                 "--gate", "strict", "--dpi", "600",
+                 "-o", os.path.join(td, "o.png")],
+                capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0,
+                             f"styled mermaid 渲染失败: {r.stderr[-200:]}")
 
 
 if __name__ == "__main__":
