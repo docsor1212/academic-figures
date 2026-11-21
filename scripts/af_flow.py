@@ -1727,7 +1727,7 @@ def _role_colors(blocks, arrows, colors):
 
 # ── 渲染管线（diagram/flow 共用单一事实源） ──────────────────────────────
 def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
-           cjk_fp=None, gate="basic", orthogonal=False):
+           cjk_fp=None, gate="basic", orthogonal=False, legend_flag=None):
     """完整渲染。返回 (violations, ratio)。gate="strict" 违规由调用方 exit 2。"""
     from matplotlib.patches import FancyBboxPatch, Polygon, Rectangle
 
@@ -1762,11 +1762,17 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     lanes = assign_lanes(blocks, arrows)
     n_above = sum(1 for (_lv, sd) in lanes.values() if sd > 0)
     n_below = sum(1 for (_lv, sd) in lanes.values() if sd < 0)
+    # v8.1.1 边样式图例：数据 legend:true/false 显式；缺省=混合样式自动
+    _legend_on = legend_flag if legend_flag is not None else (
+        any(e.get("dashed") for e in arrows)
+        or any(e.get("thick") for e in arrows)
+        or any(e.get("bidirectional") for e in arrows))
     trim_limits(ax, blocks, pad_x=CANVAS_PAD_X, pad_y=CANVAS_PAD_Y,
                 pad_top=CANVAS_PAD_Y + LANE_LABEL_ALLOW +
                 (LANE_GAP + LANE_STAGGER * n_above if n_above else 0),
                 pad_bot=CANVAS_PAD_Y + LANE_LABEL_ALLOW +
-                (LANE_GAP + LANE_STAGGER * n_below if n_below else 0),
+                (LANE_GAP + LANE_STAGGER * n_below if n_below else 0)
+                + (0.42 if _legend_on else 0),
                 ratio_hint=False)
     ax.axis("off")
 
@@ -2007,6 +2013,11 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     _ix1 = max(p[0] for p in _pts)
     _iy0 = min(p[1] for p in _pts)
     _iy1 = max(p[1] for p in _pts)
+    if _legend_on:
+        # v8.1.1 R18：图例条带必须在**最终 trim** 里预留（1.5 的底垫被此处
+        # 自适应边距覆盖→图例行被挤回带区、分隔线/标题竖条穿条带实锤）——
+        # 内容域下探 0.42，图例行=最终 ylim0+0.24 恒落带家具之下
+        _iy0 -= 0.42
     # 自适应边距（v8.0.4）：按内容尺寸比例取边距、常数封顶——封顶值已按
     # savefig bbox_inches='tight' 的 pad_inches=0.1 第二层边距校准（双层叠加
     # 会稀释面积占比：论文 fig2 实测引擎 0.28+save 0.2 → 面积 71.8%<75% DoD）。
@@ -2020,6 +2031,54 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     ax.set_position([0, 0, 1, 1])
     ratio = ((_ix1 - _ix0) * (_iy1 - _iy0)) / max((_lx1 - _lx0) * (_ly1 - _ly0), 1e-9)
     ax.axis("off")
+    # ── 7.5) 边样式图例（v8.1.1）：画布底部专用条带——线样+语义文字，
+    # 语言随节点标签 CJK 检测；不进闸几何（纯注释层 z=4）
+    if _legend_on:
+        _has_d = any(e.get("dashed") for e in arrows)
+        _has_t = any(e.get("thick") for e in arrows)
+        _has_b = any(e.get("bidirectional") for e in arrows)
+        _cjk = any(has_cjk_local(b.get("label", "")) for b in blocks)
+        _items = []
+        if _has_d:
+            _items.append((True, False, False,
+                           "dashed = feedback / rework" if not _cjk
+                           else "虚线 = 反馈 / 返工回路"))
+        if _has_t:
+            _items.append((False, True, False,
+                           "thick = critical path" if not _cjk
+                           else "粗线 = 关键路径"))
+        if _has_b:
+            _items.append((False, False, True,
+                           "double-head = bidirectional" if not _cjk
+                           else "双头 = 双向"))
+        if _items:
+            _x_leg = ax.get_xlim()[0] + 0.2
+            _y_leg = ax.get_ylim()[0] + 0.24
+            # v8.1.1：图例文字/线色随画布底色自动反色（深色主题下灰字低对比）
+            _fc = ax.get_facecolor()
+            try:
+                _lum = 0.299 * _fc[0] + 0.587 * _fc[1] + 0.114 * _fc[2]
+            except (TypeError, IndexError):
+                _lum = 1.0
+            _leg_c = "#E8E8E8" if _lum < 0.5 else "#555555"
+            for _i, (_d, _tk, _bi, _txt) in enumerate(_items):
+                _xx = _x_leg + _i * 2.6
+                _seg_kw = dict(color=_leg_c, lw=2.2 if _tk else 1.2,
+                               zorder=4)
+                if _d:
+                    _seg_kw.update(linestyle=(0, (4, 3)))
+                ax.plot([_xx, _xx + 0.34], [_y_leg, _y_leg], **_seg_kw)
+                if _bi:
+                    from matplotlib.patches import FancyArrowPatch
+                    ax.add_patch(FancyArrowPatch(
+                        (_xx, _y_leg), (_xx + 0.34, _y_leg),
+                        arrowstyle="<|-|>", mutation_scale=9,
+                        color=_leg_c, lw=1.2, zorder=4))
+                ax.text(_xx + 0.42, _y_leg, _txt, ha="left", va="center",
+                        fontsize=max(fs - 2, 6), color=_leg_c, zorder=4,
+                        fontproperties=cjk_fp if cjk_fp and has_cjk_local(_txt)
+                        else None)
+
     fig.canvas.draw()  # 终裁后刷新变换，闸门按最终几何测量
 
     # ── 8) 闸 ──

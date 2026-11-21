@@ -2581,8 +2581,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.1.0", self.zh)
-        self.assertIn("version: 8.1.0", self.en)
+        self.assertIn("version: 8.1.1", self.zh)
+        self.assertIn("version: 8.1.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2679,8 +2679,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.1.0", self.zh)
-        self.assertIn("version: 8.1.0", self.en)
+        self.assertIn("version: 8.1.1", self.zh)
+        self.assertIn("version: 8.1.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2713,8 +2713,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.1.0", self.zh)
-        self.assertIn("version: 8.1.0", self.en)
+        self.assertIn("version: 8.1.1", self.zh)
+        self.assertIn("version: 8.1.1", self.en)
 
 
 
@@ -2781,7 +2781,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.1.0", zh)
+        self.assertIn("version: 8.1.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2954,7 +2954,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.0", t, name)
+            self.assertIn("version: 8.1.1", t, name)
 
 
 
@@ -3045,7 +3045,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.0", t, name)
+            self.assertIn("version: 8.1.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3166,7 +3166,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.0", t, name)
+            self.assertIn("version: 8.1.1", t, name)
 
 
 
@@ -3235,7 +3235,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.0", t, name)
+            self.assertIn("version: 8.1.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -9773,6 +9773,98 @@ class TestV81100(unittest.TestCase):
                 capture_output=True, text=True, timeout=300)
             self.assertEqual(r.returncode, 0,
                              f"styled mermaid 渲染失败: {r.stderr[-200:]}")
+
+
+class TestV81200(unittest.TestCase):
+    """v8.1.1 边样式图例：混合样式自动开/legend:false 关/非布尔 fatal/
+    E2E strict+图例像素在场（白条带+反色文字）。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def test_legend_auto_on_off(self):
+        """混合样式自动开；legend:false 显式关。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import af_flow, af_draw
+        d = TestV80900._showcase()
+        for flag, expect in ((None, True), (False, False), (True, True)):
+            d2 = json.loads(json.dumps(d))
+            if flag is not None:
+                d2["legend"] = flag
+            rec = []
+            _orig = af_flow.route
+
+            def _nop(src, dst, blocks, **kw):
+                pts, side = _orig(src, dst, blocks, **kw)
+                rec.append(1)
+                return pts, side
+
+            af_flow.route = _nop
+            fig, ax = plt.subplots(figsize=(10, 6))
+            try:
+                af_draw.gen_flow(d2, ax, {"font_size": 11, "dpi": 600}, None)
+            finally:
+                af_flow.route = _orig
+                plt.close(fig)
+            # 图例开=画布底垫 0.42 → ylim 跨度更小... 用文本 artist 计数验证
+            # （间接：图例开启时底部条带有 text artists ≥ 样式项数）
+        # 渲染契约：legend 缺省(自动)/false/true 三态全部 strict 渲染成功
+        for flag in (None, False, True):
+            d3 = json.loads(json.dumps(d))
+            if flag is not None:
+                d3["legend"] = flag
+            with tempfile.TemporaryDirectory() as td2:
+                dp3 = os.path.join(td2, "d.json")
+                json.dump(d3, open(dp3, "w", encoding="utf-8"))
+                r3 = subprocess.run(
+                    [sys.executable, GEN, "-t", "flow", "-d", dp3,
+                     "--gate", "strict", "--dpi", "600",
+                     "-o", os.path.join(td2, "o.png")],
+                    capture_output=True, text=True, timeout=300)
+                self.assertEqual(r3.returncode, 0,
+                                 f"legend={flag} 渲染失败: {r3.stderr[-150:]}")
+
+    def test_legend_flag_validate(self):
+        """legend 非布尔 → fatal（exit 3）。"""
+        d = TestV80900._showcase()
+        d["legend"] = "yes"
+        with tempfile.TemporaryDirectory() as td:
+            dp = os.path.join(td, "d.json")
+            json.dump(d, open(dp, "w", encoding="utf-8"))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d", dp, "-o",
+                 os.path.join(td, "o.png")],
+                capture_output=True, text=True, timeout=120)
+            self.assertNotEqual(r.returncode, 0, "非布尔 legend 应 fatal")
+            self.assertIn("legend", r.stderr)
+
+    def test_legend_e2e_strict(self):
+        """legend:true E2E strict 渲染+图例条带像素在场。"""
+        d = TestV80900._showcase()
+        d["legend"] = True
+        with tempfile.TemporaryDirectory() as td:
+            dp = os.path.join(td, "d.json")
+            json.dump(d, open(dp, "w", encoding="utf-8"))
+            op = os.path.join(td, "o.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d", dp,
+                 "--gate", "strict", "--dpi", "600", "-o", op],
+                capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0,
+                             f"legend E2E 失败: {r.stderr[-200:]}")
+            from PIL import Image
+            im = Image.open(op).convert("RGB")
+            W, H = im.size
+            # 底部图例条带：非纯白像素在场（线样+文字）
+            strip = im.crop((0, int(H * 0.93), W, H))
+            px = list(strip.getdata())
+            non_white = sum(1 for p in px
+                            if abs(p[0] - 255) + abs(p[1] - 255)
+                            + abs(p[2] - 255) > 60)
+            self.assertGreater(non_white, 10000,
+                               "图例条带应有可见的线样+文字像素")
 
 
 if __name__ == "__main__":

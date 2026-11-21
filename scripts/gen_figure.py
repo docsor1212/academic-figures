@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-academic-figures v8.1.0: Publication-quality academic figure generator.
+academic-figures v8.1.1: Publication-quality academic figure generator.
 
 Generates charts from JSON/CSV data with:
 - Publication-grade aesthetics (Nature/Science/Lancet style)
@@ -1698,6 +1698,8 @@ def validate_data(data, chart_type):
         if not isinstance(nodes, list) or len(nodes) < 2: fatal.append("flow 需要 'nodes'（≥2 个节点对象）")
         if data.get("layout") not in (None, "chain", "layered", "snake", "swimlane"): fatal.append("flow: layout 只支持 chain | layered | snake | swimlane")
         if data.get("layout") == "swimlane" and not data.get("lanes"): fatal.append("flow: layout=swimlane 需要 'lanes'（名称列表）")
+        _lg_flag = data.get("legend")
+        if _lg_flag is not None and not isinstance(_lg_flag, bool): fatal.append(f"flow: 'legend' 需为布尔（true/false；缺省=混合样式自动），收到 {_lg_flag!r}")  # v8.1.1 边样式图例开关
         _cols = data.get("columns")
         if _cols is not None and (not str(_cols).lstrip("-").isdigit() or not 2 <= int(_cols) <= 8): fatal.append(f"flow: columns 需为 [2, 8] 整数，收到 {_cols!r}")  # v8.0.4 validate-first [2,8]（渲染层同锁）
         # v8.0.5 F1：形状白名单前置校验（渲染层 resolve_shape 同锁）

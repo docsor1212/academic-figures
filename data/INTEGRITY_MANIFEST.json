@@ -9,12 +9,12 @@
    "sha256": "dd24dcfc68baa50af877212e42eff1c4b42845a20eb82a0e57220a556041a101"
   },
   "references/changelog-full.md": {
-   "bytes": 136132,
-   "sha256": "727b028ddf3a01b3bf16fb1f1ea3e925f69fed6f399e81788d252dd168af0ee1"
+   "bytes": 138568,
+   "sha256": "6d0b4eb83b22d201947004afb64f76a10b880c1511ba39cf3248adaccd4bb74b"
   },
   "references/changelog.md": {
-   "bytes": 39012,
-   "sha256": "28320a13c6303145af990e906376077820f7a5a4f679396af5caa89802135573"
+   "bytes": 37847,
+   "sha256": "ef06932fdd144181cfacc8b3a130df5e878457d52c6a96c34a23996d71a1fbcc"
   },
   "references/cheatsheet.md": {
    "bytes": 6961,
@@ -37,16 +37,16 @@
    "sha256": "d76dbbec0883da2fe407daafccf616d7b96511dac793896501b04a472a2ce3e8"
   },
   "references/data-formats.md": {
-   "bytes": 29567,
-   "sha256": "085ded742330efb001568d9006732a85746938d5e7ee3b8089c57186232a37ca"
+   "bytes": 29743,
+   "sha256": "05809b9386a4267c376bb1f5ec6ce13eca6d5f74c5c564f4181e6184452cb848"
   },
   "references/faq.md": {
    "bytes": 16765,
    "sha256": "3ef1f11e8befa3d901a309cd4e17c29aec7f5a20d035c15852766c134973a893"
   },
   "references/limits.md": {
-   "bytes": 16109,
-   "sha256": "40edf305274d31ac404d7e81a53c14e3c1f454b9c2f3c16c4ce1c823d87747d4"
+   "bytes": 16323,
+   "sha256": "2778283289e3438c72890e7f8513428b9ead62bc4440144728b34d1a3b7697b7"
   },
   "references/pitfalls.md": {
    "bytes": 22868,
@@ -81,6 +81,6 @@
    "sha256": "5e901931348c7cb3510b3c1a1c8f112b85415a881cb7e996ed406b63251d251a"
   }
  },
- "generated_by": "af release pipeline v8.1.0",
+ "generated_by": "af release pipeline v8.1.1",
  "scope": "data/ + references/ only (v7.9.0 semantic lock)"
 }
