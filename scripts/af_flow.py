@@ -2707,11 +2707,13 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
         _segs = []
         for _i, (_e, _pts) in enumerate(route_meta):
             for _k in range(len(_pts) - 1):
-                _segs.append((_i, _k, _pts[_k], _pts[_k + 1]))
+                # 携带本边点数：末段换算守卫用存储值（外层 _pts 在配对循环时
+                # 已是最后一条边的残留值——LES 级教训：循环变量泄漏进闭包外）
+                _segs.append((_i, _k, _pts[_k], _pts[_k + 1], len(_pts)))
         for _a in range(len(_segs)):
-            _i, _ka, _p0, _p1 = _segs[_a]
+            _i, _ka, _p0, _p1, _npts = _segs[_a]
             for _b in range(_a):
-                _j, _kb, _q0, _q1 = _segs[_b]
+                _j, _kb, _q0, _q1, _qnpts = _segs[_b]
                 if _j == _i or not _seg_cross_line(_p0, _p1, _q0, _q1):
                     continue
                 # 交点（两段均为轴对齐；一般式解两线交点再钳到段内）
@@ -2734,14 +2736,13 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                     continue
                 _L = math.hypot(_d1x, _d1y) or 1.0
                 _tt = ((_ip[0] - _p0[0]) * _d1x + (_ip[1] - _p0[1]) * _d1y) / (_L * _L)
-                if _ka == len(_pts) - 2:         # 末段：参数换算到实际绘制的杆部
+                if _ka == _npts - 2:             # 末段：参数换算到实际绘制的杆部
                     _Ld = max(_L - HEAD_LEN, 1e-9)
                     _tt = _tt * _L / _Ld
                     if _tt >= 0.9:               # 跳点落在头部区（不画线）：放弃
                         continue
                 _hop_map.setdefault((_i, _ka), []).append((min(max(_tt, 0.0), 1.0), _ip))
-        print(f"[flow-hops] {sum(len(v) for v in _hop_map.values())} crossing(s) hopped",
-              file=sys.stderr)
+        print(f"[flow-hops] {sum(len(v) for v in _hop_map.values())} crossing(s) hopped", file=sys.stderr)
     # 屏幕比例（像素/数据单位）：跳弧要画成屏幕正圆（数据坐标里 x/y 比例不同，
     # 直接用数据半径画出来是椭圆——虚线上的椭圆弧回摆会与下一根虚线粘连成
     # 「泪滴」，评审 R1 实锤）。渲染器尚未落图时用 get_renderer 现取。
@@ -2776,26 +2777,21 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
             for (_t, _ip) in sorted(_hop_map.get((_ei, _k), []), key=lambda z: z[0]):
                 if _hop_sx is None:
                     continue                       # 拿不到屏幕比例：保持直线交叉
-                _rin = 0.055 * fig.dpi             # 屏幕半径（像素）=0.055in
-                _ux, _uy = (_B[0] - _A[0]) / _hl, (_B[1] - _A[1]) / _hl
-                _su = math.hypot(_ux * _hop_sx, _uy * _hop_sy) or 1.0   # 沿线像素/数据
-                _usx, _usy = _ux * _hop_sx / _su, _uy * _hop_sy / _su   # 屏幕单位方向
-                _nsx, _nsy = -_usy, _usx
-                # 断口参数 = R_in/|沿线像素|/段长（参数空间）
-                _g = _rin / _su / _hl
+                _r = 0.055                          # 数据单位（终裁画布 1unit=1in=屏幕圆）
+                _g = _r / _hl
                 if _g * 2 >= 0.8:
                     continue                       # 段太短放不下跳弧：放弃
                 _a = (_A[0] + (_B[0] - _A[0]) * (_t - _g),
                       _A[1] + (_B[1] - _A[1]) * (_t - _g))
                 _b = (_A[0] + (_B[0] - _A[0]) * (_t + _g),
                       _A[1] + (_B[1] - _A[1]) * (_t + _g))
+                _nv0 = (-( _B[1] - _A[1]) / _hl * _r, (_B[0] - _A[0]) / _hl * _r)
                 _arc = []
                 for _s in range(11):
                     _cs = math.cos(math.pi * _s / 10)
                     _sn = math.sin(math.pi * _s / 10)
-                    _dx = _rin * (_cs * _usx + _sn * _nsx) / _hop_sx
-                    _dy = _rin * (_cs * _usy + _sn * _nsy) / _hop_sy
-                    _arc.append((_ip[0] + _dx, _ip[1] + _dy))
+                    _arc.append((_ip[0] + (_a[0] - _ip[0]) * _cs + _nv0[0] * _sn,
+                                 _ip[1] + (_a[1] - _ip[1]) * _cs + _nv0[1] * _sn))
                 _pieces[-1].append(_a)
                 _arcs.append(_arc)
                 _pieces.append([_b])
