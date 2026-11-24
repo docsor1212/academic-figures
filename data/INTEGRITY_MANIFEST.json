@@ -9,12 +9,12 @@
    "sha256": "dd24dcfc68baa50af877212e42eff1c4b42845a20eb82a0e57220a556041a101"
   },
   "references/changelog-full.md": {
-   "bytes": 161623,
-   "sha256": "6c2bc38e7cbc90684d66202cf558d6578dcc0d7c413864239deb0177b1d4a0c0"
+   "bytes": 162695,
+   "sha256": "bb3b4cd4737376e04099474178163c20a6e783b52ef8374410e81e5699e3295e"
   },
   "references/changelog.md": {
-   "bytes": 22868,
-   "sha256": "7870321492f968e15f3fee7b0a207a835249b62bd073aac0fb0ef8d8bc68e234"
+   "bytes": 23259,
+   "sha256": "2e46c6ba382c0986a34b983d25f9aa56a0f3d7bcf6ef3feca2e741b88bb80c13"
   },
   "references/cheatsheet.md": {
    "bytes": 6961,
@@ -81,6 +81,6 @@
    "sha256": "5e901931348c7cb3510b3c1a1c8f112b85415a881cb7e996ed406b63251d251a"
   }
  },
- "generated_by": "af release pipeline v8.1.4",
+ "generated_by": "af release pipeline v8.1.5",
  "scope": "data/ + references/ only (v7.9.0 semantic lock)"
 }
