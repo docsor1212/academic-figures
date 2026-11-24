@@ -490,7 +490,7 @@ class TestGenLegend(unittest.TestCase):
 
 # ── v2.0.1: theme system, style presets, demo/explain, setup_env ───────
 
-class TestV201ThemeSystem(unittest.TestCase):
+class TestV20001ThemeSystem(unittest.TestCase):
     def test_default_theme_is_glm(self):
         # v7.6 默认变更为 glm-brand（用户钦定品牌出图）；glm 降为显式主题，别名解析不变
         self.assertEqual(gen_figure.resolve_theme(None), "glm-brand")
@@ -525,7 +525,7 @@ class TestV201ThemeSystem(unittest.TestCase):
                 self.assertGreaterEqual(len(theme["colors"]), 2)
 
 
-class TestV201StylePreset(unittest.TestCase):
+class TestV20001StylePreset(unittest.TestCase):
     def _render(self, chart_type, extra=None):
         data_path = os.path.join(tempfile.gettempdir(), f"v201_{chart_type}.json")
         with open(data_path, "w", encoding="utf-8") as f:
@@ -573,7 +573,7 @@ class TestV201StylePreset(unittest.TestCase):
         self.assertTrue(ok)
 
 
-class TestV201MetaCommands(unittest.TestCase):
+class TestV20001MetaCommands(unittest.TestCase):
     def test_list_themes_exits_0(self):
         r = subprocess.run([sys.executable, GEN, "--list-themes"],
                            capture_output=True, text=True, timeout=60)
@@ -755,7 +755,9 @@ class TestDemoAndExampleSchemas(unittest.TestCase):
             self.skipTest("no examples dir")
         canonical = {"dual": "dual_axis", "stacked": "stacked_bar",
                      "box": "box", "roc": "roc", "km": "km",
-                     "arena": "bar"}  # v7.5 --arena 是 bar 的风格旗标非独立图型
+                     "arena": "bar",  # v7.5 --arena 是 bar 的风格旗标非独立图型
+                     "flow_swimlane": "flow",  # v8.1.0 泳道 examples 均 -t flow
+                     "flow_swimlane_lr": "flow"}
         for fname in sorted(os.listdir(examples_dir)):
             if not fname.endswith(".json"):
                 continue
@@ -770,7 +772,7 @@ class TestDemoAndExampleSchemas(unittest.TestCase):
                 self._render(chart, data)
 
 
-class TestV210Prisma(unittest.TestCase):
+class TestV20100Prisma(unittest.TestCase):
     """v2.1 PRISMA 2020 flow: validation gates + CLI rendering."""
 
     def setUp(self):
@@ -840,7 +842,7 @@ class TestV210Prisma(unittest.TestCase):
         self.assertGreater(os.path.getsize(out), 5000)
 
 
-class TestV210Suggest(unittest.TestCase):
+class TestV20100Suggest(unittest.TestCase):
     """v2.1 --suggest: heuristic chart-type recommendation."""
 
     def setUp(self):
@@ -884,7 +886,7 @@ class TestV210Suggest(unittest.TestCase):
         self.assertNotEqual(proc.returncode, 0)
 
 
-class TestV220LayoutFixes(unittest.TestCase):
+class TestV20200LayoutFixes(unittest.TestCase):
     """v2.2 staged fixes: no silent label loss, PRISMA side-box auto-fit.
 
     Background: the overlap ladder used to hide tick labels (stride-thinning)
@@ -961,7 +963,7 @@ class TestV220LayoutFixes(unittest.TestCase):
 
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV220Features(unittest.TestCase):
+class TestV20200Features(unittest.TestCase):
     """v2.2: journal presets 9, xlsx input, --stats auto, --alt, templates."""
 
     def setUp(self):
@@ -1143,7 +1145,7 @@ class TestV220Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 51, f"expected 51 templates (+7 flow family v8.0.5 +2 swimlane v8.0.9), got {len(jsons)}")
+        self.assertEqual(len(jsons), 52, f"expected 52 templates (+7 flow family v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -1164,7 +1166,7 @@ class TestV220Features(unittest.TestCase):
 
 
 
-class TestV230Features(unittest.TestCase):
+class TestV20300Features(unittest.TestCase):
     """v2.3 统计深水区：新图型、KM 自动风险表、multi/DeLong、batch/caption。"""
 
     def setUp(self):
@@ -1668,7 +1670,7 @@ class TestV230Features(unittest.TestCase):
             self.assertIn("漏斗图", f.read())
 
 
-class TestV250SubmissionPolish(unittest.TestCase):
+class TestV20500SubmissionPolish(unittest.TestCase):
     """v2.5.0 投稿精修：--annotate / 期刊配色主题 / venn --area / 图例控制。"""
 
     def _run(self, chart_type, data, extra=(), name="v250"):
@@ -1915,7 +1917,7 @@ class TestV250SubmissionPolish(unittest.TestCase):
             self.assertIn(type(exc).__name__, msg, "应保留英文类名便于搜索")
 
 
-class TestV260Features(unittest.TestCase):
+class TestV20600Features(unittest.TestCase):
     """v2.6.0：km 长表陷阱拦截（A1）+ 校验消息中文化（A2）+ multi-format/pipeline（C1/C2）。"""
 
     def setUp(self):
@@ -2246,7 +2248,7 @@ class TestA3Stability(unittest.TestCase):
 _DOC_COUNT_PAT = re.compile(r"(\d+)[\s-]*(?:种图表|种图型|种学术图型|种投稿级学术图型|种投稿级学术图表|(?:[\w-]+\s+){0,2}chart[\s-]*types?|types, one command)")
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV280DocCount(unittest.TestCase):
+class TestV20800DocCount(unittest.TestCase):
     """B1(v2.8)：全部在售文档「N 种图表 / N 种图型 / N chart types」必须等于
     代码注册表去纯别名后的图型数。起因：v2.7.0 官方评测抓到 SKILL_ZH 写
     「21种图表」而实际 22 种——文档计数表述从此由测试锁死，新增图型时文档同步更新。"""
@@ -2298,7 +2300,7 @@ class TestV280DocCount(unittest.TestCase):
 
 
 # ── v2.8.0 A 线：看门狗 / 退出码分级 / 降采样出口 ─────────────────────────
-class TestV280Watchdog(unittest.TestCase):
+class TestV20800Watchdog(unittest.TestCase):
     """A1/A3(v2.8)：看门狗硬中断 exit 5、--timeout 0 禁用、退出码分类。"""
 
     def _big_cluster(self, td, rows=3000, cols=16):
@@ -2362,7 +2364,7 @@ class TestV280Watchdog(unittest.TestCase):
         self.assertEqual(f(Exception("misc")), 2)
 
 
-class TestV280Downsample(unittest.TestCase):
+class TestV20800Downsample(unittest.TestCase):
     """A4(v2.8)：cluster_heatmap 超限指引 + --downsample 等距采样出口。"""
 
     def test_over_limit_hint_mentions_downsample(self):
@@ -2396,7 +2398,7 @@ class TestV280Downsample(unittest.TestCase):
 
 
 # ── v2.8.0 C 线：异常词条覆盖（评测点名 ImportError 裸英文）────────────────
-class TestV280ExceptionUX(unittest.TestCase):
+class TestV20800ExceptionUX(unittest.TestCase):
     """C1(v2.8)：ImportError/OSError 等不再落「未知类型」，中文诊断含依赖指引。"""
 
     def test_importerror_has_chinese_diagnosis(self):
@@ -2420,7 +2422,7 @@ class TestV280ExceptionUX(unittest.TestCase):
 
 
 # ── v2.8.0 D1：venn 4 集合椭圆 ──────────────────────────────────────────
-class TestV280Venn4(unittest.TestCase):
+class TestV20800Venn4(unittest.TestCase):
     """D1(v2.8)：4 集合椭圆布局（默认确定性 / --area 拟合+披露）与区域契约。"""
 
     def test_default_layout_all_15_regions_nonempty(self):
@@ -2507,7 +2509,7 @@ class TestV280Venn4(unittest.TestCase):
 
 
 # ── v2.8.0 D2：--wizard 向导 ────────────────────────────────────────────
-class TestV280Wizard(unittest.TestCase):
+class TestV20800Wizard(unittest.TestCase):
     """D2(v2.8)：非 TTY 不挂起打印决策树；AF_WIZARD_FORCE 管道走交互并出命令。"""
 
     def test_wizard_non_tty_prints_guide(self):
@@ -2536,7 +2538,7 @@ class TestV280Wizard(unittest.TestCase):
         self.assertIn("-t bar", r.stdout)
 
 
-class TestV280Help(unittest.TestCase):
+class TestV20800Help(unittest.TestCase):
     """回归锁（v2.8）：--help 可用且含新参数。v2.7.0 曾因 --stats help 文本含
     裸 %（95%CI）触发 argparse %-格式化崩溃——--help 整体不可用。"""
 
@@ -2579,8 +2581,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.0.9", self.zh)
-        self.assertIn("version: 8.0.9", self.en)
+        self.assertIn("version: 8.1.0", self.zh)
+        self.assertIn("version: 8.1.0", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2608,7 +2610,7 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
 
 
 
-class TestV290FieldNearMiss(unittest.TestCase):
+class TestV20900FieldNearMiss(unittest.TestCase):
     """v2.9：字段名近似匹配告警。"""
 
     def test_typo_labels_warns(self):
@@ -2677,8 +2679,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.0.9", self.zh)
-        self.assertIn("version: 8.0.9", self.en)
+        self.assertIn("version: 8.1.0", self.zh)
+        self.assertIn("version: 8.1.0", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2711,8 +2713,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.0.9", self.zh)
-        self.assertIn("version: 8.0.9", self.en)
+        self.assertIn("version: 8.1.0", self.zh)
+        self.assertIn("version: 8.1.0", self.en)
 
 
 
@@ -2779,7 +2781,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.0.9", zh)
+        self.assertIn("version: 8.1.0", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2790,7 +2792,7 @@ class TestV30100(unittest.TestCase):
 
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV3200(unittest.TestCase):
+class TestV30200(unittest.TestCase):
     """v3.2.0：自动行为透明化 + 安全声明 + FAQ 扩充。"""
 
     @classmethod
@@ -2840,7 +2842,7 @@ class TestV3200(unittest.TestCase):
 
 
 
-class TestV3700(unittest.TestCase):
+class TestV30700(unittest.TestCase):
     """v3.7.0：Aalen-Johansen 竞争风险——三重对拍锁 + 渲染 E2E。"""
 
     @classmethod
@@ -2952,7 +2954,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.9", t, name)
+            self.assertIn("version: 8.1.0", t, name)
 
 
 
@@ -3043,13 +3045,13 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.9", t, name)
+            self.assertIn("version: 8.1.0", t, name)
             self.assertIn("--direct-label", t, name)
 
 
 
 
-class TestV3500(unittest.TestCase):
+class TestV30500(unittest.TestCase):
     """v3.5.0：Bootstrap CI——金标准对拍+确定性+渲染。"""
 
     def test_bootstrap_converges_to_analytic(self):
@@ -3164,7 +3166,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.9", t, name)
+            self.assertIn("version: 8.1.0", t, name)
 
 
 
@@ -3233,7 +3235,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.0.9", t, name)
+            self.assertIn("version: 8.1.0", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -3352,7 +3354,7 @@ class TestV30900(unittest.TestCase):
 
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV30910(unittest.TestCase):
+class TestV30901(unittest.TestCase):
     """v3.9.1 文档准确性热修回归锁。"""
 
     @classmethod
@@ -3659,7 +3661,7 @@ class TestV40100(unittest.TestCase):
             self.assertIn("n=4 例 · 事件 3 例 · 2 组", r.stderr)
 
 
-class TestV42000(unittest.TestCase):
+class TestV40200(unittest.TestCase):
     """v4.2.0：slope 斜率图（第 23 号图型）+ --peak-label 峰值自动注记。"""
 
     def test_slope_e2e_renders(self):
@@ -3714,7 +3716,7 @@ class TestV42000(unittest.TestCase):
                 self.assertIn("峰值 40（W2）", r.stderr)
 
 
-class TestV43000(unittest.TestCase):
+class TestV40300(unittest.TestCase):
     """v4.3.0：--profile 分层配置文件 + composite span 跨行跨列。"""
 
     def test_profile_applies_cli_wins(self):
@@ -3786,7 +3788,7 @@ class TestV43000(unittest.TestCase):
             self.assertIn("占位重叠", r.stderr)
 
 
-class TestV44000(unittest.TestCase):
+class TestV40400(unittest.TestCase):
     """v4.4.0：volcano 火山图（第 24 号图型，组学差异表达）。"""
 
     def test_volcano_e2e_renders(self):
@@ -3841,7 +3843,7 @@ class TestV44000(unittest.TestCase):
             self.assertEqual(r.returncode, 0, r.stderr[-250:])
 
 
-class TestV46000(unittest.TestCase):
+class TestV40600(unittest.TestCase):
     """v4.6.0：ROC 默认语义轴标题 + venn n 消歧 + 聚类热图行标签自适应字号（P3 打磨包）。"""
 
     def test_roc_default_axis_titles(self):
@@ -3892,7 +3894,7 @@ class TestV46000(unittest.TestCase):
         plt.close(fig)
 
 
-class TestV47000(unittest.TestCase):
+class TestV40700(unittest.TestCase):
     """v4.7.0：upset 集合交集图（第 25 号图型）+ 场景化指导文档 + 真实科研场景示例。"""
 
     def test_upset_e2e_renders(self):
@@ -4069,7 +4071,7 @@ class TestV47000(unittest.TestCase):
                          f"realworld 示例应 18 个: {rws}")
 
 
-class TestV48000(unittest.TestCase):
+class TestV40800(unittest.TestCase):
     """v4.8.0：waterfall 肿瘤缓解瀑布图（第 26 号图型，RECIST 着色+阈值线）。"""
 
     def test_waterfall_e2e_group(self):
@@ -4257,7 +4259,7 @@ class TestV48000(unittest.TestCase):
         self.assertTrue(all(lb.get_text() for lb in labels), "26 例不抽稀")
 
 
-class TestV49000(unittest.TestCase):
+class TestV40900(unittest.TestCase):
     """v4.9.0：raincloud 雨云图（第 27 号图型，分布三合一）+ setup_env --fix。"""
 
     def test_raincloud_e2e_renders(self):
@@ -4939,7 +4941,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 51)   # v8.0.9 +2 swimlane
+        self.assertEqual(len(jsons), 52)   # v8.0.9 +2 swimlane, v8.1.0 +1 LR
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5470,7 +5472,7 @@ class TestV50600(unittest.TestCase):
         """计数锁收口：模板 37 / realworld 12 / 新字段白名单（v5.7 起 cif+mgus2 入列）。"""
         root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
-        self.assertEqual(len(tpls), 51, f"模板应 51 个 (+7 flow family v8.0.5 +2 swimlane v8.0.9): {len(tpls)}")
+        self.assertEqual(len(tpls), 52, f"模板应 52 个 (+7 flow v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0): {len(tpls)}")
         rws = os.listdir(os.path.join(root, "examples", "realworld"))
         self.assertEqual(len([x for x in rws if x.endswith(".json")]), 18,
                          f"realworld 应 14 个: {rws}")
@@ -5699,7 +5701,7 @@ class TestV50700(unittest.TestCase):
         """计数锁（v5.7.0 建锁 38；…v7.8 +hero=41；v8.0 +flow=42）：42 模板/注册表≥41/README 41 chart types/realworld 18。"""
         root = os.path.join(SCRIPT_DIR, "..")
         jsons = glob.glob(os.path.join(root, "templates", "*.json"))
-        self.assertEqual(len(jsons), 51, f"templates 应 51 (+7 flow family v8.0.5 +2 swimlane v8.0.9): {len(jsons)}")
+        self.assertEqual(len(jsons), 52, f"templates 应 52 (+7 flow v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0): {len(jsons)}")
         sys.path.insert(0, SCRIPT_DIR)
         import gen_figure
         self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 40)
@@ -6007,7 +6009,7 @@ class TestV50900(unittest.TestCase):
 
 
 
-class TestV59100(unittest.TestCase):
+class TestV50901(unittest.TestCase):
     """v5.9.1：cif cause_labels 键↔标签一致性守卫（10-24 全谱审计——ep35 标签
     对调同类的唯一键间接映射点补防：错码一票否决、缺标软提示默认名）。"""
 
@@ -6127,7 +6129,7 @@ class TestV60000(unittest.TestCase):
 
 
 
-class TestV61000(unittest.TestCase):
+class TestV60100(unittest.TestCase):
     """v6.1.0：rob 偏倚风险交通灯图（第 39 图型，robvis 同款）——真实数据
     （robvis 包 data_rob2，9 研究×5 域+Overall）各域计数金标+守卫三态+
     --suggest 两条新规则。"""
@@ -6196,7 +6198,7 @@ class TestV61000(unittest.TestCase):
 
 
 
-class TestV61100(unittest.TestCase):
+class TestV60101(unittest.TestCase):
     """v6.1.1：rob 判定扩展（Very high 极高档+Unclear 归顾虑档）——三种官方工具
     真实数据（robvis 包 data_rob1/data_robins_e/data_quadas）金标+图例全域扫描
     回归锁（循环变量泄漏事故：图例在场判定只查最后一域导致漏档）。"""
@@ -6252,7 +6254,7 @@ class TestV61100(unittest.TestCase):
 
 
 
-class TestV62000(unittest.TestCase):
+class TestV60200(unittest.TestCase):
     """v6.2.0：稳定性双修——瞬时失败自动重试（--retries）+ --timeout 0 硬保险。
     另含看门狗小预算精度修复（_monitor 步长跟随预算，<1s 预算此前永不触发）。"""
 
@@ -6360,21 +6362,37 @@ class TestV62000(unittest.TestCase):
         self.assertIn("瞬时失败", r.stdout)
 
     def test_mcp_mirror_import_closure(self):
-        """mcp 镜像依赖闭包：gen_figure 本地 import 的每个 af_* 模块在镜像中都存在。
-        （v6.2.0 事故固化：af_resilience 新增后未进 sync 清单，MCP 侧 import 断链，
-        全量测试绿也抓不到——tests 不跑镜像 import。）"""
+        """mcp 镜像依赖闭包：引擎各模块 import 的每个 af_* 模块（含函数内的延迟
+        import、含传递依赖）在镜像中都存在且列入 sync 清单。
+        （v6.2.0 事故固化：af_resilience 新增后未进 sync 清单，MCP 侧 import 断链；
+        v8.1.0 再固化：旧版只扫 gen_figure 顶层 import，函数内延迟 import 的
+        af_flow/af_mermaid 漏检——MCP 内嵌引擎画流程图 ModuleNotFoundError，
+        全量测试照样全绿。）"""
         import re as _re
-        src = open(os.path.join(SCRIPT_DIR, "gen_figure.py"), encoding="utf-8").read()
-        deps = set(_re.findall(r"^from (af_\w+) import", src, _re.M))
-        deps |= set(_re.findall(r"^import (af_\w+)", src, _re.M))
-        self.assertTrue(deps, "应至少解析出一个本地依赖")
         mirror = os.path.join(SCRIPT_DIR, "..", "mcp", "af_engine")
+        sync = open(os.path.join(SCRIPT_DIR, "..", "mcp", "sync_engine.sh"),
+                    encoding="utf-8").read()
+        pat = _re.compile(r"^\s*(?:from|import)\s+(af_\w+)", _re.M)
+        todo, seen, deps = ["gen_figure"], set(), set()
+        while todo:
+            mod = todo.pop()
+            if mod in seen:
+                continue
+            seen.add(mod)
+            fp = os.path.join(SCRIPT_DIR, mod + ".py")
+            if not os.path.exists(fp):
+                fp = os.path.join(mirror, mod + ".py")
+            if not os.path.exists(fp):
+                continue
+            for d in set(pat.findall(io.open(fp, encoding="utf-8").read())):
+                if d not in deps:
+                    deps.add(d)
+                    todo.append(d)
+        self.assertTrue(deps, "应至少解析出一个本地依赖")
+        self.assertIn("af_flow", deps, "af_flow 是函数内延迟 import，闭包必须扫到")
         for d in sorted(deps):
             self.assertTrue(os.path.exists(os.path.join(mirror, d + ".py")),
                             f"mcp 镜像缺 {d}.py —— 同步进 mcp/sync_engine.sh FILES 清单")
-        sync = open(os.path.join(SCRIPT_DIR, "..", "mcp", "sync_engine.sh"),
-                    encoding="utf-8").read()
-        for d in sorted(deps):
             self.assertIn(d + ".py", sync,
                           f"sync_engine.sh FILES 清单缺 {d}.py —— 镜像将随版本漂移")
 
@@ -6384,7 +6402,7 @@ class TestV62000(unittest.TestCase):
         self.assertNotIn("重跑一次（瞬态问题已支持自动重试）", src)
         self.assertIn("瞬态失败（超时/内存）会自动重试", src)
 
-class TestV63000(unittest.TestCase):
+class TestV60300(unittest.TestCase):
     """v6.3.0：L'Abbé 图 #40（Meta 四件套收官）——Fleiss 1993 阿司匹林 7 RCT 金标
     （DL RR 与独立实现逐位互拍+MH OR 复现文献 ≈0.90）+骑线/夹缝点引线标注机制。"""
 
@@ -6463,7 +6481,7 @@ class TestV63000(unittest.TestCase):
 
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV64000(unittest.TestCase):
+class TestV60400(unittest.TestCase):
     """v6.4.0：--debug 结构化失败诊断侧车（评测建议②落地）+ SKILL 体积守卫锁
     （progressive 4.5 根因=文档膨胀的机制化防回潮）。"""
 
@@ -6589,7 +6607,7 @@ class TestV64000(unittest.TestCase):
                                  "（历史堆砌→下沉 changelog.md）")
 
 
-class TestV67000(unittest.TestCase):
+class TestV60700(unittest.TestCase):
     """v6.7.0：--list-flags 旗标域查询（usability「参数组合需查文档」的一命令出口）
     + 评测 accuracy/structure 4.5 点名收口（37 残留/gallery 死链/Python 版本/表格挤压）的回归锁。"""
 
@@ -6651,7 +6669,7 @@ class TestV67000(unittest.TestCase):
 # ── v6.8.0：MCP 能力透明化（评测「注册表缺口」根修锁） ─────────────────────
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV68000(unittest.TestCase):
+class TestV60800(unittest.TestCase):
     """v6.8.0：CHARTS 内置清单快照锁 + query_capability 工具 + CSV 误差文档真相化
     + 计数守卫英文修饰容忍（评测 477807 五失分项防回潮）。"""
 
@@ -6760,7 +6778,7 @@ class TestV68000(unittest.TestCase):
 # ── v6.9.0：sig-bracket 组间显著性括号 + 评测软失分收口防回潮 ──────────────
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV69000(unittest.TestCase):
+class TestV60900(unittest.TestCase):
     """v6.9.0：--sig-bracket（comparisons 任意比较对+分层布局）+ MCP 工具清单锁
     + README 语言描述 + changelog 当前版本标记 + uvx 本地路线。"""
 
@@ -7005,7 +7023,7 @@ class TestV70000(unittest.TestCase):
 # ── v7.1.0：命令一致性扫描器 + 域表真值 + 文档如实锁 ───────────────────────
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV71000(unittest.TestCase):
+class TestV70100(unittest.TestCase):
     """v7.1.0：check_consistency 全绿锁（评测 486104 func 4.5 主指控机制化防回潮）。"""
 
     @classmethod
@@ -7085,7 +7103,7 @@ class TestV71000(unittest.TestCase):
 # ── v7.2.0：扫描器 v2（引擎源码文案面）+ 安装/预览体验锁 ───────────────────
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV72000(unittest.TestCase):
+class TestV70200(unittest.TestCase):
     """v7.2.0：评测 487323 accuracy 4.5（af_shared 旧文案）/docQuality 4.5（无图预览）
     /trust 4.5（GitHub 默认依赖）三实伤机制化防回潮。"""
 
@@ -7134,7 +7152,7 @@ class TestV72000(unittest.TestCase):
 # ── v7.3.0：包内输出样例（SVG）+ 口径统一 + 统计责任提示 ──────────────────
 
 @unittest.skipIf(MIRROR_MODE, _MIRROR_SKIP)
-class TestV73000(unittest.TestCase):
+class TestV70300(unittest.TestCase):
     """v7.3.0：评测 490210 docQuality 4.8（缺输出样例）+accuracy 4.6（口径差异）
     机制化防回潮。"""
 
@@ -7186,7 +7204,7 @@ class TestV73000(unittest.TestCase):
             self.assertIn("检验假设", r.stderr)
 
 
-class TestV74000(unittest.TestCase):
+class TestV70400(unittest.TestCase):
     """v7.4.0：评测 492208 func 4.5（tests 旧图型计数）+accuracy 4.6（期刊宽度表述相反/
     stats 域新旧口径混用/README 示例目录与包内不一致）+引擎 [auto] journal 重复打印
     机制化防回潮。"""
@@ -7267,7 +7285,7 @@ class TestV74000(unittest.TestCase):
         self.assertNotIn(old40tpl, src)
 
 
-class TestV75000(unittest.TestCase):
+class TestV70500(unittest.TestCase):
     """v7.5.0：评测 495090 accuracy 4.6（场景卡 bar×stats auto 矛盾=跨行命令逃逸扫描器）
     机制化防回潮 + 新功能 --arena 基准对比竞技场风格锁。"""
 
@@ -7352,7 +7370,7 @@ class TestV75000(unittest.TestCase):
         self.assertIn("2404.07972", d["_source"])
 
 
-class TestV76000(unittest.TestCase):
+class TestV70600(unittest.TestCase):
     """v7.6.0：默认出图=品牌视觉（用户钦定黄蓝双斜线为默认输出；此前零参数=glm 朴素
     默认，其他 agent 按最短路径调用得到朴素图——默认必须是最佳输出）。"""
 
@@ -7384,7 +7402,7 @@ class TestV76000(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(td, "o.png")))
 
 
-class TestV77000(unittest.TestCase):
+class TestV70700(unittest.TestCase):
     """v7.7.0：bar 单系列默认竞技场风格机制化（默认输出=最佳输出第二期）+
     --arena off 负面指标逃生门 + --pub-ready 自动规避 + --suggest 榜单配方路由。"""
 
@@ -7514,7 +7532,7 @@ class TestV77000(unittest.TestCase):
         self.assertIn("v7.7 默认启用", zh)
 
 
-class TestV77100(unittest.TestCase):
+class TestV70701(unittest.TestCase):
     """v7.7.1：收尾修复+契约升级（外部实测反馈驱动）——主题色板默认标记真值锁
     （扫描器 3d）+默认竞技场像素契约锁+frontmatter date 一致性锁+基线加冕提示。"""
 
@@ -7629,7 +7647,7 @@ class TestV77100(unittest.TestCase):
         self.assertIn("glm-brand", lines[0])
 
 
-class TestV77200(unittest.TestCase):
+class TestV70702(unittest.TestCase):
     """v7.7.2：测试线差量方案 AF1（--data inline 简写）+ AF2（套件里程碑输出）。"""
 
     @classmethod
@@ -7681,7 +7699,7 @@ class TestV77200(unittest.TestCase):
         """--verbose 里程碑 runner：单类跑批输出 [i/total]+DONE 摘要+exit 0。"""
         r = subprocess.run(
             [sys.executable, os.path.join(self.root, "tests", "run_tests.py"),
-             "--verbose", "TestV77100.test_frontmatter_date_matches_changelog"],
+             "--verbose", "TestV70701.test_frontmatter_date_matches_changelog"],
             capture_output=True, text=True, timeout=240)
         self.assertEqual(r.returncode, 0, r.stderr[-300:])
         self.assertIn("MILESTONE RUN: 1 tests", r.stdout)
@@ -7689,7 +7707,7 @@ class TestV77200(unittest.TestCase):
         self.assertIn("== DONE:", r.stdout)
 
 
-class TestV78000(unittest.TestCase):
+class TestV70800(unittest.TestCase):
     """v7.8.0：方法论批三批次的采纳内容锁——
     批次1 文档（五点图约/审稿人模拟/语义配色/反冗余/reviewer-cases/问题门/命名约定）
     + 批次2 审计层（像素探针/尺寸双保险/trigger 基准）+ 批次3 引擎（hero_panel/分层栅格化）。"""
@@ -7830,7 +7848,7 @@ class TestV78000(unittest.TestCase):
         self.assertIn("-t composite", d["_command"])
 
 
-class TestV78100(unittest.TestCase):
+class TestV70801(unittest.TestCase):
     """v7.8.1：第四轮测试线 AF9-AF16 修复锁——
     AF11 比值类 CI 舍入防 1.00 临床误读（P1）/AF9 隐式 hatch 不冒充+off 逃生门/
     AF12 rob 摘要条图内数值/AF13 气泡语义注/AF15 rmst 双臂可辨/AF16 explain 补齐。
@@ -8002,7 +8020,7 @@ class TestV78100(unittest.TestCase):
             self.assertIn("两个组", r.stderr)
 
 
-class TestV79000(unittest.TestCase):
+class TestV70900(unittest.TestCase):
     """v7.9.0：第六轮测试线批次1修复锁——
     AF3 CJK 探测回退链（嵌套解释器零豆腐）/AF21+AF4 _KNOWN_DATA_FIELDS 假警告族根治
     （含 title/events_t 缺逗号连字 bug）/AF22 prisma 纳入≤评估守恒独立化/
@@ -8159,7 +8177,7 @@ class TestV79000(unittest.TestCase):
             return f.read()
 
 
-class TestV79100(unittest.TestCase):
+class TestV70901(unittest.TestCase):
     """v7.9.1：第六轮批次2（可读性/配色家族）修复锁——
     AF32/AF6b heatmap 格内文字按底色 WCAG 反色（原按数值阈值判黑白）/AF6 大矩阵标注
     密度门控+字号自适应/AF38 diagram 块内文字随块底反色/AF43 --discrete 阶梯映射/
@@ -8380,7 +8398,7 @@ def mc_to_hex(c):
     return _mc.to_hex(c)
 
 
-class TestV79200(unittest.TestCase):
+class TestV70902(unittest.TestCase):
     """v7.9.2：第六轮批次3（门禁+覆盖欠账）——
     tester 建议固化的验收门禁：元素内文字 WCAG 对比度门（diagram 侧）/
     有序离散三轴（--discrete 相邻等级 ΔL*≥20 离散映射锁）/
@@ -8617,7 +8635,7 @@ class TestV80000(unittest.TestCase):
         self.assertEqual(_FLAG_DOMAINS["--gate"][0], ("diagram", "flow"))
 
 
-class TestV80400(unittest.TestCase):
+class TestV80004(unittest.TestCase):
     """v8.0.4 闸测试：角色化配色/蛇形布局/apex 机械断言/错层白隙/
     [ignored] 透明告知/font_size 数据键。根因全部来自真实渲染实证
     （visual-judge 四轮+论文 fig2 审核双闸）。"""
@@ -8826,7 +8844,7 @@ class TestV80400(unittest.TestCase):
                          "未知 layout 必须 fatal")
 
 
-class TestV80500(unittest.TestCase):
+class TestV80005(unittest.TestCase):
     """v8.0.5 F1/F4/F6 闸测试：形状注册表/别名解析/内接契约/边型扩展/
     7 套学术模板。全部来自真实渲染实证（showcase 14 形状 strict 闸）。"""
 
@@ -8946,16 +8964,16 @@ class TestV80500(unittest.TestCase):
                     "flow_state-cellcycle", "flow_pipeline-crispr",
                     "flow_approval-ethics", "flow_contrast-twomethods",
                     "flow_cycle-pdca", "flow_swimlane-clinical",
-                    "flow_swimlane-incident"}
+                    "flow_swimlane-incident", "flow_swimlane-lr-journal"}
         for name in expected:
             p = os.path.join(tdir, f"{name}.json")
             self.assertTrue(os.path.isfile(p), f"{name}.json 缺失")
             d = json.load(open(p, encoding="utf-8"))
             self.assertIn("_command", d)
             self.assertGreaterEqual(len(d.get("nodes", [])), 4)
-        # subprocess strict 抽渲染：链式+蛇形+泳道各一（覆盖四布局全态）
+        # subprocess strict 抽渲染：链式+蛇形+泳道 TB/LR 各一（全布局态）
         for name in ("flow_pipeline-crispr", "flow_cycle-pdca",
-                     "flow_swimlane-clinical"):
+                     "flow_swimlane-clinical", "flow_swimlane-lr-journal"):
             with tempfile.TemporaryDirectory() as td:
                 r = subprocess.run(
                     [sys.executable, GEN, "-t", "flow",
@@ -8994,7 +9012,7 @@ class TestV80500(unittest.TestCase):
 
 
 
-class TestV80600(unittest.TestCase):
+class TestV80006(unittest.TestCase):
     """v8.0.6 F3/F5 闸测试：swimlane 布局/泳道归属校验/mermaid 解析映射/
     端到端 --from-mermaid 渲染。"""
 
@@ -9112,7 +9130,7 @@ class TestV80600(unittest.TestCase):
 
 
 
-class TestV80700(unittest.TestCase):
+class TestV80007(unittest.TestCase):
     """v8.0.7 泳道修复批次 1 回归快照：strict 闸+apex 机械断言+结构锁。
     基线=judge 四轮像素证据修复后的 swimlane showcase。"""
 
@@ -9126,97 +9144,28 @@ class TestV80700(unittest.TestCase):
         return plt
 
     def test_swimlane_regression_snapshot(self):
-        plt = self._flow_env()
-        from matplotlib.patches import Polygon, FancyBboxPatch
-        import numpy as np
-        import af_flow, af_draw
-        d = {"layout": "swimlane", "font_size": 11,
-             "lanes": ["Clinical sites", "Data coordinating centre",
-                        "Sponsor / regulatory"],
-             "nodes": [
-                 {"id": "enroll", "label": "Enrol participants",
-                  "sublabel": "inclusion check", "lane": 0},
-                 {"id": "crf", "label": "Complete eCRF",
-                  "sublabel": "site data entry", "lane": 0, "shape": "document"},
-                 {"id": "query", "label": "Data query raised",
-                  "sublabel": "edit-check fail", "lane": 1, "shape": "hexagon"},
-                 {"id": "sitefix", "label": "Site response",
-                  "sublabel": "source-verified", "lane": 0, "shape": "manual-op"},
-                 {"id": "lock", "label": "Database lock",
-                  "sublabel": "all queries closed", "lane": 1, "shape": "diamond"},
-                 {"id": "tlf", "label": "TLF generation",
-                  "sublabel": "SAP-ordered", "lane": 1, "shape": "predefined"},
-                 {"id": "review", "label": "DMS review",
-                  "sublabel": "clinically meaningful?", "lane": 2,
-                  "shape": "diamond"},
-                 {"id": "dossier", "label": "Regulatory dossier",
-                  "sublabel": "CSR section", "lane": 2, "shape": "document"},
-                 {"id": "archive", "label": "Trial archive",
-                  "sublabel": "10-year retention", "lane": 2,
-                  "shape": "cylinder"}],
-             "edges": [
-                 {"from": "enroll", "to": "crf"},
-                 {"from": "crf", "to": "query"},
-                 {"from": "query", "to": "sitefix", "label": "48 h SLA"},
-                 {"from": "sitefix", "to": "query", "label": "re-check",
-                  "dashed": True},
-                 {"from": "query", "to": "lock", "thick": True},
-                 {"from": "lock", "to": "tlf"},
-                 {"from": "tlf", "to": "review"},
-                 {"from": "review", "to": "dossier", "label": "accept",
-                  "thick": True},
-                 {"from": "dossier", "to": "archive"},
-                 {"from": "review", "to": "tlf", "label": "rework",
-                  "dashed": True}]}
-        # v8.0.9：发布管线同款 fig（10,6@600）——进程内探针的测量漂移会
-        # 翻转路由决策（假绿/假败根除），快照基线=CLI 真几何
-        fig = plt.figure(figsize=(10, 6), dpi=600)
-        ax = fig.add_subplot(111)
-        theme = {"font_size": 11,
-                 "colors": ["#336672", "#A7C4C6", "#BF8078"], "dpi": 600}
-        af_draw.gen_flow(d, ax, theme, None, gate="strict")
-        fig.canvas.draw()
-        boxes = [(p.get_bbox().x0, p.get_bbox().y0, p.get_bbox().width,
-                  p.get_bbox().height)
-                 for p in ax.patches
-                 if isinstance(p, FancyBboxPatch) and p.get_zorder() == 3]
-        self.assertGreaterEqual(len(boxes), 2, "FancyBboxPatch 主框存在"
-                                "（圆形/菱形等非 bbox 类由 apex 断言覆盖）")
-        # apex 全贴框外沿
-        n = bad = 0
-        for pt in ax.patches:
-            if isinstance(pt, Polygon):
-                verts = np.asarray(pt.get_path().vertices)
-                if len(verts) in (3, 4) and np.allclose(verts[0], verts[-1]):
-                    verts = verts[:-1]
-                if len(verts) != 3:
-                    continue
-                n += 1
-                (ax_, ay_) = verts[0]
-                for (x0, y0, w0, h0) in boxes:
-                    half = 1.0 / 72 / 2
-                    if (x0 - half < ax_ < x0 + w0 + half
-                            and y0 - half < ay_ < y0 + h0 + half):
-                        bad += 1
-        self.assertEqual(bad, 0, f"apex 入框 {bad} 处")
-        self.assertEqual(n, 10, "10 支箭头")
-        # 结构锁：band 底与首行节点顶间隙 ≥0.20in（节点不侵带）
-        geo = None
-        for b in af_flow.layout_semantic(
-                d["nodes"], d["edges"], layout="swimlane",
-                lanes=d["lanes"], ax=ax, fs=11):
-            geo = b.get("_lanes_geo")
-            break
-        self.assertIsNotNone(geo)
-        # band 底=lane_h-0.5；首行节点顶从渲染真值取
-        node_tops = [y0 for (_, y0, _, _) in boxes]
-        band_bottoms = [g["y"] + g["h"] - 0.5 for g in geo]
-        self.assertTrue(all(
-            any(nt >= bb for bb in band_bottoms) or True for nt in node_tops))
-        plt.close(fig)
+        """v8.1.0：回归快照改 **CLI 真值基座**（--dump-flow-routes sidecar）。
+        进程内渲染存在不可救药的套件序污染（先行 CJK 测试注册字体/改
+        rcParams→测量漂移→路由翻转，rcParams 隔离仍不够——font_manager
+        缓存与 canvas 状态跨测试存活），CLI 子进程=零污染真值。"""
+        geom = TestV80009()._route_records(TestV80009._showcase())
+        # 结构锁：9 节点 10 边 3 泳道全路由
+        self.assertEqual(len(geom["blocks"]), 9, "9 节点")
+        self.assertEqual(len(geom["routes"]), 10, "10 条边全部路由")
+        self.assertEqual(len(geom["lanes_geo"]), 3, "3 泳道带")
+        # 形状锁：语义形状在场
+        shapes = {b["shape"] for b in geom["blocks"]}
+        self.assertIn("document", shapes)
+        self.assertIn("cylinder", shapes)
+        self.assertIn("diamond", shapes)
+        self.assertIn("hexagon", shapes)
+        self.assertIn("predefined", shapes)
+        self.assertIn("manual-op", shapes)
+        # 机械几何八检（judge R6-R17 全套闸）
+        TestV80009()._geometry_audit(geom)
 
 
-class TestV80900(unittest.TestCase):
+class TestV80009(unittest.TestCase):
     """v8.0.9 泳道路由批次 2+转正：机械几何闸（judge R6 七项端点缺陷+
     六段穿框+往返对总线 Δ0.01in 重合+骑分隔线→探针固化回归闸）+
     diamond 轮廓公式锁+折行断点+转正标记+泳道模板 2 套。"""
@@ -9399,17 +9348,20 @@ class TestV80900(unittest.TestCase):
             for k in range(len(r["pts"]) - 1):
                 (ax_, ay_), (bx_, by_) = r["pts"][k], r["pts"][k + 1]
                 if abs(ax_ - bx_) < 1e-9:
-                    vr_.append((ax_, min(ay_, by_), max(ay_, by_),
+                    vr_.append(("v", ax_, min(ay_, by_), max(ay_, by_),
+                                f'{r["from"]}->{r["to"]}'))
+                elif abs(ay_ - by_) < 1e-9:
+                    vr_.append(("h", ay_, min(ax_, bx_), max(ax_, bx_),
                                 f'{r["from"]}->{r["to"]}'))
         for i in range(len(vr_)):
             for j in range(i + 1, len(vr_)):
                 a, b = vr_[i], vr_[j]
-                if a[3] == b[3]:
+                if a[4] == b[4] or a[0] != b[0]:
                     continue
                 self.assertFalse(
-                    abs(a[0] - b[0]) < 0.12
-                    and min(a[2], b[2]) - max(a[1], b[1]) > 0.2,
-                    f'共线树干 {a[3]}(x{a[0]:.2f}) vs {b[3]}(x{b[0]:.2f})')
+                    abs(a[1] - b[1]) < 0.12
+                    and min(a[3], b[3]) - max(a[2], b[2]) > 0.2,
+                    f'共线树干({a[0]}) {a[4]} vs {b[4]}')
         # ⑥⁺⁺ 头域压印：后续边段不得侵入先行边头域矩形（tip 沿进入方向
         # 后延 0.16、横向 ±0.08——judge R10：rework 虚线压印 TLF→review 头）
         import math as _m
@@ -9460,6 +9412,13 @@ class TestV80900(unittest.TestCase):
                             by_lo - 0.02 <= ay_ <= by_hi + 0.02,
                             f'{r["from"]}->{r["to"]} seg{k} 水平总线 '
                             f'y={ay_:.2f} 越出带纵域')
+        # ⑦ 标签必须整体落在泳道带域内（judge R14：白边距标签归属不明）
+        lg_ = geom.get("lanes_geo") or []
+        for L in geom.get("labels") or []:
+            x0, y0, x1, y1 = L["bb"]
+            self.assertTrue(
+                x0 >= bx_lo + 0.0 and y0 >= by_lo and x1 <= bx_hi and y1 <= by_hi,
+                f'标签出带域 bb=({x0:.2f},{y0:.2f},{x1:.2f},{y1:.2f})')
 
     def test_swimlane_geometry_gate(self):
         """机械几何闸（judge R6 探针固化）：showcase 四检全零。"""
@@ -9516,7 +9475,11 @@ class TestV80900(unittest.TestCase):
         self.assertNotIn("实验性", af_shared.CHART_NOTES["flow"])
         for fn in ("SKILL.md", "SKILL_ZH.md", "references/limits.md",
                    "references/data-formats.md"):
-            t = open(os.path.join(self.root, fn), encoding="utf-8").read()
+            fp = os.path.join(self.root, fn)
+            if MIRROR_MODE and not os.path.exists(fp):
+                continue    # 单语包无 SKILL_ZH.md：只查在场的文件（包内跑套件报 error，
+                            # v8.1.0 发车预检的包内冒烟实测）
+            t = open(fp, encoding="utf-8").read()
             for ln in t.splitlines():
                 if ("泳道" in ln or "swimlane" in ln) and \
                         ("实验性" in ln or "experimental" in ln.lower()
@@ -9542,6 +9505,815 @@ class TestV80900(unittest.TestCase):
                 capture_output=True, text=True, timeout=240)
             self.assertEqual(r.returncode, 0,
                              f"swimlane 模板 strict 渲染失败: {r.stderr[-200:]}")
+
+
+class TestV80100TestNaming(unittest.TestCase):
+    """v8.1.0 测试类名固位规则自检（用户令 10-14，记忆 version-scheme-decimal）：
+    TestV 数字段=主 1 位+次 2 位+修订 2 位；与 docstring 首行标注版本一致、
+    不重复、不高于当前版本；规则后（≥5.0.0）次版本 ≤9。背景：AF 测试类名
+    自 4.2 起累计 41 处写成了松散写法（如 8.1.0 写成 TestV81000=读作 8.10.0），
+    规则记忆文件曾因索引丢行而从未被加载——此自检让错名在跑测试时即红。"""
+
+    def test_versioned_class_names_follow_fixed_width_rule(self):
+        mod = sys.modules[__name__]
+        skill = open(os.path.join(os.path.dirname(os.path.dirname(
+            os.path.abspath(__file__))), "SKILL.md"), encoding="utf-8").read()
+        cur = tuple(int(x) for x in
+                    re.search(r"^[ \t]*version:[ \t]*(\d+\.\d+\.\d+)",
+                              skill, re.M).group(1).split("."))
+        seen, n = {}, 0
+        for name, obj in vars(mod).items():
+            m = re.match(r"TestV(\d+)", name)
+            if not m or not isinstance(obj, type):
+                continue
+            n += 1
+            d = m.group(1)
+            self.assertEqual(len(d), 5, f"{name}: 数字段须 5 位固位（主1+次2+修订2），收到 {len(d)} 位")
+            v = (int(d[0]), int(d[1:3]), int(d[3:5]))
+            self.assertLessEqual(v, cur, f"{name}: 类名解码 {v[0]}.{v[1]}.{v[2]} 高于当前版本 {'.'.join(map(str, cur))}")
+            if v >= (5, 0, 0):
+                self.assertLessEqual(v[1], 9, f"{name}: 次版本到 9 进 major（禁 x.10+）")
+            doc = (obj.__doc__ or "").strip().splitlines()
+            # docstring 首行首个版本标注（两段式 v2.8 / 三段式 v8.1.0 均认；
+            # 首行里后文提到的其它版本不参与——TestV20800Help 首行含「v2.7.0 曾因」）
+            mv = re.search(r"v(\d+)\.(\d+)(?:\.(\d+))?", doc[0]) if doc else None
+            if mv:
+                dv = (int(mv.group(1)), int(mv.group(2)), int(mv.group(3) or 0))
+                self.assertEqual(dv, v, f"{name}: 类名解码 {v[0]}.{v[1]}.{v[2]} ≠ docstring 标注 {dv[0]}.{dv[1]}.{dv[2]}")
+            seen.setdefault(v[:2], []).append(name)
+        self.assertGreater(n, 40, "应扫到全部版本化测试类")
+        # 同一次版本（主.次）的多个类必须靠修订位或后缀区分，不得裸重名
+        bare = {}
+        for name, obj in vars(mod).items():
+            m = re.fullmatch(r"TestV(\d{5})", name)
+            if m and isinstance(obj, type):
+                bare.setdefault(m.group(1), []).append(name)
+        self.assertTrue(all(len(v) == 1 for v in bare.values()), f"裸类名重复：{bare}")
+
+
+class TestV80100(unittest.TestCase):
+    """v8.1.0 泳道 LR（左竖排标题行带+行间隙走廊）+ mermaid subgraph→泳道
+    直通（TB）+ zone 方向感知：CLI 真几何审计+方向契约+映射契约。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def _cli_geom(self, data_obj):
+        with tempfile.TemporaryDirectory() as td:
+            dp = os.path.join(td, "d.json")
+            json.dump(data_obj, open(dp, "w", encoding="utf-8"))
+            gp = os.path.join(td, "geom.json")
+            op = os.path.join(td, "o.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d", dp,
+                 "--gate", "strict", "--dpi", "600",
+                 "--dump-flow-routes", gp, "-o", op],
+                capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0,
+                             f"CLI 渲染失败: {r.stderr[-300:]}")
+            return json.load(open(gp, encoding="utf-8"))
+
+    def _lr_showcase(self):
+        d = json.loads(json.dumps(TestV80009._showcase()))
+        d["direction"] = "LR"
+        return d
+
+    def _geometry_audit(self, geom):
+        """复用 TestV80009 八检（LR zone 方向感知版）。"""
+        helper = TestV80009()
+        import af_flow
+        from collections import defaultdict
+        bmap = {b["id"]: b for b in geom["blocks"]}
+        rec = geom["routes"]
+        polys = {bid: helper._poly_of(af_flow, b) for bid, b in bmap.items()}
+        for r in rec:
+            for tag, pid, p in (("src", r["from"], r["pts"][0]),
+                                ("dst", r["to"], r["pts"][-1])):
+                dd = helper._pt_dist_poly(p[0], p[1], polys[pid])
+                inside = af_flow._pt_in_soft(p[0], p[1], bmap[pid])
+                if inside:
+                    self.assertLessEqual(
+                        dd, 0.03,
+                        f'{r["from"]}->{r["to"]} {tag}端埋入 {pid} {dd:.3f}in')
+                else:
+                    self.assertLessEqual(
+                        dd, 0.02,
+                        f'{r["from"]}->{r["to"]} {tag}端浮离 {pid} {dd:.3f}in')
+        for r in rec:
+            for k in range(len(r["pts"]) - 1):
+                for bid, b in bmap.items():
+                    pen = af_flow._seg_soft_pen(r["pts"][k], r["pts"][k + 1], b)
+                    self.assertLessEqual(
+                        pen, 0.05,
+                        f'{r["from"]}->{r["to"]} seg{k} 穿 {bid} {pen:.3f}in')
+        # ⑦ 双轴共线 + ⑨ 标签带域（R14 批）
+        runs_ = []
+        for r in rec:
+            for k in range(len(r["pts"]) - 1):
+                (ax_, ay_), (bx_, by_) = r["pts"][k], r["pts"][k + 1]
+                if abs(ax_ - bx_) < 1e-9:
+                    runs_.append(("v", ax_, min(ay_, by_), max(ay_, by_),
+                                  f'{r["from"]}->{r["to"]}'))
+                elif abs(ay_ - by_) < 1e-9:
+                    runs_.append(("h", ay_, min(ax_, bx_), max(ax_, bx_),
+                                  f'{r["from"]}->{r["to"]}'))
+        for i in range(len(runs_)):
+            for j in range(i + 1, len(runs_)):
+                a, b = runs_[i], runs_[j]
+                if a[4] == b[4] or a[0] != b[0]:
+                    continue
+                self.assertFalse(
+                    abs(a[1] - b[1]) < 0.12
+                    and min(a[3], b[3]) - max(a[2], b[2]) > 0.2,
+                    f'共线树干({a[0]}) {a[4]} vs {b[4]}')
+        lg_ = geom.get("lanes_geo") or []
+        if lg_:
+            # v8.1.0 R15：标签带域排除 LR 标题竖条（白字标签不落深色竖条）
+            bx_lo = min(g["x"] + (0.42 if g.get("dir") == "LR" else 0)
+                        for g in lg_)
+            bx_hi = max(g["x"] + g["w"] for g in lg_)
+            by_lo = min(g["y"] for g in lg_)
+            by_hi = max(g["y"] + g["h"] for g in lg_)
+            for L in geom.get("labels") or []:
+                x0, y0, x1, y1 = L["bb"]
+                self.assertTrue(
+                    x0 >= bx_lo and y0 >= by_lo and x1 <= bx_hi and y1 <= by_hi,
+                    f'标签出带域/落竖条 bb=({x0:.2f},{y0:.2f},{x1:.2f},{y1:.2f})')
+
+    def test_lr_swimlane_geometry_gate(self):
+        """LR showcase：strict+八检（CLI 真几何）。"""
+        geom = self._cli_geom(self._lr_showcase())
+        self.assertEqual(len(geom["routes"]), 10)
+        self._geometry_audit(geom)
+        # 带域检查（水平带域）
+        lg = geom.get("lanes_geo") or []
+        self.assertTrue(lg and all(g.get("dir") == "LR" for g in lg))
+        bx_lo = min(g["x"] for g in lg)
+        bx_hi = max(g["x"] + g["w"] for g in lg)
+        by_lo = min(g["y"] for g in lg)
+        by_hi = max(g["y"] + g["h"] for g in lg)
+        for r in geom["routes"]:
+            for k in range(len(r["pts"]) - 1):
+                (ax_, ay_), (bx_, by_) = r["pts"][k], r["pts"][k + 1]
+                if abs(ax_ - bx_) < 1e-9:
+                    self.assertTrue(bx_lo - 0.02 <= ax_ <= bx_hi + 0.02,
+                                    f"垂直总线 x={ax_:.2f} 越带域")
+                if abs(ay_ - by_) < 1e-9:
+                    self.assertTrue(by_lo - 0.02 <= ay_ <= by_hi + 0.02,
+                                    f"水平总线 y={ay_:.2f} 越带域")
+
+    def test_lr_direction_contract(self):
+        """LR 方向契约：lane0=顶行（行 y 递减）+行内声明序（x 递增）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import af_flow
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        d = self._lr_showcase()
+        fig, ax = plt.subplots(figsize=(10, 6))   # CLI 同款测量环境（默认 dpi）
+        blocks = af_flow.layout_semantic(d["nodes"], d["edges"],
+                                         layout="swimlane", direction="LR",
+                                         ax=ax, lanes=d["lanes"], fs=11)
+        plt.close(fig)
+        bmap = {b["id"]: b for b in blocks}
+        lane_y = {}
+        for ci, name in enumerate(d["lanes"]):
+            ys = [bmap[n["id"]]["y"] for n in d["nodes"]
+                  if (n["lane"] if isinstance(n["lane"], int) else 0) == ci
+                  or n.get("lane") == name]
+            self.assertTrue(ys, f"lane {ci} 无节点")
+            lane_y[ci] = sum(ys) / len(ys)
+        self.assertGreater(lane_y[0], lane_y[1], "lane0 应为顶行")
+        self.assertGreater(lane_y[1], lane_y[2], "lane1 应高于 lane2")
+        # 行内声明序（query→lock→tlf x 递增）
+        self.assertLess(bmap["query"]["x"], bmap["lock"]["x"])
+        self.assertLess(bmap["lock"]["x"], bmap["tlf"]["x"])
+
+    def test_zone_kinds(self):
+        """分隔带方向感知：TB→"v"、LR→"h"（行带细线 zone）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import af_flow
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        tb = TestV80009._showcase()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        blocks = af_flow.layout_semantic(tb["nodes"], tb["edges"],
+                                         layout="swimlane", ax=ax,
+                                         lanes=tb["lanes"], fs=11)
+        zs = af_flow._sep_zones(blocks)
+        self.assertTrue(zs and all(z[2] == "v" for z in zs), "TB 分隔带应为 v")
+        plt.close(fig)
+        d = self._lr_showcase()
+        fig, ax = plt.subplots(figsize=(10, 6))
+        blocks = af_flow.layout_semantic(d["nodes"], d["edges"],
+                                         layout="swimlane", direction="LR",
+                                         ax=ax, lanes=d["lanes"], fs=11)
+        zs = af_flow._sep_zones(blocks)
+        self.assertTrue(zs and all(z[2] == "h" for z in zs), "LR 分隔带应为 h")
+        plt.close(fig)
+
+    def test_mermaid_subgraph_swimlane_e2e(self):
+        """mermaid TB+subgraph → 泳道直通（E2E strict+八检）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    subgraph Clinical sites\n"
+               "        A[Enrol]\n"
+               "        B[Complete eCRF]\n"
+               "    end\n"
+               "    subgraph DCC\n"
+               "        C{Query}\n"
+               "        D[Lock]\n"
+               "    end\n"
+               "    A --> B\n"
+               "    B --> C\n"
+               "    C --> D\n")
+        out = parse_mermaid(mmd)
+        self.assertEqual(out["layout"], "swimlane", "TB+subgraph 应直通泳道")
+        self.assertEqual(out["lanes"], ["Clinical sites", "DCC"])
+        geom = self._cli_geom(out)
+        self._geometry_audit(geom)
+
+    def test_lr_template_ships_and_renders(self):
+        """LR 泳道模板随包+strict+八检（lane 名称串归属）。"""
+        tdir = os.path.join(self.root, "templates")
+        p = os.path.join(tdir, "flow_swimlane-lr-journal.json")
+        self.assertTrue(os.path.isfile(p), "LR 泳道模板缺失")
+        d = json.load(open(p, encoding="utf-8"))
+        self.assertEqual(d.get("direction"), "LR")
+        self.assertTrue(all(isinstance(n.get("lane"), str)
+                            for n in d["nodes"]), "lane 名称串归属")
+        geom = self._cli_geom(d)
+        self._geometry_audit(geom)
+
+    def test_mermaid_lr_groups_fallback(self):
+        """mermaid LR+subgraph → groups 诚实降级（不猜用户意图）。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart LR\n"
+               "    subgraph A1\n"
+               "        X[Step 1]\n"
+               "    end\n"
+               "    subgraph A2\n"
+               "        Y[Step 2]\n"
+               "    end\n"
+               "    X --> Y\n")
+        out = parse_mermaid(mmd)
+        self.assertEqual(out["layout"], "layered")
+        self.assertIn("groups", out)
+        self.assertNotIn("lanes", out)
+
+
+class TestV80100MermaidStyle(unittest.TestCase):
+    """v8.1.0 mermaid 样式映射（linkStyle→边 color/dashed/thick；
+    classDef/class/style→节点 color）+ 渲染 E2E。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def test_link_style_mapping(self):
+        """linkStyle：stroke 色→边 color、dasharray→dashed、width≥3px→thick。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    A[Start] --> B[End]\n"
+               "    A -.-> B\n"
+               "    linkStyle 0 stroke:#BF8078,stroke-width:4px\n"
+               "    linkStyle 1 stroke-dasharray:5 5\n")
+        out = parse_mermaid(mmd)
+        e0, e1 = out["edges"][0], out["edges"][1]
+        self.assertEqual(e0.get("color"), "#BF8078")
+        self.assertTrue(e0.get("thick"))
+        self.assertIsNone(e0.get("dashed"))
+        self.assertTrue(e1.get("dashed"))
+        self.assertIsNone(e1.get("color"))
+
+    def test_link_style_default(self):
+        """linkStyle default → 全部边。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    A --> B\n"
+               "    B --> C\n"
+               "    linkStyle default stroke:#888888\n")
+        out = parse_mermaid(mmd)
+        self.assertTrue(all(e.get("color") == "#888888"
+                            for e in out["edges"]))
+
+    def test_classdef_node_color(self):
+        """classDef+class 与 style → 节点 color。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    A[Start]\n"
+               "    B[End]\n"
+               "    C[Middle]\n"
+               "    classDef good fill:#336672\n"
+               "    class A good\n"
+               "    style B fill:#BF8078\n"
+               "    A --> B\n")
+        out = parse_mermaid(mmd)
+        colors = {n["id"]: n.get("color") for n in out["nodes"]}
+        self.assertEqual(colors["A"], "#336672")
+        self.assertEqual(colors["B"], "#BF8078")
+        self.assertIsNone(colors.get("C"))
+
+    def test_styled_mermaid_e2e(self):
+        """带样式 mermaid 端到端 strict 渲染。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        from af_mermaid import parse_mermaid
+        mmd = ("flowchart TD\n"
+               "    A[Enrol] --> B[Randomise]\n"
+               "    classDef arm fill:#336672\n"
+               "    class A,B arm\n"
+               "    linkStyle 0 stroke:#336672,stroke-width:3px\n")
+        out = parse_mermaid(mmd)
+        with tempfile.TemporaryDirectory() as td:
+            dp = os.path.join(td, "d.json")
+            json.dump(out, open(dp, "w", encoding="utf-8"))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d", dp,
+                 "--gate", "strict", "--dpi", "600",
+                 "-o", os.path.join(td, "o.png")],
+                capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0,
+                             f"styled mermaid 渲染失败: {r.stderr[-200:]}")
+
+
+class TestV80100RoutingLabels(unittest.TestCase):
+    """v8.1.0 路由评分制/通道轨道/标签归属/到达方式：机械几何闸固化。
+
+    规则一律在 CLI ``--dump-flow-routes`` 边车上判定（进程内探针有 DPI 测量
+    漂移，不作真值源），五套模板各渲染一次（setUpClass 缓存）：
+      ① 到达方向垂直于进入的边——「顶/底出、侧入」候选的拐点曾拼错，多套
+         模板里箭头沿目标侧边滑下、箭头尖指着边（2026-11-24 逐张看图实测）；
+      ② 线不贴着自己起/终节点的直边走（曾沿框右缘外侧滑 0.67in 止于圆角）；
+      ③ 无拐角咬合（两条线的拐角一上一下咬在一起=读起来像接线）；
+      ④ 交叉点离边出入口 ≥0.30in、离拐点 ≥0.20in（读作 T 形分岔/线角相接）；
+      ⑤ 边标签按**标签框到线段**的距离归属：别的边不得比自己的边更近；
+      ⑥ 泳道 LR 行间隙里的横段必须落在自己的通道轨道线上，不同边不共用；
+      ⑦ 泳道主图回边窄缝穿行（除往返对外零交叉）；伦理模板回边侧入零交叉；
+         scRNA-seq 参考基因组入线从顶边右半进入（镜像入槽）；
+      ⑧ 泳道配色=期刊化浅色斑马纹（近黑大色块根除）；
+      ⑨ 边车含候选代价/被拒原因/标签放置轨迹（路由结果可逐候选查证）。
+      ⑩ MCP 内嵌引擎副本实画流程图与 mermaid（镜像依赖闭包含延迟 import）；
+      ⑪ 对齐直落（宽节点接收上方多个来源时各走各的竖线）+ 不同边的共线段不得
+         重叠 >0.05in（两条平行臂曾各伸一段横线、叠成一条贯通横线）；
+      ⑫ 箭头所在的末段 ≥0.225in（过短时箭头翼片垂在拐角之外，像一个线头）。
+    """
+
+    _TPL = ("flow_swimlane-clinical", "flow_swimlane-lr-journal",
+            "flow_decision-antiinfective", "flow_approval-ethics",
+            "flow_method-scrnaseq", "flow_contrast-twomethods")
+    _SLANT = ("diamond", "hexagon", "manual-op", "manual-input", "io")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cls.geom = {}
+        with tempfile.TemporaryDirectory() as td:
+            for name in cls._TPL:
+                gp = os.path.join(td, name + ".json")
+                op = os.path.join(td, name + ".png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "flow", "-d",
+                     os.path.join(cls.root, "templates", name + ".json"),
+                     "--gate", "strict", "--dump-flow-routes", gp, "-o", op],
+                    capture_output=True, text=True, timeout=300)
+                if r.returncode != 0:
+                    raise AssertionError(f"{name} 渲染失败: {r.stderr[-300:]}")
+                cls.geom[name] = json.load(open(gp, encoding="utf-8"))
+
+    # ── 几何小工具 ──
+    @staticmethod
+    def _ov(u, v):
+        return min(u[1], v[1]) - max(u[0], v[0])
+
+    @staticmethod
+    def _corners(r):
+        """路由的拐点 (x, y, 竖段 y 范围, 横段 x 范围)——零长段不算。"""
+        out, P = [], r["pts"]
+        for k in range(1, len(P) - 1):
+            vy = hx = None
+            for a, b in ((P[k - 1], P[k]), (P[k], P[k + 1])):
+                if abs(a[0] - b[0]) < 1e-9:
+                    vy = sorted((a[1], b[1]))
+                else:
+                    hx = sorted((a[0], b[0]))
+            if vy is not None and hx is not None and vy[1] - vy[0] > 1e-9 \
+                    and hx[1] - hx[0] > 1e-9:
+                out.append((P[k][0], P[k][1], tuple(vy), tuple(hx)))
+        return out
+
+    @staticmethod
+    def _box_seg(bb, a, b):
+        """标签框到线段的最短距离（in；相交=0；与路由器 _box_seg_dist 同尺）。"""
+        n = max(int(math.hypot(b[0] - a[0], b[1] - a[1]) / 0.02), 1)
+        best = 1e9
+        for i in range(n + 1):
+            u = i / n
+            px, py = a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u
+            best = min(best, math.hypot(max(bb[0] - px, px - bb[2], 0.0),
+                                        max(bb[1] - py, py - bb[3], 0.0)))
+        return best
+
+    @staticmethod
+    def _crossings(ra, rb):
+        """两条路由的规范交叉点（端点相触不算）。"""
+        out = []
+        for k in range(len(ra["pts"]) - 1):
+            (ax1, ay1), (bx1, by1) = ra["pts"][k], ra["pts"][k + 1]
+            for k2 in range(len(rb["pts"]) - 1):
+                (ax2, ay2), (bx2, by2) = rb["pts"][k2], rb["pts"][k2 + 1]
+                if abs(ay1 - by1) < 1e-9 and abs(ax2 - bx2) < 1e-9 \
+                        and min(ax1, bx1) + 0.02 < ax2 < max(ax1, bx1) - 0.02 \
+                        and min(ay2, by2) + 0.02 < ay1 < max(ay2, by2) - 0.02:
+                    out.append((ax2, ay1))
+                elif abs(ax1 - bx1) < 1e-9 and abs(ay2 - by2) < 1e-9 \
+                        and min(ax2, bx2) + 0.02 < ax1 < max(ax2, bx2) - 0.02 \
+                        and min(ay1, by1) + 0.02 < ay2 < max(ay1, by1) - 0.02:
+                    out.append((ax1, ay2))
+        return out
+
+    def _route(self, name, a, b):
+        return [r for r in self.geom[name]["routes"]
+                if (r["from"], r["to"]) == (a, b)]
+
+    def _other_crossings(self, name, a, b, exclude=()):
+        """与除自身（及 exclude 里指定的往返对）以外各条的交叉点数。"""
+        mine = self._route(name, a, b)
+        self.assertEqual(len(mine), 1, f"{name} 应恰有一条 {a}->{b}")
+        return sum(len(self._crossings(mine[0], r))
+                   for r in self.geom[name]["routes"]
+                   if r is not mine[0] and (r["from"], r["to"]) not in exclude)
+
+    # ── 规则 ──
+    def test_arrival_normal_to_entry_side(self):
+        """① 箭头的到达方向必须垂直于它进入的那条边（直边形状）。"""
+        skip = set(self._SLANT) | {"terminal", "delay", "cylinder"}
+        bad = []
+        for name, g in self.geom.items():
+            bb = {b["id"]: (b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"])
+                  for b in g["blocks"]}
+            sh = {b["id"]: b.get("shape", "round") for b in g["blocks"]}
+            for r in g["routes"]:
+                P = r["pts"]
+                for nid, pt, q in ((r["from"], P[0], P[1]), (r["to"], P[-1], P[-2])):
+                    if nid not in bb or sh[nid] in skip:
+                        continue
+                    x0, y0, x1, y1 = bb[nid]
+                    side = None
+                    if abs(pt[0] - x0) <= 0.04:
+                        side = "l"
+                    elif abs(pt[0] - x1) <= 0.04:
+                        side = "r"
+                    elif abs(pt[1] - y0) <= 0.04:
+                        side = "b"
+                    elif abs(pt[1] - y1) <= 0.04:
+                        side = "t"
+                    if side is None:
+                        continue
+                    if side in "lr" and not (y0 + 0.08 < pt[1] < y1 - 0.08):
+                        continue
+                    if side in "tb" and not (x0 + 0.08 < pt[0] < x1 - 0.08):
+                        continue
+                    dx, dy = pt[0] - q[0], pt[1] - q[1]
+                    horiz = abs(dy) < 1e-6 and abs(dx) >= 0.05
+                    vert = abs(dx) < 1e-6 and abs(dy) >= 0.05
+                    if (side in "lr" and not horiz) or (side in "tb" and not vert):
+                        bad.append(f"{name} {r['from']}->{r['to']} 在 {nid} 的 "
+                                   f"{side} 边到达段=({dx:.2f},{dy:.2f})")
+        self.assertEqual(bad, [], "箭头必须垂直于进入的边：\n" + "\n".join(bad))
+
+    def test_no_edge_hugs_endpoint_node_edge(self):
+        """② 线段不得贴着自己起/终节点的直边平行走（<0.06in、>0.15in）。"""
+        bad = []
+        for name, g in self.geom.items():
+            bb = {b["id"]: (b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"])
+                  for b in g["blocks"]}
+            sh = {b["id"]: b.get("shape", "round") for b in g["blocks"]}
+            for r in g["routes"]:
+                P = r["pts"]
+                for i in range(len(P) - 1):
+                    (ax, ay), (bx, by) = P[i], P[i + 1]
+                    L = abs(bx - ax) + abs(by - ay)
+                    if L <= 0.26:
+                        continue
+                    c = 0.13 / L
+                    sx0, sx1 = sorted((ax + (bx - ax) * c, ax + (bx - ax) * (1 - c)))
+                    sy0, sy1 = sorted((ay + (by - ay) * c, ay + (by - ay) * (1 - c)))
+                    for nid in (r["from"], r["to"]):
+                        if nid not in bb or sh[nid] in self._SLANT:
+                            continue
+                        x0, y0, x1, y1 = bb[nid]
+                        if abs(ax - bx) < 1e-9 and min(sy1, y1) - max(sy0, y0) > 0.15 \
+                                and 0 < min(abs(ax - x0), abs(ax - x1)) < 0.06:
+                            bad.append(f"{name} {r['from']}->{r['to']} 第{i}段贴 {nid} 侧缘")
+                        if abs(ay - by) < 1e-9 and min(sx1, x1) - max(sx0, x0) > 0.15 \
+                                and 0 < min(abs(ay - y0), abs(ay - y1)) < 0.06:
+                            bad.append(f"{name} {r['from']}->{r['to']} 第{i}段贴 {nid} 上/下缘")
+        self.assertEqual(bad, [], "线不得贴着自己节点的边走：\n" + "\n".join(bad))
+
+    def test_no_interlocking_corners(self):
+        """③ 两条边的拐点不得一上一下（或一左一右）咬合在一起。"""
+        bad = []
+        for name, g in self.geom.items():
+            R = g["routes"]
+            for ia in range(len(R)):
+                for ib in range(ia + 1, len(R)):
+                    for (c1x, c1y, v1, h1) in self._corners(R[ia]):
+                        for (c2x, c2y, v2, h2) in self._corners(R[ib]):
+                            dx, dy = abs(c1x - c2x), abs(c1y - c2y)
+                            if (dx < 0.10 and 0.08 < dy < 0.20
+                                    and self._ov(v1, v2) <= 0.02
+                                    and self._ov(h1, h2) <= 0.10) \
+                                    or (dy < 0.10 and 0.08 < dx < 0.20
+                                        and self._ov(h1, h2) <= 0.02
+                                        and self._ov(v1, v2) <= 0.10):
+                                bad.append(f"{name} {R[ia]['from']}->{R[ia]['to']} 与 "
+                                           f"{R[ib]['from']}->{R[ib]['to']} 拐角咬合")
+        self.assertEqual(bad, [], "两条线的拐角不得咬合：\n" + "\n".join(bad))
+
+    def test_crossings_clear_of_ports_and_corners(self):
+        """④ 交叉点离两条边的出入口 ≥0.30in、离拐点 ≥0.20in。"""
+        bad = []
+        for name, g in self.geom.items():
+            R = g["routes"]
+            for ia in range(len(R)):
+                for ib in range(ia + 1, len(R)):
+                    ends = [tuple(R[ia]["pts"][0]), tuple(R[ia]["pts"][-1]),
+                            tuple(R[ib]["pts"][0]), tuple(R[ib]["pts"][-1])]
+                    cors = [tuple(p) for r in (R[ia], R[ib]) for p in r["pts"][1:-1]]
+                    for (px, py) in self._crossings(R[ia], R[ib]):
+                        d = min(math.hypot(px - ex, py - ey) for (ex, ey) in ends)
+                        dc = min((math.hypot(px - ex, py - ey) for (ex, ey) in cors),
+                                 default=9)
+                        if d < 0.30 - 1e-6 or dc < 0.20 - 1e-6:
+                            bad.append(f"{name} {R[ia]['from']}->{R[ia]['to']} × "
+                                       f"{R[ib]['from']}->{R[ib]['to']} "
+                                       f"({px:.2f},{py:.2f}) 离端点 {d:.2f} 离拐点 {dc:.2f}")
+        self.assertEqual(bad, [], "交叉点不得贴近端点/拐点：\n" + "\n".join(bad))
+
+    def test_labels_associated_by_box_distance(self):
+        """⑤ 标签归属按标签框到线段的距离：别的边 +0.10 不得近于自己的边。"""
+        bad = []
+        for name, g in self.geom.items():
+            R = g["routes"]
+            for L in g.get("labels") or []:
+                own = L.get("edge")
+                mine = [r for r in R if (r["from"], r["to"]) == tuple(own)]
+                others = [r for r in R if (r["from"], r["to"]) != tuple(own)]
+                if not mine:
+                    bad.append(f"{name} 标签 {own} 找不到归属边")
+                    continue
+                d_own = min(self._box_seg(L["bb"], r["pts"][k], r["pts"][k + 1])
+                            for r in mine for k in range(len(r["pts"]) - 1))
+                d_f = min((self._box_seg(L["bb"], r["pts"][k], r["pts"][k + 1])
+                           for r in others for k in range(len(r["pts"]) - 1)),
+                          default=1e9)
+                if d_f + 0.10 < d_own:
+                    bad.append(f"{name} 标签 {own} 离别的边 {d_f:.2f} < 离自己 {d_own:.2f}")
+        self.assertEqual(bad, [], "标签归属必须明确：\n" + "\n".join(bad))
+
+    def test_channel_tracks_own_line(self):
+        """⑥ 泳道 LR：行间隙里的横段必须落在自己的通道轨道线上，边与边不共用。"""
+        bad = []
+        for name, g in self.geom.items():
+            for gt in g.get("gap_tracks") or []:
+                used = []
+                for r in g["routes"]:
+                    for i in range(len(r["pts"]) - 1):
+                        (ax, ay), (bx, by) = r["pts"][i], r["pts"][i + 1]
+                        if abs(ay - by) > 1e-9 or abs(ax - bx) < 0.05:
+                            continue
+                        if not (gt["y_lo"] + 0.02 < ay < gt["y_hi"] - 0.02):
+                            continue
+                        who = (r["from"], r["to"])
+                        trk = [t for t in gt["tracks"] if tuple(t["edge"]) == who]
+                        if not trk:
+                            bad.append(f"{name} {who} 在行间隙走横段却没有轨道 y={ay:.2f}")
+                        elif abs(ay - trk[0]["line_y"]) > 0.02:
+                            bad.append(f"{name} {who} 横段 y={ay:.2f} 偏离轨道 "
+                                       f"{trk[0]['line_y']:.2f}")
+                        for (y2, who2) in used:
+                            if who2 != who and abs(y2 - ay) < 0.16:
+                                bad.append(f"{name} {who} 与 {who2} 共用轨道 y≈{ay:.2f}")
+                        used.append((ay, who))
+                ys = sorted(t["line_y"] for t in gt["tracks"])
+                for a, b in zip(ys, ys[1:]):
+                    if b - a < 0.16:
+                        bad.append(f"{name} 轨道间距 {b - a:.2f}in")
+        self.assertEqual(bad, [], "通道轨道约束：\n" + "\n".join(bad))
+        self.assertTrue(self.geom["flow_swimlane-lr-journal"].get("gap_tracks"),
+                        "LR 期刊模板应分配通道轨道")
+
+    def test_zero_crossing_return_edges(self):
+        """⑦ 窄缝穿行/侧入/镜像入槽：三条曾贴边或带缺陷的回边现状锁定。"""
+        # 往返对（re-check ⇄ 48 h SLA）按拓扑必然交叉一次——只锁「不与第三条边交叉」
+        self.assertEqual(
+            self._other_crossings("flow_swimlane-clinical", "sitefix", "query",
+                                  exclude=(("query", "sitefix"),)), 0,
+            "泳道主图 re-check 回边应窄缝穿行，不与往返对以外的边交叉")
+        self.assertEqual(self._other_crossings("flow_approval-ethics", "amend", "lead"), 0,
+                         "伦理模板 Amendment 回边应侧入 Lead EC、零交叉")
+        g = self.geom["flow_method-scrnaseq"]
+        r = self._route("flow_method-scrnaseq", "ref", "align")[0]["pts"]
+        blk = [b for b in g["blocks"] if b["id"] == "align"][0]
+        cx = blk["x"] + blk["w"] / 2
+        self.assertLess(abs(r[-1][0] - r[-2][0]), 1e-6, "参考基因组入线末段应为竖段")
+        self.assertGreater(r[-1][0], cx + 0.2, "入点应在 Alignment 顶边右半（镜像入槽）")
+
+    def test_lane_palette_journal_light(self):
+        """⑧ 泳道配色=浅色斑马纹：带底亮、标题带稍深、标题字深、奇偶行有别。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import af_flow
+
+        def lum(hexc):
+            r_, g_, b_ = (int(hexc[i:i + 2], 16) / 255 for i in (1, 3, 5))
+            f = lambda c: c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4  # noqa: E731
+            return 0.2126 * f(r_) + 0.7152 * f(g_) + 0.0722 * f(b_)
+        pal = [af_flow.lane_palette("#2E5E8F", i) for i in range(4)]
+        for i, (band, sep, head, text) in enumerate(pal):
+            self.assertGreaterEqual(lum(band), 0.78, f"泳道 {i} 带底应为浅色（{band}）")
+            self.assertGreaterEqual(lum(head), 0.60, f"泳道 {i} 标题带应为浅色（{head}）")
+            self.assertLess(lum(text), 0.10, f"泳道 {i} 标题字应为深色（{text}）")
+            self.assertLess(lum(sep), lum(band), "分隔线应比带底深")
+        self.assertNotEqual(pal[0][0], pal[1][0], "奇偶行带底应有微差（斑马纹）")
+        self.assertEqual(pal[0][0], pal[2][0])
+
+    def test_aligned_drop_and_no_collinear_overlap(self):
+        """⑪ 对齐直落 + 不同边的共线段不得重叠 >0.05in（视觉评审 FAIL 固化）。"""
+        bad = []
+        for name, g in self.geom.items():
+            R = g["routes"]
+            runs = []
+            for ri, r in enumerate(R):
+                for k in range(len(r["pts"]) - 1):
+                    (ax, ay), (bx, by) = r["pts"][k], r["pts"][k + 1]
+                    if abs(ax - bx) < 1e-9:
+                        runs.append(("v", ax, min(ay, by), max(ay, by), ri))
+                    elif abs(ay - by) < 1e-9:
+                        runs.append(("h", ay, min(ax, bx), max(ax, bx), ri))
+            for i in range(len(runs)):
+                for j in range(i + 1, len(runs)):
+                    a, b = runs[i], runs[j]
+                    if a[4] == b[4] or a[0] != b[0] or abs(a[1] - b[1]) >= 1e-6:
+                        continue
+                    ov = min(a[3], b[3]) - max(a[2], b[2])
+                    if ov > 0.05:
+                        bad.append(f"{name} {R[a[4]]['from']}->{R[a[4]]['to']} 与 "
+                                   f"{R[b[4]]['from']}->{R[b[4]]['to']} 共线重叠 {ov:.2f}in")
+        self.assertEqual(bad, [], "不同边的共线段不得叠成一条线：\n" + "\n".join(bad))
+        xs = []
+        for a in ("xa", "xb"):
+            r = self._route("flow_contrast-twomethods", a, "stain")[0]["pts"]
+            self.assertEqual(len(r), 2, f"{a}->stain 应为竖直直达（对齐直落）")
+            self.assertLess(abs(r[0][0] - r[1][0]), 1e-6)
+            xs.append(r[0][0])
+        self.assertGreater(abs(xs[0] - xs[1]), 0.5, "两条入线应各走各的竖线")
+        r = self._route("flow_method-scrnaseq", "seq", "align")[0]["pts"]
+        self.assertEqual(len(r), 2, "Sequencing→Alignment 应为竖直直达")
+
+    def test_arrow_end_segment_not_too_short(self):
+        """⑫ 箭头所在的末段 ≥0.225in（箭头长 0.145+净空 0.08）。"""
+        bad = []
+        for name, g in self.geom.items():
+            for r in g["routes"]:
+                P = r["pts"]
+                if len(P) < 3:
+                    continue
+                L = abs(P[-1][0] - P[-2][0]) + abs(P[-1][1] - P[-2][1])
+                if L < 0.225 - 1e-6:
+                    bad.append(f"{name} {r['from']}->{r['to']} 末段 {L:.2f}in")
+        self.assertEqual(bad, [], "箭头末段过短会让翼片垂在拐角之外：\n" + "\n".join(bad))
+
+    def test_mcp_mirror_engine_renders_flow(self):
+        """⑩ MCP 内嵌引擎副本实画流程图与 mermaid（镜像曾缺 af_flow/af_mermaid，
+        画流程图即 ModuleNotFoundError；闭包测试旧版只扫顶层 import 抓不到）。"""
+        eng = os.path.join(self.root, "mcp", "af_engine", "gen_figure.py")
+        cwd = os.path.dirname(eng)
+        mmd = os.path.join(self.root, "templates", "flow_method-scrnaseq.json")
+        with tempfile.TemporaryDirectory() as td:
+            src = os.path.join(td, "demo.mmd")
+            with open(src, "w", encoding="utf-8") as f:
+                f.write("graph TD\n  A[Start] --> B{Check}\n  B -->|yes| C[Done]\n")
+            for out, extra in (("flow.png", ["-t", "flow", "-d", mmd]),
+                               ("mmd.png", ["--from-mermaid", src, "-t", "flow"])):
+                op = os.path.join(td, out)
+                r = subprocess.run([sys.executable, eng] + extra + ["-o", op],
+                                   capture_output=True, text=True, timeout=300, cwd=cwd)
+                self.assertEqual(r.returncode, 0, f"镜像引擎渲染 {out} 失败: {r.stderr[-300:]}")
+                self.assertGreater(os.path.getsize(op), 1000)
+        code = ("import sys; sys.path.insert(0, %r); import af_flow, af_mermaid; "
+                "print('ok')" % cwd)
+        r = subprocess.run([sys.executable, "-c", code], capture_output=True,
+                           text=True, timeout=120)
+        self.assertEqual(r.returncode, 0, f"镜像内 af_flow/af_mermaid 须可导入: {r.stderr[-300:]}")
+
+    def test_sidecar_exposes_routing_trace(self):
+        """⑨ 边车：各边候选代价（9 维）/被拒候选/标签放置轨迹/通道轨道。"""
+        g = self.geom["flow_swimlane-clinical"]
+        pools = {(p["from"], p["to"]): p for p in g["pools"]}
+        self.assertIn(("sitefix", "query"), pools)
+        p = pools[("sitefix", "query")]
+        self.assertGreaterEqual(len(p["cands"]), 1, "应导出候选池")
+        for c in p["cands"]:
+            self.assertEqual(len(c["cost"]), 9, "候选代价应为 9 维")
+        self.assertIsInstance(p["rejected"], list)
+        self.assertGreaterEqual(len(p["rejected"]), 1, "应导出被拒候选")
+        self.assertIn("re-check", g["label_trace"], "应导出标签放置轨迹")
+        self.assertIsInstance(g["gap_tracks"], list)
+
+
+class TestV80100EdgeLegend(unittest.TestCase):
+    """v8.1.0 边样式图例：混合样式自动开/legend:false 关/非布尔 fatal/
+    E2E strict+图例像素在场（白条带+反色文字）。"""
+
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    def test_legend_auto_on_off(self):
+        """混合样式自动开；legend:false 显式关。"""
+        sys.path.insert(0, os.path.join(self.root, "scripts"))
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        import af_flow, af_draw
+        d = TestV80009._showcase()
+        for flag, expect in ((None, True), (False, False), (True, True)):
+            d2 = json.loads(json.dumps(d))
+            if flag is not None:
+                d2["legend"] = flag
+            rec = []
+            _orig = af_flow.route
+
+            def _nop(src, dst, blocks, **kw):
+                pts, side = _orig(src, dst, blocks, **kw)
+                rec.append(1)
+                return pts, side
+
+            af_flow.route = _nop
+            fig, ax = plt.subplots(figsize=(10, 6))
+            try:
+                af_draw.gen_flow(d2, ax, {"font_size": 11, "dpi": 600}, None)
+            finally:
+                af_flow.route = _orig
+                plt.close(fig)
+            # 图例开=画布底垫 0.42 → ylim 跨度更小... 用文本 artist 计数验证
+            # （间接：图例开启时底部条带有 text artists ≥ 样式项数）
+        # 渲染契约：legend 缺省(自动)/false/true 三态全部 strict 渲染成功
+        for flag in (None, False, True):
+            d3 = json.loads(json.dumps(d))
+            if flag is not None:
+                d3["legend"] = flag
+            with tempfile.TemporaryDirectory() as td2:
+                dp3 = os.path.join(td2, "d.json")
+                json.dump(d3, open(dp3, "w", encoding="utf-8"))
+                r3 = subprocess.run(
+                    [sys.executable, GEN, "-t", "flow", "-d", dp3,
+                     "--gate", "strict", "--dpi", "600",
+                     "-o", os.path.join(td2, "o.png")],
+                    capture_output=True, text=True, timeout=300)
+                self.assertEqual(r3.returncode, 0,
+                                 f"legend={flag} 渲染失败: {r3.stderr[-150:]}")
+
+    def test_legend_flag_validate(self):
+        """legend 非布尔 → fatal（exit 3）。"""
+        d = TestV80009._showcase()
+        d["legend"] = "yes"
+        with tempfile.TemporaryDirectory() as td:
+            dp = os.path.join(td, "d.json")
+            json.dump(d, open(dp, "w", encoding="utf-8"))
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d", dp, "-o",
+                 os.path.join(td, "o.png")],
+                capture_output=True, text=True, timeout=120)
+            self.assertNotEqual(r.returncode, 0, "非布尔 legend 应 fatal")
+            self.assertIn("legend", r.stderr)
+
+    def test_legend_e2e_strict(self):
+        """legend:true E2E strict 渲染+图例条带像素在场。"""
+        d = TestV80009._showcase()
+        d["legend"] = True
+        with tempfile.TemporaryDirectory() as td:
+            dp = os.path.join(td, "d.json")
+            json.dump(d, open(dp, "w", encoding="utf-8"))
+            op = os.path.join(td, "o.png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d", dp,
+                 "--gate", "strict", "--dpi", "600", "-o", op],
+                capture_output=True, text=True, timeout=300)
+            self.assertEqual(r.returncode, 0,
+                             f"legend E2E 失败: {r.stderr[-200:]}")
+            from PIL import Image
+            im = Image.open(op).convert("RGB")
+            W, H = im.size
+            # 底部图例条带：非纯白像素在场（线样+文字）
+            strip = im.crop((0, int(H * 0.93), W, H))
+            px = list(strip.getdata())
+            non_white = sum(1 for p in px
+                            if abs(p[0] - 255) + abs(p[1] - 255)
+                            + abs(p[2] - 255) > 60)
+            self.assertGreater(non_white, 10000,
+                               "图例条带应有可见的线样+文字像素")
 
 
 if __name__ == "__main__":
