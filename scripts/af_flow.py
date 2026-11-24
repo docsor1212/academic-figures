@@ -582,6 +582,11 @@ def magnet(src, dst, attach_in=0, attach_out=0, force_key=None):
         # x 按实际轮廓取（judge 实锤：H 悬空 88-280px 同根因）
         _ssx = resolve_shape(src.get("shape", "round"))
         _dsx = resolve_shape(dst.get("shape", "round"))
+        # v8.1.1 侧向端口离框角 ≥0.12in（箭头半宽 0.10——旧余量 0.06 时翼片探出框角）。
+        # 注：试过对文件形（波浪底）再按真实轮廓抬高，夹具看图是把另一条入线挤成了
+        # 从下方戳进波浪底，更难看，已撤回——文件形侧向端口沿用同一余量。
+        sy = min(max(sy, sy0 + 0.12), sy1 - 0.12)
+        dy = min(max(dy, dy0 + 0.12), dy1 - 0.12)
         _sfy = min(max((sy - sy0) / max(sy1 - sy0, 1e-9), 0.0), 1.0)
         _dfy = min(max((dy - dy0) / max(dy1 - dy0, 1e-9), 0.0), 1.0)
         if dcx >= scx:
@@ -598,8 +603,8 @@ def magnet(src, dst, attach_in=0, attach_out=0, force_key=None):
     if abs(dcx - scx) <= 0.25:
         sx = dx  # 同列对齐：起终点共 x（直降无 Z 折）
     # v8.0.9 端点列钳制（同 H 分支行钳制：错层过大时 x 出 bbox=悬浮）
-    sx = min(max(sx, sx0 + 0.06), sx1 - 0.06)
-    dx = min(max(dx, dx0 + 0.06), dx1 - 0.06)
+    sx = min(max(sx, sx0 + 0.12), sx1 - 0.12)      # v8.1.1 同上：顶/底端口离框角 ≥0.12in
+    dx = min(max(dx, dx0 + 0.12), dx1 - 0.12)
     # v8.0.5 边贴合：非平顶/平底形状（斜顶/顶点/收腰）入出点按**实际轮廓
     # 高度**取——at_t/at_b 语义=该 x 处轮廓边的 y 分数（1.0=bbox 顶 dy1，
     # 0.0=bbox 底 dy0）。入点在边外 |EDGE_NIB| 处，出点在边线上。

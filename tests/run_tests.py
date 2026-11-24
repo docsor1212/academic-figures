@@ -2581,8 +2581,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.1.0", self.zh)
-        self.assertIn("version: 8.1.0", self.en)
+        self.assertIn("version: 8.1.1", self.zh)
+        self.assertIn("version: 8.1.1", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2679,8 +2679,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.1.0", self.zh)
-        self.assertIn("version: 8.1.0", self.en)
+        self.assertIn("version: 8.1.1", self.zh)
+        self.assertIn("version: 8.1.1", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2713,8 +2713,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.1.0", self.zh)
-        self.assertIn("version: 8.1.0", self.en)
+        self.assertIn("version: 8.1.1", self.zh)
+        self.assertIn("version: 8.1.1", self.en)
 
 
 
@@ -2781,7 +2781,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.1.0", zh)
+        self.assertIn("version: 8.1.1", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2954,7 +2954,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.0", t, name)
+            self.assertIn("version: 8.1.1", t, name)
 
 
 
@@ -3045,7 +3045,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.0", t, name)
+            self.assertIn("version: 8.1.1", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3166,7 +3166,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.0", t, name)
+            self.assertIn("version: 8.1.1", t, name)
 
 
 
@@ -3235,7 +3235,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.0", t, name)
+            self.assertIn("version: 8.1.1", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -10222,6 +10222,65 @@ class TestV80100RoutingLabels(unittest.TestCase):
         self.assertGreaterEqual(len(p["rejected"]), 1, "应导出被拒候选")
         self.assertIn("re-check", g["label_trace"], "应导出标签放置轨迹")
         self.assertIsInstance(g["gap_tracks"], list)
+
+
+class TestV80101PortMargin(unittest.TestCase):
+    """v8.1.1 端口离框角余量：落在节点包围盒直边线上的出入点，离包围盒两端 ≥0.12in
+    （箭头半宽 0.10in——旧余量 0.06 时箭头翼片探出框角）。以 CLI --dump-flow-routes
+    边车为准，八套模板各渲染一次（setUpClass 缓存）。变异验证：余量改回 0.06 本类
+    必须失败（泳道主图 rework 回边进 TLF 的端口离框底只有 0.06）。"""
+
+    _TPL = ("flow_swimlane-clinical", "flow_swimlane-incident", "flow_swimlane-lr-journal",
+            "flow_decision-antiinfective", "flow_approval-ethics", "flow_method-scrnaseq",
+            "flow_contrast-twomethods", "flow_state-cellcycle")
+    _CURVED = ("terminal", "delay", "cylinder")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cls.geom = {}
+        with tempfile.TemporaryDirectory() as td:
+            for name in cls._TPL:
+                gp = os.path.join(td, name + ".json")
+                op = os.path.join(td, name + ".png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "flow", "-d",
+                     os.path.join(cls.root, "templates", name + ".json"),
+                     "--gate", "strict", "--dump-flow-routes", gp, "-o", op],
+                    capture_output=True, text=True, timeout=300)
+                if r.returncode != 0:
+                    raise AssertionError(f"{name} 渲染失败: {r.stderr[-300:]}")
+                cls.geom[name] = json.load(open(gp, encoding="utf-8"))
+
+    def _ends(self):
+        """产出 (图名, 边, 节点 id, 出入点, 包围盒, 形状, 所在边)。"""
+        for name, g in self.geom.items():
+            bb = {b["id"]: (b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"])
+                  for b in g["blocks"]}
+            sh = {b["id"]: b.get("shape", "round") for b in g["blocks"]}
+            for r in g["routes"]:
+                P = r["pts"]
+                for nid, pt in ((r["from"], P[0]), (r["to"], P[-1])):
+                    if nid not in bb or sh[nid] in self._CURVED:
+                        continue
+                    x0, y0, x1, y1 = bb[nid]
+                    side = None
+                    if min(abs(pt[0] - x0), abs(pt[0] - x1)) <= 0.04:
+                        side = "v"          # 左/右边（出入点在竖直边线上）
+                    elif min(abs(pt[1] - y0), abs(pt[1] - y1)) <= 0.04:
+                        side = "h"          # 上/边（出入点在水平边线上）
+                    if side:
+                        yield name, f"{r['from']}->{r['to']}", nid, pt, bb[nid], sh[nid], side
+
+    def test_ports_clear_of_box_ends(self):
+        """出入点离所在边的两端 ≥0.12in（斜边形状的顶点/斜边上的出入点不在此列）。"""
+        bad = []
+        for name, edge, nid, pt, (x0, y0, x1, y1), _sh, side in self._ends():
+            if side == "v" and not (y0 + 0.12 - 1e-6 <= pt[1] <= y1 - 0.12 + 1e-6):
+                bad.append(f"{name} {edge} 在 {nid} 侧边 y={pt[1]:.2f}（框 y[{y0:.2f},{y1:.2f}]）")
+            if side == "h" and not (x0 + 0.12 - 1e-6 <= pt[0] <= x1 - 0.12 + 1e-6):
+                bad.append(f"{name} {edge} 在 {nid} 顶/底边 x={pt[0]:.2f}（框 x[{x0:.2f},{x1:.2f}]）")
+        self.assertEqual(bad, [], "出入点离框角不足 0.12in：\n" + "\n".join(bad))
 
 
 class TestV80100EdgeLegend(unittest.TestCase):
