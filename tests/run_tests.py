@@ -4941,7 +4941,7 @@ class TestV50200(unittest.TestCase):
         """机制锁（docQuality）：32 模板 _command/_note 全覆盖非空。"""
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 52)   # v8.0.9 +2 swimlane, v8.1.0 +1 LR
+        self.assertEqual(len(jsons), 56)   # v8.0.9 +2 swimlane, v8.1.0 +1 LR, v8.1.4 +4 standard flows
         for p in jsons:
             d = json.load(io.open(p, encoding="utf-8"))
             for key in ("_command", "_note"):
@@ -5701,7 +5701,7 @@ class TestV50700(unittest.TestCase):
         """计数锁（v5.7.0 建锁 38；…v7.8 +hero=41；v8.0 +flow=42）：42 模板/注册表≥41/README 41 chart types/realworld 18。"""
         root = os.path.join(SCRIPT_DIR, "..")
         jsons = glob.glob(os.path.join(root, "templates", "*.json"))
-        self.assertEqual(len(jsons), 52, f"templates 应 52 (+7 flow v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0): {len(jsons)}")
+        self.assertEqual(len(jsons), 56, f"templates 应 56 (+7 flow v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0 +4 standard flows v8.1.4): {len(jsons)}")
         sys.path.insert(0, SCRIPT_DIR)
         import gen_figure
         self.assertGreaterEqual(len(gen_figure.GENERATORS) - 3, 40)
