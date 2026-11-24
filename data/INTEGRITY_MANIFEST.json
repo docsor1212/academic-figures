@@ -9,12 +9,12 @@
    "sha256": "dd24dcfc68baa50af877212e42eff1c4b42845a20eb82a0e57220a556041a101"
   },
   "references/changelog-full.md": {
-   "bytes": 155171,
-   "sha256": "c7424bfd9959fe86cd116e9cf97fbd7901bf945b61fe1cf7cc38b02d29f1f188"
+   "bytes": 138568,
+   "sha256": "f0de3e51a53d4c0eb251a9ae7901f64061112a8b996d459966797374b28f2ae6"
   },
   "references/changelog.md": {
-   "bytes": 23080,
-   "sha256": "661e25b2f526a5e25b3aba4e3024671c139a0e898e055753c03ec13115cc23f8"
+   "bytes": 39524,
+   "sha256": "85802e93618467060fbd1f7618669bac24857f4cee976de2224e6a5fa81c1e11"
   },
   "references/cheatsheet.md": {
    "bytes": 6961,
