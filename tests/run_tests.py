@@ -1145,7 +1145,7 @@ class TestV20200Features(unittest.TestCase):
     def test_templates_present_and_valid(self):
         tdir = os.path.join(SCRIPT_DIR, "..", "templates")
         jsons = sorted(glob.glob(os.path.join(tdir, "*.json")))
-        self.assertEqual(len(jsons), 52, f"expected 52 templates (+7 flow family v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0), got {len(jsons)}")
+        self.assertEqual(len(jsons), 56, f"expected 56 templates (+7 flow family v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0 +4 academic-standard flows v8.1.4), got {len(jsons)}")
         for p in jsons:
             with open(p, encoding="utf-8") as f:
                 d = json.load(f)
@@ -2581,8 +2581,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.1.3", self.zh)
-        self.assertIn("version: 8.1.3", self.en)
+        self.assertIn("version: 8.1.4", self.zh)
+        self.assertIn("version: 8.1.4", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2679,8 +2679,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.1.3", self.zh)
-        self.assertIn("version: 8.1.3", self.en)
+        self.assertIn("version: 8.1.4", self.zh)
+        self.assertIn("version: 8.1.4", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2713,8 +2713,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.1.3", self.zh)
-        self.assertIn("version: 8.1.3", self.en)
+        self.assertIn("version: 8.1.4", self.zh)
+        self.assertIn("version: 8.1.4", self.en)
 
 
 
@@ -2781,7 +2781,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.1.3", zh)
+        self.assertIn("version: 8.1.4", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2954,7 +2954,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.3", t, name)
+            self.assertIn("version: 8.1.4", t, name)
 
 
 
@@ -3045,7 +3045,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.3", t, name)
+            self.assertIn("version: 8.1.4", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3166,7 +3166,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.3", t, name)
+            self.assertIn("version: 8.1.4", t, name)
 
 
 
@@ -3235,7 +3235,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.3", t, name)
+            self.assertIn("version: 8.1.4", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -5472,7 +5472,7 @@ class TestV50600(unittest.TestCase):
         """计数锁收口：模板 37 / realworld 12 / 新字段白名单（v5.7 起 cif+mgus2 入列）。"""
         root = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
         tpls = [x for x in os.listdir(os.path.join(root, "templates")) if x.endswith(".json")]
-        self.assertEqual(len(tpls), 52, f"模板应 52 个 (+7 flow v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0): {len(tpls)}")
+        self.assertEqual(len(tpls), 56, f"模板应 56 个 (+7 flow v8.0.5 +2 swimlane v8.0.9 +1 LR v8.1.0 +4 标准学术流程 v8.1.4): {len(tpls)}")
         rws = os.listdir(os.path.join(root, "examples", "realworld"))
         self.assertEqual(len([x for x in rws if x.endswith(".json")]), 18,
                          f"realworld 应 14 个: {rws}")
@@ -10285,6 +10285,67 @@ class TestV80101PortMargin(unittest.TestCase):
             if side == "h" and not (x0 + 0.12 - 1e-6 <= pt[0] <= x1 - 0.12 + 1e-6):
                 bad.append(f"{name} {edge} 在 {nid} 顶/底边 x={pt[0]:.2f}（框 x[{x0:.2f},{x1:.2f}]）")
         self.assertEqual(bad, [], "出入点离框角不足 0.12in：\n" + "\n".join(bad))
+
+
+class TestV80104(unittest.TestCase):
+    """v8.1.4 学术标准流程模板包：PRISMA 2020 系统综述 / CONSORT 随机对照试验 /
+    STROBE 队列研究 / STARD 诊断准确性——四套新模板 strict 出图、全部节点有边
+    连接（无孤点）、汇流边不共线重叠（成对竖列进入）。"""
+
+    _TPL = ("flow_review-prisma", "flow_rct-consort",
+            "flow_cohort-strobe", "flow_dx-stard")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cls.geom = {}
+        with tempfile.TemporaryDirectory() as td:
+            for name in cls._TPL:
+                gp = os.path.join(td, name + ".json")
+                op = os.path.join(td, name + ".png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "flow", "-d",
+                     os.path.join(cls.root, "templates", name + ".json"),
+                     "--gate", "strict", "--dump-flow-routes", gp, "-o", op],
+                    capture_output=True, text=True, timeout=300)
+                if r.returncode != 0:
+                    raise AssertionError(f"{name} 渲染失败: {r.stderr[-300:]}")
+                cls.geom[name] = json.load(open(gp, encoding="utf-8"))
+
+    def test_all_nodes_connected(self):
+        """每个节点至少是一条边的端点（模板无孤点）。"""
+        bad = []
+        for name, g in self.geom.items():
+            ids = {b["id"] for b in g["blocks"]}
+            touched = set()
+            for r in g["routes"]:
+                touched.add(r["from"])
+                touched.add(r["to"])
+            miss = ids - touched
+            if miss:
+                bad.append(f"{name}: 孤点 {sorted(miss)}")
+        self.assertEqual(bad, [])
+
+    def test_merge_edges_not_collinear(self):
+        """汇流边（同目标、同形状水平段）不得共线重叠 ≥0.05in。"""
+        bad = []
+        for name, g in self.geom.items():
+            segs = {}
+            for r in g["routes"]:
+                for a, b in zip(r["pts"][:-1], r["pts"][1:]):
+                    if abs(a[1] - b[1]) < 1e-9:      # 水平段
+                        key = round(a[1], 4)
+                        segs.setdefault(key, []).append(
+                            (min(a[0], b[0]), max(a[0], b[0]),
+                             f"{r['from']}->{r['to']}"))
+            for y, lst in segs.items():
+                for i in range(len(lst)):
+                    for j in range(i + 1, len(lst)):
+                        (a0, a1, ea), (b0, b1, eb) = lst[i], lst[j]
+                        ov = min(a1, b1) - max(a0, b0)
+                        if ov >= 0.05 and not (abs(a0 - b0) < 1e-9 and abs(a1 - b1) < 1e-9):
+                            bad.append(f"{name} y={y:.2f} {ea} 与 {eb} 重叠 {ov:.3f}in")
+        self.assertEqual(bad, [])
 
 
 class TestV80103(unittest.TestCase):
