@@ -27,6 +27,11 @@ from matplotlib.patches import (FancyBboxPatch, Polygon, Rectangle, Ellipse,
 
 # ── 常量（单位=英寸；pt→inch 换算 1pt=1/72in） ──────────────────────────
 LAST_GEOM = None   # v8.0.9 render 几何快照（QC 边车）
+LAST_POOL = None   # v8.1.0 最近一次 route() 的候选池 [(代价, 路径), ...]（QC 边车）
+LAST_REJECT = None  # v8.1.0 最近一次 route() 的肘部被拒候选 [(键, 走廊位, 拦它的段)]
+GAP_TRACKS = []     # v8.1.0 泳道 LR 行间隙通道轨道（layout 写、route/标签读；QC 边车导出）
+LABEL_LOG = {}   # v8.1.0 标签放置轨迹 {标签文本: [[(x, y, 对齐, 被拒原因), ...], ...]}
+                   # 每次调用 place_edge_label 追加一条（多轮放置=多条；成功轮最后一条）
 LANE_GAP = 0.45          # 回边 lane 与内容外缘的最小间距
 LANE_STAGGER = 0.38      # 多条回边错层步距
 MAGNET_PAD = 0.02        # 箭头起点与框边的微距
@@ -195,6 +200,8 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
     layout="swimlane"（v8.0.6，F3）：泳道布局——lanes=[名称...] 顺序即
     泳道次序，节点 "lane": 索引/名称归属；TB=垂直列（左→右）、LR=水平行。
     泳道背景条+标题带由 render 依 _lanes_geo 绘制（块层 z=1）。"""
+    global GAP_TRACKS
+    GAP_TRACKS = []      # 每次布局清表（仅泳道 LR 写入）
     ids = [n["id"] for n in nodes]
     idset = set(ids)
     for e in edges:
@@ -313,25 +320,66 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
                 row_h[ci] = max(row_h[ci], bmap[i]["h"])
             _n_lane = len(_lane_names)
             _GUT = 0.42   # 左侧标题竖条宽
+            # v8.1.0 行间隙通道分配（channel tracks）：相邻两行之间每条要横穿的
+            # 边分到一条自己的轨道——带标签的边轨道更高（线下方留一个标签区），
+            # 间隙高度按实际需要累加。旧版行间隙恒 0.30、走线高度靠候选取样碰
+            # 运气：LR 样例回边 70 个候选全败、掉进穿节点的兜底（轨迹实测）。
+            _cross = [[] for _ in range(max(_n_lane - 1, 0))]
+            for _e in edges:
+                _la, _lb = _lidx.get(_e.get("from")), _lidx.get(_e.get("to"))
+                if _la is None or _lb is None or abs(_la - _lb) != 1:
+                    continue
+                _cross[min(_la, _lb)].append(_e)
+            _gap, _trk = [], []
+            for _es in _cross:
+                _es = sorted(_es, key=lambda e: 1 if e.get("label") else 0)  # 稳定：无标签在下
+                _off, _ts = 0.03, []
+                for _e in _es:
+                    _lab = bool(_e.get("label"))
+                    _ts.append([_e["from"], _e["to"], _off, _lab])
+                    _off += 0.50 if _lab else 0.18
+                _gap.append(_off + 0.10 if _es else 0.30)
+                _trk.append(_ts)
+            _extra = sum(_g - 0.30 for _g in _gap)
             _total_h = sum(rh + 0.30 for rh in row_h) + 0.30 * (_n_lane - 1) \
-                + 0.15   # 底部呼吸
+                + _extra + 0.15   # 底部呼吸
             _cursor = _total_h
             row_y = [0.0] * _n_lane
             for ci in range(_n_lane):   # 顶→底
                 _band_top = _cursor
                 row_y[ci] = _band_top - 0.15 - row_h[ci]   # 内容区底（带 0.15 上垫）
-                _cursor = row_y[ci] - 0.15 - 0.30           # 带下垫+行距
+                _cursor = row_y[ci] - 0.15 \
+                    - (_gap[ci] if ci < _n_lane - 1 else 0.30)   # 带下垫+行距
+            # v8.1.0 行内标签带预留：同一行里相邻两节点之间若有带标签的边，间距
+            # 按标签宽度加宽（标签≈0.075in/字+净空）。否则短箭头放不下自己的标签
+            # ——LR 期刊模板 accept：菱形与胶囊间 0.61in，标签 0.6in 宽，8 个段旁
+            # 候选全败（轨迹实测）。与行间隙通道分配同一原则：标签位在布局期留。
+            _gap_after = {}
+            _prev = {}
+            for i in ids:
+                ci = _lidx[i]
+                _gap_after.setdefault(i, COL_GAP)
+                if ci in _prev:
+                    # 带标签的边在「前一个节点→当前节点」之间：加宽的是**前一个
+                    # 节点后面**的间距（曾误记到当前节点后面→完全没生效，对账实测）
+                    for _e in edges:
+                        if _e.get("label") and {_e.get("from"), _e.get("to")} \
+                                == {_prev[ci], i}:
+                            _gap_after[_prev[ci]] = max(
+                                COL_GAP,
+                                COL_GAP + 0.075 * min(len(_e["label"]), 40) + 0.25)
+                _prev[ci] = i
             _row_w = [0.0] * _n_lane
             for i in ids:
                 ci = _lidx[i]
-                _row_w[ci] += bmap[i]["w"] + COL_GAP
+                _row_w[ci] += bmap[i]["w"] + _gap_after[i]
             _max_row_w = max(_row_w) - COL_GAP
             _cur_x = [0.0] * _n_lane
             for i in ids:   # 声明序=行内自左向右；行内整体居中（右移避开竖条）
                 ci = _lidx[i]
                 bmap[i]["x"] = _GUT + (_max_row_w - (_row_w[ci] - COL_GAP)) / 2 \
                     + _cur_x[ci]
-                _cur_x[ci] += bmap[i]["w"] + COL_GAP
+                _cur_x[ci] += bmap[i]["w"] + _gap_after[i]
                 bmap[i]["y"] = row_y[ci] + (row_h[ci] - bmap[i]["h"]) / 2
             _geo = [{"x": -0.18, "w": _max_row_w + _GUT + 0.36,
                      "y": row_y[ci] - 0.15, "h": row_h[ci] + 0.30,
@@ -339,6 +387,17 @@ def layout_semantic(nodes, edges, layout="chain", direction="TB", ax=None,
                     for ci in range(_n_lane)]
             for i in ids:
                 bmap[i]["_lanes_geo"] = _geo
+            # 轨道绝对坐标：间隙 gi 的底=下行带顶=row_y[gi]-0.15-_gap[gi]。
+            # 带标签轨道：线下方 [off+0.04, off+0.30] 为标签区，线在 off+0.39。
+            _gt = []
+            for _gi, _ts in enumerate(_trk):
+                _gb = row_y[_gi] - 0.15 - _gap[_gi]
+                _gt.append({"y_lo": _gb, "y_hi": _gb + _gap[_gi],
+                            "tracks": [{"edge": [t_[0], t_[1]],
+                                        "line_y": _gb + t_[2] + (0.39 if t_[3] else 0.09),
+                                        "label_y": (_gb + t_[2] + 0.17) if t_[3] else None,
+                                        "label": t_[3]} for t_ in _ts]})
+            GAP_TRACKS = _gt
             return blocks
         col_w = [0.0] * len(_lane_names)
         for i in ids:
@@ -569,6 +628,16 @@ def _seg_hits(p0, p1, blocks, skip_ids):
     return False
 
 
+def af_flow_last_pool():
+    """最近一次 route() 的候选池 [(代价, 路径), ...]（按入池顺序；QC 诊断用）。"""
+    return LAST_POOL
+
+
+def af_flow_last_reject():
+    """最近一次 route() 的肘部被拒候选（QC 诊断用；lane 兜底时为空）。"""
+    return [] if LAST_REJECT is None else list(LAST_REJECT)
+
+
 def _pt_seg_dist(px, py, p0, p1):
     """点到线段距离（in）——箭头头域避让用。"""
     vx, vy = p1[0] - p0[0], p1[1] - p0[1]
@@ -576,6 +645,38 @@ def _pt_seg_dist(px, py, p0, p1):
     L2 = vx * vx + vy * vy
     t_ = max(0.0, min(1.0, (wx * vx + wy * vy) / max(L2, 1e-12)))
     return math.hypot(px - (p0[0] + t_ * vx), py - (p0[1] + t_ * vy))
+
+
+def _seg_cross_line(a, b, p, q):
+    """轴对齐段 ab 与线段 pq 是否规范相交（端点相触不算）。未路由边的交叉估计用。"""
+    def _o(o, u, v):
+        return (u[0] - o[0]) * (v[1] - o[1]) - (u[1] - o[1]) * (v[0] - o[0])
+    d1, d2 = _o(p, q, a), _o(p, q, b)
+    if d1 * d2 >= 0:
+        return False
+    d3, d4 = _o(a, b, p), _o(a, b, q)
+    return d3 * d4 < 0
+
+
+def _bus_overlap(pts, buses, min_sep=0.12, min_ov=0.05, end_trim=0.30):
+    """候选路径是否有段与已路由总线**共线重叠**（两条不同的边叠成一条线=其中
+    一条被遮住）。候选段两端各 end_trim 内的共用不算（同源/同汇边的合法短干）。"""
+    for k in range(len(pts) - 1):
+        (ax_, ay_), (bx_, by_) = pts[k], pts[k + 1]
+        if abs(ax_ - bx_) < 1e-9:
+            axis, c, lo, hi = "v", ax_, min(ay_, by_), max(ay_, by_)
+        elif abs(ay_ - by_) < 1e-9:
+            axis, c, lo, hi = "h", ay_, min(ax_, bx_), max(ax_, bx_)
+        else:
+            continue
+        lo2, hi2 = lo + end_trim, hi - end_trim
+        for (axk, bc, blo, bhi) in buses:
+            if axk != axis or abs(c - bc) >= min_sep:
+                continue
+            o_lo, o_hi = max(lo, blo, lo2), min(hi, bhi, hi2)
+            if o_hi - o_lo > min_ov:
+                return True
+    return False
 
 
 def _head_zone_hit(p0, p1, hx, hy, ux, uy):
@@ -744,7 +845,8 @@ def _lane_y(blocks, side, level):
 
 
 def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
-          attach_in=0, attach_out=0, avoid_x=(), avoid_heads=()):
+          attach_in=0, attach_out=0, avoid_x=(), avoid_heads=(),
+          avoid_ports=(), pending=()):
     """R1/R4：直连（干净）→离轴 3 段正交肘（多走廊位验证）→lane 绕行
     （双侧×错层验证）。肘与 lane 统一「验证通过者优先」，无 lane_level 硬闸。
     v8.0.4：attach 错层在入口传入 magnet——所有分支（直连/肘/lane）端点
@@ -758,6 +860,7 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
     p0, p1 = magnet(src, dst, attach_in=attach_in, attach_out=attach_out)
     _skip = (src["id"], dst["id"])
     _zones = _sep_zones(blocks)
+    _rej = []      # QC：肘部被拒候选 (键, 走廊位, [被拦的段号]) / (键, 走廊位, "总线避让")
 
     def _blocked(q0, q1):
         if _seg_hits(q0, q1, blocks, _skip):
@@ -775,6 +878,203 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
             if _head_zone_hit(q0, q1, hx, hy, ux, uy):
                 return True
         return False
+
+    # v8.1.0 本边起/终节点的**直边贴边**：线段（掐掉出入口 0.13in）在节点
+    # 包围盒外侧、与盒边平行、相距 <0.06in、并行 >0.15in → 计贴近。旧版对
+    # 起/终节点整段豁免：「沿框右缘外侧 0.02in 滑 0.67in 止于右下圆角」因此
+    # 零代价中标（scRNA-seq 参考基因组→Alignment，r23/r32 看图实测）。只认
+    # 侧边是直边的形状：菱形/六边形/梯形的包围盒侧线只在顶点处与轮廓重合，
+    # 按盒算会把斜边旁的合法走线误判（r29 实测）。
+    def _hug_own(pts_):
+        _n = 0
+        for k2 in range(len(pts_) - 1):
+            (ax_, ay_), (bx_, by_) = pts_[k2], pts_[k2 + 1]
+            _L_ = abs(bx_ - ax_) + abs(by_ - ay_)
+            if _L_ <= 0.26:
+                continue
+            _c = 0.13 / _L_
+            _sx0, _sx1 = sorted((ax_ + (bx_ - ax_) * _c,
+                                 ax_ + (bx_ - ax_) * (1 - _c)))
+            _sy0, _sy1 = sorted((ay_ + (by_ - ay_) * _c,
+                                 ay_ + (by_ - ay_) * (1 - _c)))
+            for b in blocks:
+                if b["id"] not in _skip:
+                    continue
+                if resolve_shape(b.get("shape", "round")) in (
+                        "diamond", "hexagon", "manual-op", "manual-input", "io"):
+                    continue
+                _x0, _y0, _x1, _y1 = _bbox(b)
+                if abs(ax_ - bx_) < 1e-9:          # 竖段贴左/右缘
+                    if (min(_sy1, _y1) - max(_sy0, _y0) > 0.15
+                            and 0.0 < min(abs(ax_ - _x0), abs(ax_ - _x1)) < 0.06):
+                        _n += 1
+                elif abs(ay_ - by_) < 1e-9:        # 横段贴上/下缘
+                    if (min(_sx1, _x1) - max(_sx0, _x0) > 0.15
+                            and 0.0 < min(abs(ay_ - _y0), abs(ay_ - _y1)) < 0.06):
+                        _n += 1
+        return _n
+
+    # v8.1.0 已路由边的拐点 (x, y, 竖段 y 范围, 横段 x 范围)——拐角咬合检查用
+    _ex_c = []
+    for (_axk, _c, _lo_, _hi_) in avoid_x:
+        if _axk != "h":
+            continue
+        for (_axk2, _c2, _lo2, _hi2) in avoid_x:
+            if _axk2 != "v":
+                continue
+            for _exx in (_lo_, _hi_):
+                if abs(_exx - _c2) < 1e-6 \
+                        and (abs(_c - _lo2) < 1e-6 or abs(_c - _hi2) < 1e-6):
+                    _ex_c.append((_exx, _c, tuple(sorted((_lo2, _hi2))),
+                                  tuple(sorted((_lo_, _hi_)))))
+
+    def _route_cost(pts):
+        """候选代价（越小越好）=（与已路由边交叉数, 节点同角相对而行数, 拐弯数,
+        与未路由边的直线估计交叉数, 总长）。v8.1.0：旧版取「第一个合法」，把几何
+        合法当成了好——LR 期刊模板 review→decide 因此横穿 accept 边并与它共用菱形
+        右角。真实交叉与同角冲突排在拐弯数之前（少一次交叉值得多拐一个弯）；未路由
+        边只是直线估计，排在拐弯数之后。"""
+        cross = conflict = pend = 0
+        length = 0.0
+        for k2 in range(len(pts) - 1):
+            (ax_, ay_), (bx_, by_) = pts[k2], pts[k2 + 1]
+            length += abs(bx_ - ax_) + abs(by_ - ay_)
+            for (_axk, _c, _lo_, _hi_) in avoid_x:
+                if _axk == "h" and abs(ax_ - bx_) < 1e-9 \
+                        and _lo_ + 0.02 < ax_ < _hi_ - 0.02 \
+                        and min(ay_, by_) + 0.02 < _c < max(ay_, by_) - 0.02:
+                    cross += 1
+                elif _axk == "v" and abs(ay_ - by_) < 1e-9 \
+                        and _lo_ + 0.02 < ay_ < _hi_ - 0.02 \
+                        and min(ax_, bx_) + 0.02 < _c < max(ax_, bx_) - 0.02:
+                    cross += 1
+            for (_pa, _pb) in pending:
+                if _seg_cross_line(pts[k2], pts[k2 + 1], _pa, _pb):
+                    pend += 1
+        for (_px, _py, _nid, _kind) in avoid_ports:
+            if _nid == dst["id"] and _kind == "tail" \
+                    and math.hypot(pts[-1][0] - _px, pts[-1][1] - _py) < 0.16:
+                conflict += 1
+            if _nid == src["id"] and _kind == "head" \
+                    and math.hypot(pts[0][0] - _px, pts[0][1] - _py) < 0.16:
+                conflict += 1
+        # 共线重叠（与交叉同级——被遮住的边比交叉更糟）与贴近（线贴着节点走：
+        # 合法性判定有 0.02in 容差，评分制会选到钻容差空子的候选——incident 模板
+        # 横线贴 page 底边 0.015in 实锤）
+        overlap = 1 if _bus_overlap(pts, avoid_x) else 0
+        near = 0
+        for k2 in range(len(pts) - 1):
+            (ax_, ay_), (bx_, by_) = pts[k2], pts[k2 + 1]
+            _sx0, _sx1 = sorted((ax_, bx_))
+            _sy0, _sy1 = sorted((ay_, by_))
+            for b in blocks:
+                if b["id"] in _skip:
+                    continue
+                _x0, _y0, _x1, _y1 = _bbox(b)
+                _dx = max(_x0 - _sx1, _sx0 - _x1, 0.0)
+                _dy = max(_y0 - _sy1, _sy0 - _y1, 0.0)
+                if math.hypot(_dx, _dy) < 0.06:
+                    near += 1
+        near += _hug_own(pts)
+        # 注：「线贴泳道分隔线平行长跑」试过计贴近（<0.12in），r20 实测引发贪心
+        # 路由失败——先路由的边为躲分隔线挪走，把后面边唯一的干净走法堵死
+        # （泳道主图 crf→query 实锤），且 0.11in 的间距看放大图可接受，故撤回。
+        # 排序（2026-11-24 实测校正）：贴近排在交叉之前——泳道主图 re-check 回边
+        # 的几条候选里，「贴着 eCRF 右缘走 0.87in」比「多一次垂直交叉」糟得多，
+        # 旧排序（交叉优先）恰恰选了前者。往返边对按拓扑必然交叉一次，可接受。
+        # 通道轨道（泳道 LR 行间隙）：分到轨道的边不走在自己轨道上=+1，排在
+        # 「未路由边的直线估计交叉」之前——否则估计值会压过轨道分配，三条边
+        # 走到与分配相反的轨道上（LR 样例实测）
+        _otrk = [t_["line_y"] for g_ in GAP_TRACKS for t_ in g_["tracks"]
+                 if tuple(t_["edge"]) == (src["id"], dst["id"])]
+        off_track = 0
+        if _otrk and not any(abs(p_[1] - _otrk[0]) < 0.02 for p_ in pts):
+            off_track = 1
+        # 近端口交叉：与已路由边的交叉点离任一端的出入口（或拐点）<0.30in，
+        # 或距本边出入口 <0.30in——读起来像从节点直接分出的 T 形分岔（决策模板
+        # No 旁路线在菱形底顶点下 0.15in 处穿过 High 分支；泳道主图 crf→query 出
+        # eCRF 0.18in 即被 48 h SLA 竖线穿过）。排在普通交叉之前。
+        tj = 0
+        _own_ends = [pts[0], pts[-1]]
+        for k2 in range(len(pts) - 1):
+            (ax_, ay_), (bx_, by_) = pts[k2], pts[k2 + 1]
+            for (_axk, _c, _lo_, _hi_) in avoid_x:
+                if _axk == "h" and abs(ax_ - bx_) < 1e-9 \
+                        and _lo_ + 0.02 < ax_ < _hi_ - 0.02 \
+                        and min(ay_, by_) + 0.02 < _c < max(ay_, by_) - 0.02:
+                    _px, _py, _bn = ax_, _c, [(_lo_, _c), (_hi_, _c)]
+                elif _axk == "v" and abs(ay_ - by_) < 1e-9 \
+                        and _lo_ + 0.02 < ay_ < _hi_ - 0.02 \
+                        and min(ax_, bx_) + 0.02 < _c < max(ax_, bx_) - 0.02:
+                    _px, _py, _bn = _c, ay_, [(_c, _lo_), (_c, _hi_)]
+                else:
+                    continue
+                _pe = [any(math.hypot(_ex - _qx, _ey - _qy) < 1e-6
+                           for (_qx, _qy, _n, _k) in avoid_ports)
+                       for (_ex, _ey) in _bn]
+                # 出入口 0.30（读作从节点分出的岔线）；拐点 0.20（拐点处两条臂
+                # 都看得见，歧义小于节点旁）——泳道主图 query→sitefix 穿 0.60in
+                # 短段时 0.30/0.30 的窗只有一个点，实测 12 个候选全部落空
+                # 本边自己的拐点同尺 0.20（r20 泳道主图：48 h SLA 出六边形左顶点
+                # 0.18in 即被 crf→query 横段穿过——机械审计抓到、代价函数漏算）
+                if min(math.hypot(_px - _ex, _py - _ey)
+                       for (_ex, _ey) in _own_ends) < 0.30 - 1e-6 \
+                        or min((math.hypot(_px - _ex, _py - _ey)
+                                for (_ex, _ey) in pts[1:-1]), default=9) < 0.20 - 1e-6 \
+                        or any(math.hypot(_px - _ex, _py - _ey)
+                               < (0.30 if _ip else 0.20) - 1e-6
+                               for (_ex, _ey), _ip in zip(_bn, _pe)):
+                    tj += 1
+        # v8.1.0 拐角咬合：本边拐点与已路由边的拐点横向错开 <0.10、纵向相距
+        # 0.08-0.20，且两者的竖段上下错开、横段几乎不重叠（或转置）——两条线的
+        # 拐角一上一下咬在一起，读起来像接线/交叉（决策模板 No 旁路线与
+        # IV→Reassess 的拐角横向只错开 0.06in，r34 看图实测）。与近端口交叉同级：
+        # 并排错层的往返边对横段重叠，不会命中。
+        def _ov(u_, v_):
+            return min(u_[1], v_[1]) - max(u_[0], v_[0])
+        for _k3 in range(1, len(pts) - 1):
+            _vy_, _hx_ = None, None
+            for (_sa_, _sb_) in ((pts[_k3 - 1], pts[_k3]), (pts[_k3], pts[_k3 + 1])):
+                if abs(_sa_[0] - _sb_[0]) < 1e-9:
+                    _vy_ = sorted((_sa_[1], _sb_[1]))
+                else:
+                    _hx_ = sorted((_sa_[0], _sb_[0]))
+            if _vy_ is None or _hx_ is None:
+                continue
+            for (_exx, _eyy, _evy, _ehx) in _ex_c:
+                _dx, _dy = abs(pts[_k3][0] - _exx), abs(pts[_k3][1] - _eyy)
+                if (_dx < 0.10 and 0.08 < _dy < 0.20
+                        and _ov(_vy_, _evy) <= 0.02 and _ov(_hx_, _ehx) <= 0.10) \
+                        or (_dy < 0.10 and 0.08 < _dx < 0.20
+                            and _ov(_hx_, _ehx) <= 0.02 and _ov(_vy_, _evy) <= 0.10):
+                    tj += 1
+        for (_pa, _pb) in pending:
+            for k2 in range(len(pts) - 1):
+                if not _seg_cross_line(pts[k2], pts[k2 + 1], _pa, _pb):
+                    continue
+                (ax_, ay_), (bx_, by_) = pts[k2], pts[k2 + 1]
+                _dxl, _dyl = _pb[0] - _pa[0], _pb[1] - _pa[1]
+                if abs(ax_ - bx_) < 1e-9 and abs(_dxl) > 1e-9:
+                    _tt = (ax_ - _pa[0]) / _dxl
+                    _px, _py = ax_, _pa[1] + _tt * _dyl
+                elif abs(_dyl) > 1e-9:
+                    _tt = (ay_ - _pa[1]) / _dyl
+                    _px, _py = _pa[0] + _tt * _dxl, ay_
+                else:
+                    continue
+                # 未路由边的端点是节点中心：距中心 <0.60in（≈半节点+0.30）视为近端口
+                if min(math.hypot(_px - _pa[0], _py - _pa[1]),
+                       math.hypot(_px - _pb[0], _py - _pb[1])) < 0.60:
+                    tj += 1
+        # v8.1.0 箭头末段过短：末段（箭头所在段）短于 箭头长 0.145+净空 0.08 时，
+        # 箭头翼片垂在拐角之外（竖线下来立刻横走 0.17in 进侧边——翼片后半截露在
+        # 竖线下端之下，像一个线头；决策模板 High→IV、伦理模板 conditions→
+        # Amendment，视觉评审 R1 放大图实测）。按多两个拐弯计：有「拐弯多一个但
+        # 末段够长」的候选时让位；没有时仍可选（好过 lane 兜底）。
+        _short_end = 2 if len(pts) >= 3 and (
+            abs(pts[-1][0] - pts[-2][0]) + abs(pts[-1][1] - pts[-2][1])) < 0.225 else 0
+        return (overlap, near, tj, cross, conflict, off_track,
+                len(pts) - 2 + _short_end, pend, round(length, 4))
 
     if not orthogonal:
         # ① 直连干净→直连（错槽循环 _stag∈{0,1}：槽位计数按物理侧统计，
@@ -812,21 +1112,46 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
                         break
             return _q0, _q1
 
+        # v8.1.0 候选评分制：收集全部合法候选，按 _route_cost 取最优。入池顺序
+        # 保留旧版优先序，作代价完全相同时的并列裁决（旧选择不被无故改动）。
+        _pool = []
+
+        def _corners_ok(pts):
+            """拐点不得落入非端点块（弯在框里=贴框/穿框；此前只有 lane 兜底查）。"""
+            for _p in pts[1:-1]:
+                for b in blocks:
+                    if b["id"] in _skip:
+                        continue
+                    x0, y0, x1, y1 = _bbox(b)
+                    if x0 - 0.01 < _p[0] < x1 + 0.01 and y0 - 0.01 < _p[1] < y1 + 0.01:
+                        return False
+            return True
+
+        def _add(pts):
+            _cl = []
+            for _p in pts:      # 去零长段
+                if not _cl or abs(_p[0] - _cl[-1][0]) > 1e-9 \
+                        or abs(_p[1] - _cl[-1][1]) > 1e-9:
+                    _cl.append(_p)
+            if len(_cl) >= 2 and _corners_ok(_cl):
+                _pool.append(_cl)
+
         for _stag in (0, 1):
             _aoo, _aii = attach_out + _stag, attach_in + _stag
             _p0, _p1 = (p0, p1) if _stag == 0 else \
                 magnet(src, dst, attach_in=_aii, attach_out=_aoo)
             _p0, _p1 = _direct_pts(_aoo, _aii)
             if not _blocked(_p0, _p1):
-                if key == "H" and abs(_p0[1] - _p1[1]) > 0.05:
+                if key == "H" and abs(_p0[1] - p1[1]) > 0.05:
                     gx = (_p0[0] + _p1[0]) / 2
-                    return [(_p0[0], _p0[1]), (gx, _p0[1]), (gx, _p1[1]),
-                            (_p1[0], _p1[1])], side
-                if key == "V" and abs(_p0[0] - _p1[0]) > 0.05:
+                    _add([(_p0[0], _p0[1]), (gx, _p0[1]), (gx, _p1[1]),
+                          (_p1[0], _p1[1])])
+                elif key == "V" and abs(_p0[0] - _p1[0]) > 0.05:
                     gy = (_p0[1] + _p1[1]) / 2
-                    return [(_p0[0], _p0[1]), (_p0[0], gy), (_p1[0], gy),
-                            (_p1[0], _p1[1])], side
-                return [_p0, _p1], side
+                    _add([(_p0[0], _p0[1]), (_p0[0], gy), (_p1[0], gy),
+                          (_p1[0], _p1[1])])
+                else:
+                    _add([_p0, _p1])
         # ② 直连穿框→正交肘：走廊**限定在两锚点之间**（v8.0.4 根修两处——
         #    旧版 H 键误用 Y 中值当 X 走廊（轴向错用），且走廊无界扫描可落在
         #    目标框远侧 → 末段整段横穿目标框内部，而 _seg_hits 的端点豁免
@@ -835,7 +1160,7 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
         #    v8.0.4 轴向回退：主轴向走廊区间空/全堵时换垂直轴向重试（force_key
         #    换边磁吸）——蛇形回边 F→B 因此改走行间槽（H 走廊仅 0.16in 且
         #    出口 T 压在 E→F 边上，judge 实锤）。
-        def _elbow_scan(k, q0, q1):
+        def _elbow_scan(k, q0, q1, first_only=True):
             if k == "H":
                 _lo = min(q0[0], q1[0]) + 0.3
                 _hi = max(q0[0], q1[0]) - 0.3
@@ -845,7 +1170,8 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
                 _hi = max(q0[1], q1[1]) - 0.3
                 _mid = (q0[1] + q1[1]) / 2
             if _lo > _hi:
-                return None
+                return None if first_only else []
+            found = []
             # v8.0.9 候选采样升级：0.3 步进网格会跨过「分隔带侧翼/走廊缘」
             # 之间的有效窄窗（宽 0.06-0.15in）——query↔sitefix 往返对实测
             # 唯一净窗被网格跨过→误判全堵→画布外 lane 环（judge R8 无锚
@@ -866,14 +1192,86 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
                     _lg_ = blocks[0]["_lanes_geo"]
                     for _a, _b2 in zip(_lg_, _lg_[1:]):
                         _gmid = (_a["y"] + _b2["y"] + _b2["h"]) / 2
-                        _cands += [_gmid - 0.07, _gmid, _gmid + 0.07]
+                        # v8.1.0：缝够宽（≥0.6，带标签带）时两条走线拉开到 ±0.14，
+                        # 线与行带边之间各留出放标签的净空
+                        _hs = 0.14 if (_a["y"] - (_b2["y"] + _b2["h"])) >= 0.6 else 0.07
+                        _cands += [_gmid - _hs, _gmid, _gmid + _hs]
                 _cands += [_lo + 0.05, _hi - 0.05]
             # v8.0.9 R10 走廊外扩：锚点 ±0.3 的走廊会把窄净窗关在门外
             # （incident re-triage 唯一净窗 hi+0.15 实锤）——四档有界外扩
             _cands += [_lo - 0.15, _lo - 0.35, _hi + 0.15, _hi + 0.35]
+
+            # v8.1.0 净空推导候选：中段每穿过一条已路由的线，交叉点离那条线的
+            # 出入口 ≥0.30in、离拐点 ≥0.20in 才不读作 T 形分岔。固定步进取样会
+            # 跨过这种窄窗（泳道主图 query→sitefix 穿 crf→query 的 0.60in 短段，
+            # 合法窗只有一个点，12 个候选全落在窗外实测）——按被穿线段的两端
+            # 直接推导：两端净空都够→窗的中点；不够（短段）→贴近要求低的一端
+            # 让位，另给线段中点，由代价函数择优。
+            def _clr(_a, _b, _bc):
+                _e0, _e1 = ((_a, _bc), (_b, _bc)) if k == "H" else ((_bc, _a), (_bc, _b))
+                _ca = 0.31 if any(math.hypot(_e0[0] - _qx, _e0[1] - _qy) < 1e-6
+                                  for (_qx, _qy, _n, _k) in avoid_ports) else 0.21
+                _cb = 0.31 if any(math.hypot(_e1[0] - _qx, _e1[1] - _qy) < 1e-6
+                                  for (_qx, _qy, _n, _k) in avoid_ports) else 0.21
+                if _a + _ca <= _b - _cb:
+                    return [(_a + _ca + _b - _cb) / 2]
+                return [_a + _ca, _b - _cb, (_a + _b) / 2]
+
+            _sp = ((min(q0[0], q1[0]), max(q0[0], q1[0])) if k == "V"
+                   else (min(q0[1], q1[1]), max(q0[1], q1[1])))
+            for (_ax_, _bc, _blo_, _bhi_) in avoid_x:
+                if _ax_ == ("v" if k == "V" else "h") \
+                        and _sp[0] + 0.02 < _bc < _sp[1] - 0.02:
+                    _cands += _clr(_blo_, _bhi_, _bc)
+            # v8.1.0 通道轨道：本边分到的轨道高度排最前，其余轨道高度次之
+            # （自己的轨道被占时才退而求其次）。
+            if k == "V" and GAP_TRACKS:
+                _own = (src["id"], dst["id"])
+                _tl = [t_["line_y"] for g_ in GAP_TRACKS
+                       for t_ in g_["tracks"] if tuple(t_["edge"]) == _own]
+                _to = [t_["line_y"] for g_ in GAP_TRACKS
+                       for t_ in g_["tracks"] if tuple(t_["edge"]) != _own]
+                _cands = _tl + _to + _cands
             _qy_lo, _qy_hi = min(q0[1], q1[1]), max(q0[1], q1[1])
             _qx_lo, _qx_hi = min(q0[0], q1[0]), max(q0[0], q1[0])
             _alo, _ahi = _lo - 0.4, _hi + 0.4   # v8.0.9 R10 外扩验收窗
+            if k == "V" and GAP_TRACKS:
+                # 通道轨道的下界：轨道就在目标上方的标题带之上，「离目标 ≥0.3」
+                # 的旧下界会把底部轨道挡在验收窗外——放宽到不离目标顶太近即可
+                _alo = min(q0[1], q1[1]) + 0.05
+            # v8.1.0 自由区间中点候选：中段行程上，已路由的平行线（±0.16，与总线
+            # 避让同口径）和非本端节点包围盒（±0.10：合法性只拦 ±0.02，取中点时
+            # 给节点角多留净空——菱形左角旁 0.079in 实测偏挤）占掉的
+            # 区间之外，每段自由区间的中点——窄缝里唯一的净位。泳道主图
+            # sitefix→query：crf→query 竖线与 lock 菱形左角之间只有 0.15in，固定
+            # 取样一个都落不进去（66 个候选全拒实测），于是退回 3 处交叉的走法。
+            _occ = []
+            for (_ax_, _bc, _blo_, _bhi_) in avoid_x:
+                if _ax_ == ("v" if k == "H" else "h") \
+                        and min(_qy_hi, _bhi_) - max(_qy_lo, _blo_) > 0.1:
+                    _occ.append((_bc - 0.16, _bc + 0.16))
+            for _b in blocks:
+                if _b["id"] in _skip:
+                    continue
+                _bb = _bbox(_b)
+                if k == "H":
+                    if min(_qy_hi, _bb[3]) - max(_qy_lo, _bb[1]) > 0.02:
+                        _occ.append((_bb[0] - 0.10, _bb[2] + 0.10))
+                elif min(_qx_hi, _bb[2]) - max(_qx_lo, _bb[0]) > 0.02:
+                    _occ.append((_bb[1] - 0.10, _bb[3] + 0.10))
+            _occ.sort()
+            _mrg = []
+            for _s, _e in _occ:
+                if _mrg and _s <= _mrg[-1][1]:
+                    _mrg[-1][1] = max(_mrg[-1][1], _e)
+                else:
+                    _mrg.append([_s, _e])
+            _cur = _alo
+            for _s, _e in _mrg + [(_ahi, _ahi)]:
+                _s = max(_s, _alo)
+                if _s - _cur >= 0.04:
+                    _cands.append(round((_cur + _s) / 2, 3))
+                _cur = max(_cur, min(_e, _ahi))
             for _g in _cands:
                 if not (_alo <= _g <= _ahi):
                     continue
@@ -886,14 +1284,20 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
                             if _k == "H" else
                             min(_qx_hi, _bhi) - max(_qx_lo, _blo) > 0.1)
                        for (_ax_, _bc, _blo, _bhi) in avoid_x):
+                    _rej.append((k, round(_g, 3), "总线避让"))
                     continue
                 _cand = ([(q0[0], q0[1]), (_g, q0[1]), (_g, q1[1]), (q1[0], q1[1])]
                          if k == "H" else
                          [(q0[0], q0[1]), (q0[0], _g), (q1[0], _g), (q1[0], q1[1])])
-                if all(not _blocked(_cand[k2], _cand[k2 + 1])
-                       for k2 in range(3)):
-                    return _cand
-            return None
+                _bad = [k2 for k2 in range(3) if _blocked(_cand[k2], _cand[k2 + 1])]
+                if not _bad:
+                    if first_only:
+                        return _cand
+                    found.append(_cand)
+                else:
+                    _rej.append((k, round(_g, 3), _bad, [round(_q, 3) for _q in q0],
+                                 [round(_q, 3) for _q in q1]))
+            return None if first_only else found
 
         for _stag in (0, 1):
             _aoo, _aii = attach_out + _stag, attach_in + _stag
@@ -901,9 +1305,93 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
                 _q0, _q1 = (_p0, _p1) if (_k == key and _stag == 0) else \
                     magnet(src, dst, attach_in=_aii, attach_out=_aoo,
                            force_key=_k)
-                _found = _elbow_scan(_k, _q0, _q1)
-                if _found is not None:
-                    return _found, side
+                for _c in _elbow_scan(_k, _q0, _q1, first_only=False):
+                    _add(_c)
+            # v8.1.0 混合键候选：从源节点左/右缘出、进目标节点顶/底（或反之）
+            # ——「源在目标的斜上/斜下方」这类跨行连接的自然走法（2 个弯）。
+            # 仅靠 H/V 单键肘无法表达它（LR 期刊模板 review→decide 实锤）。
+            _h0, _ = magnet(src, dst, attach_in=_aii, attach_out=_aoo,
+                            force_key="H")
+            _, _h1 = magnet(src, dst, attach_in=_aii, attach_out=_aoo,
+                            force_key="H")
+            _v0, _ = magnet(src, dst, attach_in=_aii, attach_out=_aoo,
+                            force_key="V")
+            _, _v1 = magnet(src, dst, attach_in=_aii, attach_out=_aoo,
+                           force_key="V")
+            for (_a_, _b_) in ((_h0, _v1), (_v0, _h1)):
+                # 拐点按「先沿出段方向、再转入段方向」取：侧出→顶/底入=先横后竖；
+                # 顶/底出→侧入=先竖后横。旧写法两种都按先横后竖拼，后一种的末段
+                # 沿目标侧边线下行=贴边滑到角上（参考基因组→Alignment 沿框右缘
+                # 外侧 0.02in 滑 0.67in 止于右下圆角，r23 看图实测）
+                _cand = [_a_, ((_b_[0], _a_[1]) if _a_ is _h0 else (_a_[0], _b_[1])),
+                         _b_]
+                if all(not _blocked(_cand[k2], _cand[k2 + 1])
+                       for k2 in range(len(_cand) - 1)):
+                    _add(_cand)
+        # v8.1.0 镜像入槽：分到中线一侧的入槽（attach_in ≥ 1）且候选池里有**贴着自己节点
+        # 直边**的候选时，再试「入槽镜像到中线另一侧」的肘形候选——同一侧
+        # 的第 2 条入线挤在先前那条的拐角旁，标准候选要么擦到它、要么贴边滑行
+        # （scRNA-seq 参考基因组→Alignment：入槽与 Sequencing→Alignment 的末段只
+        # 隔 0.18in，r23/r32 看图实测）。镜像候选排在标准候选之后——只有代价
+        # 严格更低才会选中；触发条件收窄到「贴边」，不影响其它边。
+        # v8.1.0 对齐直落/直升：源节点的中心列落在目标顶/底边内侧时，试一条竖直
+        # 直达线（目标入点取源出点同一 x）——宽节点接收上方多个来源时各走各的竖线，
+        # 而不是先横到目标中线附近再折下（两方法对照模板：Sectioning 与
+        # Cryosectioning 各伸出一小段横线、在同一高度叠成一条贯通横线，读起来像
+        # 两个互不相连的平行臂直接相连；视觉评审 FAIL + 机械审计 D 共线重叠 0.18in
+        # 实测）。入点离两角 ≥0.16、离已用端口 ≥0.18，双方顶/底边为直边才试。
+        _STR810 = ("round", "rect", "document", "predefined", "io")
+        _sbx, _sby, _sbX, _sbY = _bbox(src)
+        _dbx, _dby, _dbX, _dbY = _bbox(dst)
+        _scx_, _scy_ = (_sbx + _sbX) / 2, (_sby + _sbY) / 2
+        _dcx_, _dcy_ = (_dbx + _dbX) / 2, (_dby + _dbY) / 2
+        _ss810 = resolve_shape(src.get("shape", "round"))
+        _ds810 = resolve_shape(dst.get("shape", "round"))
+        if (_ss810 in _STR810 and _ds810 in _STR810
+                and _dbx + 0.16 <= _scx_ <= _dbX - 0.16
+                and abs(_dcy_ - _scy_) > 0.25):
+            _fs810 = (_scx_ - _sbx) / max(_sbX - _sbx, 1e-9)
+            _fd810 = (_scx_ - _dbx) / max(_dbX - _dbx, 1e-9)
+            if _dcy_ < _scy_:      # 目标在下：源底出、目标顶入
+                _of8, _og8 = _edge_fit(_ss810, "b", _fs810)
+                _if8, _ig8 = _edge_fit(_ds810, "t", _fd810)
+                _pa8 = (_sbx + _of8 * (_sbX - _sbx), _sby + _og8 * (_sbY - _sby))
+                _pb8 = (_dbx + _if8 * (_dbX - _dbx),
+                        _dby + _ig8 * (_dbY - _dby) - EDGE_NIB)
+            else:                  # 目标在上：源顶出、目标底入
+                _of8, _og8 = _edge_fit(_ss810, "t", _fs810)
+                _if8, _ig8 = _edge_fit(_ds810, "b", _fd810)
+                _pa8 = (_sbx + _of8 * (_sbX - _sbx), _sby + _og8 * (_sbY - _sby))
+                _pb8 = (_dbx + _if8 * (_dbX - _dbx),
+                        _dby + _ig8 * (_dbY - _dby) + EDGE_NIB)
+            _free8 = True
+            for (_px8, _py8, _n8, _k8) in avoid_ports:
+                _ref8 = _pa8 if _n8 == src["id"] else (_pb8 if _n8 == dst["id"] else None)
+                if _ref8 is not None and math.hypot(_px8 - _ref8[0], _py8 - _ref8[1]) < 0.18:
+                    _free8 = False
+            if _free8 and not _blocked(_pa8, _pb8):
+                _add([_pa8, _pb8])
+
+        _hg = 0
+        if attach_in >= 1 and _pool:
+            # 候选池里只要有「贴自己节点直边」的候选就触发（贴边候选计了贴近后已
+            # 不是最优，按「最优者是否贴边」触发会漏——r33 实测）
+            _hg = sum(1 for _p in _pool if _hug_own(_p))
+        if _hg:
+            for _stag in (0, 1):
+                _aoo, _aii = attach_out + _stag, -(attach_in + _stag)
+                for _k in (key, "V" if key == "H" else "H"):
+                    _q0, _q1 = magnet(src, dst, attach_in=_aii, attach_out=_aoo,
+                                      force_key=_k)
+                    for _c in _elbow_scan(_k, _q0, _q1, first_only=False):
+                        _add(_c)
+        global LAST_POOL, LAST_REJECT
+        LAST_REJECT = list(_rej)
+        if _pool:
+            _scored = [(_route_cost(_p), _p) for _p in _pool]
+            LAST_POOL = _scored
+            return min(enumerate(_scored),
+                       key=lambda _e: (_e[1][0], _e[0]))[1][1], side
     sx0, sy0, sx1, sy1 = _bbox(src)
     dx0, dy0, dx1, dy1 = _bbox(dst)
 
@@ -931,11 +1419,17 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
         _ss = resolve_shape(src.get("shape", "round"))
         _ds = resolve_shape(dst.get("shape", "round"))
         if key == "H":
+            # v8.1.0：H 键绕行的顶/底出入点同样按**真实轮廓**贴合（旧版直接取
+            # 包围盒边——文档波浪底/菱形顶点/IO 斜边上回边端点悬空，CRISPR 模板
+            # rank→transduce 起点浮离 0.114in 实锤）
             ly = _lane_y(blocks, sd, lv)
-            return [((sx0 + sx1) / 2, sy1 if sd > 0 else sy0),
+            _ofx, _oy = _edge_fit(_ss, "t" if sd > 0 else "b", 0.5)
+            _ifx, _iy = _edge_fit(_ds, "t" if sd > 0 else "b", 0.5)
+            return [((sx0 + sx1) / 2, sy0 + _oy * (sy1 - sy0)),
                     ((sx0 + sx1) / 2, ly),
                     ((dx0 + dx1) / 2, ly),
-                    ((dx0 + dx1) / 2, (dy1 - EDGE_NIB) if sd > 0 else (dy0 + EDGE_NIB))]
+                    ((dx0 + dx1) / 2,
+                     dy0 + _iy * (dy1 - dy0) + (-EDGE_NIB if sd > 0 else EDGE_NIB))]
         lx = (max(_bbox(b)[2] for b in blocks) + LANE_GAP + LANE_STAGGER * lv) \
             if sd > 0 else \
             (min(_bbox(b)[0] for b in blocks) - LANE_GAP - LANE_STAGGER * lv)
@@ -954,24 +1448,35 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
             _ifx, _iy = _edge_fit(_ds, "t", _dfx)
             _px = sx0 + _ofx * (sx1 - sx0)
             _py = sy0 + _oy * (sy1 - sy0)
-            _yv1 = _v_corridor_y(_px, _py, going_up=True, sd=sd, lv=lv)
-            _qx = dx0 + _ifx * (dx1 - dx0) + _stag2
-            _yv2 = _v_corridor_y(_qx, dy0 + _iy * (dy1 - dy0), going_up=True, sd=sd, lv=lv)
+            _yv1 = _v_corridor_y(_px, _py, going_up=True, sd=sd, lv=lv) \
+                - LANE_STAGGER * (lv - 1)      # v8.1.0：走廊随层下移，给先行边留位
+            # v8.1.0 根修：末段必须正交——倒数第二点与入点的 x 共用（旧版前者
+            # 多加了一次错层、后者不加，两者不等时末段成斜线：细胞周期模板 M→G1
+            # 回边末端斜虚线，自 8.0.5 上线）
+            _fx = dx0 + _ifx * (dx1 - dx0)      # 目标顶入点 x（轮廓拟合+错层，经 _dfx）
+            _yv2 = _v_corridor_y(_fx, dy0 + _iy * (dy1 - dy0), going_up=True, sd=sd, lv=lv) \
+                - LANE_STAGGER * (lv - 1)
             _yv2 = max(_yv2, min(_yv1, dy0 + _iy * (dy1 - dy0) + 0.3))
+            # v8.1.0：入线走廊尽量贴近目标（目标顶 +0.45 封顶）——贴着上方障碍
+            # 走会让入线横段紧邻那个障碍的出入口，交叉读作 T 形分岔
+            _yv2 = max(min(_yv2, dy0 + _iy * (dy1 - dy0) + 0.45),
+                       min(_yv1, dy0 + _iy * (dy1 - dy0) + 0.3))
             return [(_px, _py), (_px, _yv1), (lx, _yv1), (lx, _yv2),
-                    (_qx, _yv2), (dx0 + _ifx * (dx1 - dx0),
-                                  dy0 + _iy * (dy1 - dy0) - EDGE_NIB)]
+                    (_fx, _yv2), (_fx, dy0 + _iy * (dy1 - dy0) - EDGE_NIB)]
         _ofx, _oy = _edge_fit(_ss, "b", ((sx0 + sx1) / 2 + _stag - sx0) / max(sx1 - sx0, 1e-9))
         _ifx, _iy = _edge_fit(_ds, "b", _dfx)
         _px = sx0 + _ofx * (sx1 - sx0)
         _py = sy0 + _oy * (sy1 - sy0)
-        _yv1 = _v_corridor_y(_px, _py, going_up=False, sd=sd, lv=lv)
-        _qx = dx0 + _ifx * (dx1 - dx0) + _stag2
-        _yv2 = _v_corridor_y(_qx, dy0 + _iy * (dy1 - dy0), going_up=False, sd=sd, lv=lv)
+        _yv1 = _v_corridor_y(_px, _py, going_up=False, sd=sd, lv=lv) \
+            + LANE_STAGGER * (lv - 1)          # v8.1.0：下行走廊随层上移
+        _fx = dx0 + _ifx * (dx1 - dx0)          # 同上：末段正交（v8.1.0）
+        _yv2 = _v_corridor_y(_fx, dy0 + _iy * (dy1 - dy0), going_up=False, sd=sd, lv=lv) \
+            + LANE_STAGGER * (lv - 1)
         _yv2 = min(_yv2, max(_yv1, dy0 + _iy * (dy1 - dy0) - 0.3))
+        _yv2 = min(max(_yv2, dy0 + _iy * (dy1 - dy0) - 0.45),     # v8.1.0 同上（镜像）
+                   max(_yv1, dy0 + _iy * (dy1 - dy0) - 0.3))
         return [(_px, _py), (_px, _yv1), (lx, _yv1), (lx, _yv2),
-                (_qx, _yv2), (dx0 + _ifx * (dx1 - dx0),
-                              dy0 + _iy * (dy1 - dy0) + EDGE_NIB)]
+                (_fx, _yv2), (_fx, dy0 + _iy * (dy1 - dy0) + EDGE_NIB)]
 
     def _segs_hit(pts):
         for k in range(len(pts) - 1):
@@ -987,11 +1492,26 @@ def route(src, dst, blocks, lane_level=0, side=None, orthogonal=False,
                     return True
         return False
 
+    # v8.1.0：绕行候选**择优**而非取第一个合法的——按（近端口交叉数, 总长）
+    # 取最小；且不得与已路由边共线重叠（细胞周期模板两条回边叠在同一条绕行线
+    # 上、方向相反，其中一段只看得见一条线）。
+    _lane_cands = []
     for _lv in range(max(lane_level, 1), max(lane_level, 1) + 9):
         for _try_side in (side, -side):
             _cand = _lane_pts(_try_side, _lv)
-            if not _segs_hit(_cand):
-                return _cand, _try_side
+            if _segs_hit(_cand) or _bus_overlap(_cand, avoid_x):
+                continue
+            _len = sum(abs(_cand[k2 + 1][0] - _cand[k2][0])
+                       + abs(_cand[k2 + 1][1] - _cand[k2][1])
+                       for k2 in range(len(_cand) - 1))
+            _lane_cands.append(((_route_cost(_cand)[2], round(_len, 4)), _cand, _try_side))
+            if len(_lane_cands) >= 12:
+                break
+        if len(_lane_cands) >= 12:
+            break
+    if _lane_cands:
+        _best = min(_lane_cands, key=lambda _e: _e[0])
+        return _best[1], _best[2]
     return _lane_pts(side, max(lane_level, 1)), side
 
 
@@ -1046,9 +1566,19 @@ def _orient_of(route_pts):
         >= abs(route_pts[-1][1] - route_pts[0][1]) else "V"
 
 
-def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
-                     fs=9.0, color="#444444", dashed_hint=False,
-                     line_segs=(), force_side=0):
+def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, **kw):
+    """边标签放置（对外入口）：记录本次调用的候选轨迹到 LABEL_LOG[text]。"""
+    _tr = []
+    LABEL_LOG.setdefault(text, []).append(_tr)
+    return _place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes,
+                             _trace=_tr, **kw)
+
+
+def _place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
+                      fs=9.0, color="#444444", dashed_hint=False,
+                      line_segs=(), force_side=0, lane_base=None,
+                      strict_assoc=False, no_wrap=False, primary_only=False,
+                      _trace=None, prefer=None):
     """R2：measure-then-resolve——候选生成于**每条线段的两侧**（单一绝对坐标
     系，无帧混用），逐候选画→墨迹实测→碰撞→移除重试；窄间隙自动折两行；
     全失败→框行上方+垂直引线。返回 (artist, bb)。"""
@@ -1062,15 +1592,23 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
         seg_info.append({"mx": mx, "my": my, "orient": orient, "L": L})
     seg_info.sort(key=lambda m: -m["L"])
 
+    _renderer = [None]
+
     def _ink_bb(t):
-        fig.canvas.draw()
-        bb = t.get_window_extent(renderer=fig.canvas.get_renderer())
+        # 文字范围只需渲染器排版，不必每个候选重绘整幅画布（多轮放置下重绘占
+        # 了渲染时间的大半——13 张工件 66s→151s 实测）。渲染器取一次复用；
+        # 回归对比要求：标签范围与逐候选重绘版逐位相同。
+        if _renderer[0] is None:
+            fig.canvas.draw()
+            _renderer[0] = fig.canvas.get_renderer()
+        bb = t.get_window_extent(renderer=_renderer[0])
         inv = ax.transData.inverted()
         (x0, y0) = inv.transform((bb.x0, bb.y0))
         (x1, y1) = inv.transform((bb.x1, bb.y1))
         return (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
 
     _sep_zs = _sep_zones(blocks)   # v8.0.9 标签禁跨泳道分隔带（judge E5 实锤）
+    _sp_cache = {}                 # 节点真实轮廓缓存（本次放置内复用）
     _band_union = None
     if "_lanes_geo" in blocks[0]:
         _lg = blocks[0]["_lanes_geo"]
@@ -1082,34 +1620,79 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
             max(g["x"] + g["w"] for g in _lg) - 0.05,
             max(g["y"] + g["h"] for g in _lg) - 0.05)
 
-    def _hit(bb):
-        # v8.1.0 R14：标签必须整体落在泳道带域内（白边距标签=归属不明，
+    def _box_seg_dist(bb, a, b):
+        """标签框到线段的最短距离（in；相交=0）。归属按框算而不是按中心算——
+        宽标签竖放在线旁时中心天然离线半个标签宽，按中心算会被「离自己的边
+        太远」误杀（泳道主图 re-check：0.56in 宽、离线 0.16in，中心 0.44in，
+        113 个候选轨迹实测），最后落到压线兜底。"""
+        _n = max(int(math.hypot(b[0] - a[0], b[1] - a[1]) / 0.02), 1)
+        _best = 1e9
+        for _i in range(_n + 1):
+            _u = _i / _n
+            _px_, _py_ = a[0] + (b[0] - a[0]) * _u, a[1] + (b[1] - a[1]) * _u
+            _dx_ = max(bb[0] - _px_, _px_ - bb[2], 0.0)
+            _dy_ = max(bb[1] - _py_, _py_ - bb[3], 0.0)
+            _best = min(_best, math.hypot(_dx_, _dy_))
+        return _best
+
+    def _own_dist(bb):
+        return min(_box_seg_dist(bb, a, b) for a, b in segs)
+
+    def _foreign_dist(bb):
+        return min((_box_seg_dist(bb, q0, q1) for q0, q1 in line_segs),
+                   default=1e9)
+
+    def _chip(cx, cy):
+        """标签底垫色：泳道内=所在泳道带底色（融底，不出现白色贴片）；否则白色。"""
+        return lane_fill_at(blocks, lane_base, cx, cy) or "white"
+
+    def _hit(bb, _pad=0.05):
+        """候选位被拒的原因（None=可用）。v8.1.0：返回原因字符串而非布尔值，
+        供放置轨迹（LABEL_LOG）诊断「标签为什么落在这里」。"""
+        # v8.1.0 R14：标签必须整体落在泳道带域内（带外标签=归属不明，
         # judge R14 rework/accept/48h SLA 出带实锤）
         if _band_union is not None and not (
                 bb[0] >= _band_union[0] and bb[1] >= _band_union[1]
                 and bb[2] <= _band_union[2] and bb[3] <= _band_union[3]):
-            return True
+            return "落在泳道带域之外"
         for (zl, zh, zk) in _sep_zs:
             if zk == "v" and bb[0] < zh and zl < bb[2]:   # 覆盖垂直带
-                return True
+                return "跨泳道分隔带"
             if zk == "h" and bb[1] < zh and zl < bb[3]:   # 覆盖水平带（LR）
-                return True
+                return "跨泳道分隔带"
         for b in blocks:
-            if _overlap(bb, _bbox(b), 0.12):
-                return True
+            if _label_hits_block(bb, b, 0.12, _sp_cache):
+                return f"撞节点 {b.get('id')}"
         for pb in placed_boxes:
             if _overlap(bb, pb, 0.02):
-                return True
+                return "撞已放的标签"
         for (q0, q1) in line_segs:
             if _overlap(bb, (min(q0[0], q1[0]), min(q0[1], q1[1]),
-                             max(q0[0], q1[0]), max(q0[1], q1[1])), 0.05):
-                return True
-        return False
+                             max(q0[0], q1[0]), max(q0[1], q1[1])), _pad):
+                return "压到别的边"
+        if strict_assoc:
+            _cx, _cy = (bb[0] + bb[2]) / 2, (bb[1] + bb[3]) / 2
+            # 归属贴近：严格轮要求标签中心离自己的边 ≤0.40in（离得更远的位
+            # 置读起来不像在标注这条边——"accept" 0.62in / "re-check" 0.66in 实测）
+            if _own_dist(bb) > 0.40:
+                return "离自己的边太远(>0.40in)"
+            if line_segs:
+                # 归属净空（v8.1.0）：别的边离标签不得近于「自己的边 + 0.12in」——
+                # 横向文字贴在别的横线上下，读起来就是在标注那条线（决策模板
+                # Afebrile 紧贴 Persistent fever 横线下方 0.18in、离自己的竖线
+                # 0.16in，r30 看图实测）。沿自己的线滑动到净空够的位置即可。
+                if _foreign_dist(bb) < _own_dist(bb) + 0.12:
+                    return "离别的边几乎等距(归属不明)"
+                # 归属规则（严格轮）：标签离**别的边**比离自己的边还近=读起来
+                # 像在标注那条边（LR 期刊模板 "accept" 贴在 review→decide 主干旁实锤）
+                if _foreign_dist(bb) + 0.10 < _own_dist(bb):
+                    return "离别的边更近(归属不明)"
+        return None
 
     _w, _h = measure_in(ax, text, fs, fp)
     _txt = text
     # 窄间隙预判：锚点贴近某框缘（间隙 < 行高×2.6）→ 两行折行（断点=_wrap_mid）
-    if "\n" not in _txt and " " in _txt:
+    if "\n" not in _txt and " " in _txt and not no_wrap:
         for b in blocks:
             x0, y0, x1, y1 = _bbox(b)
             for m in seg_info:
@@ -1124,16 +1707,19 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
               default=_w)
     _fp_t = fp if fp and has_cjk_local(text) else None
 
-    def _try(cx, cy, va):
+    def _try(cx, cy, va, _pad=0.05):
         t = ax.text(cx, cy, _txt, ha="center", va=va, fontsize=fs, color=color,
                     style="italic", linespacing=1.15,
-                    bbox=dict(boxstyle="round,pad=0.1", facecolor="white",
-                              edgecolor="none", alpha=0.92),
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor=_chip(cx, cy),
+                              edgecolor="none", alpha=1.0),
                     fontproperties=_fp_t, zorder=6)
         bb = _ink_bb(t)
-        if not _hit(bb):
+        _why = _hit(bb, _pad)
+        if not _why:
             placed_boxes.append(bb)
             return t, bb
+        if _trace is not None:
+            _trace.append((round(cx, 3), round(cy, 3), va, _why))
         t.remove()
         return None, None
 
@@ -1142,6 +1728,32 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
     # +沿线滑动 3 档
     tried = 0
     _swim = "_lanes_geo" in blocks[0]
+    # v8.1.0 压线候选：标签直接压在自己的线段上（底色遮住一小段线=线被标签
+    # 打断，流程图传统画法，归属毫无悬念）。用于两种情形：①通道轨道上的带
+    # 标签边（优先）②段旁候选全败时——夹在两条平行线之间的标签无论偏向
+    # 哪边都有歧义（LR 期刊图 accept 实测）。已放得好的段旁标签不受影响。
+    # v8.1.0：压线候选不只取中点——中点被交叉线贴住时沿线滑动（±0.30 步进，
+    # 标签两端各留 0.10），且离别的线保持 ≥0.14in（段旁候选仍是 0.05）：线
+    # 紧贴着压线标签穿过，读起来像标签长在线角上（LR 样例 48 h SLA 离穿过的
+    # 竖线 0.06in、决策模板 Yes 贴在 No 横线交叉点上方 0.07in，r22 看图实测）
+    _on_line = []
+    for m in seg_info:
+        if m["L"] < _w2 + 0.20:
+            continue
+        _room = (m["L"] - _w2) / 2 - 0.10
+        _offs, _o = [0.0], 0.30
+        while _o <= _room:
+            _offs += [_o, -_o]
+            _o += 0.30
+        for _o in _offs:
+            _on_line.append((m["mx"] + (_o if m["orient"] == "H" else 0.0),
+                             m["my"] + (_o if m["orient"] == "V" else 0.0),
+                             "center"))
+    if prefer:
+        for (cx, cy, va) in _on_line:
+            t, bb = _try(cx, cy, va, 0.14)
+            if t is not None:
+                return t, bb
     for m in seg_info:
         if m["orient"] == "V":
             # V 跨行段（CONSORT 主列）：标签放行间带内、竖段旁侧——带由布局
@@ -1163,15 +1775,65 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
                           (m["mx"] - 0.45, m["my"] + _h2 / 2 + 0.07, "bottom"),
                           (m["mx"] + 0.45, m["my"] - _h2 / 2 - 0.07, "top"),
                           (m["mx"] - 0.45, m["my"] - _h2 / 2 - 0.07, "top")]
-        if force_side:
+        if prefer == "below":
+            # 通道轨道的带标签边：标签区在线下方——线下方候选优先
+            cands.sort(key=lambda c: 0 if c[2] == "top" else 1)   # va=top=文字在线下
+        # v8.1.0 沿线滑动：长段（>1.2in）中点两侧 ±0.75/1.20/1.80in 取位——段旁
+        # 中点被节点占住时（泳道主图 "48 h SLA" 左侧即 eCRF）标签仍能贴线落位，
+        # 而不是退到螺旋扫描的远离位置。排在中点候选之后：中点有位则行为不变。
+        # v8.1.0 步长加密：原四档（0.75/1.20/1.80）会跨过净空够的位置（事故模板
+        # re-triage 沿线滑动全败→兜底网格压到虚线上，r31 实测）
+        for _off in (0.22, 0.42, 0.62, 0.90, 1.20, 1.60, 2.00):
+            if _off + _h2 / 2 + 0.10 > m["L"] / 2:
+                break
+            for _s in (1, -1):
+                if m["orient"] == "V":
+                    cands += [(m["mx"] + _w2 / 2 + 0.16, m["my"] + _s * _off, "center"),
+                              (m["mx"] - _w2 / 2 - 0.16, m["my"] + _s * _off, "center")]
+                else:
+                    cands += [(m["mx"] + _s * _off, m["my"] + _h2 / 2 + 0.07, "bottom"),
+                              (m["mx"] + _s * _off, m["my"] - _h2 / 2 - 0.07, "top")]
+        if force_side and not strict_assoc:
             # 往返回边（48h SLA vs re-check 同走廊互撞根因）：候选沿走廊
-            # **纵向错开** 0.45×force——第二标签落走廊另一段位置
+            # **纵向错开** 0.45×force——第二标签落走廊另一段位置。
+            # v8.1.0：仅最后放宽轮启用——严格轮有碰撞检查+归属规则兜底，
+            # 强制平移反而把标签推离自己的边（re-check 离自己 0.66in 实测）
             cands = [(cx, cy + force_side * 0.45, va) for (cx, cy, va) in cands]
         for (cx, cy, va) in cands:
             t, bb = _try(cx, cy, va)
             if t is not None:
                 return t, bb
             tried += 1
+            # v8.1.0 外推重试：仅因「压到别的边/跨分隔带」差一点被拒的候选，沿
+            # 垂直于本段的方向外推 0.08/0.16/0.24in 再试（归属贴近上限 0.40in
+            # 自然封顶）。泳道主图 re-check：竖段两侧被分界线与 eCRF 夹死，最佳
+            # 位在自己短横线正下方，固定偏移差 0.005in 碰到邻线被拒（轨迹实测）
+            if _trace and _trace[-1][3] in ("压到别的边", "跨泳道分隔带"):
+                _px_, _py_ = (0.08, 0.0) if m["orient"] == "V" else (0.0, 0.08)
+                _ax_, _ay_ = (0.0, 0.08) if m["orient"] == "V" else (0.08, 0.0)
+                # 外推不得跨过自己的线、也不得贴到线上（离线 < 半宽+0.05）——
+                # 压线是段旁候选全败后的兜底，不是外推的顺路结果（事故模板
+                # "no"：右侧候选外推第三档正好退回线上被接受，线旁的左侧空位
+                # 根本没轮到，r21 放置轨迹实测）
+                _bn_ = (cx - m["mx"]) if m["orient"] == "V" else (cy - m["my"])
+                _hw_ = (_w2 if m["orient"] == "V" else _h2) / 2 + 0.05
+                for _k in (1, 2, 3):
+                    for (_ux_, _uy_) in ((_px_, _py_), (-_px_, -_py_),
+                                         (_ax_, _ay_), (-_ax_, -_ay_)):
+                        _nx_ = ((cx + _k * _ux_) - m["mx"]) if m["orient"] == "V" \
+                            else ((cy + _k * _uy_) - m["my"])
+                        if abs(_nx_) < _hw_ or _nx_ * _bn_ < 0:
+                            continue
+                        t, bb = _try(cx + _k * _ux_, cy + _k * _uy_, va)
+                        if t is not None:
+                            return t, bb
+    if strict_assoc and not prefer:      # 段旁候选全败：试压线
+        for (cx, cy, va) in _on_line:
+            t, bb = _try(cx, cy, va, 0.14)
+            if t is not None:
+                return t, bb
+    if primary_only:      # 单行优先轮：段旁与压线候选全败即让路（交给折行轮）
+        return None, None
     # 框行上/下（x=最长段中点 x）+ 垂直引线（fig2 PASS 形态）——
     # swimlane 下禁用（chip 会落在泳道标题带/画布顶+leader 穿带穿字，judge 实锤）：
     # 直接跳到折行重试（候选恒在内容区内）
@@ -1214,7 +1876,6 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
             _cy = _mid + math.sin(_ang) * _r
             t, bb = _try(_cx, _cy, "center")
             if t is not None:
-                placed_boxes.append(bb)
                 return t, bb
         # 16 向全占满→带域网格扫描（0.3 步进，首个无撞位即取——R14 实锤：
         # 硬塞中点旁 0.34 撞节点）→ 仍无位才硬塞中点旁 0.34
@@ -1236,9 +1897,13 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
                 tt_, bb_ = _try(_cgx, _cgy, "center")
                 if tt_ is not None:
                     return tt_, bb_
+        if strict_assoc:
+            return None, None          # 严格轮无解：交给调用方放宽后重试，不硬塞
         cx, cy = _mx_long + _w2 / 2 + 0.34, _mid
         t = ax.text(cx, cy, _txt, ha="center", va="center", fontsize=fs,
                     color=color, style="italic",
+                    bbox=dict(boxstyle="round,pad=0.1", facecolor=_chip(cx, cy),
+                              edgecolor="none"),
                     fontproperties=fp if fp and has_cjk_local(text) else None,
                     zorder=6)
         bb = _ink_bb(t)
@@ -1246,6 +1911,8 @@ def place_edge_label(ax, fig, text, route_pts, blocks, placed_boxes, fp=None,
         return t, bb
     cx, cy = _mx_long, _bb0 - _h2 / 2 - 0.2
     t, bb = _try(cx, cy, "top")
+    if t is None and strict_assoc:
+        return None, None          # 严格轮无解：交给调用方放宽后重试
     if t is None:
         t = ax.text(cx, cy, _txt, ha="center", va="top", fontsize=fs,
                     color=color, style="italic",
@@ -1294,8 +1961,10 @@ def gate_strict(ax, fig, blocks, label_bboxes, route_lines, ratios=None,
     label_bboxes = _seen_lbs
     for i, lb in enumerate(label_bboxes):
         for j, b in enumerate(blocks):
-            if _overlap(lb, _bbox(b), -0.06):
-                violations.append(f"层1 边标签#{i} 与节点「{b.get('id')}」包围盒相交")
+            # v8.1.0：与放置阶段同一把尺——斜边多边形按真实轮廓（菱形顶点旁的空白
+            # 位放标签不算相撞；矩形族仍按包围盒）
+            if _label_hits_block(lb, b, -0.06):
+                violations.append(f"层1 边标签#{i} 与节点「{b.get('id')}」相交")
     for i in range(len(label_bboxes)):
         for j in range(i + 1, len(label_bboxes)):
             if _overlap(label_bboxes[i], label_bboxes[j], 0.02):
@@ -1651,6 +2320,75 @@ def _shade(c, t):
     return _blend_hex(c, "#000000", t)
 
 
+def lane_palette(base, idx):
+    """泳道配色（v8.1.0 期刊化，泳道用色的唯一来源）→ (带底, 分隔线, 标题带, 标题文字)。
+
+    8.0.6–8.0.9 的带底写成 _shade(主色, 0.92)——向**黑**混合 92%，三条泳道成了近黑
+    大色块（像素 4,8,9），本意是 _tint（向白）。黑底是仪表盘观感：灰箭头对比度低、
+    印刷成实心黑，不属于期刊图。现为浅色斑马纹带底 + 细分隔线 + 深色标题文字。"""
+    even = (idx % 2 == 0)
+    return (_tint(base, 0.94 if even else 0.88),
+            _tint(base, 0.55),
+            _tint(base, 0.84 if even else 0.78),
+            _shade(base, 0.55))
+
+
+def lane_fill_at(blocks, base, x, y):
+    """点 (x, y) 所在泳道的带底色（十六进制）；非泳道或点在带外 → None。"""
+    if not blocks or base is None or "_lanes_geo" not in blocks[0]:
+        return None
+    for i, g in enumerate(blocks[0]["_lanes_geo"]):
+        if g["x"] <= x <= g["x"] + g["w"] and g["y"] <= y <= g["y"] + g["h"]:
+            return lane_palette(base, i)[0]
+    return None
+
+
+def _shape_paths(b, _cache=None):
+    """节点真实轮廓的几何路径列表（数据坐标，直接取自绘制该形状的 artist）。
+    _cache={id(块): 路径} 可复用（同一次放置里反复判碰撞）。失败返回 None。"""
+    if _cache is not None and id(b) in _cache:
+        return _cache[id(b)]
+    try:
+        _arts = SHAPES[resolve_shape(b.get("shape", "round"))]["draw"](
+            None, b, "#000000", "#000000", 1.0)
+        _ps = [_a.get_path().transformed(_a.get_transform()) for _a in _arts]
+    except Exception:
+        _ps = None
+    if _cache is not None:
+        _cache[id(b)] = _ps
+    return _ps
+
+
+def _label_hits_block(bb, b, pad=0.12, _cache=None):
+    """标签框与节点是否相撞——按节点**真实形状**（不是包围盒）。
+
+    v8.1.0：此前按包围盒判，胶囊形/圆角矩形/圆柱在角上多出的空白位全被判死，
+    短边上的标签被迫退到离自己的边 0.6in 以外（LR 期刊模板 "accept"、泳道
+    主图 "re-check" 实测）。斜边多边形此前已按轮廓判，现统一为真实路径。"""
+    if not _overlap(bb, _bbox(b), pad):
+        return False
+    x0, y0, x1, y1 = bb[0] - pad, bb[1] - pad, bb[2] + pad, bb[3] + pad
+    paths = _shape_paths(b, _cache)
+    if paths is None:
+        return True                      # 取不到轮廓：保守按包围盒算相撞
+
+    def inside(px, py):
+        return any(_p.contains_point((px, py)) for _p in paths)
+
+    nx = max(2, int((x1 - x0) / 0.04))
+    ny = max(2, int((y1 - y0) / 0.04))
+    for i in range(nx + 1):               # 标签框上下边采样落入节点
+        px = x0 + (x1 - x0) * i / nx
+        if inside(px, y0) or inside(px, y1):
+            return True
+    for j in range(ny + 1):               # 左右边采样落入节点
+        py = y0 + (y1 - y0) * j / ny
+        if inside(x0, py) or inside(x1, py):
+            return True
+    bx0, by0, bx1, by1 = _bbox(b)         # 标签把小节点整个盖住
+    return x0 < (bx0 + bx1) / 2 < x1 and y0 < (by0 + by1) / 2 < y1
+
+
 def _role_colors(blocks, arrows, colors):
     """顶刊角色化配色（v8.0.4）：替代多饱和色轮转的杂色感——
 
@@ -1762,7 +2500,7 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     lanes = assign_lanes(blocks, arrows)
     n_above = sum(1 for (_lv, sd) in lanes.values() if sd > 0)
     n_below = sum(1 for (_lv, sd) in lanes.values() if sd < 0)
-    # v8.1.1 边样式图例：数据 legend:true/false 显式；缺省=混合样式自动
+    # v8.1.0 边样式图例：数据 legend:true/false 显式；缺省=混合样式自动
     _legend_on = legend_flag if legend_flag is not None else (
         any(e.get("dashed") for e in arrows)
         or any(e.get("thick") for e in arrows)
@@ -1780,6 +2518,9 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     # attach 错层按「同侧接入」分组计数（物理侧= (node,key,±1)）；**尾槽并入
     # 同侧头槽**——出边尾端若与先行入边箭头头位重合即视觉 T 分岔（蛇形回边
     # 尾=E→F 头位实测），错层必须跨入/出统一排序。
+    route_pools = []     # v8.1.0 QC：各边候选池（代价, 路径）
+    route_rejects = []   # v8.1.0 QC：各边肘部被拒候选（与 route_pools 对齐）
+    LABEL_LOG.clear()  # v8.1.0 QC：本次渲染的标签放置轨迹
     route_pts, route_lines, route_meta = [], [], []
     attach_out, attach_in = {}, {}
     # 往返边对检测（swimlane 多列回边常见：A→B 与 B→A 并存）——第二条边
@@ -1790,6 +2531,8 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     _bus_x = {}   # v8.0.9 往返对总线登记（avoid_x 兼容旧结构，保留）
     _all_buses = []   # v8.0.9 R10 全局垂直总线 (x,ylo,yhi)——共线树干根除
     _all_heads = []   # v8.0.9 R10 已路由边头尖——头域压印根除
+    _all_ports = []   # v8.1.0 已路由边的出入点 (x, y, 节点, "tail"|"head")——同角冲突
+    _pending_lines = []   # v8.1.0 各边两端中心连线——未路由边的交叉估计
     for e in arrows:
         _p = frozenset((e["from"], e["to"]))
         if _p in _seen_pairs:
@@ -1817,10 +2560,29 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
         ao = attach_out.get(_outk, 0) + attach_in.get(_outk, 0) + _off
         ai = attach_in.get(_ink, 0) + attach_out.get(_ink, 0) + _off
         _pk = frozenset((e["from"], e["to"]))
+        if not _pending_lines:
+            def _ctr(bid):
+                if bid not in bmap:          # 无效端点：占位，切片时滤掉（索引不错位）
+                    return None
+                _x0, _y0, _x1, _y1 = _bbox(bmap[bid])
+                return ((_x0 + _x1) / 2, (_y0 + _y1) / 2)
+            _pending_lines = [(_ctr(e2["from"]), _ctr(e2["to"])) for e2 in arrows]
         pts, side = route(s, t, blocks, lane_level=lv, side=side,
                           orthogonal=orthogonal, attach_in=ai, attach_out=ao,
                           avoid_x=tuple(_all_buses),
-                          avoid_heads=tuple(_all_heads))
+                          avoid_heads=tuple(_all_heads),
+                          avoid_ports=tuple(_all_ports),
+                          pending=tuple(_l for _l in _pending_lines[i + 1:]
+                                        if _l[0] and _l[1]))
+        _pool_ = af_flow_last_pool()
+        if _pool_ and any([tuple(_p) for _p in _c[1]] == [tuple(_p) for _p in pts]
+                          for _c in _pool_):   # 选中方案来自候选池（非 lane 兜底）
+            route_pools.append((e["from"], e["to"], _pool_))
+        else:
+            route_pools.append((e["from"], e["to"], []))
+        route_rejects.append(af_flow_last_reject())
+        _all_ports.append((pts[0][0], pts[0][1], e["from"], "tail"))
+        _all_ports.append((pts[-1][0], pts[-1][1], e["to"], "head"))
         for _k2 in range(len(pts) - 1):
             (ax_, ay_), (bx_, by_) = pts[_k2], pts[_k2 + 1]
             if abs(ax_ - bx_) < 1e-9:
@@ -1842,20 +2604,19 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     # ── 3) 画块（文本自适应）──
     # ── 2.6) 泳道背景（F3 v8.0.6）：layout=swimlane 时块携带 _lanes_geo
     _tc = (theme or {}).get("colors", ["#56B4E9"])
+    label_meta = []            # 与 label_bboxes 对齐：(from, to)——标签归属审计用
     if blocks and "_lanes_geo" in blocks[0]:
         _fs_lane = fs
-        for _g in blocks[0]["_lanes_geo"]:
+        for _gi, _g in enumerate(blocks[0]["_lanes_geo"]):
+            _body, _edge, _head, _htext = lane_palette(_tc[0], _gi)
             ax.add_patch(Rectangle((_g["x"], _g["y"]), _g["w"], _g["h"],
-                                   facecolor=_shade(_tc[0], 0.92),
-                                   edgecolor=_shade(_tc[0], 0.55),
-                                   linewidth=1.0, zorder=1))
+                                   facecolor=_body, edgecolor=_edge,
+                                   linewidth=0.9, zorder=1))
             if _g.get("dir") == "LR":
-                # v8.1.0 泳道 LR：左侧深色竖条+旋转 90° 标题（经典泳道形态）
+                # v8.1.0 泳道 LR：左侧标题竖条+旋转 90° 标题（经典泳道形态）
                 ax.add_patch(Rectangle((_g["x"], _g["y"]), 0.42, _g["h"],
-                                       facecolor=_shade(_tc[0], 0.80),
-                                       edgecolor=_shade(_tc[0], 0.55),
-                                       linewidth=1.0, zorder=1))
-                _band_c = _shade(_tc[0], 0.80)
+                                       facecolor=_head, edgecolor=_edge,
+                                       linewidth=0.9, zorder=1))
                 # v8.1.0 R14：竖排标题长度=旋转后的纵向占距——超带高即缩
                 # 字号（"Data coordinating centre" 长于行带被裁实锤）
                 _tl_len = measure_in(ax, _g["label"], _fs_lane - 1,
@@ -1869,18 +2630,15 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                                              _g["label"]) else None)[0]
                 ax.text(_g["x"] + 0.21, _g["y"] + _g["h"] / 2,
                         _g["label"], ha="center", va="center", rotation=90,
-                        fontsize=_tfs, fontweight="bold",
-                        color=_text_color(_band_c), zorder=2)
+                        fontsize=_tfs, fontweight="bold", color=_htext, zorder=2)
             else:
                 ax.add_patch(Rectangle((_g["x"], _g["y"] + _g["h"] - 0.5),
-                                       _g["w"], 0.5, facecolor=_shade(_tc[0], 0.80),
-                                       edgecolor=_shade(_tc[0], 0.55),
-                                       linewidth=1.0, zorder=1))
-                _band_c = _shade(_tc[0], 0.80)
+                                       _g["w"], 0.5, facecolor=_head,
+                                       edgecolor=_edge, linewidth=0.9, zorder=1))
                 ax.text(_g["x"] + _g["w"] / 2, _g["y"] + _g["h"] - 0.25,
                         _g["label"], ha="center", va="center",
                         fontsize=_fs_lane - 1, fontweight="bold",
-                        color=_text_color(_band_c), zorder=2)
+                        color=_htext, zorder=2)
 
     label_artists, label_bboxes = [], []
     # v8.0.4 顶刊角色化配色：同族明度阶梯 + 终点唯一强调色，
@@ -1974,16 +2732,51 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
             _other = [(q0, q1) for (q0, q1) in route_lines
                       if (round(q0[0], 3), round(q0[1], 3), round(q1[0], 3),
                           round(q1[1], 3)) not in _own_keys]
-            t, bb = place_edge_label(ax, fig, e["label"], pts, blocks,
-                                     label_bboxes, fp=fp_e,
-                                     fs=max(8.0, fs - 2),
-                                     color=e.get("label_color", "#444444"),
-                                     line_segs=_other,
-                                     force_side=_rt_force.get(id(e), 0))
+            # v8.1.0 两轮放置：严格轮要求「标签离自己的边最近」且不硬塞；无解才
+            # 放宽重试（旧行为）——保证既有图不丢标签，同时优先选归属清楚的位
+            _kw = dict(fp=fp_e, fs=max(8.0, fs - 2),
+                       color=e.get("label_color", "#444444"),
+                       line_segs=_other, force_side=_rt_force.get(id(e), 0),
+                       lane_base=_tc[0])
+            _n0 = len(label_bboxes)      # 本次放置前标签框数（归属按索引回填）
+            _trk = [t_ for g_ in GAP_TRACKS for t_ in g_["tracks"]
+                    if tuple(t_["edge"]) == (e["from"], e["to"]) and t_["label"]]
+            if _trk and any(abs(p_[1] - _trk[0]["line_y"]) < 0.02 for p_ in pts):
+                _kw["prefer"] = "below"     # 走在通道轨道上：标签放线下方的标签区
+            t = bb = None
+            if " " in e["label"] and "\n" not in e["label"]:
+                # 单行优先：窄间隙预折行会把 "48 h SLA" 无谓地拆成两行——段旁
+                # 有位放单行就放单行（v8.1.0）
+                t, bb = place_edge_label(ax, fig, e["label"], pts, blocks,
+                                         label_bboxes, strict_assoc=True,
+                                         no_wrap=True, primary_only=True, **_kw)
+            if t is None and "_lanes_geo" in blocks[0]:
+                # 泳道：单行再试一轮全部非硬塞阶段（泳道无引线兜底位，单行贴线
+                # 优于折行后贴线）；非泳道保留「折行贴边」优先于「单行引线远置」
+                t, bb = place_edge_label(ax, fig, e["label"], pts, blocks,
+                                         label_bboxes, strict_assoc=True,
+                                         no_wrap=True, **_kw)
+            if t is None:
+                t, bb = place_edge_label(ax, fig, e["label"], pts, blocks,
+                                         label_bboxes, strict_assoc=True, **_kw)
+            if t is None:
+                t, bb = place_edge_label(ax, fig, e["label"], pts, blocks,
+                                         label_bboxes, **_kw)
             # v8.0.7 去重：place 成功路径与 8 向兜底可能对同一 bb 双记
             # （strict 层2 假撞 #1×#2 根因）——bb 已在 label_bboxes 则不再记
-            if all(bb != _pb for _pb in label_bboxes):
-                label_bboxes.append(bb)
+            if bb is not None:
+                # 归属表与 label_bboxes **按索引严格对齐**：place_edge_label 成功时
+                # 会直接往同一个列表（placed_boxes 即 label_bboxes）追加 bb，
+                # 旧写法「不在列表里才登记归属」因此几乎从不登记→审计的「标签
+                # 归属」检查对多数标签静默跳过（假绿，2026-11-24 自查发现）
+                label_meta += [None] * (len(label_bboxes) - len(label_meta))
+                _ii = next((k for k in range(_n0, len(label_bboxes))
+                            if label_bboxes[k] == bb), None)
+                if _ii is None:
+                    label_bboxes.append(bb)
+                    label_meta.append([e["from"], e["to"]])
+                else:
+                    label_meta[_ii] = [e["from"], e["to"]]
             label_artists.append(t)
 
     # ── 6) 自由注记 ──
@@ -2014,7 +2807,7 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     _iy0 = min(p[1] for p in _pts)
     _iy1 = max(p[1] for p in _pts)
     if _legend_on:
-        # v8.1.1 R18：图例条带必须在**最终 trim** 里预留（1.5 的底垫被此处
+        # v8.1.0 R18：图例条带必须在**最终 trim** 里预留（1.5 的底垫被此处
         # 自适应边距覆盖→图例行被挤回带区、分隔线/标题竖条穿条带实锤）——
         # 内容域下探 0.42，图例行=最终 ylim0+0.24 恒落带家具之下
         _iy0 -= 0.42
@@ -2031,7 +2824,7 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
     ax.set_position([0, 0, 1, 1])
     ratio = ((_ix1 - _ix0) * (_iy1 - _iy0)) / max((_lx1 - _lx0) * (_ly1 - _ly0), 1e-9)
     ax.axis("off")
-    # ── 7.5) 边样式图例（v8.1.1）：画布底部专用条带——线样+语义文字，
+    # ── 7.5) 边样式图例（v8.1.0）：画布底部专用条带——线样+语义文字，
     # 语言随节点标签 CJK 检测；不进闸几何（纯注释层 z=4）
     if _legend_on:
         _has_d = any(e.get("dashed") for e in arrows)
@@ -2054,7 +2847,7 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
         if _items:
             _x_leg = ax.get_xlim()[0] + 0.2
             _y_leg = ax.get_ylim()[0] + 0.24
-            # v8.1.1：图例文字/线色随画布底色自动反色（深色主题下灰字低对比）
+            # v8.1.0：图例文字/线色随画布底色自动反色（深色主题下灰字低对比）
             _fc = ax.get_facecolor()
             try:
                 _lum = 0.299 * _fc[0] + 0.587 * _fc[1] + 0.114 * _fc[2]
@@ -2096,7 +2889,23 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                     "shape": resolve_shape(b.get("shape", "round")),
                     "lane": b.get("_lane")}
                    for b in blocks],
-        "labels": [{"bb": [float(v) for v in bb]} for bb in label_bboxes],
+        "pools": [{"from": f_, "to": t_,
+                   # 选中方案的代价=候选池里与实际路径逐点相同的那条（None=lane 兜底）
+                   "selected": next((list(c2[0]) for c2 in pool_
+                                     if [tuple(p) for p in c2[1]]
+                                     == [tuple(p) for p in route_pts[_pi]]), None),
+                   "lane_fallback": not pool_,
+                   "rejected": route_rejects[_pi] if _pi < len(route_rejects) else [],
+                   "cands": [{"cost": list(c2[0]),
+                              "pts": [[float(p[0]), float(p[1])] for p in c2[1]]}
+                             for c2 in pool_]}
+                  for _pi, (f_, t_, pool_) in enumerate(route_pools)],
+        "gap_tracks": GAP_TRACKS,
+        "label_trace": {k_: [[list(c_) for c_ in run_] for run_ in v_]
+                        for k_, v_ in LABEL_LOG.items()},
+        "labels": [{"edge": (label_meta[i] if i < len(label_meta) else None),
+                    "bb": [float(v) for v in bb]}
+                   for i, bb in enumerate(label_bboxes)],
         "routes": [{"from": e["from"], "to": e["to"],
                     "pts": [[float(p[0]), float(p[1])] for p in pts]}
                    for (e, pts) in route_meta],

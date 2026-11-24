@@ -9,7 +9,7 @@
   <--> o--o x--x bidirectional；边标签 |text| 与 -- text -->；链式 A-->B-->C、
   & 并联 A & B --> C
 - subgraph 标题 ... end → 泳道（layout=swimlane，按出现次序；TB 方向直通泳道 v8.1.0；LR/BT/RL→分组框诚实降级；嵌套摊平最外层）
-- style/classDef/class/linkStyle **样式映射 v8.1.1**：linkStyle <i>[,j…|default]
+- style/classDef/class/linkStyle **样式映射 v8.1.0**：linkStyle <i>[,j…|default]
   stroke:<color> → 边 color、stroke-dasharray → dashed、stroke-width≥3px →
   thick；classDef <名> fill:<color> + class <n…> <名> → 节点 color；style <n>
   fill:<color> → 节点 color。其余属性（宽度/字体等）忽略（诚实边界：仅映射
@@ -42,7 +42,7 @@ def _style_fill(props):
 
 
 def _apply_link_style(m, edges):
-    """linkStyle <索引…|default> <属性> → 边 color/dashed/thick（v8.1.1）。"""
+    """linkStyle <索引…|default> <属性> → 边 color/dashed/thick（v8.1.0）。"""
     idx_part, props = m.group(1).strip(), m.group(2)
     mst = re.search(r"stroke:\s*([^,;\s]+)", props)
     color = mst.group(1).strip() if mst else None

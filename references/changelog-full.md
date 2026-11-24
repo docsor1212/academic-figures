@@ -20,7 +20,7 @@
 
 - **`--from-mermaid FILE.mmd -t flow`**（F5）：mermaid flowchart 源直接出图——形状语法 8 形态全映射（`{x}`→决策菱形、`[(x)]`→数据库圆柱、`[[x]]`→预定义子流程、`[/x/]`→IO、斜顶/倒梯形细分等）、边型五类（`-.->` dashed、`==>` thick、`<-->` 双头、`---` 无头）、管道+文本双标签形态、链式与 & 并联；subgraph 对→分组框（layered 既有已验证能力）；不支持构造（图标/图片/样式行）显式报错绝不静默丢边；-d 可省。
 - **泳道布局引擎**（F3，实验性）：`layout=swimlane`+`"lanes"` 名称列表+节点 `"lane"` 归属（索引/名称），泳道背景条+标题带渲染，跨泳道边照常路由；机械闸全过（strict+apex 10/10）。视觉路由质量迭代中（judge 两轮 6 类缺陷在修）——标记 experimental，生产图建议先用 chain/layered/snake。
-- 测试：TestV80600 五闸（泳道几何/归属校验/mermaid 映射/subgraph/端到端 strict×2）；**620 测试**。
+- 测试：TestV80006 五闸（泳道几何/归属校验/mermaid 映射/subgraph/端到端 strict×2）；**620 测试**。
 
 <!-- 8.0.6 详情自 changelog.md 下沉（v8.0.9 发版，最近三版窗口滚动） -->
 
@@ -44,7 +44,7 @@
 
 **泳道已知限制文档化+回归基线**：limits.md 新增泳道专节（往返对分离/斜边端点
 悬空 ≤40px/分组框空白带——均不影响 strict 判定，路由批次 2 排期后续版本）；
-TestV80700 泳道回归快照（9 节点 3 泳道 showcase strict+apex 10/10+结构锁固化
+TestV80007 泳道回归快照（9 节点 3 泳道 showcase strict+apex 10/10+结构锁固化
 基线）；621 测试。
 
 <!-- 8.0.8 详情自 changelog.md 下沉（v8.1.0 发版，最近三版窗口滚动） -->
@@ -98,10 +98,10 @@ TestV80700 泳道回归快照（9 节点 3 泳道 showcase strict+apex 10/10+结
 - **折行断点**：边标签折行取最靠近中点的空格（"48 h SLA"→"48 h"/"SLA"）。
 - **泳道转正**：实验性摘除（limits.md 转正说明+残项诚实边界）；泳道模板
   2 套（49→51）；data-formats subgraph 映射如实修正（分组框）。
-- 测试：TestV80900 六闸（CLI 真几何审计八检 showcase+incident 双模板/
+- 测试：TestV80009 六闸（CLI 真几何审计八检 showcase+incident 双模板/
   diamond 公式锁/折行断点/转正标记/模板随包渲染）；**627 测试**。
 
-<!-- 8.0.9 详情自 changelog.md 下沉（v8.1.1 发版，最近三版窗口滚动） -->
+<!-- 8.0.9 详情自 changelog.md 下沉（v8.1.0 发版，最近三版窗口滚动） -->
 
 ## 8.0.5 — 2026-11-18
 
@@ -110,7 +110,7 @@ TestV80700 泳道回归快照（9 节点 3 泳道 showcase strict+apex 10/10+结
 - **14 种语义形状**：决策菱形/数据库圆柱/IO/六边形/起止双圆/堆叠/斜切输入/人工操作/延迟/文档/预定义子流程/存储数据（+round/rect）；别名兼容；非矩形文本区内接系数+布局期自动放大；绘制内接 bbox（磁吸/闸零特判）。**边贴合锚点**：斜顶/顶点形状入出点按实际轮廓高度（悬空 80px/双向头埋框/顶边入框三类符号缺陷根除）；V lane 5 段避障走廊（穿层根除）。
 - **边型扩展**：thick 粗线（2.5×可见）/bidirectional 双头/open 无头线（无留头回退）。
 - **7 套学术模板**（模板库 42→49）：scRNA-seq 管线/临床决策树/细胞周期状态机/CRISPR 数据链/多中心伦理审批/双臂方法对照/PDCA 蛇形循环——全部真实学术场景语义+全元数据键。
-- 测试：TestV80500 六闸（注册表别名/内接契约/边型头数/模板随包+strict 抽渲染/validate 白名单/stacked 契约）；**615 测试**。
+- 测试：TestV80005 六闸（注册表别名/内接契约/边型头数/模板随包+strict 抽渲染/validate 白名单/stacked 契约）；**615 测试**。
 
 <!-- 8.0.5 详情自 changelog.md 下沉（v8.0.9 发版，最近三版窗口滚动） -->
 
@@ -135,7 +135,7 @@ TestV80700 泳道回归快照（9 节点 3 泳道 showcase strict+apex 10/10+结
 - **对齐与终裁**：行内垂直居中（异高框共轴）；layered barycenter 排序+行
   对中（主链边退化干净直降）；画布终裁按墨水包围盒+自适应边距（面积口径
   诚实占比）；数据级 `font_size`([6,40])+columns 校验前置 validate-first。
-- 测试：TestV80400 八闸（角色阶梯/蛇形对齐/apex 机械断言/错层白隙/尾头
+- 测试：TestV80004 八闸（角色阶梯/蛇形对齐/apex 机械断言/错层白隙/尾头
   零重合/[ignored]/font_size 边界/validate snake）；**609 测试**。
 
 ## 8.0.3 — 2026-11-16
@@ -218,7 +218,7 @@ route 统一验证优先（直连→正交肘→lane 双侧×错层）；边标�
 - **raincloud KDE 边界裁剪**（AF27）：全正值数据密度云裁剪到数据范围
   （原尾部越过 0 伸入无意义负值区）。
 - **PCA 载荷箭头色入主题**（AF33）：theme["colors"][-1]（原硬编码 #E8A33D
-  琥珀+标签 #8a6414 不随 --theme）。591 测试（TestV79100 十项新锁）。
+  琥珀+标签 #8a6414 不随 --theme）。591 测试（TestV70901 十项新锁）。
 
 ## 7.8.1 — 2026-11-14
 
@@ -279,7 +279,7 @@ route 统一验证优先（直连→正交肘→lane 双侧×错层）；边标�
   默认主题 glm-brand 不变（品牌视觉），主题字典如实标注 colorblind_safe=False。
 - **可读性小修**：哑铃图连接线 #BBBBBB→#999999（细元素亮度）；--explain ridgeline/km/
   volcano 形态补全（datasets 字典结构/患者级原始数据形态/轴标覆盖）；limits 登记 --vmax
-  压标度语义。581 测试（TestV79000 九项新锁）。
+  压标度语义。581 测试（TestV70900 九项新锁）。
 
 ## 7.8.2 — 2026-11-14
 
@@ -341,7 +341,7 @@ per-bar 异质填充循环（橙白斜纹/蓝白点纹/紫白斜纹）+冠军柱
 风格优先；多系列/横向/单值 bar 不受影响且无提示噪声。`--suggest` bar 类推荐附带
 「基准榜单场景推荐 --style sketch 手绘风」配方提示。SKILL 双语/cheatsheet/limits/
 antipatterns/CHART_NOTES/域表六处同步；SKILL 双语近期版本行陈旧修正（原停留 v6.7.0）；
-TestV77000 十项锁。
+TestV70700 十项锁。
 
 ## 7.1.0 — 2026-11-04
 
@@ -469,7 +469,7 @@ CSV 误差列约定（官方评测点名缺口收口）：列名 `X_se/X_sem/X_s
 cif `cause_labels` 键一致性守卫：错码（数据中不存在的事件码）→ exit 3
 可搜索中文报错；在场的竞争码缺标签 → 默认名+stderr 软提示。全谱审计
 （10-24）确认引擎三类标签配对方式中唯一键间接映射点（cause_labels）
-无守卫，同日补防。电池 TestV59100 三态锁（错码/缺标/正常）。
+无守卫，同日补防。电池 TestV50901 三态锁（错码/缺标/正常）。
 
 ## 5.9.0 — 2026-10-23
 
@@ -774,7 +774,7 @@ galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整�
     quickstart step 1 now also points non-Python users to the cloud edition.
   - `templates/raincloud.json` (27 templates); docs updated to 27 chart types
     across SKILL bilingual/README/quickstart/cheatsheet/data-formats.
-  - Tests: +TestV49000 (E2E render, validate fatals, registry count 27, demo
+  - Tests: +TestV40900 (E2E render, validate fatals, registry count 27, demo
     render, suggest routing, zero-variance degradation); template lock 26→27;
     suite at 335 green.
 
@@ -812,7 +812,7 @@ galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整�
     realworld_oncology_waterfall.json` (NSCLC II期 n=26 RECIST-consistent),
     docs updated to 26 chart types across SKILL bilingual/README/quickstart/
     cheatsheet/data-formats.
-  - Tests: +TestV48000 (E2E group mode, bucket mode + show-values, validate
+  - Tests: +TestV40800 (E2E group mode, bucket mode + show-values, validate
     fatals, registry count 26, demo render, sort=input path, stderr fact
     line, no-false-warning lock, --alt content lock, threshold-equality +
     NaN lock, 26-patient label-survival lock); realworld lock 3→4; suite at
@@ -860,7 +860,7 @@ galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整�
     templates/upset.json; venn ≥5-set error points to `-t upset`; venn/comboguide
     recipes and realworld `_command`s verified runnable;
     `gen_slope`/`gen_volcano`/`gen_upset` re-exported from gen_figure.
-  - Tests: +TestV47000 (upset E2E render, validate fatals, registry count 25,
+  - Tests: +TestV40700 (upset E2E render, validate fatals, registry count 25,
     demo-data render, suggest routing, composite-panel rejection, new reference
     docs present); template count lock 24→25; suite at 318 green.
 
@@ -1620,7 +1620,7 @@ galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整�
     环境门槛一键路径；默认行为不变（仅检测不装，供应链安全）。quickstart 第一步
     补零 Python 用户云端版引导。
   - 模板 raincloud.json（27 模板）；全文档 27 种图型同步。
-  - 测试：+TestV49000（E2E/fatal/注册表 27/demo/suggest/零方差退化）；模板锁 26→27；
+  - 测试：+TestV40900（E2E/fatal/注册表 27/demo/suggest/零方差退化）；模板锁 26→27；
     全量 335 绿。
 - **v4.8.0**（2026-10-10）—— 新图型 #26 `waterfall` 肿瘤缓解瀑布图：
   - **`waterfall`**：每例（患者）自基线最佳变化%一柱，经典降序形态（并列按输入序，
@@ -1642,7 +1642,7 @@ galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整�
     mcp af_engine 同步（waterfall）+MCP 文档去掉硬编码「23」。
   - 向导新增「每例最佳缓解百分比」形状。模板 waterfall.json（26 模板）+
     realworld NSCLC II 期 n=26（RECIST 自洽）示例；全文档 26 种图型计数同步。
-  - 测试：+TestV48000 11 项（分组 E2E/分桶+show-values/fatal/注册表 26/demo
+  - 测试：+TestV40800 11 项（分组 E2E/分桶+show-values/fatal/注册表 26/demo
     直渲/sort=input/stderr 事实行/假警告锁/--alt 内容锁/阈值等值+NaN 锁/
     26 例标签存活锁）；realworld 锁 3→4；全量 329 绿。
 
@@ -1665,7 +1665,7 @@ galbraith 弧线-读数原子性 hotfix：弧线因碰撞被跳过读数时整�
     [ignored] 提示；--alt 新增 volcano/slope/upset 有信息量描述；向导 upset 指向
     templates/upset.json；venn ≥5 集合报错指路 -t upset；组合配方与 realworld
     _command 逐字验证可执行；gen_slope/gen_volcano/gen_upset 经 gen_figure 再导出。
-  - **limits.md 速查表**前置。测试 +TestV47000 共 318 绿。
+  - **limits.md 速查表**前置。测试 +TestV40700 共 318 绿。
 
 - **v2.8.0**（2026-09-17）— 看门狗与上手零门槛（对标 v2.7.0 评测最低项：稳定性 4.3、文档偏长、异常覆盖）：
   - **渲染看门狗**：按图型与数据量自适应预算（30~1800s，`--timeout N` 覆盖、`0` 禁用）；超时输出中文三段式诊断并强制中断（退出码 5）——不再无限挂起。

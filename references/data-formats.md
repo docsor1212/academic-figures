@@ -696,7 +696,7 @@ Draw colored blocks connected by arrows, with optional group boxes and annotatio
 }
 ```
 
-- `layout`：`chain` 横链（--width 铺满）/ `layered` 分层（TB 自上而下，barycenter 对齐）/ `snake` 环绕折行（`columns` 2-8 指定每行节点数，长链宽高比 ~2:1 版心缩放后字号可读）/ `swimlane` 泳道（v8.1.0：TB=垂直列+LR=水平行带（左竖排标题，行间隙走廊路由）；`"lanes"` 名称列表 + 节点 `"lane"` 归属；背景条+标题自动绘制；跨 lane 边照常路由；往返对总线分离/斜边端点贴合/分隔带 keep-out 机械闸化）；`"legend": true|false` 边样式图例开关（v8.1.1：缺省=含 dashed/thick/bidirectional 混合样式时自动出现，画布底部专用条带+底色自适应反色）
+- `layout`：`chain` 横链（--width 铺满）/ `layered` 分层（TB 自上而下，barycenter 对齐）/ `snake` 环绕折行（`columns` 2-8 指定每行节点数，长链宽高比 ~2:1 版心缩放后字号可读）/ `swimlane` 泳道（v8.1.0：TB=垂直列+LR=水平行带（左竖排标题，行间隙走廊路由）；`"lanes"` 名称列表 + 节点 `"lane"` 归属；背景条+标题自动绘制；跨 lane 边照常路由；往返对总线分离/斜边端点贴合/分隔带 keep-out 机械闸化）；`"legend": true|false` 边样式图例开关（v8.1.0：缺省=含 dashed/thick/bidirectional 混合样式时自动出现，画布底部专用条带+底色自适应反色）
 - mermaid 导入（v8.1.0）：`--from-mermaid file.mmd -t flow` —— 形状/边型全映射；TB 方向 subgraph→泳道直通（v8.1.0），LR/BT/RL subgraph→分组框（layered 虚线框）诚实降级（`[/x/]`→io、`{x}`→diamond、`[(x)]`→cylinder、`[[x]]`→predefined、`-.->`→dashed、`==>`→thick、`<-->`→bidirectional）；样式行与图标/图片节点不支持（exit 3 显式报错）；QC 边车 `--dump-flow-routes PATH`（渲染后落盘路由/块几何快照 JSON，几何闸测试真值源）
 - `font_size`（可选）：数据级字号 6-40（按目标版心宽反推，如 12in 横幅投 6.5in 版心用 16 → 落版约 8.5pt）
 - 节点 `shape`（v8.0.5，14 种+别名）：
