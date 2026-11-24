@@ -25,7 +25,7 @@ ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
   version: 8.1.5
-  date: 2026-11-26
+  date: 2026-11-27
   author: docsor1212
   lang: zh
   metadata: {clawdbot: {emoji: "📊", category: visualization}}
