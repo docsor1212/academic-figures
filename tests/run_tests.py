@@ -10438,8 +10438,8 @@ def _cl_problems(slim, full, window=3):
 class TestV80102ChangelogLock(unittest.TestCase):
     """v8.1.2 变更日志结构锁：changelog.md=版本索引+最近三版详情；changelog-full.md=其余
     版本（每版本一节、降序）+旧格式历史尾段；索引↔详情一一对应。背景：存档经多次下沉后
-    11 个版本各有两份不同写法的稿、开头乱序（LES-20261124-006）。整理器
-    ~/release_tools/af_changelog_sink.py——发版加了新条目后跑一次。变异验证内置：
+    11 个版本各有两份不同写法的稿、开头乱序。
+    发版加了新条目后，要把掉出「最近三版」的节下沉到存档。变异验证内置：
     test_lock_catches_breakage 拿人为弄坏的两份文本喂同一把锁。"""
 
     @classmethod
