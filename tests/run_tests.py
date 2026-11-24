@@ -10224,6 +10224,65 @@ class TestV80100RoutingLabels(unittest.TestCase):
         self.assertIsInstance(g["gap_tracks"], list)
 
 
+class TestV80101PortMargin(unittest.TestCase):
+    """v8.1.1 端口离框角余量：落在节点包围盒直边线上的出入点，离包围盒两端 ≥0.12in
+    （箭头半宽 0.10in——旧余量 0.06 时箭头翼片探出框角）。以 CLI --dump-flow-routes
+    边车为准，八套模板各渲染一次（setUpClass 缓存）。变异验证：余量改回 0.06 本类
+    必须失败（泳道主图 rework 回边进 TLF 的端口离框底只有 0.06）。"""
+
+    _TPL = ("flow_swimlane-clinical", "flow_swimlane-incident", "flow_swimlane-lr-journal",
+            "flow_decision-antiinfective", "flow_approval-ethics", "flow_method-scrnaseq",
+            "flow_contrast-twomethods", "flow_state-cellcycle")
+    _CURVED = ("terminal", "delay", "cylinder")
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cls.geom = {}
+        with tempfile.TemporaryDirectory() as td:
+            for name in cls._TPL:
+                gp = os.path.join(td, name + ".json")
+                op = os.path.join(td, name + ".png")
+                r = subprocess.run(
+                    [sys.executable, GEN, "-t", "flow", "-d",
+                     os.path.join(cls.root, "templates", name + ".json"),
+                     "--gate", "strict", "--dump-flow-routes", gp, "-o", op],
+                    capture_output=True, text=True, timeout=300)
+                if r.returncode != 0:
+                    raise AssertionError(f"{name} 渲染失败: {r.stderr[-300:]}")
+                cls.geom[name] = json.load(open(gp, encoding="utf-8"))
+
+    def _ends(self):
+        """产出 (图名, 边, 节点 id, 出入点, 包围盒, 形状, 所在边)。"""
+        for name, g in self.geom.items():
+            bb = {b["id"]: (b["x"], b["y"], b["x"] + b["w"], b["y"] + b["h"])
+                  for b in g["blocks"]}
+            sh = {b["id"]: b.get("shape", "round") for b in g["blocks"]}
+            for r in g["routes"]:
+                P = r["pts"]
+                for nid, pt in ((r["from"], P[0]), (r["to"], P[-1])):
+                    if nid not in bb or sh[nid] in self._CURVED:
+                        continue
+                    x0, y0, x1, y1 = bb[nid]
+                    side = None
+                    if min(abs(pt[0] - x0), abs(pt[0] - x1)) <= 0.04:
+                        side = "v"          # 左/右边（出入点在竖直边线上）
+                    elif min(abs(pt[1] - y0), abs(pt[1] - y1)) <= 0.04:
+                        side = "h"          # 上/边（出入点在水平边线上）
+                    if side:
+                        yield name, f"{r['from']}->{r['to']}", nid, pt, bb[nid], sh[nid], side
+
+    def test_ports_clear_of_box_ends(self):
+        """出入点离所在边的两端 ≥0.12in（斜边形状的顶点/斜边上的出入点不在此列）。"""
+        bad = []
+        for name, edge, nid, pt, (x0, y0, x1, y1), _sh, side in self._ends():
+            if side == "v" and not (y0 + 0.12 - 1e-6 <= pt[1] <= y1 - 0.12 + 1e-6):
+                bad.append(f"{name} {edge} 在 {nid} 侧边 y={pt[1]:.2f}（框 y[{y0:.2f},{y1:.2f}]）")
+            if side == "h" and not (x0 + 0.12 - 1e-6 <= pt[0] <= x1 - 0.12 + 1e-6):
+                bad.append(f"{name} {edge} 在 {nid} 顶/底边 x={pt[0]:.2f}（框 x[{x0:.2f},{x1:.2f}]）")
+        self.assertEqual(bad, [], "出入点离框角不足 0.12in：\n" + "\n".join(bad))
+
+
 class TestV80100EdgeLegend(unittest.TestCase):
     """v8.1.0 边样式图例：混合样式自动开/legend:false 关/非布尔 fatal/
     E2E strict+图例像素在场（白条带+反色文字）。"""
