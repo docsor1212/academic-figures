@@ -2742,6 +2742,17 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                 _hop_map.setdefault((_i, _ka), []).append((min(max(_tt, 0.0), 1.0), _ip))
         print(f"[flow-hops] {sum(len(v) for v in _hop_map.values())} crossing(s) hopped",
               file=sys.stderr)
+    # 屏幕比例（像素/数据单位）：跳弧要画成屏幕正圆（数据坐标里 x/y 比例不同，
+    # 直接用数据半径画出来是椭圆——虚线上的椭圆弧回摆会与下一根虚线粘连成
+    # 「泪滴」，评审 R1 实锤）。渲染器尚未落图时用 get_renderer 现取。
+    _hop_sx = _hop_sy = None
+    if hops:
+        try:
+            _ren = fig.canvas.get_renderer()
+            _ta, _tb = ax.transData.transform((0, 0)), ax.transData.transform((1, 1))
+            _hop_sx, _hop_sy = abs(_tb[0] - _ta[0]) or 1.0, abs(_tb[1] - _ta[1]) or 1.0
+        except Exception:
+            _hop_sx = _hop_sy = None
 
     for _ei, (e, pts) in enumerate(route_meta):
         col = e.get("color", arrow_color)
@@ -2763,21 +2774,28 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
             _A, _B = _P[_k], _P[_k + 1]
             _hl = math.hypot(_B[0] - _A[0], _B[1] - _A[1]) or 1e-9
             for (_t, _ip) in sorted(_hop_map.get((_ei, _k), []), key=lambda z: z[0]):
-                _r = 0.055
-                _g = _r / _hl
+                if _hop_sx is None:
+                    continue                       # 拿不到屏幕比例：保持直线交叉
+                _rin = 0.055 * fig.dpi             # 屏幕半径（像素）=0.055in
+                _ux, _uy = (_B[0] - _A[0]) / _hl, (_B[1] - _A[1]) / _hl
+                _su = math.hypot(_ux * _hop_sx, _uy * _hop_sy) or 1.0   # 沿线像素/数据
+                _usx, _usy = _ux * _hop_sx / _su, _uy * _hop_sy / _su   # 屏幕单位方向
+                _nsx, _nsy = -_usy, _usx
+                # 断口参数 = R_in/|沿线像素|/段长（参数空间）
+                _g = _rin / _su / _hl
                 if _g * 2 >= 0.8:
                     continue                       # 段太短放不下跳弧：放弃
                 _a = (_A[0] + (_B[0] - _A[0]) * (_t - _g),
                       _A[1] + (_B[1] - _A[1]) * (_t - _g))
                 _b = (_A[0] + (_B[0] - _A[0]) * (_t + _g),
                       _A[1] + (_B[1] - _A[1]) * (_t + _g))
-                _nv = (-( _B[1] - _A[1]) / _hl * _r, (_B[0] - _A[0]) / _hl * _r)
                 _arc = []
                 for _s in range(11):
                     _cs = math.cos(math.pi * _s / 10)
                     _sn = math.sin(math.pi * _s / 10)
-                    _arc.append((_ip[0] + (_a[0] - _ip[0]) * _cs + _nv[0] * _sn,
-                                 _ip[1] + (_a[1] - _ip[1]) * _cs + _nv[1] * _sn))
+                    _dx = _rin * (_cs * _usx + _sn * _nsx) / _hop_sx
+                    _dy = _rin * (_cs * _usy + _sn * _nsy) / _hop_sy
+                    _arc.append((_ip[0] + _dx, _ip[1] + _dy))
                 _pieces[-1].append(_a)
                 _arcs.append(_arc)
                 _pieces.append([_b])
