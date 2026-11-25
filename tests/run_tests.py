@@ -2581,8 +2581,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.1.1", self.zh)
-        self.assertIn("version: 8.1.1", self.en)
+        self.assertIn("version: 8.1.2", self.zh)
+        self.assertIn("version: 8.1.2", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2679,8 +2679,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.1.1", self.zh)
-        self.assertIn("version: 8.1.1", self.en)
+        self.assertIn("version: 8.1.2", self.zh)
+        self.assertIn("version: 8.1.2", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2713,8 +2713,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.1.1", self.zh)
-        self.assertIn("version: 8.1.1", self.en)
+        self.assertIn("version: 8.1.2", self.zh)
+        self.assertIn("version: 8.1.2", self.en)
 
 
 
@@ -2781,7 +2781,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.1.1", zh)
+        self.assertIn("version: 8.1.2", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2954,7 +2954,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.1", t, name)
+            self.assertIn("version: 8.1.2", t, name)
 
 
 
@@ -3045,7 +3045,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.1", t, name)
+            self.assertIn("version: 8.1.2", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3166,7 +3166,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.1", t, name)
+            self.assertIn("version: 8.1.2", t, name)
 
 
 
@@ -3235,7 +3235,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.1", t, name)
+            self.assertIn("version: 8.1.2", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -6979,11 +6979,15 @@ class TestV70000(unittest.TestCase):
             self.assertIn("[ignored] --sig-auto", r.stderr)
 
     def test_changelog_dual_sections(self):
-        """changelog 必含 6.9.0（补写）与 7.0.0 双节（版本历史补全锁）。"""
+        """changelog 必含 6.9.0（补写）与 7.0.0 双节（版本历史补全锁）。
+
+        v8.1.2 起主文件只留最近三版，更早的详情在 changelog-full.md：两节必须在两份
+        文件合计各出现恰一次（带日期的节标题）——丢了或重复了都算。"""
         txt = self._rd(os.path.join("references", "changelog.md"))
-        self.assertIn("## 6.9.0 — 2026-11-02", txt)
-        self.assertIn("## 7.0.0 — 2026-11-03", txt)
         full = self._rd(os.path.join("references", "changelog-full.md"))
+        for head in ("## 6.9.0 — 2026-11-02", "## 7.0.0 — 2026-11-03"):
+            self.assertEqual(txt.count(head) + full.count(head), 1,
+                             f"{head!r} 应在两份文件合计恰出现一次")
         self.assertIn("## 6.9.0", full)
 
     def test_quickstart_csv_truth(self):
@@ -10374,6 +10378,112 @@ class TestV80100EdgeLegend(unittest.TestCase):
             self.assertGreater(non_white, 10000,
                                "图例条带应有可见的线样+文字像素")
 
+
+_CL_HEAD = re.compile(r"^## (\d+\.\d+\.\d+) — (\d{4}-\d{2}-\d{2})[ \t]*$", re.M)
+_CL_ROW = re.compile(r"^\|\s*\*{0,2}v(\d+\.\d+\.\d+)(（当前）)?\*{0,2}\s*\|\s*(\d{4}-\d{2}-\d{2})\s*\|", re.M)
+
+
+def _cl_problems(slim, full, window=3):
+    """变更日志结构问题（纯函数；空=合规）。v8.1.2 起的约定：changelog.md=版本索引+最近
+    window 版详情；changelog-full.md=其余全部版本（每版本一节、降序）+旧格式历史尾段。"""
+    def vt(v):
+        return tuple(int(x) for x in v.split("."))
+
+    probs = []
+    rows = _CL_ROW.findall(slim)
+    idx = [v for v, _, _ in rows]
+    if len(set(idx)) != len(idx):
+        probs.append("版本索引有重复行")
+    if any(vt(a) <= vt(b) for a, b in zip(idx, idx[1:])):
+        probs.append("版本索引不是降序")
+    if idx and f"**v{idx[0]}（当前）**" not in slim:
+        probs.append(f"当前版本 {idx[0]} 的索引行未标（当前）")
+    if slim.count("（当前）") != 1:
+        probs.append("索引里应有且只有一个（当前）标记")
+    date_of = {v: d for v, _, d in rows}
+    seen = {}
+    for name, txt in (("changelog.md", slim), ("changelog-full.md", full)):
+        hs = _CL_HEAD.findall(txt)
+        vs = [v for v, _ in hs]
+        if any(vt(a) <= vt(b) for a, b in zip(vs, vs[1:])):
+            probs.append(f"{name} 的详情节不是降序")
+        for v, d in hs:
+            if v not in date_of:
+                probs.append(f"{name} 里的 {v} 不在版本索引里")
+            elif d != date_of[v]:
+                probs.append(f"{name} 里 {v} 的日期与索引不一致（{d} vs {date_of[v]}）")
+            if v in seen:
+                probs.append(f"{v} 出现了两节（{seen[v]} 与 {name}）")
+            seen[v] = name
+    missing = [v for v in idx if v not in seen]
+    if missing:
+        probs.append("索引里有、但没有详情节的版本：" + "、".join(missing))
+    slim_v = [v for v, _ in _CL_HEAD.findall(slim)]
+    full_v = [v for v, _ in _CL_HEAD.findall(full)]
+    if slim_v != idx[:window]:
+        probs.append(f"changelog.md 的详情应是最近 {window} 版 {idx[:window]}，现为 {slim_v}"
+                     "（发版加新条目后跑 af_changelog_sink.py）")
+    if full_v != idx[window:]:
+        probs.append("changelog-full.md 的节应恰为索引里最近三版之后的全部版本，且顺序一致")
+    if "## English" not in full or "## 中文" not in full:
+        probs.append("changelog-full.md 缺旧格式历史尾段")
+    else:
+        if _CL_HEAD.findall(full[full.find("## English"):]):
+            probs.append("旧格式尾段之后不应再有版本节")
+        if len(re.findall(r"(?m)^### v\d+\.\d+\.\d+（", full)) != 16:
+            probs.append("旧格式尾段的条目数不是 16（丢了内容或误并）")
+    return probs
+
+
+class TestV80102ChangelogLock(unittest.TestCase):
+    """v8.1.2 变更日志结构锁：changelog.md=版本索引+最近三版详情；changelog-full.md=其余
+    版本（每版本一节、降序）+旧格式历史尾段；索引↔详情一一对应。背景：存档经多次下沉后
+    11 个版本各有两份不同写法的稿、开头乱序。
+    发版加了新条目后，要把掉出「最近三版」的节下沉到存档。变异验证内置：
+    test_lock_catches_breakage 拿人为弄坏的两份文本喂同一把锁。"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "references")
+        cls.slim = io.open(os.path.join(cls.root, "changelog.md"), encoding="utf-8").read()
+        cls.full = io.open(os.path.join(cls.root, "changelog-full.md"), encoding="utf-8").read()
+
+    def test_structure_compliant(self):
+        """两份文件当前合规，且主文件 <400 行。"""
+        self.assertEqual(_cl_problems(self.slim, self.full), [])
+        self.assertLess(len(self.slim.split("\n")), 400)
+
+    def test_lock_catches_breakage(self):
+        """人为弄坏 → 锁必须报出来（重复节/多出的节/缺节/日期不符/窗口没滚/乱序/尾段丢/标记丢）。"""
+        slim, full = self.slim, self.full
+        self.assertEqual(_cl_problems(slim, full), [], "以合规文本为基准")
+        hs = _CL_HEAD.findall(full)
+        vs = [v for v, _ in hs]
+        v0, d0 = hs[0]
+        sec = lambda v, src: re.search(r"(?ms)^## " + re.escape(v) + r" — .*?(?=^## )", src)
+        self.assertIsNotNone(sec(vs[1], full) and sec(v0, full) and sec(vs[-1], full))
+        catches = lambda p, key: any(key in x for x in _cl_problems(*p))
+        # ① 重复下沉：存档里再贴一份某节
+        self.assertTrue(catches((slim, full + sec(vs[1], full).group(0)), "出现了两节"), "重复节")
+        # ② 索引里没有的版本
+        self.assertTrue(catches((slim, full + "\n## 9.9.9 — 2026-12-31\n\nx\n"), "不在版本索引里"), "多出的节")
+        # ③ 缺节：删掉存档最后一节
+        self.assertTrue(catches((slim, full.replace(sec(vs[-1], full).group(0), "", 1)), "没有详情节的版本"), "缺节")
+        # ④ 日期与索引不符
+        self.assertTrue(catches((slim, full.replace(f"## {v0} — {d0}", f"## {v0} — 1999-01-01", 1)),
+                                "日期与索引不一致"), "日期不符")
+        # ⑤ 窗口没滚：存档第一节被贴回主文件（发版后忘了跑整理器）
+        self.assertTrue(catches((slim + sec(v0, full).group(0), full), "详情应是最近"), "窗口没滚")
+        # ⑥ 乱序：主文件详情的前两节对调
+        sv = [v for v, _ in _CL_HEAD.findall(slim)]
+        a, b = sec(sv[0], slim).group(0), sec(sv[1], slim).group(0)
+        swapped = slim.replace(a, "@@A@@", 1).replace(b, a, 1).replace("@@A@@", b, 1)
+        self.assertTrue(catches((swapped, full), "changelog.md 的详情节不是降序"), "乱序")
+        # ⑦ 旧格式尾段丢了
+        self.assertTrue(catches((slim, full[:full.find("> ↓ 以下为")]), "缺旧格式历史尾段"), "尾段丢失")
+        # ⑧ 当前版本标记丢了
+        self.assertTrue(catches((slim.replace(f"**v{sv[0]}（当前）**", f"v{sv[0]}", 1), full), "未标（当前）"), "标记丢失")
 
 if __name__ == "__main__":
     # v7.7.2 AF2（测试线差量方案）：--verbose 里程碑输出——全量 548 项 ~460s
