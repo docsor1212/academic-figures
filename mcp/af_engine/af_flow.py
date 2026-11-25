@@ -605,6 +605,17 @@ def magnet(src, dst, attach_in=0, attach_out=0, force_key=None):
     # v8.0.9 端点列钳制（同 H 分支行钳制：错层过大时 x 出 bbox=悬浮）
     sx = min(max(sx, sx0 + 0.12), sx1 - 0.12)      # v8.1.1 同上：顶/底端口离框角 ≥0.12in
     dx = min(max(dx, dx0 + 0.12), dx1 - 0.12)
+    # v8.1.3 入列避开源节点侧尖顶点：菱形/六边形/IO 等的左右顶点就在 bbox 竖边
+    # 上，入列（竖段）距顶点 <0.10in 读作贴着尖角走（decision「Low」边竖段离
+    # 菱形左顶点 0.045in，评审 minor）。外推到 0.10in 净空；外推后落在目标边
+    # 内才生效，否则维持原值（窄目标的候选不因净空而消失）。
+    if resolve_shape(src.get("shape", "round")) in (
+            "diamond", "hexagon", "io", "manual-op", "manual-input"):
+        for _vx in (sx0, sx1):
+            if abs(dx - _vx) < 0.10:
+                _dx2 = _vx - 0.10 if dx <= _vx else _vx + 0.10
+                if dx0 + 0.12 <= _dx2 <= dx1 - 0.12:
+                    dx = _dx2
     # v8.0.5 边贴合：非平顶/平底形状（斜顶/顶点/收腰）入出点按**实际轮廓
     # 高度**取——at_t/at_b 语义=该 x 处轮廓边的 y 分数（1.0=bbox 顶 dy1，
     # 0.0=bbox 底 dy0）。入点在边外 |EDGE_NIB| 处，出点在边线上。
@@ -2716,7 +2727,11 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                                   (_base[0] - _px * HEAD_LEN * 0.42,
                                    _base[1] - _py * HEAD_LEN * 0.42)],
                                  closed=True, facecolor=col, edgecolor=col,
-                                 lw=0.4, zorder=5))
+                                 lw=0.4, zorder=2.5))
+        # v8.1.3：箭头三角 zorder 5→2.5（连线 2 之上、节点 3 之下）——浅斜边上
+        # 水平进入时翼片会探入节点 0.027in（mermaid 复查箭头实测），探入部分
+        # 由节点填充盖住；尖端停在描边外沿（EDGE_NIB）不受影响。连线穿节点
+        # 本来就是路由硬禁，节点置顶不会遮住任何合法线段。
         # bidirectional=True：起点反向箭头（双头）。apex 与终点头同纪律负咬合
         # （v8.0.5 补：apex=_tail 裸压源框边线=600dpi 刺描边同型缺陷）
         if e.get("bidirectional"):
@@ -2727,7 +2742,7 @@ def render(ax, fig, blocks, arrows, groups=(), annotations=(), theme=None,
                                   (_b2[0] - _px * HEAD_LEN * 0.42,
                                    _b2[1] - _py * HEAD_LEN * 0.42)],
                                  closed=True, facecolor=col, edgecolor=col,
-                                 lw=0.4, zorder=5))
+                                 lw=0.4, zorder=2.5))
         if e.get("label"):
             fp_e = cjk_fp if cjk_fp and has_cjk_local(e["label"]) else None
             # 白底标签只避让**其他边**的线段（自身段有白垫可贴线，graphviz 同款）
