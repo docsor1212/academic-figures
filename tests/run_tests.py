@@ -2581,8 +2581,8 @@ class TestV20900DocsAndAdvisories(unittest.TestCase):
         self.assertIn("references/quickstart.md", self.en)
         self.assertIn("分组比较", self.zh)          # 精简映射保留（trigger 面）
         self.assertIn("Group comparison", self.en)
-        self.assertIn("version: 8.1.4", self.zh)
-        self.assertIn("version: 8.1.4", self.en)
+        self.assertIn("version: 8.1.5", self.zh)
+        self.assertIn("version: 8.1.5", self.en)
 
     def test_cluster_advisory_preflight(self):
         data = {"matrix": [[float(i), float(i) + 1] for i in range(1600)]}
@@ -2679,8 +2679,8 @@ class TestV30000Docs(unittest.TestCase):
         self.assertIn("prescription-level pages are gated", self.en)
 
     def test_version_2100(self):
-        self.assertIn("version: 8.1.4", self.zh)
-        self.assertIn("version: 8.1.4", self.en)
+        self.assertIn("version: 8.1.5", self.zh)
+        self.assertIn("version: 8.1.5", self.en)
         self.assertNotIn("version: 2.9.0", self.zh)
         self.assertNotIn("version: 2.9.0", self.en)
 
@@ -2713,8 +2713,8 @@ class TestV30000Docs(unittest.TestCase):
 
 
     def test_version_current(self):
-        self.assertIn("version: 8.1.4", self.zh)
-        self.assertIn("version: 8.1.4", self.en)
+        self.assertIn("version: 8.1.5", self.zh)
+        self.assertIn("version: 8.1.5", self.en)
 
 
 
@@ -2781,7 +2781,7 @@ class TestV30100(unittest.TestCase):
         zh = io.open(os.path.join(root, "SKILL_ZH.md"), encoding="utf-8").read()
         lim = io.open(os.path.join(root, "references", "limits.md"), encoding="utf-8").read()
         df = io.open(os.path.join(root, "references", "data-formats.md"), encoding="utf-8").read()
-        self.assertIn("version: 8.1.4", zh)
+        self.assertIn("version: 8.1.5", zh)
         self.assertIn("--quick", zh)
         self.assertIn("行自动降采样", zh)
         self.assertIn("性能参考表", lim)
@@ -2954,7 +2954,7 @@ class TestV30300(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.4", t, name)
+            self.assertIn("version: 8.1.5", t, name)
 
 
 
@@ -3045,7 +3045,7 @@ class TestV30400(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.4", t, name)
+            self.assertIn("version: 8.1.5", t, name)
             self.assertIn("--direct-label", t, name)
 
 
@@ -3166,7 +3166,7 @@ class TestV30600(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.4", t, name)
+            self.assertIn("version: 8.1.5", t, name)
 
 
 
@@ -3235,7 +3235,7 @@ class TestV30800(unittest.TestCase):
         root = os.path.dirname(SCRIPT_DIR)
         for name in ("SKILL.md", "SKILL_ZH.md"):
             t = io.open(os.path.join(root, name), encoding="utf-8").read()
-            self.assertIn("version: 8.1.4", t, name)
+            self.assertIn("version: 8.1.5", t, name)
             self.assertIn("--pub-ready", t, name)
 
 
@@ -10285,6 +10285,51 @@ class TestV80101PortMargin(unittest.TestCase):
             if side == "h" and not (x0 + 0.12 - 1e-6 <= pt[0] <= x1 - 0.12 + 1e-6):
                 bad.append(f"{name} {edge} 在 {nid} 顶/底边 x={pt[0]:.2f}（框 x[{x0:.2f},{x1:.2f}]）")
         self.assertEqual(bad, [], "出入点离框角不足 0.12in：\n" + "\n".join(bad))
+
+
+class TestV80105(unittest.TestCase):
+    """v8.1.5 --flow-hops 交叉跳线（默认 off）：
+
+    ① off（默认）与不带旗标逐字节相同（基线零变化）；
+    ② on 时决策模板（含旁路线交叉）stderr 报告 ≥1 处跳线，且 PNG 与 off 不同；
+    变异验证：把渲染循环里的跳点查找禁用后 ② 失败（跳线数变 0）。
+    """
+
+    _TPL = "flow_decision-antiinfective"
+
+    @classmethod
+    def setUpClass(cls):
+        cls.root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        cls.td = tempfile.mkdtemp(prefix="af815_")
+        outs = {}
+        for tag, extra in (("off_none", []), ("off_flag", ["--flow-hops", "off"]),
+                           ("on", ["--flow-hops", "on"])):
+            op = os.path.join(cls.td, tag + ".png")
+            r = subprocess.run(
+                [sys.executable, GEN, "-t", "flow", "-d",
+                 os.path.join(cls.root, "templates", cls._TPL + ".json"),
+                 "--gate", "strict", *extra, "-o", op],
+                capture_output=True, text=True, timeout=300)
+            if r.returncode != 0:
+                raise AssertionError(f"{tag} 渲染失败: {r.stderr[-300:]}")
+            outs[tag] = (op, r.stderr)
+        cls.outs = outs
+
+    def test_off_default_byte_identical(self):
+        """不带旗标与 --flow-hops off 逐字节相同（默认即 off）。"""
+        a = io.open(self.outs["off_none"][0], "rb").read()
+        b = io.open(self.outs["off_flag"][0], "rb").read()
+        self.assertEqual(a, b, "off 两种形式应逐字节一致")
+
+    def test_on_reports_and_differs(self):
+        """on 时 stderr 报跳线数 ≥1，且 PNG 与 off 不同。"""
+        err = self.outs["on"][1]
+        m = re.search(r"\[flow-hops\] (\d+) crossing", err)
+        self.assertIsNotNone(m, f"stderr 缺 [flow-hops] 报告：{err[-200:]}")
+        self.assertGreaterEqual(int(m.group(1)), 1, "决策模板应至少 1 处交叉被跳线")
+        a = io.open(self.outs["off_none"][0], "rb").read()
+        b = io.open(self.outs["on"][0], "rb").read()
+        self.assertNotEqual(a, b, "on 与 off 的 PNG 应不同（跳弧改变像素）")
 
 
 class TestV80104(unittest.TestCase):
