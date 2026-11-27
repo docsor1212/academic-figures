@@ -24,7 +24,7 @@ when_to_use: >-
 ZCode 技能自动发现只读 frontmatter 白名单键（name/description/when_to_use/
 license/metadata），description 超 1024 字符被静默丢弃（v2.x 失效根因）。
 移出键（信息不丢失）：
-  version: 8.1.5
+  version: 8.1.6
   date: 2026-11-27
   author: docsor1212
   lang: zh
@@ -368,7 +368,7 @@ matplotlib/numpy/pymupdf/scipy 四依赖并镜像回退）；自动行为（降�
 
 ## 版本历史
 
-完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v8.0.0** flow 语义流程图+引擎重写；更早版本见 changelog。
+完整双语版本历史见 `references/changelog.md`（版本索引+最近版本详情；完整存档 `references/changelog-full.md`）。近期：**v8.1.5** `--flow-hops` 交叉跳线；**v8.1.4** 学术标准流程模板（PRISMA/CONSORT/STROBE/STARD）；**v8.1.3** 端点净空；**v8.1.2** 变更日志归档整理；**v8.1.1** 端口离框角净空；**v8.1.0** 泳道布局+mermaid 导入+边样式图例+路由/标签重做；**v8.0.0** flow 语义流程图+引擎重写；更早版本见 changelog。
 
 ## 🚀 进阶版：论文配图一键生成 Pro
 
